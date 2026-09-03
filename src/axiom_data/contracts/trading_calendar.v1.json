@@ -1,0 +1,17 @@
+{
+  "contract_version": "trading_calendar.v1",
+  "domain": "trading_calendar",
+  "primary_key": ["exchange", "session"],
+  "sort_order": ["session", "exchange"],
+  "fields": [
+    {"name": "exchange", "type": "string", "nullable": false, "unit": null},
+    {"name": "session", "type": "date", "nullable": false, "unit": "Asia/Shanghai trading session"},
+    {"name": "is_open", "type": "bool", "nullable": false, "unit": null},
+    {"name": "previous_open_session", "type": "date", "nullable": true, "unit": "Asia/Shanghai trading session"}
+  ],
+  "validation": [
+    "primary keys are unique",
+    "rows are emitted in declared sort order",
+    "previous_open_session is earlier than session when present"
+  ]
+}

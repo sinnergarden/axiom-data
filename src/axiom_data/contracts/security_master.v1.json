@@ -1,0 +1,18 @@
+{
+  "contract_version": "security_master.v1",
+  "domain": "security_master",
+  "primary_key": ["symbol"],
+  "sort_order": ["symbol"],
+  "fields": [
+    {"name": "symbol", "type": "string", "nullable": false, "unit": "exchange-qualified security code"},
+    {"name": "exchange", "type": "string", "nullable": false, "unit": null},
+    {"name": "list_session", "type": "date", "nullable": true, "unit": "Asia/Shanghai trading session"},
+    {"name": "delist_session", "type": "date", "nullable": true, "unit": "Asia/Shanghai trading session"},
+    {"name": "status", "type": "string", "nullable": false, "unit": "supplier listing status code"}
+  ],
+  "validation": [
+    "primary keys are unique",
+    "rows are emitted in declared sort order",
+    "delist_session is not earlier than list_session when both are present"
+  ]
+}

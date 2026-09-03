@@ -1,0 +1,42 @@
+{
+  "contract_version": "market_daily.v1",
+  "domain": "market_daily",
+  "primary_key": ["session", "symbol"],
+  "sort_order": ["session", "symbol"],
+  "fields": [
+    {"name": "session", "type": "date", "nullable": false, "unit": "Asia/Shanghai trading session"},
+    {"name": "symbol", "type": "string", "nullable": false, "unit": "exchange-qualified security code"},
+    {"name": "open", "type": "float64", "nullable": true, "unit": "CNY/share, unadjusted"},
+    {"name": "high", "type": "float64", "nullable": true, "unit": "CNY/share, unadjusted"},
+    {"name": "low", "type": "float64", "nullable": true, "unit": "CNY/share, unadjusted"},
+    {"name": "close", "type": "float64", "nullable": true, "unit": "CNY/share, unadjusted"},
+    {"name": "pre_close", "type": "float64", "nullable": true, "unit": "CNY/share, unadjusted"},
+    {"name": "volume_shares", "type": "int64", "nullable": true, "unit": "shares"},
+    {"name": "amount_cny", "type": "float64", "nullable": true, "unit": "CNY"},
+    {"name": "adj_factor", "type": "float64", "nullable": true, "unit": "dimensionless supplier adjustment factor"},
+    {"name": "up_limit", "type": "float64", "nullable": true, "unit": "CNY/share, unadjusted"},
+    {"name": "down_limit", "type": "float64", "nullable": true, "unit": "CNY/share, unadjusted"},
+    {"name": "is_suspended", "type": "bool", "nullable": false, "unit": null},
+    {"name": "turnover_rate", "type": "float64", "nullable": true, "unit": "percent"},
+    {"name": "total_market_cap_cny", "type": "float64", "nullable": true, "unit": "CNY"},
+    {"name": "float_market_cap_cny", "type": "float64", "nullable": true, "unit": "CNY"}
+  ],
+  "normalization": {
+    "dates": "ISO-8601 date values without time-of-day",
+    "symbol": "uppercase supplier code with exchange suffix",
+    "volume_shares": "Tushare vol is multiplied by 100 to convert lots to shares",
+    "amount_cny": "Tushare amount is multiplied by 1000 to convert thousand CNY to CNY",
+    "market_cap_cny": "Tushare total_mv and circ_mv are multiplied by 10000 to convert ten-thousand CNY to CNY",
+    "is_suspended": "only an explicit supplier suspension record sets true; an absent daily row is not reclassified as suspension"
+  },
+  "validation": [
+    "primary keys are unique",
+    "rows are emitted in declared sort order",
+    "open, high, low, close, pre_close, volume_shares, amount_cny, total_market_cap_cny, float_market_cap_cny, up_limit, and down_limit are non-negative when present",
+    "high is not below open, close, or low when all values are present",
+    "low is not above open, close, or high when all values are present",
+    "adj_factor is strictly positive when present",
+    "every session exists as an open trading_calendar session for the symbol exchange",
+    "session is within the security list and delist bounds when those bounds are present"
+  ]
+}
