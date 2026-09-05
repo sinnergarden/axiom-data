@@ -169,9 +169,12 @@ def _derived_identity(prefix: str, identity_digest: str) -> str:
 
 def _builder_implementation_ref(builder: object) -> dict[str, str]:
     implementation = f"{type(builder).__module__}.{type(builder).__qualname__}"
+    revision = getattr(builder, "implementation_revision", None)
+    if not isinstance(revision, str) or not revision:
+        raise ArtifactError("builder implementation must declare a controlled revision")
     descriptor = {
         "implementation": implementation,
-        "revision": _MARKET_BUILDER_REVISION,
+        "revision": revision,
     }
     return {**descriptor, "digest": _digest(_json_bytes(descriptor))}
 
@@ -661,6 +664,8 @@ def _validate_market_dependencies(
 
 class MarketDomainBuilder:
     """PR1 BuildExecutor that publishes one immutable Phase 1 market commit."""
+
+    implementation_revision = _MARKET_BUILDER_REVISION
 
     def __init__(
         self,

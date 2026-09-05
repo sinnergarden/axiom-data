@@ -28,7 +28,28 @@ from .build import (
     BuildRequest,
     DomainCommitRef,
 )
+from .consumption import (
+    MARKET_VIEW_FIELDS,
+    QlibView,
+    QlibViewReader,
+    QlibViewRef,
+    SnapshotReader,
+    build_qlib_view,
+    compare_direct_and_qlib,
+    load_qlib_view,
+)
 from .layout import DataRootLayout, LayoutError
+from .reconciliation import (
+    RECONCILIATION_CATEGORIES,
+    load_frozen_qsys_market,
+    reconcile_market,
+)
+from .tushare import (
+    TushareCollector,
+    TushareMarketBuilder,
+    canonical_market_observations,
+    load_tushare_source_profile,
+)
 
 __all__ = [
     "ArtifactConflictError",
@@ -45,16 +66,31 @@ __all__ = [
     "DomainCommit",
     "DomainCommitRef",
     "LayoutError",
+    "MARKET_VIEW_FIELDS",
     "MarketDomainBuilder",
+    "QlibView",
+    "QlibViewReader",
+    "QlibViewRef",
+    "RECONCILIATION_CATEGORIES",
     "RawBatch",
     "RawBatchRef",
+    "SnapshotReader",
+    "TushareCollector",
+    "TushareMarketBuilder",
+    "build_qlib_view",
+    "canonical_market_observations",
+    "compare_direct_and_qlib",
     "create_snapshot",
     "list_catalog",
     "load_domain_commit",
     "load_raw_batch",
+    "load_frozen_qsys_market",
+    "load_qlib_view",
     "load_snapshot",
+    "load_tushare_source_profile",
     "lookup_catalog",
     "rebuild_catalog",
+    "reconcile_market",
     "validate_domain_commit_closure",
     "write_raw_batch",
 ]

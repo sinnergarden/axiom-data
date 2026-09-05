@@ -14,3 +14,4 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "axiom_data.contracts" = ["*.json"]
+"axiom_data.source_profiles" = ["*.json"]

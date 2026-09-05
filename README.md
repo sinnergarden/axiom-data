@@ -2,9 +2,10 @@
 
 `axiom-data` is the data publication boundary for the Axiom project family. It
 turns frozen supplier inputs into immutable market domain commits and composes
-fixed data snapshots. Snapshot-bound export views are a later phase.
+fixed data snapshots. Phase 1 PR3 adds one bounded Snapshot-bound consumption
+and export proof.
 
-This branch contains Phase 1 PR2:
+This branch contains the Phase 1 PR3 market vertical slice:
 
 - explicit `trading_calendar.v1`, `security_master.v1`, and
   `market_daily.v1` schemas;
@@ -15,10 +16,28 @@ This branch contains Phase 1 PR2:
 - immutable three-domain DataSnapshots;
 - full parent/raw/dependency closure validation for formal resolution;
 - a disposable SQLite catalog rebuilt from manifests;
+- an allow-listed Tushare adapter and frozen endpoint SourceProfile;
+- a Snapshot-bound read-only market Reader;
+- an immutable Qlib-compatible day-frequency binary view;
+- direct/view equivalence, frozen-Qsys reconciliation, and RawBatch-only offline
+  rebuild evidence;
 - standard-library contract and artifact tests.
 
-There is no supplier network client, non-empty patch executor, Qlib exporter,
-compatibility reader, production pointer switch, or legacy dual-write in PR2.
+PR3 remains a fixed 20-security, one-year proof. It does not add a general
+supplier framework, non-empty patches, mutable pointers, legacy dual-write,
+research Features, or any post-market data domain.
+
+The committed reports under `reports/pr3/` record the reviewed real run without
+committing its full RawBatch payloads. `tests/fixtures/` contains only the small
+real listing/suspension samples needed for offline tests. Live collection reads
+the Tushare credential from `TUSHARE_TOKEN` or Tushare's existing local secure
+configuration; no credential is stored in this repository.
+
+The reviewed run is reproducible with `scripts/run_pr3_market_slice.py`; it
+requires two nonexistent temporary data-root paths, the frozen Qsys parquet
+path, and a report output directory. Collection is the only networked stage.
+The script copies only the resulting `raw/batches` closure into the second root
+before rebuilding every downstream artifact offline.
 
 ## Data root
 

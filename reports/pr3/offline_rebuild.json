@@ -1,0 +1,72 @@
+{
+  "artifact_identities_equal": true,
+  "canonical_rows_equal": true,
+  "catalog_entries": 50,
+  "copied_input": "published raw/batches closure only",
+  "direct_qlib_equivalence": {
+    "checks": {
+      "calendar": true,
+      "field_order": true,
+      "instrument_mapping": true,
+      "keys": true,
+      "snapshot": true,
+      "values_and_nulls": true
+    },
+    "direct_keys": 4858,
+    "fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "pre_close",
+      "volume_shares",
+      "amount_cny",
+      "adj_factor",
+      "up_limit",
+      "down_limit",
+      "is_suspended",
+      "turnover_rate",
+      "total_market_cap_cny",
+      "circulating_market_cap_cny"
+    ],
+    "mismatches": [],
+    "qlib_keys": 4858,
+    "relative_tolerance": 1e-06,
+    "scope": {
+      "end_session": "2025-12-31",
+      "interval": "closed",
+      "start_session": "2025-01-01",
+      "symbols": [
+        "600000.SH",
+        "600036.SH",
+        "600519.SH",
+        "600900.SH",
+        "601318.SH",
+        "601398.SH",
+        "601857.SH",
+        "603501.SH",
+        "688981.SH",
+        "603072.SH",
+        "000001.SZ",
+        "000002.SZ",
+        "000333.SZ",
+        "000651.SZ",
+        "000858.SZ",
+        "002415.SZ",
+        "002594.SZ",
+        "300059.SZ",
+        "300750.SZ",
+        "301581.SZ"
+      ]
+    },
+    "status": "PASS"
+  },
+  "network_calls": 0,
+  "starting_state": {
+    "canonical_exists": false,
+    "catalog_exists": false,
+    "qlib_exists": false,
+    "snapshots_exists": false
+  },
+  "status": "PASS"
+}

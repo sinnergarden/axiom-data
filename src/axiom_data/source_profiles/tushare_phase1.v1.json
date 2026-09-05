@@ -1,0 +1,103 @@
+{
+  "profile_version": "tushare_phase1.v1",
+  "pit_classification": {
+    "retrieved_at": "the time this response was observed by Axiom Data",
+    "represented_session": "the supplier date field named by each endpoint",
+    "historical_availability": "unknown unless separate source evidence is recorded",
+    "revision_capability": "unknown/best-effort; a current terminal-history response is not verified PIT history"
+  },
+  "endpoints": {
+    "trade_cal": {
+      "source_profile_ref": "tushare.trade_cal.v1",
+      "primary_key": ["exchange", "cal_date"],
+      "represented_session_field": "cal_date",
+      "fields": ["exchange", "cal_date", "is_open", "pretrade_date"],
+      "units": {"cal_date": "China exchange-local YYYYMMDD date", "is_open": "0 closed, 1 open"},
+      "missing_row": "unknown; absence is not a closed-day assertion",
+      "terminal_history": "may return historical calendar rows; historical revision availability is unknown",
+      "canonical_mapping": {
+        "exchange": "exchange",
+        "session": "cal_date converted to ISO date",
+        "is_open": "is_open == 1",
+        "previous_open_session": "derived from earlier open rows inside the frozen artifact coverage"
+      }
+    },
+    "stock_basic": {
+      "source_profile_ref": "tushare.stock_basic.v1",
+      "primary_key": ["ts_code"],
+      "represented_session_field": "list_date",
+      "fields": ["ts_code", "name", "exchange", "list_status", "list_date", "delist_date"],
+      "units": {"list_date": "China exchange-local YYYYMMDD inclusive date", "delist_date": "supplier-provided YYYYMMDD date; exact effective-boundary compatibility is unverified"},
+      "missing_row": "unknown identity",
+      "terminal_history": "current listing observation; not historical security-status PIT evidence",
+      "canonical_mapping": {
+        "symbol": "ts_code with uppercase .SH/.SZ suffix",
+        "exchange": "exchange",
+        "list_session": "list_date converted to ISO date",
+        "delist_session": "null in this active-security slice; a non-null source date requires separate boundary evidence",
+        "status": "source-current-<list_status>"
+      }
+    },
+    "daily": {
+      "source_profile_ref": "tushare.daily.v1",
+      "primary_key": ["ts_code", "trade_date"],
+      "represented_session_field": "trade_date",
+      "fields": ["ts_code", "trade_date", "open", "high", "low", "close", "pre_close", "change", "pct_chg", "vol", "amount"],
+      "units": {"OHLC_pre_close": "CNY/share unadjusted", "vol": "hundred-share lots", "amount": "thousand CNY"},
+      "missing_row": "unknown unless another frozen endpoint provides explicit state evidence",
+      "terminal_history": "current terminal-history observation; revisions and original availability are unknown",
+      "canonical_mapping": {
+        "session": "trade_date converted to ISO date",
+        "symbol": "ts_code",
+        "OHLC_pre_close": "copied as unadjusted CNY/share",
+        "volume_shares": "vol multiplied by 100",
+        "amount_cny": "amount multiplied by 1000",
+        "is_suspended": "false for an emitted daily row"
+      }
+    },
+    "adj_factor": {
+      "source_profile_ref": "tushare.adj_factor.v1",
+      "primary_key": ["ts_code", "trade_date"],
+      "represented_session_field": "trade_date",
+      "fields": ["ts_code", "trade_date", "adj_factor"],
+      "units": {"adj_factor": "dimensionless cumulative supplier factor"},
+      "missing_row": "unknown factor",
+      "terminal_history": "current observed factor series; historical revisions are unknown",
+      "canonical_mapping": {"adj_factor": "copied; ratios are meaningful only within the same frozen series/anchor"}
+    },
+    "daily_basic": {
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "primary_key": ["ts_code", "trade_date"],
+      "represented_session_field": "trade_date",
+      "fields": ["ts_code", "trade_date", "turnover_rate", "total_mv", "circ_mv"],
+      "units": {"turnover_rate": "percent of circulating shares", "total_mv": "ten-thousand CNY", "circ_mv": "ten-thousand CNY"},
+      "missing_row": "unknown daily-basic observation",
+      "terminal_history": "current terminal-history observation; historical revisions are unknown",
+      "canonical_mapping": {
+        "turnover_rate": "copied as percent",
+        "total_market_cap_cny": "total_mv multiplied by 10000",
+        "circulating_market_cap_cny": "circ_mv multiplied by 10000"
+      }
+    },
+    "stk_limit": {
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "primary_key": ["ts_code", "trade_date"],
+      "represented_session_field": "trade_date",
+      "fields": ["ts_code", "trade_date", "up_limit", "down_limit"],
+      "units": {"up_limit": "CNY/share unadjusted", "down_limit": "CNY/share unadjusted"},
+      "missing_row": "unknown price-limit observation",
+      "terminal_history": "current terminal-history observation; historical revisions are unknown",
+      "canonical_mapping": {"up_limit": "copied", "down_limit": "copied"}
+    },
+    "suspend_d": {
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "primary_key": ["ts_code", "trade_date", "suspend_type"],
+      "represented_session_field": "trade_date",
+      "fields": ["ts_code", "trade_date", "suspend_timing", "suspend_type"],
+      "units": {"suspend_type": "S suspension, R resumption"},
+      "missing_row": "no explicit suspension evidence; it does not prove normal trading",
+      "terminal_history": "current observed suspension event history; original availability is unknown",
+      "canonical_mapping": {"is_suspended": "true only for explicit suspend_type S rows; R is not emitted as a market row"}
+    }
+  }
+}
