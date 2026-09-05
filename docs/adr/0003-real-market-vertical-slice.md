@@ -122,19 +122,24 @@ or its normalization/join helpers. A regression test injects a production
 `volume` scaling bug and requires reconciliation to report a contract/build
 failure. No contract/build bug or source drift was observed in the real run.
 
-The complete real closure is retained read-only at
-`/var/lib/axiom-data/forensic/pr3-market-slice-20260905-blocker-fix-v2`.
-It contains Snapshot
-`snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974`
+The current complete real closure is retained at
+`/var/lib/axiom-data/forensic/pr3-market-slice-20260905-schema-v2-rerun`.
+All 46 RawBatches use `raw_batch.v2`. It contains Snapshot
+`snapshot-f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca`
 and QlibView
-`qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90`;
-it is forensic validation evidence, not a production current selection.
+`qlib-b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a`;
+it is forensic validation evidence, not a production current selection. The
+older closure at
+`/var/lib/axiom-data/forensic/pr3-market-slice-20260905-blocker-fix-v2` is
+retained unchanged as superseded historical evidence.
 
 The direct/Qlib and offline rebuild reports carry the exact Snapshot and
 QlibView IDs plus manifest/identity digests. The offline report also records
 source and rebuilt root maps, DomainCommit refs, ordered RawBatch refs, logical
 equality, and catalog rebuild status. A PR3-specific consistency check rejects
-a PASS report whose refs do not match the run manifest or each other.
+a PASS report whose refs do not match the run manifest or each other. PASS also
+requires every declared check to be true and every mismatch collection to be
+empty.
 
 For recovery, only the already-published `raw/batches` closure was copied to a
 new empty root. With no collector/network call, the three DomainCommits,

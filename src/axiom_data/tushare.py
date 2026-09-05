@@ -19,6 +19,7 @@ from axiom_data.artifacts import (
     MarketDomainBuilder,
     RawBatch,
     RawBatchRef,
+    _RAW_BATCH_WRITE_SCHEMA,
     _digest,
     _json_bytes,
     _json_copy,
@@ -137,7 +138,7 @@ def _response_records(response: object) -> list[dict[str, Any]]:
 class TushareCollector:
     """Collect one allow-listed response and immediately freeze it as RawBatch."""
 
-    implementation_revision = "tushare-collector.v2"
+    implementation_revision = "tushare-collector.v3"
 
     def __init__(self, data_root: str | Path, client: object | None = None) -> None:
         self.data_root = Path(data_root)
@@ -191,8 +192,8 @@ class TushareCollector:
             "retrieved_at": observed_at,
             "payload_digest": _digest(payload),
         }
-        raw_batch_id = (
-            f"tushare-{endpoint}-{_digest(_json_bytes(identity_seed)).removeprefix('sha256:')}"
+        raw_batch_id = _tushare_raw_batch_id(
+            endpoint, _RAW_BATCH_WRITE_SCHEMA, identity_seed
         )
         pit = source_profile["pit_classification"]
         return write_raw_batch(
@@ -214,6 +215,22 @@ class TushareCollector:
                 "revision_capability": pit["revision_capability"],
             },
         )
+
+
+def _tushare_raw_batch_id(
+    endpoint: str,
+    schema_version: str,
+    identity_fields: Mapping[str, Any],
+) -> str:
+    identity_seed = {
+        "artifact_type": "raw_batch",
+        "schema_version": schema_version,
+        **identity_fields,
+    }
+    return (
+        f"tushare-{endpoint}-"
+        f"{_digest(_json_bytes(identity_seed)).removeprefix('sha256:')}"
+    )
 
 
 def _endpoint_domain(endpoint: str) -> str:

@@ -327,6 +327,26 @@ class ArtifactTest(unittest.TestCase):
             lookup_catalog(self.root, "raw_batch", "raw-pr2-security").artifact_id,
             "raw-pr2-security",
         )
+        with self.assertRaises(ArtifactConflictError):
+            write_raw_batch(
+                self.root,
+                "raw-pr2-security",
+                domain="security_master",
+                source_profile="fixture-security_master.v1",
+                source_profile_version="fixture-security_master.v1",
+                source_profile_digest=fixture_profile_digest(
+                    "fixture-security_master.v1"
+                ),
+                request={"fixture": "raw-pr2-security"},
+                retrieved_at=FIXED_TIME,
+                payload=json_payload([security_row()]),
+                collector_code="fixture-writer.v1",
+                summary={"rows": 1},
+            )
+        self.assertEqual(
+            load_raw_batch(self.root, "raw-pr2-security").manifest["schema_version"],
+            "raw_batch.v1",
+        )
 
     def test_failed_canonical_build_keeps_raw_and_publishes_no_commit(self) -> None:
         invalid = security_row()

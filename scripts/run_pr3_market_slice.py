@@ -60,6 +60,9 @@ END = "2025-12-31"
 RECON_SYMBOLS = ("600000.SH", "600036.SH", "000001.SZ", "000333.SZ")
 RECON_START = "2025-06-10"
 RECON_END = "2025-06-13"
+SUPERSEDED_FORENSIC_ROOT = (
+    "/var/lib/axiom-data/forensic/pr3-market-slice-20260905-blocker-fix-v2"
+)
 
 
 def _tushare_date(value: str) -> str:
@@ -323,6 +326,12 @@ def main() -> None:
 
     raw_ids = collect(args.data_root)
     artifacts = build(args.data_root, raw_ids)
+    source_catalog_entries = rebuild_catalog(args.data_root)
+    raw_evidence = _raw_evidence(args.data_root, raw_ids)
+    if any(
+        item["schema_version"] != "raw_batch.v2" for item in raw_evidence
+    ):
+        raise SystemExit("PR3 real closure contains a non-v2 RawBatch")
     reader = SnapshotReader(args.data_root, artifacts["snapshot"])
     equivalence = compare_direct_and_qlib(
         args.data_root, artifacts["snapshot"], artifacts["qlib_view"]
@@ -442,7 +451,7 @@ def main() -> None:
     source_profile = load_tushare_source_profile()
     source_profile_digest = tushare_source_profile_digest(source_profile)
     run_manifest = {
-        "report_version": "pr3-real-market-slice.v3",
+        "report_version": "pr3-real-market-slice.v4",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "scope": {
             "symbols": list(SYMBOLS),
@@ -474,7 +483,16 @@ def main() -> None:
             "qlib_view_id": qlib_view.ref.view_id,
             "role": "immutable-validation-forensic-closure; not production current",
         },
-        "raw_batches": _raw_evidence(args.data_root, raw_ids),
+        "superseded_forensic_closure": {
+            "path": SUPERSEDED_FORENSIC_ROOT,
+            "status": "superseded",
+            "reason": "pre-schema-bound RawBatch envelope evidence; retained read-only",
+        },
+        "catalog_rebuild": {
+            "status": "PASS",
+            "entries": source_catalog_entries,
+        },
+        "raw_batches": raw_evidence,
         "domain_commits": commit_evidence,
         "snapshot": {
             "snapshot_id": snapshot.ref.snapshot_id,

@@ -689,6 +689,18 @@ def _report_ref(
     return {field: mapping[field] for field in fields}
 
 
+def _validate_pass_comparison(report: Mapping[str, Any], name: str) -> None:
+    if report.get("status") != "PASS":
+        return
+    checks = _report_mapping(report.get("checks"), f"{name} checks")
+    if (
+        not checks
+        or any(value is not True for value in checks.values())
+        or report.get("mismatches") != []
+    ):
+        raise ArtifactError(f"PR3 {name} PASS is inconsistent with its results")
+
+
 def validate_pr3_report_refs(
     run_manifest: Mapping[str, Any],
     direct_qlib_report: Mapping[str, Any],
@@ -699,6 +711,7 @@ def validate_pr3_report_refs(
     run = _report_mapping(run_manifest, "run manifest")
     direct = _report_mapping(direct_qlib_report, "direct/Qlib report")
     offline = _report_mapping(offline_rebuild_report, "offline rebuild report")
+    _validate_pass_comparison(direct, "direct/Qlib report")
     run_snapshot_value = _report_mapping(run.get("snapshot"), "run snapshot ref")
     run_view_value = _report_mapping(run.get("qlib_view"), "run QlibView ref")
     run_snapshot = _report_ref(
@@ -832,6 +845,7 @@ def validate_pr3_report_refs(
     offline_direct = _report_mapping(
         offline.get("direct_qlib_equivalence"), "offline direct/Qlib report"
     )
+    _validate_pass_comparison(offline_direct, "offline direct/Qlib report")
     if (
         _report_ref(
             offline_direct.get("source_snapshot_ref"),

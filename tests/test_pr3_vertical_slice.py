@@ -31,6 +31,7 @@ from axiom_data import (
     validate_domain_commit_closure,
 )
 from axiom_data.consumption import validate_pr3_report_refs
+from axiom_data.tushare import _tushare_raw_batch_id
 
 
 FIXED_TIME = "2026-09-05T12:00:00+08:00"
@@ -318,6 +319,26 @@ class Pr3VerticalSliceTest(unittest.TestCase):
                 fixture["start_date"],
                 fixture["end_date"],
             )
+
+    def test_tushare_raw_batch_identity_binds_envelope_schema(self) -> None:
+        fixture = load_fixture("listing_slice")
+        ids, _ = collect_fixture(self.root, fixture)
+        raw = load_raw_batch(self.root, ids["market"][0])
+        endpoint = raw.manifest["request"]["endpoint"]
+        identity_fields = {
+            "source_profile_ref": raw.manifest["source_profile_ref"],
+            "source_profile_version": raw.manifest["source_profile_version"],
+            "source_profile_digest": raw.manifest["source_profile_digest"],
+            "collector_code_ref": raw.manifest["collector_code_ref"],
+            "request": raw.manifest["request"],
+            "retrieved_at": raw.manifest["retrieved_at"],
+            "payload_digest": raw.manifest["payload_files"][0]["content_digest"],
+        }
+
+        v1_id = _tushare_raw_batch_id(endpoint, "raw_batch.v1", identity_fields)
+        v2_id = _tushare_raw_batch_id(endpoint, "raw_batch.v2", identity_fields)
+        self.assertNotEqual(v1_id, v2_id)
+        self.assertEqual(raw.ref.raw_batch_id, v2_id)
 
     def test_real_source_raw_snapshot_reader_and_empty_staging_qlib_view(self) -> None:
         fixture = load_fixture("listing_slice")
@@ -751,6 +772,16 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         with self.assertRaises(ArtifactError):
             validate_pr3_report_refs(run, direct, inconsistent_pass)
 
+        false_check = json.loads(json.dumps(direct))
+        false_check["checks"]["calendar"] = False
+        with self.assertRaisesRegex(ArtifactError, "PASS is inconsistent"):
+            validate_pr3_report_refs(run, false_check, offline)
+
+        hidden_mismatch = json.loads(json.dumps(direct))
+        hidden_mismatch["mismatches"] = [{"reason": "hidden-test-mismatch"}]
+        with self.assertRaisesRegex(ArtifactError, "PASS is inconsistent"):
+            validate_pr3_report_refs(run, hidden_mismatch, offline)
+
     def test_pr3_offline_report_requires_source_and_rebuilt_refs(self) -> None:
         run, direct, offline = load_evidence_reports()
 
@@ -774,7 +805,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         offline = json.loads(
             (REPORTS / "offline_rebuild.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(run["report_version"], "pr3-real-market-slice.v3")
+        self.assertEqual(run["report_version"], "pr3-real-market-slice.v4")
         self.assertEqual(run["scope"]["sse_symbols"], 10)
         self.assertEqual(run["scope"]["szse_symbols"], 10)
         self.assertEqual(len(run["raw_batches"]), 46)
@@ -816,7 +847,22 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         self.assertEqual(
             run["frozen_real_closure"]["path"],
             "/var/lib/axiom-data/forensic/"
+            "pr3-market-slice-20260905-schema-v2-rerun",
+        )
+        self.assertEqual(
+            run["superseded_forensic_closure"]["path"],
+            "/var/lib/axiom-data/forensic/"
             "pr3-market-slice-20260905-blocker-fix-v2",
+        )
+        self.assertEqual(
+            run["superseded_forensic_closure"]["status"], "superseded"
+        )
+        self.assertEqual(run["catalog_rebuild"]["status"], "PASS")
+        self.assertTrue(
+            all(
+                item["schema_version"] == "raw_batch.v2"
+                for item in run["raw_batches"]
+            )
         )
         self.assertEqual(
             run["frozen_real_closure"]["snapshot_id"],

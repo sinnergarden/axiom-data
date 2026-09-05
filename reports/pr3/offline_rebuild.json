@@ -31,12 +31,12 @@
       "circulating_market_cap_cny"
     ],
     "mismatches": [],
-    "qlib_view_ref": {
-      "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
-      "manifest_digest": "sha256:a5d90ea89732f52787ca387ee3bfb0c825ccfaa0e12e274ebf2101da8202dab4",
-      "view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90"
-    },
     "qlib_keys": 4858,
+    "qlib_view_ref": {
+      "identity_digest": "sha256:b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a",
+      "manifest_digest": "sha256:2e6213ba7be1e4465154b2bbf0a4f3ac22b352a46b7ff7f450a80f16a99f1421",
+      "view_id": "qlib-b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a"
+    },
     "relative_tolerance": 1e-06,
     "scope": {
       "end_session": "2025-12-31",
@@ -66,9 +66,9 @@
       ]
     },
     "source_snapshot_ref": {
-      "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
-      "manifest_digest": "sha256:7bd104f079c9e4e5a9460cb2854157b3ff555dc4c8a006bb5dd42cbf8fa6475d",
-      "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+      "identity_digest": "sha256:f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca",
+      "manifest_digest": "sha256:ffbddcbbe480f816524e9bd2ce3b6fadfa089e612c90090310addd8ba29e4a44",
+      "snapshot_id": "snapshot-f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca"
     },
     "status": "PASS"
   },
@@ -87,191 +87,191 @@
     "domain_commits": {
       "market_daily": {
         "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
-        "domain_commit_id": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
-        "identity_digest": "sha256:4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+        "domain_commit_id": "market_daily-dfbe02f184c1d07a06c39ce1da4183d66584001c8cbb3c00b420422d13241732",
+        "identity_digest": "sha256:dfbe02f184c1d07a06c39ce1da4183d66584001c8cbb3c00b420422d13241732",
         "logical_content_digest": "sha256:04d1637feb6ce6875a8869bcff710c2e12c735487126bd185063a62f46341406",
-        "manifest_digest": "sha256:19758ff67dd43c219ce23c419b9cffcef08b38167320f4d68b96af85716f732b"
+        "manifest_digest": "sha256:0d8fdab59383ea71855077494f556bbe85512d657251896984bfe1cbf9e0817d"
       },
       "security_master": {
         "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
-        "domain_commit_id": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
-        "identity_digest": "sha256:679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+        "domain_commit_id": "security_master-00f9de39a5a351f46a3fa778ebfbf068dab2fd40f6f82c5b502fbbae66d02c75",
+        "identity_digest": "sha256:00f9de39a5a351f46a3fa778ebfbf068dab2fd40f6f82c5b502fbbae66d02c75",
         "logical_content_digest": "sha256:2e5849575f202b811f8b4f00f29709af29ff93fa5ba8b8398288833569ee0cf5",
-        "manifest_digest": "sha256:cc2429de495bb69a23074696fe0c30801f7dd0e73d482c53cd0a78675a3edde9"
+        "manifest_digest": "sha256:541653a28d6a8ca9e74d48f97e2827cfd880c47e6222e65ba9cc48c1dfb8b129"
       },
       "trading_calendar": {
         "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
-        "domain_commit_id": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
-        "identity_digest": "sha256:dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
+        "domain_commit_id": "trading_calendar-4bf7833563363303d14d6c2535f6e0883c5e2761bcfb7e62a97823e2bcc9c9ec",
+        "identity_digest": "sha256:4bf7833563363303d14d6c2535f6e0883c5e2761bcfb7e62a97823e2bcc9c9ec",
         "logical_content_digest": "sha256:38af51a9c9219f730a70fa1f47638585728f88e1d5acb4cc55e0b19f5bec6a36",
-        "manifest_digest": "sha256:37eea105f7a124de45cef355d73b3e5cb7dc92cf82c06f482719acacb826a52e"
+        "manifest_digest": "sha256:8ef9a40f360ff4fd0da4a86d1f8d747997f811f088f55449e03cf7023d326004"
       }
     },
     "qlib_view": {
-      "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
-      "manifest_digest": "sha256:a5d90ea89732f52787ca387ee3bfb0c825ccfaa0e12e274ebf2101da8202dab4",
-      "view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90"
+      "identity_digest": "sha256:b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a",
+      "manifest_digest": "sha256:2e6213ba7be1e4465154b2bbf0a4f3ac22b352a46b7ff7f450a80f16a99f1421",
+      "view_id": "qlib-b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a"
     },
     "raw_batches": {
       "ordered_raw_batch_ids": [
-        "tushare-trade_cal-39f4edca62f827068a1d12bd9a150ff38f0b9a7dfa59c9d08e97261c4b3bdafc",
-        "tushare-trade_cal-aa65e5e60b7c84cd7bc612f7409a42ba68b250947859dc5cc79f2302fa023fd9",
-        "tushare-stock_basic-f65761a3d9da6c4acba77fdf9ec419626945df1fc01192dc4e000a072ae7c730",
-        "tushare-daily-78138be41282646a9408ec4d804a6cc68cd1583d9ab577472be765998fd88e2a",
-        "tushare-adj_factor-fdbd25e3f208a41c0f725807afe5a2bdc0ef557d47fe415e677ae12df6b0280e",
-        "tushare-daily_basic-9ce7ff8014748021ded2730766a947d278cc7bf2450a7e984260437a28513c7e",
-        "tushare-daily_basic-442b9a1bdca73b335cfccbf44aac08648037a2783f25fb823b5b7513a7d55859",
-        "tushare-daily_basic-37525e253ff5e3fa8021d2b1939bc932d4121965be1404bd3a8e424aeae16720",
-        "tushare-daily_basic-2d6eb7ae740f66578aefc2bf6f6c6760a61b2d5cc235f8e696b804a9257e2bca",
-        "tushare-daily_basic-f0880fff7ff14f1948aee44da9b0bdad8330e0e0243d794dfd3a474982cb0378",
-        "tushare-daily_basic-fb69a6d4c7295dc245fafb858343545252d4a0b7772ee59d596d6d19168eb811",
-        "tushare-daily_basic-a8970ecaaf628e0530d6f7d042e94cf98aab1bf3078551f7bfaca2be7c723708",
-        "tushare-daily_basic-6f1ff2c7f346c3b9870cbf96d2033238059c77c714fd6a02987ccfddde193242",
-        "tushare-daily_basic-5c1809c0fe41a696c9d6e142aa1b42703a3e2523fd048021acfa23eed133ce93",
-        "tushare-daily_basic-b941678136b18a4f20b121401193404d94ec2a267072ea6dcc24aeaeefb9c07e",
-        "tushare-daily_basic-19de9a3f81eb3ce5e1f8a0143f66a371cd74886599c327d4f9ec615ba5063824",
-        "tushare-daily_basic-5503d32d3b584a00ab9e04b76c6580f10fd9f27329010f0e01e92c95b38439ee",
-        "tushare-daily_basic-f884f3d53b296f5a5620970a6a9b280a39d81cb7adbe226356a9fd0b0fc8716f",
-        "tushare-daily_basic-253218a5e2b6247d3cf14f4f3b294b4ffeacaf6af5849c4e00d4f217b5642a6e",
-        "tushare-daily_basic-f4a34566927ffc8240ebe45040496e547565e669af1ab606004a312fde610851",
-        "tushare-daily_basic-950773fe13ac60544b63179c964d11a0f58dab7cd75828f66bbeeda5b940f7e3",
-        "tushare-daily_basic-75cf20462c0cd4ff5bdba6a22463197ec6603ca0358db83d47040344fba05212",
-        "tushare-daily_basic-54b6fcbcd51ec4064db40f674ff711a1a224a1df3f25fe94c771f26e6e5c2e2c",
-        "tushare-daily_basic-722147ac9b50660fa853eb5a0d2af56bc95522781e01f8cbdcdac4dc5f695c84",
-        "tushare-daily_basic-69d9a7685cf3f529b04c2902817f6cc28739173fe88c26e096467007a2c2f8eb",
-        "tushare-stk_limit-b0044b8e86a38ab5e3b2db586b272593239811be799afbac4e3bf201fd377487",
-        "tushare-stk_limit-4a826d98a83972936f5d58091725eac8681932d6954592b400359afcfc9668d2",
-        "tushare-stk_limit-60d8f73937c9f67632781386be1fe0c7ed9f3b3bedefa972b06bf5ba9207adb2",
-        "tushare-stk_limit-eb07a5e405ac231ea47cf26053dd22a9df6b5fb9767f822bac1ae487fd35cdfe",
-        "tushare-stk_limit-6e3d33e9093f88512798ed5a1ee00546808bc1f92bdd167f73c8e0180907519d",
-        "tushare-stk_limit-a90855832b891c71f211082fefffb3eeb272fa00b7a1f20ebfa1deefb5cb3586",
-        "tushare-stk_limit-872762b9bfd2b3bba0e1ac9da4fd401493fc21f4f96dc9cb809cf833eb76ff92",
-        "tushare-stk_limit-04a61ed43c5c96e16740db1fb2b87d814605f522fe3cc588b4ef005b59c8b9f0",
-        "tushare-stk_limit-ec548a9301d4f85b4a3e7d7d4588b23bbc2e6c8ff6c6a00b026b582ec3e59b2e",
-        "tushare-stk_limit-e4947b50c13584c4ece5b8ccfc08fbeb8e8c3f0b4e0931f77acd5cc66154b5c2",
-        "tushare-stk_limit-cd256db0bd404cff6d2580dee84a01fbf6dbc1c1e156bfc20967b5dddfffd2bb",
-        "tushare-stk_limit-f21dd9f34ec7bd5ef02dccd1ec590900416516cedd5570eb232a9eac71279906",
-        "tushare-stk_limit-592e55b1bae0ba6288b08a3c70aea14ebd6e5c3cf428b5712dcb8a1ce177bcfd",
-        "tushare-stk_limit-301d554a01789357ea13c793bcaae2fcd2064c0b043db64b37b4a0f26ba9fdf3",
-        "tushare-stk_limit-8e6b5f2da64601a642aa9a804b0d8e1d8142bd7e07e1540e254cc6aea13c5fd0",
-        "tushare-stk_limit-2a8097a9d0ed75003d5a7486b0644d635bb86bc268b577623914b612ba6ed079",
-        "tushare-stk_limit-de00b79053660efdc6cd36ce241d360c29bebfe0d39be1c7f896d4c062e9928d",
-        "tushare-stk_limit-575629e7b25f16ef5d71fef2d895c25da90f323a0ab94312c0169733f1690790",
-        "tushare-stk_limit-93ea4409f0133ea2768e4c88106b75b8c2498c3bdb17a4fd2ced075a0d09115b",
-        "tushare-stk_limit-41a7c2b4b7b00ed0229aef77509855e425d568e2afa003a9c5d0f4a45b75f518",
-        "tushare-suspend_d-65d2d26d6764e3f3a1f28593876b8b551e23b1236a4413740e7f2b10e82e7134"
+        "tushare-trade_cal-58ca0f1677dccbcf2c81c58e6094f34195f2c3e2993bd4c1fa33834d9df08176",
+        "tushare-trade_cal-8af1bc700c8ac7647bd90a5d030e1e50ef97422a39ffe55f5d57cb6b2c7ea65a",
+        "tushare-stock_basic-97a6800d3e59cdda0920adef102ed808d3af1869d329c66b2f4297f132282448",
+        "tushare-daily-62275e29e2984da904005cb50bf0a80dbbe8c84a1bf862c3a02d7f42c74ccaa0",
+        "tushare-adj_factor-29c16a2318e834b199de99278724c6b508080250081f5ece44020270d920a325",
+        "tushare-daily_basic-ee3f1396752481445bbc1be13977012eafce8f2f3cedc6b9a238be23f3cbfde2",
+        "tushare-daily_basic-21ddc0177116b5150bc7aeb06671728edce705c8f78088d571bd819a70b098bd",
+        "tushare-daily_basic-935282d1a4b87abfdfd63fbc13eaf6035765d9ce5425c5c99896c8ddfb7877ef",
+        "tushare-daily_basic-b1d60324921a50b42311e775ec0e52c07600146a0154eb2139b2cbf48dd62bc2",
+        "tushare-daily_basic-131b5ae281013603b6b406d0d1c2698b84e75f4e98c987575a079c44318faa31",
+        "tushare-daily_basic-5f88bb787275128876a3af232fb7d4bebf250e0439c8e07b5dec04b68504f3d5",
+        "tushare-daily_basic-0d7b90cc3ff4b1a51f68a40ac85ffefc6fe6b4ee23e48010e3135a876bcb6325",
+        "tushare-daily_basic-34f93288b915bbd3f101a45962e2fd6487b1f3f7115580033eed1c36048cbabd",
+        "tushare-daily_basic-75a45feb8bc18f9f77817adf610f4019c8db3bc3cad1e7aecda9b68e8d1634b7",
+        "tushare-daily_basic-e79339103aa19bbf48ae865127bd4a180dc0025fd4a16f8e0ed668aac5f387e0",
+        "tushare-daily_basic-6c3595c0d0e5ad2b568c903c4123fac746ae908cd01be6d25b6fd55daa2c7d3c",
+        "tushare-daily_basic-128bcac8fa6bc50a460dde381a7b728bc507c0d6ba70a33efed20e72e4735a40",
+        "tushare-daily_basic-88c35967a34ea3337087b9a5164061e0b561a3c7d049dce586d3be12bac4e963",
+        "tushare-daily_basic-9d778f1f972d81893ca4c170b48ad018c195b577422ae6a728328211bc442a42",
+        "tushare-daily_basic-9395db551bc1d85f3c0586b045a4b1874737310965d9ed437d505c3e9050908f",
+        "tushare-daily_basic-01e23b8152496f548ea355f7e8534bdd5551e8f045a91c1d31bfc80dbd5822f7",
+        "tushare-daily_basic-f5fc0e3821e8ad52b6ce41d517714c8383f3988930e2c487d1ae6feef2668b2f",
+        "tushare-daily_basic-4bb7c7e9e61c4179d0da1a06bc5b60583315d024d9ecec6e99c886ddea4788c2",
+        "tushare-daily_basic-822530ff8590c5a9efe0fced26f7d2638125b67a205258f5970e136ba18cd2e4",
+        "tushare-daily_basic-b044baeacbf467bffc8f63038e0b71ecd73363536f78a304a0781076a2e02b21",
+        "tushare-stk_limit-64a36180e72ef91b7509eff262477f06f178b9d9e99ca00504a2a22370630ab3",
+        "tushare-stk_limit-9bc10be744972fcafbcfa2abd027b824c2617e1e1eec781b2990375f02a5fd52",
+        "tushare-stk_limit-5d1da6f98efc7c278221aa75390ef59e6bae3043aa626502eeb8685a77b60229",
+        "tushare-stk_limit-e5ac05774088e976943db9591127337dd2e0099051861518f9a2bac7f8be4c0e",
+        "tushare-stk_limit-ddaf873cdc7456271544367fe5624695ff8bdbbdbd98fb192504b58cd6831857",
+        "tushare-stk_limit-8b00c67aa882cea1666a7fd3eb25bdea1b823f7aba6028122eba42198a7b4b9b",
+        "tushare-stk_limit-7c8c58b41608d6e29142068efd46733049c4d5117a9fb4379a2efa5f5a5d52d6",
+        "tushare-stk_limit-b092f41b269f5fc3f09d5a3fb7e049f7acae8b0c13bb748b82ad99fc273d2a5a",
+        "tushare-stk_limit-fc8d2e296ddf6d09bb92cb2e0881fe38a398752180e828aa4e3dfd38fcd6d3b7",
+        "tushare-stk_limit-e3ed95ac09bb52e5bcabf4de947f37ff18bc7ff59b6cb607953475fe8e8d0a2b",
+        "tushare-stk_limit-296a40745f84bf5822f295a92d0fe526432135c93ea97ed60a0d548a6259fc6d",
+        "tushare-stk_limit-646b4bd76f4d4f7b72c2a9c6c6da204cf864a5c5fa2a472f2a0518004579fa7c",
+        "tushare-stk_limit-ea2e8b7ff80c624716343bdf4a7d6aee924f1e9fa05b0f5f20c0d9a1b6dd298c",
+        "tushare-stk_limit-bae1605d292f26b7d810fcd0f17a255c18b4c3e23ebc53c554c6c8499181b275",
+        "tushare-stk_limit-940ec4a4229a913917cda9f8c047f9f910e62714d9424c6ef0f7034f30918720",
+        "tushare-stk_limit-244dd52378f36c7e5c8ed24f3a1d4c2cf95c82f7d3d3cc38ce8ff8e28786ea6f",
+        "tushare-stk_limit-849fb38fd402d0ef3cfc6d6b041c2a22dd8741265e587f0311011f0f1f6c1f58",
+        "tushare-stk_limit-f34983a6a8d2c88ce8e87276e079016c898e335a09995f1f684c828c65e84b7e",
+        "tushare-stk_limit-a2b76c59c530d04298847c7f275c9a04fe4da7caddaf6f7780481ad2cacdbcd3",
+        "tushare-stk_limit-8df3821acd19656334e64bb7c42bd390e2adb38a001d43054a9dd48ab7e2024c",
+        "tushare-suspend_d-6c5fcc8943f411ff90065b8d8f8a73a9c9c256e17582a59327639dd8ca473fff"
       ],
-      "ordered_refs_digest": "sha256:fb9e0dca59140a8808ad140bcf6831eb0eeea44b1e5f015f6d4fc731a6655a35"
+      "ordered_refs_digest": "sha256:e7c8a541a6adb7869ac90b064790846b07bb4ef13d3be5668b3524c51d1ebe65"
     },
     "snapshot": {
-      "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
-      "manifest_digest": "sha256:7bd104f079c9e4e5a9460cb2854157b3ff555dc4c8a006bb5dd42cbf8fa6475d",
-      "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+      "identity_digest": "sha256:f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca",
+      "manifest_digest": "sha256:ffbddcbbe480f816524e9bd2ce3b6fadfa089e612c90090310addd8ba29e4a44",
+      "snapshot_id": "snapshot-f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca"
     }
   },
   "rebuilt_root_artifact_map": {
     "domain_commits": {
-      "market_daily": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
-      "security_master": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
-      "trading_calendar": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc"
+      "market_daily": "market_daily-dfbe02f184c1d07a06c39ce1da4183d66584001c8cbb3c00b420422d13241732",
+      "security_master": "security_master-00f9de39a5a351f46a3fa778ebfbf068dab2fd40f6f82c5b502fbbae66d02c75",
+      "trading_calendar": "trading_calendar-4bf7833563363303d14d6c2535f6e0883c5e2761bcfb7e62a97823e2bcc9c9ec"
     },
-    "qlib_view": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
-    "snapshot": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+    "qlib_view": "qlib-b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a",
+    "snapshot": "snapshot-f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca"
   },
   "source_artifact_refs": {
     "domain_commits": {
       "market_daily": {
         "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
-        "domain_commit_id": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
-        "identity_digest": "sha256:4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+        "domain_commit_id": "market_daily-dfbe02f184c1d07a06c39ce1da4183d66584001c8cbb3c00b420422d13241732",
+        "identity_digest": "sha256:dfbe02f184c1d07a06c39ce1da4183d66584001c8cbb3c00b420422d13241732",
         "logical_content_digest": "sha256:04d1637feb6ce6875a8869bcff710c2e12c735487126bd185063a62f46341406",
-        "manifest_digest": "sha256:edeacfe6fd6ac69dd8e44a290c96f86b57fe2b281c320a507f94928dc856a655"
+        "manifest_digest": "sha256:2ff870a4e031a40be7612b51b2f5152dca85522067868fb5fa3d8e36d3554927"
       },
       "security_master": {
         "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
-        "domain_commit_id": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
-        "identity_digest": "sha256:679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+        "domain_commit_id": "security_master-00f9de39a5a351f46a3fa778ebfbf068dab2fd40f6f82c5b502fbbae66d02c75",
+        "identity_digest": "sha256:00f9de39a5a351f46a3fa778ebfbf068dab2fd40f6f82c5b502fbbae66d02c75",
         "logical_content_digest": "sha256:2e5849575f202b811f8b4f00f29709af29ff93fa5ba8b8398288833569ee0cf5",
-        "manifest_digest": "sha256:12d471a4472531fb8e7525ddda375c5c0603141f9754a0e6ff628aef820cb268"
+        "manifest_digest": "sha256:f0a57aa9ae1e73971d4be13cb4ed5883cc3293e89ec73f1a45ee1dbfdc05ebac"
       },
       "trading_calendar": {
         "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
-        "domain_commit_id": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
-        "identity_digest": "sha256:dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
+        "domain_commit_id": "trading_calendar-4bf7833563363303d14d6c2535f6e0883c5e2761bcfb7e62a97823e2bcc9c9ec",
+        "identity_digest": "sha256:4bf7833563363303d14d6c2535f6e0883c5e2761bcfb7e62a97823e2bcc9c9ec",
         "logical_content_digest": "sha256:38af51a9c9219f730a70fa1f47638585728f88e1d5acb4cc55e0b19f5bec6a36",
-        "manifest_digest": "sha256:d0c6d9e35dd8292600a54bd4158c6367bf296753b730824617a94b4d4800561f"
+        "manifest_digest": "sha256:91e22ceed96ae05236c84a7bc13b705f073d5affe1f98746fe501b69fc918ea9"
       }
     },
     "qlib_view": {
-      "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
-      "manifest_digest": "sha256:75a60cb1ea1018c4bc7faed00d67b382498b6440443ef2e97e3b91d4a65c3aec",
-      "view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90"
+      "identity_digest": "sha256:b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a",
+      "manifest_digest": "sha256:a9f6f40a1736485f30f11f32018402d05eda6b20cd0f23624cd98d876fd08291",
+      "view_id": "qlib-b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a"
     },
     "raw_batches": {
       "ordered_raw_batch_ids": [
-        "tushare-trade_cal-39f4edca62f827068a1d12bd9a150ff38f0b9a7dfa59c9d08e97261c4b3bdafc",
-        "tushare-trade_cal-aa65e5e60b7c84cd7bc612f7409a42ba68b250947859dc5cc79f2302fa023fd9",
-        "tushare-stock_basic-f65761a3d9da6c4acba77fdf9ec419626945df1fc01192dc4e000a072ae7c730",
-        "tushare-daily-78138be41282646a9408ec4d804a6cc68cd1583d9ab577472be765998fd88e2a",
-        "tushare-adj_factor-fdbd25e3f208a41c0f725807afe5a2bdc0ef557d47fe415e677ae12df6b0280e",
-        "tushare-daily_basic-9ce7ff8014748021ded2730766a947d278cc7bf2450a7e984260437a28513c7e",
-        "tushare-daily_basic-442b9a1bdca73b335cfccbf44aac08648037a2783f25fb823b5b7513a7d55859",
-        "tushare-daily_basic-37525e253ff5e3fa8021d2b1939bc932d4121965be1404bd3a8e424aeae16720",
-        "tushare-daily_basic-2d6eb7ae740f66578aefc2bf6f6c6760a61b2d5cc235f8e696b804a9257e2bca",
-        "tushare-daily_basic-f0880fff7ff14f1948aee44da9b0bdad8330e0e0243d794dfd3a474982cb0378",
-        "tushare-daily_basic-fb69a6d4c7295dc245fafb858343545252d4a0b7772ee59d596d6d19168eb811",
-        "tushare-daily_basic-a8970ecaaf628e0530d6f7d042e94cf98aab1bf3078551f7bfaca2be7c723708",
-        "tushare-daily_basic-6f1ff2c7f346c3b9870cbf96d2033238059c77c714fd6a02987ccfddde193242",
-        "tushare-daily_basic-5c1809c0fe41a696c9d6e142aa1b42703a3e2523fd048021acfa23eed133ce93",
-        "tushare-daily_basic-b941678136b18a4f20b121401193404d94ec2a267072ea6dcc24aeaeefb9c07e",
-        "tushare-daily_basic-19de9a3f81eb3ce5e1f8a0143f66a371cd74886599c327d4f9ec615ba5063824",
-        "tushare-daily_basic-5503d32d3b584a00ab9e04b76c6580f10fd9f27329010f0e01e92c95b38439ee",
-        "tushare-daily_basic-f884f3d53b296f5a5620970a6a9b280a39d81cb7adbe226356a9fd0b0fc8716f",
-        "tushare-daily_basic-253218a5e2b6247d3cf14f4f3b294b4ffeacaf6af5849c4e00d4f217b5642a6e",
-        "tushare-daily_basic-f4a34566927ffc8240ebe45040496e547565e669af1ab606004a312fde610851",
-        "tushare-daily_basic-950773fe13ac60544b63179c964d11a0f58dab7cd75828f66bbeeda5b940f7e3",
-        "tushare-daily_basic-75cf20462c0cd4ff5bdba6a22463197ec6603ca0358db83d47040344fba05212",
-        "tushare-daily_basic-54b6fcbcd51ec4064db40f674ff711a1a224a1df3f25fe94c771f26e6e5c2e2c",
-        "tushare-daily_basic-722147ac9b50660fa853eb5a0d2af56bc95522781e01f8cbdcdac4dc5f695c84",
-        "tushare-daily_basic-69d9a7685cf3f529b04c2902817f6cc28739173fe88c26e096467007a2c2f8eb",
-        "tushare-stk_limit-b0044b8e86a38ab5e3b2db586b272593239811be799afbac4e3bf201fd377487",
-        "tushare-stk_limit-4a826d98a83972936f5d58091725eac8681932d6954592b400359afcfc9668d2",
-        "tushare-stk_limit-60d8f73937c9f67632781386be1fe0c7ed9f3b3bedefa972b06bf5ba9207adb2",
-        "tushare-stk_limit-eb07a5e405ac231ea47cf26053dd22a9df6b5fb9767f822bac1ae487fd35cdfe",
-        "tushare-stk_limit-6e3d33e9093f88512798ed5a1ee00546808bc1f92bdd167f73c8e0180907519d",
-        "tushare-stk_limit-a90855832b891c71f211082fefffb3eeb272fa00b7a1f20ebfa1deefb5cb3586",
-        "tushare-stk_limit-872762b9bfd2b3bba0e1ac9da4fd401493fc21f4f96dc9cb809cf833eb76ff92",
-        "tushare-stk_limit-04a61ed43c5c96e16740db1fb2b87d814605f522fe3cc588b4ef005b59c8b9f0",
-        "tushare-stk_limit-ec548a9301d4f85b4a3e7d7d4588b23bbc2e6c8ff6c6a00b026b582ec3e59b2e",
-        "tushare-stk_limit-e4947b50c13584c4ece5b8ccfc08fbeb8e8c3f0b4e0931f77acd5cc66154b5c2",
-        "tushare-stk_limit-cd256db0bd404cff6d2580dee84a01fbf6dbc1c1e156bfc20967b5dddfffd2bb",
-        "tushare-stk_limit-f21dd9f34ec7bd5ef02dccd1ec590900416516cedd5570eb232a9eac71279906",
-        "tushare-stk_limit-592e55b1bae0ba6288b08a3c70aea14ebd6e5c3cf428b5712dcb8a1ce177bcfd",
-        "tushare-stk_limit-301d554a01789357ea13c793bcaae2fcd2064c0b043db64b37b4a0f26ba9fdf3",
-        "tushare-stk_limit-8e6b5f2da64601a642aa9a804b0d8e1d8142bd7e07e1540e254cc6aea13c5fd0",
-        "tushare-stk_limit-2a8097a9d0ed75003d5a7486b0644d635bb86bc268b577623914b612ba6ed079",
-        "tushare-stk_limit-de00b79053660efdc6cd36ce241d360c29bebfe0d39be1c7f896d4c062e9928d",
-        "tushare-stk_limit-575629e7b25f16ef5d71fef2d895c25da90f323a0ab94312c0169733f1690790",
-        "tushare-stk_limit-93ea4409f0133ea2768e4c88106b75b8c2498c3bdb17a4fd2ced075a0d09115b",
-        "tushare-stk_limit-41a7c2b4b7b00ed0229aef77509855e425d568e2afa003a9c5d0f4a45b75f518",
-        "tushare-suspend_d-65d2d26d6764e3f3a1f28593876b8b551e23b1236a4413740e7f2b10e82e7134"
+        "tushare-trade_cal-58ca0f1677dccbcf2c81c58e6094f34195f2c3e2993bd4c1fa33834d9df08176",
+        "tushare-trade_cal-8af1bc700c8ac7647bd90a5d030e1e50ef97422a39ffe55f5d57cb6b2c7ea65a",
+        "tushare-stock_basic-97a6800d3e59cdda0920adef102ed808d3af1869d329c66b2f4297f132282448",
+        "tushare-daily-62275e29e2984da904005cb50bf0a80dbbe8c84a1bf862c3a02d7f42c74ccaa0",
+        "tushare-adj_factor-29c16a2318e834b199de99278724c6b508080250081f5ece44020270d920a325",
+        "tushare-daily_basic-ee3f1396752481445bbc1be13977012eafce8f2f3cedc6b9a238be23f3cbfde2",
+        "tushare-daily_basic-21ddc0177116b5150bc7aeb06671728edce705c8f78088d571bd819a70b098bd",
+        "tushare-daily_basic-935282d1a4b87abfdfd63fbc13eaf6035765d9ce5425c5c99896c8ddfb7877ef",
+        "tushare-daily_basic-b1d60324921a50b42311e775ec0e52c07600146a0154eb2139b2cbf48dd62bc2",
+        "tushare-daily_basic-131b5ae281013603b6b406d0d1c2698b84e75f4e98c987575a079c44318faa31",
+        "tushare-daily_basic-5f88bb787275128876a3af232fb7d4bebf250e0439c8e07b5dec04b68504f3d5",
+        "tushare-daily_basic-0d7b90cc3ff4b1a51f68a40ac85ffefc6fe6b4ee23e48010e3135a876bcb6325",
+        "tushare-daily_basic-34f93288b915bbd3f101a45962e2fd6487b1f3f7115580033eed1c36048cbabd",
+        "tushare-daily_basic-75a45feb8bc18f9f77817adf610f4019c8db3bc3cad1e7aecda9b68e8d1634b7",
+        "tushare-daily_basic-e79339103aa19bbf48ae865127bd4a180dc0025fd4a16f8e0ed668aac5f387e0",
+        "tushare-daily_basic-6c3595c0d0e5ad2b568c903c4123fac746ae908cd01be6d25b6fd55daa2c7d3c",
+        "tushare-daily_basic-128bcac8fa6bc50a460dde381a7b728bc507c0d6ba70a33efed20e72e4735a40",
+        "tushare-daily_basic-88c35967a34ea3337087b9a5164061e0b561a3c7d049dce586d3be12bac4e963",
+        "tushare-daily_basic-9d778f1f972d81893ca4c170b48ad018c195b577422ae6a728328211bc442a42",
+        "tushare-daily_basic-9395db551bc1d85f3c0586b045a4b1874737310965d9ed437d505c3e9050908f",
+        "tushare-daily_basic-01e23b8152496f548ea355f7e8534bdd5551e8f045a91c1d31bfc80dbd5822f7",
+        "tushare-daily_basic-f5fc0e3821e8ad52b6ce41d517714c8383f3988930e2c487d1ae6feef2668b2f",
+        "tushare-daily_basic-4bb7c7e9e61c4179d0da1a06bc5b60583315d024d9ecec6e99c886ddea4788c2",
+        "tushare-daily_basic-822530ff8590c5a9efe0fced26f7d2638125b67a205258f5970e136ba18cd2e4",
+        "tushare-daily_basic-b044baeacbf467bffc8f63038e0b71ecd73363536f78a304a0781076a2e02b21",
+        "tushare-stk_limit-64a36180e72ef91b7509eff262477f06f178b9d9e99ca00504a2a22370630ab3",
+        "tushare-stk_limit-9bc10be744972fcafbcfa2abd027b824c2617e1e1eec781b2990375f02a5fd52",
+        "tushare-stk_limit-5d1da6f98efc7c278221aa75390ef59e6bae3043aa626502eeb8685a77b60229",
+        "tushare-stk_limit-e5ac05774088e976943db9591127337dd2e0099051861518f9a2bac7f8be4c0e",
+        "tushare-stk_limit-ddaf873cdc7456271544367fe5624695ff8bdbbdbd98fb192504b58cd6831857",
+        "tushare-stk_limit-8b00c67aa882cea1666a7fd3eb25bdea1b823f7aba6028122eba42198a7b4b9b",
+        "tushare-stk_limit-7c8c58b41608d6e29142068efd46733049c4d5117a9fb4379a2efa5f5a5d52d6",
+        "tushare-stk_limit-b092f41b269f5fc3f09d5a3fb7e049f7acae8b0c13bb748b82ad99fc273d2a5a",
+        "tushare-stk_limit-fc8d2e296ddf6d09bb92cb2e0881fe38a398752180e828aa4e3dfd38fcd6d3b7",
+        "tushare-stk_limit-e3ed95ac09bb52e5bcabf4de947f37ff18bc7ff59b6cb607953475fe8e8d0a2b",
+        "tushare-stk_limit-296a40745f84bf5822f295a92d0fe526432135c93ea97ed60a0d548a6259fc6d",
+        "tushare-stk_limit-646b4bd76f4d4f7b72c2a9c6c6da204cf864a5c5fa2a472f2a0518004579fa7c",
+        "tushare-stk_limit-ea2e8b7ff80c624716343bdf4a7d6aee924f1e9fa05b0f5f20c0d9a1b6dd298c",
+        "tushare-stk_limit-bae1605d292f26b7d810fcd0f17a255c18b4c3e23ebc53c554c6c8499181b275",
+        "tushare-stk_limit-940ec4a4229a913917cda9f8c047f9f910e62714d9424c6ef0f7034f30918720",
+        "tushare-stk_limit-244dd52378f36c7e5c8ed24f3a1d4c2cf95c82f7d3d3cc38ce8ff8e28786ea6f",
+        "tushare-stk_limit-849fb38fd402d0ef3cfc6d6b041c2a22dd8741265e587f0311011f0f1f6c1f58",
+        "tushare-stk_limit-f34983a6a8d2c88ce8e87276e079016c898e335a09995f1f684c828c65e84b7e",
+        "tushare-stk_limit-a2b76c59c530d04298847c7f275c9a04fe4da7caddaf6f7780481ad2cacdbcd3",
+        "tushare-stk_limit-8df3821acd19656334e64bb7c42bd390e2adb38a001d43054a9dd48ab7e2024c",
+        "tushare-suspend_d-6c5fcc8943f411ff90065b8d8f8a73a9c9c256e17582a59327639dd8ca473fff"
       ],
-      "ordered_refs_digest": "sha256:fb9e0dca59140a8808ad140bcf6831eb0eeea44b1e5f015f6d4fc731a6655a35"
+      "ordered_refs_digest": "sha256:e7c8a541a6adb7869ac90b064790846b07bb4ef13d3be5668b3524c51d1ebe65"
     },
     "snapshot": {
-      "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
-      "manifest_digest": "sha256:c5dd01dc4f282357fd90d5bfb13d91a36e0b18927ba29d45ded3892e48065d45",
-      "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+      "identity_digest": "sha256:f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca",
+      "manifest_digest": "sha256:5c59f0e499067adf0dc6037acea6f3196caca3b9b8f4bfd9905ba62bc9852af1",
+      "snapshot_id": "snapshot-f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca"
     }
   },
   "source_root_artifact_map": {
     "domain_commits": {
-      "market_daily": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
-      "security_master": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
-      "trading_calendar": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc"
+      "market_daily": "market_daily-dfbe02f184c1d07a06c39ce1da4183d66584001c8cbb3c00b420422d13241732",
+      "security_master": "security_master-00f9de39a5a351f46a3fa778ebfbf068dab2fd40f6f82c5b502fbbae66d02c75",
+      "trading_calendar": "trading_calendar-4bf7833563363303d14d6c2535f6e0883c5e2761bcfb7e62a97823e2bcc9c9ec"
     },
-    "qlib_view": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
-    "snapshot": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+    "qlib_view": "qlib-b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a",
+    "snapshot": "snapshot-f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca"
   },
   "starting_state": {
     "canonical_exists": false,

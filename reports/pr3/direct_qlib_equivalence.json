@@ -25,12 +25,12 @@
     "circulating_market_cap_cny"
   ],
   "mismatches": [],
-  "qlib_view_ref": {
-    "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
-    "manifest_digest": "sha256:75a60cb1ea1018c4bc7faed00d67b382498b6440443ef2e97e3b91d4a65c3aec",
-    "view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90"
-  },
   "qlib_keys": 4858,
+  "qlib_view_ref": {
+    "identity_digest": "sha256:b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a",
+    "manifest_digest": "sha256:a9f6f40a1736485f30f11f32018402d05eda6b20cd0f23624cd98d876fd08291",
+    "view_id": "qlib-b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a"
+  },
   "relative_tolerance": 1e-06,
   "scope": {
     "end_session": "2025-12-31",
@@ -60,9 +60,9 @@
     ]
   },
   "source_snapshot_ref": {
-    "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
-    "manifest_digest": "sha256:c5dd01dc4f282357fd90d5bfb13d91a36e0b18927ba29d45ded3892e48065d45",
-    "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+    "identity_digest": "sha256:f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca",
+    "manifest_digest": "sha256:5c59f0e499067adf0dc6037acea6f3196caca3b9b8f4bfd9905ba62bc9852af1",
+    "snapshot_id": "snapshot-f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca"
   },
   "status": "PASS"
 }

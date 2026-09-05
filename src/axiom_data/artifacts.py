@@ -43,7 +43,8 @@ _DOMAIN_VALIDATORS = {
 _SUFFIX_EXCHANGE = {".SH": "SSE", ".SZ": "SZSE"}
 _MARKET_BUILDER_REVISION = "market-json-builder.v1"
 _SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
-_RAW_BATCH_SCHEMAS = ("raw_batch.v1", "raw_batch.v2")
+_RAW_BATCH_WRITE_SCHEMA = "raw_batch.v2"
+_RAW_BATCH_SCHEMAS = ("raw_batch.v1", _RAW_BATCH_WRITE_SCHEMA)
 
 
 class ArtifactError(ValueError):
@@ -483,7 +484,7 @@ def write_raw_batch(
 
     manifest = {
         "artifact_type": "raw_batch",
-        "schema_version": "raw_batch.v2",
+        "schema_version": _RAW_BATCH_WRITE_SCHEMA,
         "raw_batch_id": raw_batch_id,
         "domain": domain,
         "source_profile_ref": source_profile,
@@ -535,7 +536,7 @@ def load_raw_batch(data_root: str | Path, raw_batch_id: str) -> RawBatch:
         raise ArtifactError("RawBatch has an unsupported domain")
     for field in ("source_profile_ref", "collector_code_ref"):
         _identity(field, manifest.get(field))
-    if manifest["schema_version"] == "raw_batch.v2":
+    if manifest["schema_version"] == _RAW_BATCH_WRITE_SCHEMA:
         _identity("source_profile_version", manifest.get("source_profile_version"))
         _validated_digest(
             "source_profile_digest", manifest.get("source_profile_digest")
@@ -612,10 +613,10 @@ def _raw_ref(raw: RawBatch) -> dict[str, Any]:
         "manifest_digest": raw.ref.manifest_digest,
         "payload_digest": raw.manifest["payload_files"][0]["content_digest"],
     }
-    if raw.manifest["schema_version"] == "raw_batch.v2":
+    if raw.manifest["schema_version"] == _RAW_BATCH_WRITE_SCHEMA:
         ref.update(
             {
-                "schema_version": "raw_batch.v2",
+                "schema_version": _RAW_BATCH_WRITE_SCHEMA,
                 "source_profile_ref": raw.manifest["source_profile_ref"],
                 "source_profile_version": raw.manifest["source_profile_version"],
                 "source_profile_digest": raw.manifest["source_profile_digest"],
