@@ -44,7 +44,8 @@ The DomainCommit manifest contains:
 - the exact domain and contract version, plus the digest and relative path of
   the contract content copied into the artifact;
 - an optional parent ref and ordered raw and patch ref arrays;
-- builder identity, normalized builder configuration, and its digest;
+- an implementation ref derived from the actual builder type plus a controlled
+  implementation revision, normalized builder configuration, and its digest;
 - fixed dependency commit refs used for cross-domain validation;
 - relative output paths, row count, content digests, logical content digest,
   validation summary, and creation time.
@@ -57,6 +58,16 @@ The Phase 1 canonical physical file is deterministic JSON. Reproducibility is
 defined over the contract schema and logical rows; it does not introduce a
 Parquet or Qlib byte-equivalence requirement.
 
+The DomainCommit ID is the full SHA-256 digest of the deterministic manifest
+projection, prefixed by its domain. That projection includes the domain,
+contract version/digest, parent ref, ordered raw/patch refs, builder
+implementation ref, normalized configuration, dependency refs, output metadata,
+logical output digest, and validation summary. `created_at`, the ID itself, and
+the identity digest field are excluded to avoid a circular or wall-clock-based
+identity. A supplied `commit_id` is only an expected derived ID and cannot
+override it. The controlled implementation revision must change whenever the
+builder's output semantics change.
+
 ### Market cross-domain validation
 
 Publishing `market_daily.v1` requires explicit immutable
@@ -64,13 +75,17 @@ Publishing `market_daily.v1` requires explicit immutable
 
 - its canonical symbol suffix determines `SSE` or `SZSE` and must match a
   security identity in the fixed security commit;
+- its session must fall in that security identity's frozen half-open interval
+  `[list_session, delist_session)`; an unknown start, a pre-listing row, and a
+  row on or after `delist_session` are rejected;
 - `(exchange, session)` must exist in the fixed calendar commit and have
   `is_open=true`.
 
-The resulting dependency refs, including manifest and contract digests, are
-stored in the market commit. No current pointer, catalog lookup, directory
-ordering, symlink, or mtime selects either dependency. This check is identity
-and basic calendar consistency only; it is not a historical tradability engine.
+The resulting dependency refs include their derived identity, logical content,
+and contract digests and are stored in the market commit. No current pointer,
+catalog lookup, directory ordering, symlink, or mtime selects either dependency.
+This check is identity and basic calendar consistency only; it is not a
+historical tradability engine.
 
 ### DataSnapshot
 
@@ -81,6 +96,10 @@ registered Phase 1 contracts, match the market commit's fixed dependency refs,
 and pass cross-domain validation. Publishing a newer domain commit or snapshot
 does not change an older snapshot.
 
+The Snapshot ID is the full SHA-256 digest of its deterministic manifest
+projection. Its own `created_at` is excluded. A supplied `snapshot_id` is only
+an expected derived ID and cannot override the computed identity.
+
 ### Manifest truth and catalog index
 
 Each artifact stores `manifest.json` and a sibling `manifest.sha256`. Payload,
@@ -89,18 +108,38 @@ loaded. Paths inside manifests are relative to their artifact and cannot escape
 it. Consequently RawBatch, DomainCommit, and DataSnapshot resolution does not
 depend on the catalog.
 
+All read paths pass through one lexical safe-path check. The data root and its
+ancestor chain, each artifact directory, each manifest-relative intermediate
+component, and the final file must be real paths rather than symlinks.
+
+`load_domain_commit()` is the local inspection loader. Formal operations use
+`validate_domain_commit_closure()`, which recursively verifies parent lineage,
+ordered RawBatch refs, empty PR2 patch refs, fixed market dependency commits,
+and their local manifests/contracts/outputs. It detects cycles and caches each
+validated commit. Domain builds, Snapshot creation/loading, recovery, and
+catalog rebuilding use this full closure path.
+
 `catalog.sqlite` is a disposable exact-ID inspection index for raw batches,
 domain commits, and snapshots. `rebuild_catalog()` scans and validates artifact
 manifests, creates a new database in staging, and atomically replaces only the
-catalog. Deleting the catalog does not affect artifact interpretation.
+catalog. A broken lineage aborts rebuilding rather than being indexed as
+verified. Deleting the catalog does not affect artifact interpretation.
 
 ### Publication protocol
 
 Every artifact is assembled in a new directory under `staging`, checked and
 fsynced, then atomically renamed to its final immutable identity. Existing
-targets are never overwritten. A completely equivalent candidate is an
-idempotent success; any difference is a conflict. Symlink artifact targets and
-symlink files are rejected.
+targets are never overwritten. RawBatch retries require complete byte
+equivalence. DomainCommit and Snapshot retries compare the deterministic
+identity projection digest plus content files, so a different retry-time
+`created_at` returns the first artifact without changing its manifest. Any
+decisive difference is a conflict. Symlink artifact targets and files are
+rejected.
+
+Recovery copies an already published immutable closure to a different data
+root, removes the disposable catalog, rebuilds it from manifests, validates the
+Snapshot's full lineage, and reads the original raw and canonical values. It
+does not call the RawBatch writer or reconstruct supplier observations.
 
 ## Current boundary
 

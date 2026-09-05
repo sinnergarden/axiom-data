@@ -23,6 +23,7 @@ from axiom_data.contracts import load_contract
 from axiom_data.domains import (
     MARKET_DOMAINS,
     MarketContractError,
+    security_identity_state,
     validate_market_daily_rows,
     validate_security_master_rows,
     validate_trading_calendar_rows,
@@ -39,6 +40,7 @@ _DOMAIN_VALIDATORS = {
     "market_daily": validate_market_daily_rows,
 }
 _SUFFIX_EXCHANGE = {".SH": "SSE", ".SZ": "SZSE"}
+_MARKET_BUILDER_REVISION = "market-json-builder.v1"
 
 
 class ArtifactError(ValueError):
@@ -107,7 +109,26 @@ def _identity(name: str, value: object) -> str:
 
 
 def _layout(data_root: str | Path) -> DataRootLayout:
-    return DataRootLayout(Path(data_root))
+    layout = DataRootLayout(Path(data_root))
+    _safe_path(layout.root, layout.root)
+    return layout
+
+
+def _safe_path(root: Path, path: Path, *, closure: Path | None = None) -> Path:
+    """Validate a lexical path and every existing component without following links."""
+
+    boundary = root if closure is None else closure
+    try:
+        path.relative_to(boundary)
+        boundary.relative_to(root)
+    except ValueError as exc:
+        raise ArtifactError("artifact path must remain inside its allowed closure") from exc
+    for component in (path, *path.parents):
+        if component.is_symlink():
+            raise ArtifactError(f"artifact path component must not be a symlink: {component}")
+        if component == Path(component.anchor):
+            break
+    return path
 
 
 def _json_bytes(value: object) -> bytes:
@@ -131,6 +152,58 @@ def _digest(content: bytes) -> str:
     return f"sha256:{hashlib.sha256(content).hexdigest()}"
 
 
+def _identity_projection(
+    manifest: Mapping[str, Any], identity_field: str
+) -> dict[str, Any]:
+    excluded = {identity_field, "identity_digest", "created_at"}
+    return {key: value for key, value in manifest.items() if key not in excluded}
+
+
+def _identity_digest(manifest: Mapping[str, Any], identity_field: str) -> str:
+    return _digest(_json_bytes(_identity_projection(manifest, identity_field)))
+
+
+def _derived_identity(prefix: str, identity_digest: str) -> str:
+    return f"{prefix}-{identity_digest.removeprefix('sha256:')}"
+
+
+def _builder_implementation_ref(builder: object) -> dict[str, str]:
+    implementation = f"{type(builder).__module__}.{type(builder).__qualname__}"
+    descriptor = {
+        "implementation": implementation,
+        "revision": _MARKET_BUILDER_REVISION,
+    }
+    return {**descriptor, "digest": _digest(_json_bytes(descriptor))}
+
+
+def _validate_builder_implementation_ref(value: object) -> None:
+    if not isinstance(value, dict) or set(value) != {
+        "implementation",
+        "revision",
+        "digest",
+    }:
+        raise ArtifactError("builder implementation ref is invalid")
+    descriptor = {
+        "implementation": value["implementation"],
+        "revision": value["revision"],
+    }
+    if (
+        not all(isinstance(item, str) and item for item in descriptor.values())
+        or value["digest"] != _digest(_json_bytes(descriptor))
+    ):
+        raise ArtifactError("builder implementation ref digest mismatch")
+
+
+def _validate_manifest_identity(
+    manifest: Mapping[str, Any], identity_field: str, prefix: str, identity: str
+) -> None:
+    actual_digest = _identity_digest(manifest, identity_field)
+    if manifest.get("identity_digest") != actual_digest:
+        raise ArtifactError("artifact deterministic identity digest mismatch")
+    if identity != _derived_identity(prefix, actual_digest):
+        raise ArtifactError("artifact ID does not match its deterministic identity")
+
+
 def _timestamp(value: str | None) -> str:
     if value is None:
         return datetime.now(timezone.utc).isoformat()
@@ -150,8 +223,7 @@ def _ensure_directory(root: Path, directory: Path) -> None:
         relative = directory.relative_to(root)
     except ValueError as exc:
         raise ArtifactError("artifact directory must remain inside the data root") from exc
-    if any(component.is_symlink() for component in (root, *root.parents)):
-        raise ArtifactError("data root path must not contain a symlink")
+    _safe_path(root, root)
     root.mkdir(parents=True, exist_ok=True)
     if not root.is_dir() or root.is_symlink():
         raise ArtifactError("data root must be a real directory")
@@ -188,19 +260,18 @@ def _write_manifest(artifact_dir: Path, manifest: Mapping[str, Any]) -> str:
     return manifest_digest
 
 
-def _relative_file(artifact_dir: Path, value: object) -> Path:
+def _relative_file(root: Path, artifact_dir: Path, value: object) -> Path:
     if not isinstance(value, str):
         raise ArtifactError("artifact file path must be relative text")
     relative = PurePosixPath(value)
     if relative.is_absolute() or not relative.parts or ".." in relative.parts:
         raise ArtifactError("artifact file path must stay inside its artifact")
     path = artifact_dir.joinpath(*relative.parts)
-    if path.is_symlink():
-        raise ArtifactError("artifact files must not be symlinks")
-    return path
+    return _safe_path(root, path, closure=artifact_dir)
 
 
 def _load_manifest(
+    root: Path,
     artifact_dir: Path,
     *,
     artifact_type: str,
@@ -208,12 +279,15 @@ def _load_manifest(
     identity_field: str,
     identity: str,
 ) -> tuple[dict[str, Any], str]:
+    _safe_path(root, artifact_dir)
     if not artifact_dir.exists():
         raise ArtifactNotFoundError(f"{artifact_type} {identity!r} does not exist")
     if artifact_dir.is_symlink() or not artifact_dir.is_dir():
         raise ArtifactError("artifact identity must resolve to a real directory")
     manifest_path = artifact_dir / _MANIFEST
     digest_path = artifact_dir / _MANIFEST_DIGEST
+    _safe_path(root, manifest_path, closure=artifact_dir)
+    _safe_path(root, digest_path, closure=artifact_dir)
     if (
         not manifest_path.is_file()
         or manifest_path.is_symlink()
@@ -254,10 +328,49 @@ def _tree_digests(directory: Path) -> dict[str, str]:
     return result
 
 
+def _content_tree_digests(directory: Path) -> dict[str, str]:
+    return {
+        path: digest
+        for path, digest in _tree_digests(directory).items()
+        if path not in {_MANIFEST, _MANIFEST_DIGEST}
+    }
+
+
+def _publication_equivalent(
+    existing: Path,
+    candidate: Path,
+    identity_digest: str | None,
+) -> bool:
+    if identity_digest is None:
+        return _tree_digests(existing) == _tree_digests(candidate)
+    manifest_paths = (
+        existing / _MANIFEST,
+        existing / _MANIFEST_DIGEST,
+        candidate / _MANIFEST,
+        candidate / _MANIFEST_DIGEST,
+    )
+    if any(path.is_symlink() for path in manifest_paths):
+        return False
+    try:
+        existing_manifest = json.loads((existing / _MANIFEST).read_bytes())
+        candidate_manifest = json.loads((candidate / _MANIFEST).read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    return (
+        isinstance(existing_manifest, dict)
+        and isinstance(candidate_manifest, dict)
+        and existing_manifest.get("identity_digest") == identity_digest
+        and candidate_manifest.get("identity_digest") == identity_digest
+        and _content_tree_digests(existing) == _content_tree_digests(candidate)
+    )
+
+
 def _publish_directory(
     layout: DataRootLayout,
     target: Path,
     prepare: Any,
+    *,
+    identity_digest: str | None = None,
 ) -> None:
     _ensure_directory(layout.root, layout.staging)
     _ensure_directory(layout.root, target.parent)
@@ -271,14 +384,16 @@ def _publish_directory(
         _fsync_directory(candidate)
 
         if target.exists():
-            if not target.is_dir() or _tree_digests(target) != _tree_digests(candidate):
+            if not target.is_dir() or not _publication_equivalent(
+                target, candidate, identity_digest
+            ):
                 raise ArtifactConflictError(f"immutable artifact already exists: {target.name}")
             return
         try:
             os.rename(candidate, target)
         except OSError as exc:
             if target.exists() and target.is_dir():
-                if _tree_digests(target) == _tree_digests(candidate):
+                if _publication_equivalent(target, candidate, identity_digest):
                     return
                 raise ArtifactConflictError(
                     f"immutable artifact was concurrently published: {target.name}"
@@ -287,14 +402,14 @@ def _publish_directory(
         _fsync_directory(target.parent)
 
 
-def _payload_file(manifest: Mapping[str, Any], artifact_dir: Path) -> bytes:
+def _payload_file(root: Path, manifest: Mapping[str, Any], artifact_dir: Path) -> bytes:
     payload_files = manifest.get("payload_files")
     if not isinstance(payload_files, list) or len(payload_files) != 1:
         raise ArtifactError("Phase 1 RawBatch requires exactly one payload file")
     entry = payload_files[0]
     if not isinstance(entry, dict):
         raise ArtifactError("RawBatch payload entry must be an object")
-    path = _relative_file(artifact_dir, entry.get("path"))
+    path = _relative_file(root, artifact_dir, entry.get("path"))
     if not path.is_file():
         raise ArtifactError("RawBatch payload file is missing")
     payload = path.read_bytes()
@@ -329,6 +444,10 @@ def write_raw_batch(
         raise ArtifactError("RawBatch payload must be bytes")
     if not isinstance(status, str) or not status:
         raise ArtifactError("RawBatch status must be non-empty text")
+    if not isinstance(request, Mapping) or (
+        summary is not None and not isinstance(summary, Mapping)
+    ):
+        raise ArtifactError("RawBatch request and summary must be mappings")
     request_copy = _json_copy(request)
     summary_copy = _json_copy(summary or {})
     target = layout.raw_batches / raw_batch_id
@@ -375,6 +494,7 @@ def load_raw_batch(data_root: str | Path, raw_batch_id: str) -> RawBatch:
         if found is not None:
             raise ArtifactError(f"expected raw_batch {raw_batch_id!r}, found {found}")
     manifest, manifest_digest = _load_manifest(
+        layout.root,
         target,
         artifact_type="raw_batch",
         schema_version="raw_batch.v1",
@@ -383,17 +503,33 @@ def load_raw_batch(data_root: str | Path, raw_batch_id: str) -> RawBatch:
     )
     if manifest.get("domain") not in MARKET_DOMAINS:
         raise ArtifactError("RawBatch has an unsupported domain")
-    payload = _payload_file(manifest, target)
+    for field in ("source_profile_ref", "collector_code_ref"):
+        _identity(field, manifest.get(field))
+    if not isinstance(manifest.get("request"), dict):
+        raise ArtifactError("RawBatch request metadata must be an object")
+    if not isinstance(manifest.get("summary"), dict):
+        raise ArtifactError("RawBatch summary must be an object")
+    if not isinstance(manifest.get("retrieved_at"), str):
+        raise ArtifactError("RawBatch retrieved_at is missing")
+    _timestamp(manifest["retrieved_at"])
+    if not isinstance(manifest.get("status"), str) or not manifest["status"]:
+        raise ArtifactError("RawBatch status must be non-empty text")
+    payload = _payload_file(layout.root, manifest, target)
     return RawBatch(RawBatchRef(raw_batch_id, manifest_digest), manifest, payload)
 
 
 def _find_exact_artifact_type(layout: DataRootLayout, artifact_id: str) -> str | None:
-    if (layout.raw_batches / artifact_id).exists():
+    raw_path = _safe_path(layout.root, layout.raw_batches / artifact_id)
+    if raw_path.exists():
         return "raw_batch"
-    if (layout.snapshots / artifact_id).exists():
+    snapshot_path = _safe_path(layout.root, layout.snapshots / artifact_id)
+    if snapshot_path.exists():
         return "data_snapshot"
     for domain in MARKET_DOMAINS:
-        if (layout.domain_commits(domain) / artifact_id).exists():
+        commit_path = _safe_path(
+            layout.root, layout.domain_commits(domain) / artifact_id
+        )
+        if commit_path.exists():
             return f"domain_commit:{domain}"
     return None
 
@@ -430,7 +566,8 @@ def _commit_ref(commit: DomainCommit) -> dict[str, Any]:
         "domain": commit.ref.domain,
         "contract_version": commit.ref.contract_version,
         "contract_digest": commit.manifest["contract_digest"],
-        "manifest_digest": commit.manifest_digest,
+        "identity_digest": commit.manifest["identity_digest"],
+        "logical_content_digest": commit.manifest["logical_content_digest"],
     }
 
 
@@ -505,6 +642,12 @@ def _validate_market_dependencies(
         security_row = security_rows.get(symbol)
         if security_row is None or security_row.get("exchange") != exchange:
             raise ArtifactError(f"market symbol {symbol!r} has no matching security identity")
+        identity_state = security_identity_state(security_row, row["session"])
+        if identity_state != "within_identity_interval":
+            raise ArtifactError(
+                f"market row {(symbol, row['session'])!r} is outside the security "
+                "identity interval"
+            )
         calendar_row = calendar_rows.get((exchange, row["session"]))
         if calendar_row is None:
             raise ArtifactError(
@@ -524,7 +667,6 @@ class MarketDomainBuilder:
         data_root: str | Path,
         domain: str,
         *,
-        builder_identity: str = "axiom-data.market-json.v1",
         builder_config: Mapping[str, Any] | None = None,
         commit_id: str | None = None,
         calendar_commit_id: str | None = None,
@@ -535,9 +677,12 @@ class MarketDomainBuilder:
             raise ArtifactError("builder domain must be a Phase 1 market domain")
         self.layout = _layout(data_root)
         self.domain = domain
-        self.builder_identity = _identity("builder_identity", builder_identity)
+        if builder_config is not None and not isinstance(builder_config, Mapping):
+            raise ArtifactError("builder_config must be a mapping")
         self.builder_config = _json_copy(builder_config or {})
-        self.commit_id = _identity("commit_id", commit_id) if commit_id is not None else None
+        self.expected_commit_id = (
+            _identity("commit_id", commit_id) if commit_id is not None else None
+        )
         self.calendar_commit_id = (
             _identity("calendar_commit_id", calendar_commit_id)
             if calendar_commit_id is not None
@@ -549,6 +694,14 @@ class MarketDomainBuilder:
             else None
         )
         self.created_at = _timestamp(created_at)
+
+    def _build_rows(
+        self,
+        contract: Mapping[str, Any],
+        parent_rows: Sequence[Mapping[str, Any]],
+        raw_batches: Sequence[RawBatch],
+    ) -> list[dict[str, Any]]:
+        return _merge_rows(self.domain, contract, parent_rows, raw_batches)
 
     def __call__(self, request: BuildRequest) -> DomainCommitRef:
         if request.patch_ids:
@@ -570,7 +723,9 @@ class MarketDomainBuilder:
 
         parent = None
         if request.parent_commit is not None:
-            parent = load_domain_commit(self.layout.root, self.domain, request.parent_commit)
+            parent = validate_domain_commit_closure(
+                self.layout.root, self.domain, request.parent_commit
+            )
             if (
                 parent.ref.contract_version != request.contract_version
                 or parent.manifest.get("contract_digest") != contract_digest
@@ -585,10 +740,10 @@ class MarketDomainBuilder:
                 raise ArtifactError(
                     "market_daily publication requires explicit calendar and security commits"
                 )
-            calendar = load_domain_commit(
+            calendar = validate_domain_commit_closure(
                 self.layout.root, "trading_calendar", self.calendar_commit_id
             )
-            security = load_domain_commit(
+            security = validate_domain_commit_closure(
                 self.layout.root, "security_master", self.security_master_commit_id
             )
             dependencies = {
@@ -598,8 +753,7 @@ class MarketDomainBuilder:
         elif self.calendar_commit_id is not None or self.security_master_commit_id is not None:
             raise ArtifactError("only market_daily accepts cross-domain dependency commits")
 
-        rows = _merge_rows(
-            self.domain,
+        rows = self._build_rows(
             contract,
             parent.rows if parent is not None else (),
             raw_batches,
@@ -607,27 +761,12 @@ class MarketDomainBuilder:
         rows_content = _json_bytes(rows)
         logical_digest = _digest(rows_content)
         builder_config_digest = _digest(_json_bytes(self.builder_config))
+        builder_implementation_ref = _builder_implementation_ref(self)
         parent_ref = _commit_ref(parent) if parent is not None else None
         raw_refs = [_raw_ref(raw) for raw in raw_batches]
-        identity_seed = {
-            "domain": self.domain,
-            "contract_digest": contract_digest,
-            "parent_commit_ref": parent_ref,
-            "ordered_raw_batch_refs": raw_refs,
-            "ordered_patch_refs": [],
-            "builder_identity": self.builder_identity,
-            "builder_config_digest": builder_config_digest,
-            "dependency_commit_refs": dependencies,
-        }
-        commit_id = self.commit_id or (
-            f"{self.domain}-{_digest(_json_bytes(identity_seed)).split(':', 1)[1][:24]}"
-        )
-        target = self.layout.domain_commits(self.domain) / commit_id
-
         manifest = {
             "artifact_type": "domain_commit",
             "schema_version": "domain_commit.v1",
-            "domain_commit_id": commit_id,
             "domain": self.domain,
             "contract_version": request.contract_version,
             "contract_digest": contract_digest,
@@ -635,7 +774,7 @@ class MarketDomainBuilder:
             "parent_commit_ref": parent_ref,
             "ordered_raw_batch_refs": raw_refs,
             "ordered_patch_refs": [],
-            "builder_identity": self.builder_identity,
+            "builder_implementation_ref": builder_implementation_ref,
             "builder_config": self.builder_config,
             "builder_config_digest": builder_config_digest,
             "dependency_commit_refs": dependencies,
@@ -652,8 +791,15 @@ class MarketDomainBuilder:
                 "contract_rows": len(rows),
                 "cross_domain": "PASS" if self.domain == "market_daily" else "NOT_APPLICABLE",
             },
-            "created_at": self.created_at,
         }
+        identity_digest = _identity_digest(manifest, "domain_commit_id")
+        commit_id = _derived_identity(self.domain, identity_digest)
+        if self.expected_commit_id is not None and self.expected_commit_id != commit_id:
+            raise ArtifactError("commit_id must equal the derived content-safe identity")
+        manifest["domain_commit_id"] = commit_id
+        manifest["identity_digest"] = identity_digest
+        manifest["created_at"] = self.created_at
+        target = self.layout.domain_commits(self.domain) / commit_id
 
         def prepare(candidate: Path) -> None:
             _write_file(candidate / "contract.json", contract_content)
@@ -668,8 +814,15 @@ class MarketDomainBuilder:
                 raise ArtifactError("staged logical content digest mismatch")
             _write_manifest(candidate, manifest)
 
-        _publish_directory(self.layout, target, prepare)
-        return load_domain_commit(self.layout.root, self.domain, commit_id).ref
+        _publish_directory(
+            self.layout,
+            target,
+            prepare,
+            identity_digest=identity_digest,
+        )
+        return validate_domain_commit_closure(
+            self.layout.root, self.domain, commit_id
+        ).ref
 
 
 def load_domain_commit(
@@ -691,6 +844,7 @@ def load_domain_commit(
                 f"expected domain_commit:{domain} {domain_commit_id!r}, found {found}"
             )
     manifest, manifest_digest = _load_manifest(
+        layout.root,
         target,
         artifact_type="domain_commit",
         schema_version="domain_commit.v1",
@@ -699,7 +853,17 @@ def load_domain_commit(
     )
     if manifest.get("domain") != domain:
         raise ArtifactError("DomainCommit domain mismatch")
-    contract_path = _relative_file(target, manifest.get("contract_path"))
+    _validate_manifest_identity(manifest, "domain_commit_id", domain, domain_commit_id)
+    _validate_builder_implementation_ref(manifest.get("builder_implementation_ref"))
+    builder_config = manifest.get("builder_config")
+    if not isinstance(builder_config, dict) or manifest.get(
+        "builder_config_digest"
+    ) != _digest(_json_bytes(builder_config)):
+        raise ArtifactError("DomainCommit builder config digest mismatch")
+    if not isinstance(manifest.get("created_at"), str):
+        raise ArtifactError("DomainCommit created_at is missing")
+    _timestamp(manifest["created_at"])
+    contract_path = _relative_file(layout.root, target, manifest.get("contract_path"))
     if not contract_path.is_file():
         raise ArtifactError("DomainCommit contract content is missing")
     contract_content = contract_path.read_bytes()
@@ -727,7 +891,7 @@ def load_domain_commit(
     output = output_files[0]
     if not isinstance(output, dict):
         raise ArtifactError("DomainCommit output entry is invalid")
-    rows_path = _relative_file(target, output.get("path"))
+    rows_path = _relative_file(layout.root, target, output.get("path"))
     if not rows_path.is_file():
         raise ArtifactError("DomainCommit rows file is missing")
     rows_content = rows_path.read_bytes()
@@ -745,7 +909,129 @@ def load_domain_commit(
     if output.get("rows") != len(rows):
         raise ArtifactError("DomainCommit row count mismatch")
     _validate_domain_rows(domain, rows)
+    expected_cross_domain = "PASS" if domain == "market_daily" else "NOT_APPLICABLE"
+    if manifest.get("validation_summary") != {
+        "status": "PASS",
+        "contract_rows": len(rows),
+        "cross_domain": expected_cross_domain,
+    }:
+        raise ArtifactError("DomainCommit validation summary is invalid")
     return DomainCommit(ref, manifest_digest, manifest, contract, tuple(rows))
+
+
+def _validate_domain_commit_closure(
+    root: Path,
+    domain: str,
+    domain_commit_id: str,
+    active: set[tuple[str, str]],
+    cache: dict[tuple[str, str], DomainCommit],
+) -> DomainCommit:
+    key = (domain, domain_commit_id)
+    if key in cache:
+        return cache[key]
+    if key in active:
+        raise ArtifactError("DomainCommit lineage contains a cycle")
+
+    commit = load_domain_commit(root, domain, domain_commit_id)
+    active.add(key)
+    try:
+        raw_refs = commit.manifest.get("ordered_raw_batch_refs")
+        if not isinstance(raw_refs, list):
+            raise ArtifactError("DomainCommit ordered raw refs are invalid")
+        raw_ids: set[str] = set()
+        for raw_ref in raw_refs:
+            if not isinstance(raw_ref, dict) or not isinstance(
+                raw_ref.get("raw_batch_id"), str
+            ):
+                raise ArtifactError("DomainCommit raw ref is invalid")
+            raw = load_raw_batch(root, raw_ref["raw_batch_id"])
+            if raw.manifest.get("domain") != domain or _raw_ref(raw) != raw_ref:
+                raise ArtifactError("DomainCommit raw ref does not match its artifact")
+            raw_ids.add(raw.ref.raw_batch_id)
+        if len(raw_ids) != len(raw_refs):
+            raise ArtifactError("DomainCommit raw refs must not contain duplicates")
+
+        if commit.manifest.get("ordered_patch_refs") != []:
+            raise ArtifactError("Phase 1 PR2 DomainCommit patch refs must be empty")
+
+        parent_ref = commit.manifest.get("parent_commit_ref")
+        if parent_ref is not None:
+            if (
+                not isinstance(parent_ref, dict)
+                or parent_ref.get("domain") != domain
+                or not isinstance(parent_ref.get("domain_commit_id"), str)
+            ):
+                raise ArtifactError("DomainCommit parent ref is invalid")
+            parent = _validate_domain_commit_closure(
+                root,
+                domain,
+                parent_ref["domain_commit_id"],
+                active,
+                cache,
+            )
+            if _commit_ref(parent) != parent_ref:
+                raise ArtifactError("DomainCommit parent ref does not match its artifact")
+            if (
+                parent.ref.contract_version != commit.ref.contract_version
+                or parent.manifest["contract_digest"]
+                != commit.manifest["contract_digest"]
+            ):
+                raise ArtifactError("DomainCommit parent has a different contract lineage")
+
+        dependency_refs = commit.manifest.get("dependency_commit_refs")
+        if domain == "market_daily":
+            required = {"trading_calendar", "security_master"}
+            if not isinstance(dependency_refs, dict) or set(dependency_refs) != required:
+                raise ArtifactError("market_daily dependency refs are incomplete")
+            dependencies: dict[str, DomainCommit] = {}
+            for dependency_domain in required:
+                dependency_ref = dependency_refs[dependency_domain]
+                if not isinstance(dependency_ref, dict) or not isinstance(
+                    dependency_ref.get("domain_commit_id"), str
+                ):
+                    raise ArtifactError("market_daily dependency ref is invalid")
+                dependency = _validate_domain_commit_closure(
+                    root,
+                    dependency_domain,
+                    dependency_ref["domain_commit_id"],
+                    active,
+                    cache,
+                )
+                if _commit_ref(dependency) != dependency_ref:
+                    raise ArtifactError(
+                        "market_daily dependency ref does not match its artifact"
+                    )
+                dependencies[dependency_domain] = dependency
+            _validate_market_dependencies(
+                commit.rows,
+                dependencies["trading_calendar"],
+                dependencies["security_master"],
+            )
+        elif dependency_refs != {}:
+            raise ArtifactError("only market_daily may contain dependency commit refs")
+    finally:
+        active.remove(key)
+
+    cache[key] = commit
+    return commit
+
+
+def validate_domain_commit_closure(
+    data_root: str | Path,
+    domain: str,
+    domain_commit_id: str,
+) -> DomainCommit:
+    """Validate one commit and every immutable parent/raw/dependency reference."""
+
+    layout = _layout(data_root)
+    domain_commit_id = _identity("domain_commit_id", domain_commit_id)
+    return _validate_domain_commit_closure(
+        layout.root,
+        domain,
+        domain_commit_id,
+        set(),
+        {},
+    )
 
 
 def _checked_snapshot_commits(
@@ -754,8 +1040,15 @@ def _checked_snapshot_commits(
 ) -> dict[str, DomainCommit]:
     if set(domain_commit_ids) != _REQUIRED_SNAPSHOT_DOMAINS:
         raise ArtifactError("DataSnapshot requires exactly the three Phase 1 market domains")
+    cache: dict[tuple[str, str], DomainCommit] = {}
     commits = {
-        domain: load_domain_commit(data_root, domain, domain_commit_ids[domain])
+        domain: _validate_domain_commit_closure(
+            data_root,
+            domain,
+            _identity("domain_commit_id", domain_commit_ids[domain]),
+            set(),
+            cache,
+        )
         for domain in MARKET_DOMAINS
     }
     market_dependencies = commits["market_daily"].manifest.get("dependency_commit_refs")
@@ -785,33 +1078,38 @@ def create_snapshot(
     layout = _layout(data_root)
     commits = _checked_snapshot_commits(layout.root, domain_commit_ids)
     domain_refs = {domain: _commit_ref(commits[domain]) for domain in MARKET_DOMAINS}
-    identity_seed = {
-        "schema_version": "data_snapshot.v1",
-        "domain_refs": domain_refs,
-    }
-    if snapshot_id is None:
-        snapshot_id = f"snapshot-{_digest(_json_bytes(identity_seed)).split(':', 1)[1][:24]}"
-    else:
-        snapshot_id = _identity("snapshot_id", snapshot_id)
+    expected_snapshot_id = (
+        _identity("snapshot_id", snapshot_id) if snapshot_id is not None else None
+    )
     created_at = _timestamp(created_at)
-    target = layout.snapshots / snapshot_id
     manifest = {
         "artifact_type": "data_snapshot",
         "schema_version": "data_snapshot.v1",
-        "snapshot_id": snapshot_id,
         "domain_refs": domain_refs,
         "validation_summary": {
             "status": "PASS",
             "required_domains": list(MARKET_DOMAINS),
             "cross_domain": "PASS",
         },
-        "created_at": created_at,
     }
+    identity_digest = _identity_digest(manifest, "snapshot_id")
+    snapshot_id = _derived_identity("snapshot", identity_digest)
+    if expected_snapshot_id is not None and expected_snapshot_id != snapshot_id:
+        raise ArtifactError("snapshot_id must equal the derived content-safe identity")
+    manifest["snapshot_id"] = snapshot_id
+    manifest["identity_digest"] = identity_digest
+    manifest["created_at"] = created_at
+    target = layout.snapshots / snapshot_id
 
     def prepare(candidate: Path) -> None:
         _write_manifest(candidate, manifest)
 
-    _publish_directory(layout, target, prepare)
+    _publish_directory(
+        layout,
+        target,
+        prepare,
+        identity_digest=identity_digest,
+    )
     return load_snapshot(layout.root, snapshot_id).ref
 
 
@@ -826,6 +1124,7 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
         if found is not None:
             raise ArtifactError(f"expected data_snapshot {snapshot_id!r}, found {found}")
     manifest, manifest_digest = _load_manifest(
+        layout.root,
         target,
         artifact_type="data_snapshot",
         schema_version="data_snapshot.v1",
@@ -833,8 +1132,18 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
         identity=snapshot_id,
     )
     domain_refs = manifest.get("domain_refs")
+    _validate_manifest_identity(manifest, "snapshot_id", "snapshot", snapshot_id)
+    if not isinstance(manifest.get("created_at"), str):
+        raise ArtifactError("DataSnapshot created_at is missing")
+    _timestamp(manifest["created_at"])
     if not isinstance(domain_refs, dict) or set(domain_refs) != _REQUIRED_SNAPSHOT_DOMAINS:
         raise ArtifactError("DataSnapshot manifest has incomplete domain refs")
+    if manifest.get("validation_summary") != {
+        "status": "PASS",
+        "required_domains": list(MARKET_DOMAINS),
+        "cross_domain": "PASS",
+    }:
+        raise ArtifactError("DataSnapshot validation summary is invalid")
     ids: dict[str, str] = {}
     for domain in MARKET_DOMAINS:
         ref = domain_refs[domain]
@@ -848,52 +1157,68 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     return DataSnapshot(DataSnapshotRef(snapshot_id, manifest_digest), manifest)
 
 
+def _artifact_directories(root: Path, directory: Path) -> tuple[Path, ...]:
+    _safe_path(root, directory)
+    if not directory.exists():
+        return ()
+    if not directory.is_dir():
+        raise ArtifactError("artifact collection path must be a real directory")
+    artifacts: list[Path] = []
+    for artifact_dir in sorted(directory.iterdir()):
+        _safe_path(root, artifact_dir, closure=directory)
+        if not artifact_dir.is_dir():
+            raise ArtifactError("artifact collection contains a non-directory entry")
+        artifacts.append(artifact_dir)
+    return tuple(artifacts)
+
+
 def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
     entries: list[CatalogEntry] = []
-    if layout.raw_batches.exists():
-        for artifact_dir in sorted(layout.raw_batches.iterdir()):
-            if artifact_dir.is_dir() and not artifact_dir.is_symlink():
-                raw = load_raw_batch(layout.root, artifact_dir.name)
-                entries.append(
-                    CatalogEntry(
-                        "raw_batch",
-                        raw.ref.raw_batch_id,
-                        raw.manifest["domain"],
-                        None,
-                        (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(),
-                        raw.ref.manifest_digest,
-                    )
-                )
+    closure_cache: dict[tuple[str, str], DomainCommit] = {}
+    for artifact_dir in _artifact_directories(layout.root, layout.raw_batches):
+        raw = load_raw_batch(layout.root, artifact_dir.name)
+        entries.append(
+            CatalogEntry(
+                "raw_batch",
+                raw.ref.raw_batch_id,
+                raw.manifest["domain"],
+                None,
+                (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(),
+                raw.ref.manifest_digest,
+            )
+        )
     for domain in MARKET_DOMAINS:
         directory = layout.domain_commits(domain)
-        if directory.exists():
-            for artifact_dir in sorted(directory.iterdir()):
-                if artifact_dir.is_dir() and not artifact_dir.is_symlink():
-                    commit = load_domain_commit(layout.root, domain, artifact_dir.name)
-                    entries.append(
-                        CatalogEntry(
-                            "domain_commit",
-                            commit.ref.commit_id,
-                            domain,
-                            commit.ref.contract_version,
-                            (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(),
-                            commit.manifest_digest,
-                        )
-                    )
-    if layout.snapshots.exists():
-        for artifact_dir in sorted(layout.snapshots.iterdir()):
-            if artifact_dir.is_dir() and not artifact_dir.is_symlink():
-                snapshot = load_snapshot(layout.root, artifact_dir.name)
-                entries.append(
-                    CatalogEntry(
-                        "data_snapshot",
-                        snapshot.ref.snapshot_id,
-                        None,
-                        None,
-                        (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(),
-                        snapshot.ref.manifest_digest,
-                    )
+        for artifact_dir in _artifact_directories(layout.root, directory):
+            commit = _validate_domain_commit_closure(
+                layout.root,
+                domain,
+                artifact_dir.name,
+                set(),
+                closure_cache,
+            )
+            entries.append(
+                CatalogEntry(
+                    "domain_commit",
+                    commit.ref.commit_id,
+                    domain,
+                    commit.ref.contract_version,
+                    (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(),
+                    commit.manifest_digest,
                 )
+            )
+    for artifact_dir in _artifact_directories(layout.root, layout.snapshots):
+        snapshot = load_snapshot(layout.root, artifact_dir.name)
+        entries.append(
+            CatalogEntry(
+                "data_snapshot",
+                snapshot.ref.snapshot_id,
+                None,
+                None,
+                (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(),
+                snapshot.ref.manifest_digest,
+            )
+        )
     return entries
 
 
@@ -1017,5 +1342,6 @@ __all__ = [
     "load_snapshot",
     "lookup_catalog",
     "rebuild_catalog",
+    "validate_domain_commit_closure",
     "write_raw_batch",
 ]

@@ -13,6 +13,7 @@ This branch contains Phase 1 PR2:
   `build(parent_commit, raw_batch_ids, patch_ids, contract_version)`;
 - immutable market DomainCommits with contract and input provenance;
 - immutable three-domain DataSnapshots;
+- full parent/raw/dependency closure validation for formal resolution;
 - a disposable SQLite catalog rebuilt from manifests;
 - standard-library contract and artifact tests.
 

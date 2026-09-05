@@ -18,6 +18,7 @@ from .artifacts import (
     load_snapshot,
     lookup_catalog,
     rebuild_catalog,
+    validate_domain_commit_closure,
     write_raw_batch,
 )
 from .build import (
@@ -54,5 +55,6 @@ __all__ = [
     "load_snapshot",
     "lookup_catalog",
     "rebuild_catalog",
+    "validate_domain_commit_closure",
     "write_raw_batch",
 ]

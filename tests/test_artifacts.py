@@ -4,6 +4,7 @@ import hashlib
 import json
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -20,11 +21,24 @@ from axiom_data import (
     load_snapshot,
     lookup_catalog,
     rebuild_catalog,
+    validate_domain_commit_closure,
     write_raw_batch,
 )
 
 
 FIXED_TIME = "2026-09-05T09:00:00+08:00"
+
+
+class EquivalentMarketDomainBuilder(MarketDomainBuilder):
+    pass
+
+
+class ChangedOutputMarketDomainBuilder(MarketDomainBuilder):
+    def _build_rows(self, contract, parent_rows, raw_batches):  # type: ignore[no-untyped-def]
+        rows = super()._build_rows(contract, parent_rows, raw_batches)
+        changed = [dict(row) for row in rows]
+        changed[0]["status"] = "source-current-reclassified"
+        return changed
 
 
 def json_payload(rows: list[dict[str, object]]) -> bytes:
@@ -66,12 +80,18 @@ def calendar_rows(*, closed_first: bool = False) -> list[dict[str, object]]:
     ]
 
 
-def security_row(symbol: str = "000001.SZ", exchange: str = "SZSE") -> dict[str, object]:
+def security_row(
+    symbol: str = "000001.SZ",
+    exchange: str = "SZSE",
+    *,
+    list_session: str | None = "1991-04-03",
+    delist_session: str | None = None,
+) -> dict[str, object]:
     return {
         "symbol": symbol,
         "exchange": exchange,
-        "list_session": "1991-04-03",
-        "delist_session": None,
+        "list_session": list_session,
+        "delist_session": delist_session,
         "status": "source-current-listed",
     }
 
@@ -116,6 +136,21 @@ def write_rows(
     )
 
 
+def rewrite_manifest(artifact_dir: Path, manifest: dict[str, object]) -> None:
+    content = json.dumps(
+        manifest,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    (artifact_dir / "manifest.json").write_bytes(content)
+    digest = hashlib.sha256(content).hexdigest()
+    (artifact_dir / "manifest.sha256").write_text(
+        f"sha256:{digest}\n", encoding="ascii"
+    )
+
+
 def build_commit(
     root: Path,
     domain: str,
@@ -125,15 +160,17 @@ def build_commit(
     commit_id: str | None = None,
     calendar_commit: str | None = None,
     security_commit: str | None = None,
+    created_at: str | None = FIXED_TIME,
+    builder_type: type[MarketDomainBuilder] = MarketDomainBuilder,
 ) -> object:
-    builder = MarketDomainBuilder(
+    builder = builder_type(
         root,
         domain,
         commit_id=commit_id,
         calendar_commit_id=calendar_commit,
         security_master_commit_id=security_commit,
         builder_config={"format": "canonical-json"},
-        created_at=FIXED_TIME,
+        created_at=created_at,
     )
     return BuildApplication(domain, builder).build(
         parent,
@@ -227,13 +264,11 @@ class ArtifactTest(unittest.TestCase):
                 self.root,
                 "security_master",
                 ["raw-invalid"],
-                commit_id="security-invalid",
             )
 
         self.assertEqual(load_raw_batch(self.root, "raw-invalid").payload, json_payload([invalid]))
-        self.assertFalse(
-            (self.root / "canonical/security_master/commits/security-invalid").exists()
-        )
+        commits = self.root / "canonical/security_master/commits"
+        self.assertFalse(commits.exists() and any(commits.iterdir()))
         self.assertEqual(list((self.root / "staging").iterdir()), [])
 
     def test_domain_genesis_manifest_and_contract_provenance_are_complete(self) -> None:
@@ -242,23 +277,26 @@ class ArtifactTest(unittest.TestCase):
             self.root,
             "security_master",
             ["raw-security"],
-            commit_id="security-001",
         )
         repeated_ref = build_commit(
             self.root,
             "security_master",
             ["raw-security"],
-            commit_id="security-001",
+            commit_id=ref.commit_id,
         )
         commit = load_domain_commit(self.root, "security_master", ref.commit_id)
         manifest = commit.manifest
         contract_bytes = (
             self.root
-            / "canonical/security_master/commits/security-001/contract.json"
+            / f"canonical/security_master/commits/{ref.commit_id}/contract.json"
         ).read_bytes()
 
         self.assertIsNone(manifest["parent_commit_ref"])
         self.assertEqual(repeated_ref, ref)
+        self.assertEqual(
+            ref.commit_id,
+            f"security_master-{manifest['identity_digest'].removeprefix('sha256:')}",
+        )
         self.assertEqual(
             [item["raw_batch_id"] for item in manifest["ordered_raw_batch_refs"]],
             ["raw-security"],
@@ -268,7 +306,10 @@ class ArtifactTest(unittest.TestCase):
             manifest["contract_digest"],
             f"sha256:{hashlib.sha256(contract_bytes).hexdigest()}",
         )
-        self.assertEqual(manifest["builder_identity"], "axiom-data.market-json.v1")
+        self.assertEqual(
+            manifest["builder_implementation_ref"]["implementation"],
+            "axiom_data.artifacts.MarketDomainBuilder",
+        )
         expected_config = json.dumps(
             {"format": "canonical-json"},
             sort_keys=True,
@@ -280,6 +321,81 @@ class ArtifactTest(unittest.TestCase):
         )
         self.assertEqual(manifest["output_files"][0]["path"], "rows.json")
         self.assertEqual(manifest["validation_summary"]["status"], "PASS")
+
+    def test_domain_default_time_retry_is_idempotent(self) -> None:
+        write_rows(self.root, "raw-security", "security_master", [security_row()])
+        first_builder = MarketDomainBuilder(
+            self.root,
+            "security_master",
+            builder_config={"format": "canonical-json"},
+        )
+        first = BuildApplication("security_master", first_builder).build(
+            None, ["raw-security"], [], "security_master.v1"
+        )
+        first_commit = load_domain_commit(
+            self.root, "security_master", first.commit_id
+        )
+
+        time.sleep(0.002)
+        retry_builder = MarketDomainBuilder(
+            self.root,
+            "security_master",
+            builder_config={"format": "canonical-json"},
+        )
+        self.assertNotEqual(first_builder.created_at, retry_builder.created_at)
+        retried = BuildApplication("security_master", retry_builder).build(
+            None, ["raw-security"], [], "security_master.v1"
+        )
+
+        self.assertEqual(retried, first)
+        self.assertEqual(
+            load_domain_commit(self.root, "security_master", retried.commit_id)
+            .manifest["created_at"],
+            first_commit.manifest["created_at"],
+        )
+
+    def test_output_and_builder_implementation_are_identity_inputs(self) -> None:
+        write_rows(self.root, "raw-security", "security_master", [security_row()])
+        with self.assertRaises(TypeError):
+            MarketDomainBuilder(  # type: ignore[call-arg]
+                self.root,
+                "security_master",
+                builder_identity="caller-controlled",
+            )
+        baseline = build_commit(self.root, "security_master", ["raw-security"])
+        changed_output = build_commit(
+            self.root,
+            "security_master",
+            ["raw-security"],
+            builder_type=ChangedOutputMarketDomainBuilder,
+        )
+        changed_implementation = build_commit(
+            self.root,
+            "security_master",
+            ["raw-security"],
+            builder_type=EquivalentMarketDomainBuilder,
+        )
+
+        baseline_commit = load_domain_commit(
+            self.root, "security_master", baseline.commit_id
+        )
+        output_commit = load_domain_commit(
+            self.root, "security_master", changed_output.commit_id
+        )
+        implementation_commit = load_domain_commit(
+            self.root, "security_master", changed_implementation.commit_id
+        )
+        self.assertNotEqual(baseline.commit_id, changed_output.commit_id)
+        self.assertNotEqual(
+            baseline_commit.manifest["logical_content_digest"],
+            output_commit.manifest["logical_content_digest"],
+        )
+        self.assertNotEqual(baseline.commit_id, changed_implementation.commit_id)
+        self.assertEqual(baseline_commit.rows, implementation_commit.rows)
+        self.assertNotEqual(
+            baseline_commit.manifest["builder_implementation_ref"],
+            implementation_commit.manifest["builder_implementation_ref"],
+        )
 
     def test_incremental_uses_explicit_parent_and_preserves_raw_order(self) -> None:
         write_rows(self.root, "raw-base", "security_master", [security_row()])
@@ -326,12 +442,10 @@ class ArtifactTest(unittest.TestCase):
                 self.root,
                 "security_master",
                 ["raw-first", "raw-conflict"],
-                commit_id="security-conflict",
             )
 
-        self.assertFalse(
-            (self.root / "canonical/security_master/commits/security-conflict").exists()
-        )
+        commits = self.root / "canonical/security_master/commits"
+        self.assertFalse(commits.exists() and any(commits.iterdir()))
 
     def test_missing_wrong_type_cross_contract_and_patch_refs_are_rejected(self) -> None:
         write_rows(self.root, "raw-calendar", "trading_calendar", calendar_rows())
@@ -376,21 +490,20 @@ class ArtifactTest(unittest.TestCase):
             self.root,
             "security_master",
             ["raw-one"],
-            commit_id="security-fixed",
         )
         original_digest = load_domain_commit(
             self.root, "security_master", first.commit_id
         ).manifest_digest
 
-        with self.assertRaises(ArtifactConflictError):
+        with self.assertRaises(ArtifactError):
             build_commit(
                 self.root,
                 "security_master",
                 ["raw-two"],
-                commit_id="security-fixed",
+                commit_id=first.commit_id,
             )
 
-        original = load_domain_commit(self.root, "security_master", "security-fixed")
+        original = load_domain_commit(self.root, "security_master", first.commit_id)
         self.assertEqual(original.manifest_digest, original_digest)
         self.assertEqual(original.rows[0]["symbol"], "000001.SZ")
 
@@ -430,6 +543,57 @@ class ArtifactTest(unittest.TestCase):
             )
         self.assertEqual(list(outside.iterdir()), [])
 
+    def test_read_paths_reject_symlink_ancestors_and_manifest_escape(self) -> None:
+        real_parent = Path(self.temporary.name) / "real-parent"
+        real_root = real_parent / "root"
+        pack = build_pack(real_root)
+        linked_parent = Path(self.temporary.name) / "linked-parent"
+        linked_parent.symlink_to(real_parent, target_is_directory=True)
+        linked_root = linked_parent / "root"
+
+        with self.assertRaises(ArtifactError):
+            load_raw_batch(linked_root, "raw-market")
+        with self.assertRaises(ArtifactError):
+            load_snapshot(linked_root, pack["snapshot"].snapshot_id)
+        with self.assertRaises(ArtifactError):
+            rebuild_catalog(linked_root)
+
+        write_rows(self.root, "raw-real-path", "security_master", [security_row()])
+        real_artifact = self.root / "raw/batches/raw-real-path"
+        (real_artifact / "nested").mkdir()
+        (real_artifact / "payload.bin").rename(real_artifact / "nested/payload.bin")
+        real_manifest = json.loads((real_artifact / "manifest.json").read_bytes())
+        real_manifest["payload_files"][0]["path"] = "nested/payload.bin"
+        rewrite_manifest(real_artifact, real_manifest)
+        self.assertEqual(
+            load_raw_batch(self.root, "raw-real-path").payload,
+            json_payload([security_row()]),
+        )
+
+        write_rows(self.root, "raw-linked-path", "security_master", [security_row()])
+        linked_artifact = self.root / "raw/batches/raw-linked-path"
+        outside = Path(self.temporary.name) / "payload-outside"
+        outside.mkdir()
+        shutil.copy2(linked_artifact / "payload.bin", outside / "payload.bin")
+        (linked_artifact / "nested").symlink_to(outside, target_is_directory=True)
+        linked_manifest = json.loads(
+            (linked_artifact / "manifest.json").read_bytes()
+        )
+        linked_manifest["payload_files"][0]["path"] = "nested/payload.bin"
+        rewrite_manifest(linked_artifact, linked_manifest)
+        with self.assertRaises(ArtifactError):
+            load_raw_batch(self.root, "raw-linked-path")
+
+        write_rows(self.root, "raw-escape", "security_master", [security_row()])
+        escape_artifact = self.root / "raw/batches/raw-escape"
+        escape_manifest = json.loads(
+            (escape_artifact / "manifest.json").read_bytes()
+        )
+        escape_manifest["payload_files"][0]["path"] = "../../../../payload.bin"
+        rewrite_manifest(escape_artifact, escape_manifest)
+        with self.assertRaises(ArtifactError):
+            load_raw_batch(self.root, "raw-escape")
+
     def test_cross_domain_market_validation(self) -> None:
         scenarios = (
             (calendar_rows(), [security_row()], market_row(), None),
@@ -440,6 +604,24 @@ class ArtifactTest(unittest.TestCase):
                 [security_row("600000.SH", "SSE")],
                 market_row(),
                 "security",
+            ),
+            (
+                calendar_rows(),
+                [security_row(list_session="2026-01-03")],
+                market_row("2026-01-02"),
+                "before-list",
+            ),
+            (
+                calendar_rows(),
+                [security_row(delist_session="2026-01-02")],
+                market_row("2026-01-02"),
+                "at-delist",
+            ),
+            (
+                calendar_rows(),
+                [security_row(delist_session="2026-01-02")],
+                market_row("2026-01-05"),
+                "after-delist",
             ),
         )
         for number, (calendar_fixture, security_fixture, market_fixture, error) in enumerate(
@@ -456,7 +638,6 @@ class ArtifactTest(unittest.TestCase):
                     root,
                     "market_daily",
                     ["raw-market"],
-                    commit_id="market-result",
                     calendar_commit=calendar.commit_id,
                     security_commit=security.commit_id,
                 )
@@ -470,14 +651,18 @@ class ArtifactTest(unittest.TestCase):
                 else:
                     with self.assertRaises(ArtifactError):
                         action()
-                    self.assertFalse(
-                        (root / "canonical/market_daily/commits/market-result").exists()
+                    self.assertEqual(
+                        list((root / "canonical/market_daily/commits").iterdir()), []
                     )
 
     def test_snapshot_is_immutable_fixed_composition(self) -> None:
         pack = build_pack(self.root)
         first = load_snapshot(self.root, pack["snapshot"].snapshot_id)
         first_manifest = json.dumps(first.manifest, sort_keys=True)
+        self.assertEqual(
+            first.ref.snapshot_id,
+            f"snapshot-{first.manifest['identity_digest'].removeprefix('sha256:')}",
+        )
         repeated = create_snapshot(
             self.root,
             {
@@ -485,6 +670,7 @@ class ArtifactTest(unittest.TestCase):
                 "security_master": pack["security"].commit_id,
                 "market_daily": pack["market"].commit_id,
             },
+            snapshot_id=first.ref.snapshot_id,
             created_at=FIXED_TIME,
         )
         self.assertEqual(repeated, first.ref)
@@ -507,6 +693,17 @@ class ArtifactTest(unittest.TestCase):
             },
             created_at=FIXED_TIME,
         )
+        with self.assertRaises(ArtifactError):
+            create_snapshot(
+                self.root,
+                {
+                    "trading_calendar": pack["calendar"].commit_id,
+                    "security_master": pack["security"].commit_id,
+                    "market_daily": market_d2.commit_id,
+                },
+                snapshot_id=first.ref.snapshot_id,
+                created_at=FIXED_TIME,
+            )
 
         self.assertNotEqual(first.ref.snapshot_id, second.snapshot_id)
         self.assertEqual(
@@ -516,6 +713,26 @@ class ArtifactTest(unittest.TestCase):
         self.assertEqual(
             first.manifest["domain_refs"]["market_daily"]["domain_commit_id"],
             pack["market"].commit_id,
+        )
+
+    def test_snapshot_default_time_retry_is_idempotent(self) -> None:
+        pack = build_pack(self.root)
+        shutil.rmtree(self.root / "snapshots")
+        refs = {
+            "trading_calendar": pack["calendar"].commit_id,
+            "security_master": pack["security"].commit_id,
+            "market_daily": pack["market"].commit_id,
+        }
+        first = create_snapshot(self.root, refs)
+        first_snapshot = load_snapshot(self.root, first.snapshot_id)
+
+        time.sleep(0.002)
+        retried = create_snapshot(self.root, refs)
+
+        self.assertEqual(retried, first)
+        self.assertEqual(
+            load_snapshot(self.root, retried.snapshot_id).manifest["created_at"],
+            first_snapshot.manifest["created_at"],
         )
 
     def test_snapshot_rejects_missing_and_nonexistent_domain_commits(self) -> None:
@@ -559,11 +776,97 @@ class ArtifactTest(unittest.TestCase):
         rebuild_catalog(self.root)
         self.assertEqual(list_catalog(self.root), before)
 
+    def test_full_closure_and_catalog_reject_deleted_raw(self) -> None:
+        pack = build_pack(self.root)
+        shutil.rmtree(self.root / "raw/batches/raw-market")
+
+        self.assertEqual(
+            load_domain_commit(
+                self.root, "market_daily", pack["market"].commit_id
+            ).ref,
+            pack["market"],
+        )
+        with self.assertRaises(ArtifactNotFoundError):
+            validate_domain_commit_closure(
+                self.root, "market_daily", pack["market"].commit_id
+            )
+        with self.assertRaises(ArtifactNotFoundError):
+            load_snapshot(self.root, pack["snapshot"].snapshot_id)
+        with self.assertRaises(ArtifactNotFoundError):
+            rebuild_catalog(self.root)
+        self.assertFalse((self.root / "catalog.sqlite").exists())
+
+    def test_full_closure_rejects_replaced_parent(self) -> None:
+        write_rows(self.root, "raw-parent", "security_master", [security_row()])
+        parent = build_commit(self.root, "security_master", ["raw-parent"])
+        write_rows(
+            self.root,
+            "raw-child",
+            "security_master",
+            [security_row("600000.SH", "SSE")],
+        )
+        child = build_commit(
+            self.root,
+            "security_master",
+            ["raw-child"],
+            parent=parent.commit_id,
+        )
+        write_rows(
+            self.root,
+            "raw-replacement",
+            "security_master",
+            [security_row("600001.SH", "SSE")],
+        )
+        replacement = build_commit(
+            self.root, "security_master", ["raw-replacement"]
+        )
+        commits = self.root / "canonical/security_master/commits"
+        shutil.rmtree(commits / parent.commit_id)
+        shutil.copytree(commits / replacement.commit_id, commits / parent.commit_id)
+
+        self.assertEqual(
+            load_domain_commit(self.root, "security_master", child.commit_id).ref,
+            child,
+        )
+        with self.assertRaises(ArtifactError):
+            validate_domain_commit_closure(
+                self.root, "security_master", child.commit_id
+            )
+
     def test_clean_offline_rebuild_has_identical_logical_artifacts(self) -> None:
         root_a = Path(self.temporary.name) / "offline-a"
         pack_a = build_pack(root_a)
+        base_market_id = pack_a["market"].commit_id
+        write_rows(
+            root_a,
+            "raw-market-incremental",
+            "market_daily",
+            [market_row("2026-01-05")],
+        )
+        incremental_market = build_commit(
+            root_a,
+            "market_daily",
+            ["raw-market-incremental"],
+            parent=pack_a["market"].commit_id,
+            calendar_commit=pack_a["calendar"].commit_id,
+            security_commit=pack_a["security"].commit_id,
+        )
+        recovery_snapshot = create_snapshot(
+            root_a,
+            {
+                "trading_calendar": pack_a["calendar"].commit_id,
+                "security_master": pack_a["security"].commit_id,
+                "market_daily": incremental_market.commit_id,
+            },
+            created_at=FIXED_TIME,
+        )
+        pack_a["market"] = incremental_market
+        pack_a["snapshot"] = recovery_snapshot
+        self.assertEqual(rebuild_catalog(root_a), 10)
         captured = {
-            domain: load_domain_commit(root_a, domain, pack_a[name].commit_id)
+            domain: validate_domain_commit_closure(
+                root_a, domain, pack_a[name].commit_id
+            )
             for domain, name in (
                 ("trading_calendar", "calendar"),
                 ("security_master", "security"),
@@ -571,17 +874,39 @@ class ArtifactTest(unittest.TestCase):
             )
         }
         snapshot_a = load_snapshot(root_a, pack_a["snapshot"].snapshot_id)
-        shutil.rmtree(root_a)
+        self.assertEqual(
+            captured["market_daily"].manifest["parent_commit_ref"][
+                "domain_commit_id"
+            ],
+            base_market_id,
+        )
+        raw_payloads = {
+            raw_id: load_raw_batch(root_a, raw_id).payload
+            for raw_id in (
+                "raw-calendar",
+                "raw-security",
+                "raw-market",
+                "raw-market-incremental",
+            )
+        }
 
         root_b = Path(self.temporary.name) / "offline-b"
-        pack_b = build_pack(root_b)
-        snapshot_b = load_snapshot(root_b, pack_b["snapshot"].snapshot_id)
+        shutil.copytree(root_a, root_b)
+        (root_b / "catalog.sqlite").unlink()
+        shutil.rmtree(root_a)
+
+        self.assertEqual(rebuild_catalog(root_b), 10)
+        snapshot_b = load_snapshot(root_b, snapshot_a.ref.snapshot_id)
+        for raw_id, payload in raw_payloads.items():
+            self.assertEqual(load_raw_batch(root_b, raw_id).payload, payload)
         for domain, name in (
             ("trading_calendar", "calendar"),
             ("security_master", "security"),
             ("market_daily", "market"),
         ):
-            rebuilt = load_domain_commit(root_b, domain, pack_b[name].commit_id)
+            rebuilt = validate_domain_commit_closure(
+                root_b, domain, pack_a[name].commit_id
+            )
             self.assertEqual(rebuilt.ref, captured[domain].ref)
             self.assertEqual(rebuilt.manifest, captured[domain].manifest)
             self.assertEqual(
@@ -595,13 +920,15 @@ class ArtifactTest(unittest.TestCase):
                 "ordered_raw_batch_refs",
                 "ordered_patch_refs",
                 "contract_digest",
-                "builder_identity",
+                "builder_implementation_ref",
                 "builder_config",
                 "dependency_commit_refs",
             ):
                 self.assertEqual(rebuilt.manifest[field], captured[domain].manifest[field])
         self.assertEqual(snapshot_b.ref, snapshot_a.ref)
         self.assertEqual(snapshot_b.manifest, snapshot_a.manifest)
+        for manifest_path in root_b.rglob("manifest.json"):
+            self.assertNotIn(str(root_a), manifest_path.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
