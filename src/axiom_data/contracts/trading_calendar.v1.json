@@ -3,15 +3,35 @@
   "domain": "trading_calendar",
   "primary_key": ["exchange", "session"],
   "sort_order": ["session", "exchange"],
+  "semantics": {
+    "row_granularity": "one canonical exchange calendar-date record; closed dates are explicit rows, so this is not an open-session-only list",
+    "exchange": {
+      "canonical_values": ["SSE", "SZSE"],
+      "supplier_exchange_codes_are_forbidden": true
+    },
+    "session": "calendar date in the named Chinese exchange's local Asia/Shanghai calendar; it carries no intraday trading-hours schedule",
+    "is_open": {
+      "true": "the exchange calendar declares an open trading session on this date",
+      "false": "the exchange calendar declares this date closed",
+      "missing_row": "unknown; absence must not be interpreted as closed"
+    },
+    "previous_open_session": {
+      "definition": "for the same exchange, the greatest session strictly earlier than this row whose is_open value is true",
+      "left_boundary": "null is allowed only when the artifact coverage cannot prove a predecessor before its left boundary",
+      "arbitrary_earlier_date_forbidden": true
+    }
+  },
   "fields": [
     {"name": "exchange", "type": "string", "nullable": false, "unit": null},
-    {"name": "session", "type": "date", "nullable": false, "unit": "Asia/Shanghai trading session"},
+    {"name": "session", "type": "date", "nullable": false, "unit": "Asia/Shanghai exchange calendar date"},
     {"name": "is_open", "type": "bool", "nullable": false, "unit": null},
-    {"name": "previous_open_session", "type": "date", "nullable": true, "unit": "Asia/Shanghai trading session"}
+    {"name": "previous_open_session", "type": "date", "nullable": true, "unit": "Asia/Shanghai exchange calendar date"}
   ],
   "validation": [
     "primary keys are unique",
     "rows are emitted in declared sort order",
-    "previous_open_session is earlier than session when present"
+    "exchange is one of SSE or SZSE",
+    "closed calendar dates are represented by rows with is_open=false",
+    "after the left boundary, previous_open_session equals the nearest strictly earlier open session for the same exchange"
   ]
 }

@@ -16,6 +16,11 @@ MARKET_CONTRACT_VERSIONS = (
     MARKET_DAILY_CONTRACT_VERSION,
 )
 _CONTRACT_FILES = {version: f"{version}.json" for version in MARKET_CONTRACT_VERSIONS}
+_CONTRACT_DOMAINS = {
+    TRADING_CALENDAR_CONTRACT_VERSION: "trading_calendar",
+    SECURITY_MASTER_CONTRACT_VERSION: "security_master",
+    MARKET_DAILY_CONTRACT_VERSION: "market_daily",
+}
 
 
 def load_contract(contract_version: str) -> dict[str, Any]:
@@ -28,6 +33,8 @@ def load_contract(contract_version: str) -> dict[str, Any]:
     contract = json.loads(files(__package__).joinpath(filename).read_text(encoding="utf-8"))
     if contract.get("contract_version") != contract_version:
         raise ValueError(f"packaged contract identity mismatch: {contract_version}")
+    if contract.get("domain") != _CONTRACT_DOMAINS[contract_version]:
+        raise ValueError(f"packaged contract domain mismatch: {contract_version}")
     return contract
 
 
