@@ -1,21 +1,23 @@
 # axiom-data
 
 `axiom-data` is the data publication boundary for the Axiom project family. It
-will turn frozen supplier inputs into immutable domain commits, compose data
-snapshots, and export snapshot-bound Qlib views.
+turns frozen supplier inputs into immutable market domain commits and composes
+fixed data snapshots. Snapshot-bound export views are a later phase.
 
-This branch contains Phase 1 PR1 only:
+This branch contains Phase 1 PR2:
 
 - explicit `trading_calendar.v1`, `security_master.v1`, and
   `market_daily.v1` schemas;
-- a pure path model for `/var/lib/axiom-data`;
+- append-only RawBatch artifacts under an explicit data root;
 - a public build application port with the stable argument shape
   `build(parent_commit, raw_batch_ids, patch_ids, contract_version)`;
-- standard-library contract tests.
+- immutable market DomainCommits with contract and input provenance;
+- immutable three-domain DataSnapshots;
+- a disposable SQLite catalog rebuilt from manifests;
+- standard-library contract and artifact tests.
 
-There is deliberately no supplier client, data writer, catalog, Qlib exporter,
-compatibility reader, production pointer switch, or legacy dual-write in PR1.
-A concrete executor for the build port belongs to PR2.
+There is no supplier network client, non-empty patch executor, Qlib exporter,
+compatibility reader, production pointer switch, or legacy dual-write in PR2.
 
 ## Data root
 
@@ -41,7 +43,7 @@ The logical layout is:
 
 `DataRootLayout` only derives these paths; it does not create or mutate them.
 
-## Validate PR1
+## Validate Phase 1
 
 ```text
 PYTHONPATH=src python3 -m unittest discover -s tests -v
