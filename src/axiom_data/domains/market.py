@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Mapping, Sequence
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from axiom_data.contracts import MARKET_CONTRACT_VERSIONS, load_contract
@@ -36,19 +36,37 @@ def _rows(domain: str, rows: object) -> tuple[Mapping[str, object], ...]:
     for index, row in enumerate(rows):
         if not isinstance(row, Mapping):
             raise MarketContractError(f"{domain} row {index} must be a mapping")
-        if set(row) != expected_set:
+        try:
+            actual_fields = set(row)
+        except TypeError as exc:
+            raise MarketContractError(f"{domain} row {index} has invalid field names") from exc
+        if actual_fields != expected_set:
             raise MarketContractError(f"{domain} row {index} must match the exact v1 schema")
         frozen.append(row)
 
+    return tuple(frozen)
+
+
+def _validate_keys(domain: str, rows: Sequence[Mapping[str, object]]) -> None:
+    """Check identity and ordering after domain key types have been validated."""
+
+    contract = market_contracts()[domain]
     primary_key = contract["primary_key"]
-    keys = [tuple(row[name] for name in primary_key) for row in frozen]
-    if len(keys) != len(set(keys)):
+    keys = [tuple(row[name] for name in primary_key) for row in rows]
+    try:
+        unique_keys = set(keys)
+    except TypeError as exc:
+        raise MarketContractError(f"{domain} primary key values have invalid types") from exc
+    if len(keys) != len(unique_keys):
         raise MarketContractError(f"{domain} primary keys must be unique")
     sort_order = contract["sort_order"]
-    ordered_keys = [tuple(row[name] for name in sort_order) for row in frozen]
-    if ordered_keys != sorted(ordered_keys):
+    ordered_keys = [tuple(row[name] for name in sort_order) for row in rows]
+    try:
+        sorted_keys = sorted(ordered_keys)
+    except TypeError as exc:
+        raise MarketContractError(f"{domain} sort key values have invalid types") from exc
+    if ordered_keys != sorted_keys:
         raise MarketContractError(f"{domain} rows must follow the declared sort order")
-    return tuple(frozen)
 
 
 def _date(name: str, value: object, *, nullable: bool = False) -> date | None:
@@ -96,8 +114,9 @@ def _number(name: str, value: object, *, integer: bool = False) -> int | float |
 def validate_trading_calendar_rows(rows: object) -> None:
     """Validate explicit open/closed dates and nearest-open predecessors."""
 
-    previous_open: dict[str, date] = {}
-    for index, row in enumerate(_rows("trading_calendar", rows)):
+    frozen = _rows("trading_calendar", rows)
+    parsed_rows: list[tuple[str, date, bool, date | None]] = []
+    for index, row in enumerate(frozen):
         exchange = _exchange(row["exchange"])
         session = _date(f"row {index} session", row["session"])
         assert session is not None
@@ -109,6 +128,28 @@ def validate_trading_calendar_rows(rows: object) -> None:
             row["previous_open_session"],
             nullable=True,
         )
+        parsed_rows.append((exchange, session, is_open, predecessor))
+
+    _validate_keys("trading_calendar", frozen)
+
+    sessions_by_exchange: dict[str, list[date]] = {}
+    for exchange, session, _, _ in parsed_rows:
+        sessions_by_exchange.setdefault(exchange, []).append(session)
+    for exchange, sessions in sessions_by_exchange.items():
+        first = min(sessions)
+        last = max(sessions)
+        expected = [
+            first + timedelta(days=offset)
+            for offset in range((last - first).days + 1)
+        ]
+        if sorted(sessions) != expected:
+            raise MarketContractError(
+                f"trading_calendar coverage for {exchange} must contain every calendar date "
+                "between its artifact boundaries"
+            )
+
+    previous_open: dict[str, date] = {}
+    for exchange, session, is_open, predecessor in parsed_rows:
         if predecessor != previous_open.get(exchange):
             raise MarketContractError(
                 "previous_open_session must be the nearest earlier open session "
@@ -121,7 +162,8 @@ def validate_trading_calendar_rows(rows: object) -> None:
 def validate_security_master_rows(rows: object) -> None:
     """Validate canonical identity syntax and its half-open date bounds."""
 
-    for index, row in enumerate(_rows("security_master", rows)):
+    frozen = _rows("security_master", rows)
+    for index, row in enumerate(frozen):
         _symbol(row["symbol"], row["exchange"])
         list_session = _date(
             f"row {index} list_session", row["list_session"], nullable=True
@@ -134,6 +176,7 @@ def validate_security_master_rows(rows: object) -> None:
                 raise MarketContractError("delist_session must not precede list_session")
         if not isinstance(row["status"], str) or not row["status"]:
             raise MarketContractError("status must be a non-empty source/current observation")
+    _validate_keys("security_master", frozen)
 
 
 def security_identity_state(row: Mapping[str, object], session: str) -> str:
@@ -171,7 +214,8 @@ def validate_market_daily_rows(rows: object) -> None:
         "total_market_cap_cny",
         "circulating_market_cap_cny",
     )
-    for index, row in enumerate(_rows("market_daily", rows)):
+    frozen = _rows("market_daily", rows)
+    for index, row in enumerate(frozen):
         _date(f"row {index} session", row["session"])
         _symbol(row["symbol"])
         for name in numeric_fields:
@@ -204,6 +248,7 @@ def validate_market_daily_rows(rows: object) -> None:
             raise MarketContractError("high is below another OHLC value")
         if low > min(open_price, high, close):  # type: ignore[type-var]
             raise MarketContractError("low is above another OHLC value")
+    _validate_keys("market_daily", frozen)
 
 
 def market_daily_observation_state(

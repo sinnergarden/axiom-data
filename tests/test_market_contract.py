@@ -163,6 +163,34 @@ class MarketContractTest(unittest.TestCase):
         with self.assertRaises(MarketContractError):
             validate_trading_calendar_rows(invalid)
 
+    def test_trading_calendar_rejects_any_gap_inside_each_exchange_coverage(self) -> None:
+        rows = calendar_rows()
+        for missing_session in ("2026-01-03", "2026-01-04"):
+            incomplete = [
+                row
+                for row in rows
+                if not (
+                    row["exchange"] == "SSE" and row["session"] == missing_session
+                )
+            ]
+            with self.subTest(missing_session=missing_session):
+                with self.assertRaises(MarketContractError):
+                    validate_trading_calendar_rows(incomplete)
+
+    def test_unhashable_primary_key_is_a_market_contract_error(self) -> None:
+        row = security_row()
+        row["symbol"] = ["000001.SZ"]
+
+        with self.assertRaises(MarketContractError):
+            validate_security_master_rows([row])
+
+    def test_mixed_or_invalid_sort_key_is_a_market_contract_error(self) -> None:
+        rows = calendar_rows()
+        rows[-1]["session"] = 20260105
+
+        with self.assertRaises(MarketContractError):
+            validate_trading_calendar_rows(rows)
+
     def test_calendar_contract_rejects_supplier_exchange_and_missing_row_inference(self) -> None:
         contract = market_contracts()["trading_calendar"]
         self.assertEqual(
