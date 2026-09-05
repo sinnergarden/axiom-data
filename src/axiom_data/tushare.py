@@ -7,7 +7,7 @@ import math
 import os
 import re
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from importlib.resources import files
 from pathlib import Path
@@ -29,6 +29,22 @@ from axiom_data.artifacts import (
 
 _PROFILE_NAME = "tushare_phase1.v1.json"
 _SYMBOL = re.compile(r"[0-9]{6}\.(SH|SZ)\Z")
+_PROFILE_PIT_FIELDS = (
+    "retrieved_at",
+    "represented_session",
+    "historical_availability",
+    "revision_capability",
+)
+_PROFILE_ENDPOINT_FIELDS = (
+    "source_profile_ref",
+    "primary_key",
+    "represented_session_field",
+    "fields",
+    "units",
+    "missing_row",
+    "terminal_history",
+    "canonical_mapping",
+)
 
 
 def load_tushare_source_profile() -> dict[str, Any]:
@@ -41,8 +57,42 @@ def load_tushare_source_profile() -> dict[str, Any]:
     return profile
 
 
-def _endpoint_profile(endpoint: str) -> dict[str, Any]:
-    endpoints = load_tushare_source_profile().get("endpoints")
+def _normalized_source_profile(profile: Mapping[str, Any]) -> dict[str, Any]:
+    pit = profile.get("pit_classification")
+    endpoints = profile.get("endpoints")
+    if not isinstance(pit, Mapping) or not isinstance(endpoints, Mapping):
+        raise ArtifactError("Tushare source profile semantics are invalid")
+    try:
+        return _json_copy(
+            {
+                "profile_version": profile["profile_version"],
+                "pit_classification": {name: pit[name] for name in _PROFILE_PIT_FIELDS},
+                "endpoints": {
+                    endpoint: {
+                        name: definition[name] for name in _PROFILE_ENDPOINT_FIELDS
+                    }
+                    for endpoint, definition in endpoints.items()
+                },
+            }
+        )
+    except (KeyError, TypeError) as exc:
+        raise ArtifactError("Tushare source profile semantics are incomplete") from exc
+
+
+def tushare_source_profile_digest(
+    profile: Mapping[str, Any] | None = None,
+) -> str:
+    """Digest only the fields that can change source interpretation."""
+
+    selected = load_tushare_source_profile() if profile is None else profile
+    return _digest(_json_bytes(_normalized_source_profile(selected)))
+
+
+def _endpoint_profile(
+    endpoint: str, profile: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    selected = load_tushare_source_profile() if profile is None else profile
+    endpoints = selected.get("endpoints")
     if not isinstance(endpoints, dict) or endpoint not in endpoints:
         raise ArtifactError(f"unsupported Tushare endpoint: {endpoint!r}")
     profile = endpoints[endpoint]
@@ -87,7 +137,7 @@ def _response_records(response: object) -> list[dict[str, Any]]:
 class TushareCollector:
     """Collect one allow-listed response and immediately freeze it as RawBatch."""
 
-    implementation_revision = "tushare-collector.v1"
+    implementation_revision = "tushare-collector.v2"
 
     def __init__(self, data_root: str | Path, client: object | None = None) -> None:
         self.data_root = Path(data_root)
@@ -110,7 +160,9 @@ class TushareCollector:
         *,
         retrieved_at: str | None = None,
     ) -> RawBatchRef:
-        profile = _endpoint_profile(endpoint)
+        source_profile = load_tushare_source_profile()
+        profile = _endpoint_profile(endpoint, source_profile)
+        profile_digest = tushare_source_profile_digest(source_profile)
         if not isinstance(params, Mapping):
             raise ArtifactError("Tushare request params must be a mapping")
         request_params = _json_copy(dict(params))
@@ -131,7 +183,10 @@ class TushareCollector:
             "fields": fields,
         }
         identity_seed = {
-            "profile": profile["source_profile_ref"],
+            "source_profile_ref": profile["source_profile_ref"],
+            "source_profile_version": source_profile["profile_version"],
+            "source_profile_digest": profile_digest,
+            "collector_code_ref": f"axiom-data.{self.implementation_revision}",
             "request": request,
             "retrieved_at": observed_at,
             "payload_digest": _digest(payload),
@@ -139,12 +194,14 @@ class TushareCollector:
         raw_batch_id = (
             f"tushare-{endpoint}-{_digest(_json_bytes(identity_seed)).removeprefix('sha256:')}"
         )
-        pit = load_tushare_source_profile()["pit_classification"]
+        pit = source_profile["pit_classification"]
         return write_raw_batch(
             self.data_root,
             raw_batch_id,
             domain=_endpoint_domain(endpoint),
             source_profile=profile["source_profile_ref"],
+            source_profile_version=source_profile["profile_version"],
+            source_profile_digest=profile_digest,
             request=request,
             retrieved_at=observed_at,
             payload=payload,
@@ -215,14 +272,21 @@ def _volume_shares(value: object) -> int:
 
 
 def _raw_endpoint_rows(raw_batches: Sequence[RawBatch]) -> dict[str, list[dict[str, Any]]]:
+    source_profile = load_tushare_source_profile()
+    profile_digest = tushare_source_profile_digest(source_profile)
     grouped: dict[str, list[dict[str, Any]]] = {}
     for raw in raw_batches:
         request = raw.manifest.get("request")
         endpoint = request.get("endpoint") if isinstance(request, dict) else None
         if not isinstance(endpoint, str):
             raise ArtifactError("Tushare RawBatch has no endpoint identity")
-        profile = _endpoint_profile(endpoint)
-        if raw.manifest.get("source_profile_ref") != profile.get("source_profile_ref"):
+        profile = _endpoint_profile(endpoint, source_profile)
+        if (
+            raw.manifest.get("source_profile_ref") != profile.get("source_profile_ref")
+            or raw.manifest.get("source_profile_version")
+            != source_profile.get("profile_version")
+            or raw.manifest.get("source_profile_digest") != profile_digest
+        ):
             raise ArtifactError("Tushare RawBatch source profile mismatch")
         try:
             rows = json.loads(raw.payload)
@@ -275,7 +339,36 @@ def _merge_canonical(
 class TushareMarketBuilder(MarketDomainBuilder):
     """Map only the frozen PR3 Tushare profiles through the PR2 publisher."""
 
-    implementation_revision = "tushare-market-builder.v1"
+    implementation_revision = "tushare-market-builder.v2"
+
+    def __init__(
+        self,
+        data_root: str | Path,
+        domain: str,
+        *,
+        builder_config: Mapping[str, Any] | None = None,
+        commit_id: str | None = None,
+        calendar_commit_id: str | None = None,
+        security_master_commit_id: str | None = None,
+        created_at: str | None = None,
+    ) -> None:
+        source_profile = load_tushare_source_profile()
+        profile_version = source_profile.get("profile_version")
+        config = dict(builder_config or {})
+        configured_version = config.get("source_profile_version")
+        if configured_version not in (None, profile_version):
+            raise ArtifactError("Tushare builder source profile version mismatch")
+        config["source_profile_version"] = profile_version
+        config["source_profile_digest"] = tushare_source_profile_digest(source_profile)
+        super().__init__(
+            data_root,
+            domain,
+            builder_config=config,
+            commit_id=commit_id,
+            calendar_commit_id=calendar_commit_id,
+            security_master_commit_id=security_master_commit_id,
+            created_at=created_at,
+        )
 
     def _scope(self) -> tuple[tuple[str, ...], str, str]:
         symbols = self.builder_config.get("symbols")
@@ -307,35 +400,76 @@ class TushareMarketBuilder(MarketDomainBuilder):
         raw_batches: Sequence[RawBatch],
     ) -> list[dict[str, Any]]:
         symbols, start, end = self._scope()
-        grouped = _raw_endpoint_rows(raw_batches)
         if self.domain == "trading_calendar":
-            rows = self._calendar_rows(grouped, symbols, start, end)
+            rows = self._calendar_rows(raw_batches, symbols, start, end)
         elif self.domain == "security_master":
+            grouped = _raw_endpoint_rows(raw_batches)
             rows = self._security_rows(grouped, symbols)
         else:
+            grouped = _raw_endpoint_rows(raw_batches)
             rows = self._market_rows(grouped, set(symbols), start, end)
         return _merge_canonical(contract, parent_rows, rows)
 
     @staticmethod
     def _calendar_rows(
-        grouped: Mapping[str, Sequence[Mapping[str, Any]]],
+        raw_batches: Sequence[RawBatch],
         symbols: Sequence[str],
         start: str,
         end: str,
     ) -> list[dict[str, Any]]:
+        grouped = _raw_endpoint_rows(raw_batches)
         if set(grouped) != {"trade_cal"}:
             raise ArtifactError("trading_calendar requires only trade_cal RawBatches")
         exchanges = {"SSE" if symbol.endswith(".SH") else "SZSE" for symbol in symbols}
-        source = _source_table("trade_cal", grouped["trade_cal"])
+        requested_exchanges: set[str] = set()
+        for raw in raw_batches:
+            request = raw.manifest["request"]
+            params = request.get("params")
+            if request.get("endpoint") != "trade_cal" or not isinstance(params, dict):
+                raise ArtifactError("trade_cal RawBatch request metadata is invalid")
+            exchange = params.get("exchange")
+            request_start = _source_date(params.get("start_date"))
+            request_end = _source_date(params.get("end_date"))
+            if (
+                exchange not in exchanges
+                or request_start != start
+                or request_end != end
+                or exchange in requested_exchanges
+            ):
+                raise ArtifactError("trade_cal RawBatch request scope mismatch")
+            requested_exchanges.add(exchange)
+        if requested_exchanges != exchanges:
+            raise ArtifactError("trade_cal RawBatches do not cover every scoped exchange")
+
+        first = date.fromisoformat(start)
+        last = date.fromisoformat(end)
+        expected_dates = {
+            (first + timedelta(days=offset)).isoformat()
+            for offset in range((last - first).days + 1)
+        }
+        source: dict[tuple[str, str], Mapping[str, Any]] = {}
+        actual_dates = {exchange: set() for exchange in exchanges}
+        for row in grouped["trade_cal"]:
+            exchange = row.get("exchange")
+            session = _source_date(row.get("cal_date"))
+            if exchange not in exchanges or session not in expected_dates:
+                raise ArtifactError("trade_cal payload is outside the declared request scope")
+            key = (exchange, session)
+            if key in source:
+                raise ArtifactError("trade_cal payload has duplicate calendar rows")
+            source[key] = row
+            actual_dates[exchange].add(session)
+        if any(dates != expected_dates for dates in actual_dates.values()):
+            raise ArtifactError("trade_cal payload does not completely cover request scope")
+
         values: list[tuple[str, str, bool]] = []
         for row in source.values():
             exchange = row.get("exchange")
             session = _source_date(row.get("cal_date"))
             is_open = row.get("is_open")
-            if exchange in exchanges and start <= session <= end:
-                if is_open not in (0, 1, "0", "1"):
-                    raise ArtifactError("Tushare trade_cal is_open must be 0 or 1")
-                values.append((exchange, session, str(is_open) == "1"))
+            if is_open not in (0, 1, "0", "1"):
+                raise ArtifactError("Tushare trade_cal is_open must be 0 or 1")
+            values.append((exchange, session, str(is_open) == "1"))
         rows: list[dict[str, Any]] = []
         previous: dict[str, str] = {}
         for exchange, session, is_open in sorted(values, key=lambda item: (item[0], item[1])):
@@ -406,6 +540,11 @@ class TushareMarketBuilder(MarketDomainBuilder):
         for endpoint, table in tables.items():
             keyed[endpoint] = {}
             for row in table.values():
+                if endpoint == "suspend_d" and row.get("suspend_timing") not in (
+                    None,
+                    "",
+                ):
+                    raise ArtifactError("unsupported non-full-day suspend_timing")
                 key = in_scope(row)
                 if key is not None:
                     if key in keyed[endpoint]:
@@ -474,30 +613,9 @@ class TushareMarketBuilder(MarketDomainBuilder):
         return rows
 
 
-def canonical_market_observations(
-    data_root: str | Path,
-    raw_batch_ids: Sequence[str],
-    *,
-    symbols: Sequence[str],
-    start_session: str,
-    end_session: str,
-) -> tuple[dict[str, Any], ...]:
-    """Normalize a just-retrieved frozen source observation for reconciliation."""
-
-    raws = [load_raw_batch(data_root, raw_batch_id) for raw_batch_id in raw_batch_ids]
-    if any(raw.manifest.get("domain") != "market_daily" for raw in raws):
-        raise ArtifactError("current market observation contains another domain")
-    grouped = _raw_endpoint_rows(raws)
-    start = _source_date(start_session)
-    end = _source_date(end_session)
-    assert start is not None and end is not None
-    rows = TushareMarketBuilder._market_rows(grouped, set(symbols), start, end)
-    return tuple(sorted(rows, key=lambda row: (row["session"], row["symbol"])))
-
-
 __all__ = [
     "TushareCollector",
     "TushareMarketBuilder",
-    "canonical_market_observations",
     "load_tushare_source_profile",
+    "tushare_source_profile_digest",
 ]

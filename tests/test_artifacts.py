@@ -29,6 +29,10 @@ from axiom_data import (
 FIXED_TIME = "2026-09-05T09:00:00+08:00"
 
 
+def fixture_profile_digest(profile: str) -> str:
+    return f"sha256:{hashlib.sha256(profile.encode()).hexdigest()}"
+
+
 class EquivalentMarketDomainBuilder(MarketDomainBuilder):
     pass
 
@@ -123,11 +127,14 @@ def write_rows(
     domain: str,
     rows: list[dict[str, object]],
 ) -> None:
+    profile = f"fixture-{domain}.v1"
     write_raw_batch(
         root,
         raw_batch_id,
         domain=domain,
-        source_profile=f"fixture-{domain}.v1",
+        source_profile=profile,
+        source_profile_version=profile,
+        source_profile_digest=fixture_profile_digest(profile),
         request={"fixture": raw_batch_id},
         retrieved_at=FIXED_TIME,
         payload=json_payload(rows),
@@ -223,6 +230,8 @@ class ArtifactTest(unittest.TestCase):
         arguments = {
             "domain": "market_daily",
             "source_profile": "fixture-market.v1",
+            "source_profile_version": "fixture-market.v1",
+            "source_profile_digest": fixture_profile_digest("fixture-market.v1"),
             "request": {"endpoint": "daily", "date": "2026-01-02"},
             "retrieved_at": FIXED_TIME,
             "payload": original_payload,
@@ -520,6 +529,8 @@ class ArtifactTest(unittest.TestCase):
                 "raw-linked",
                 domain="security_master",
                 source_profile="fixture-security.v1",
+                source_profile_version="fixture-security.v1",
+                source_profile_digest=fixture_profile_digest("fixture-security.v1"),
                 request={"fixture": "raw-linked"},
                 retrieved_at=FIXED_TIME,
                 payload=json_payload([security_row()]),
@@ -536,6 +547,8 @@ class ArtifactTest(unittest.TestCase):
                 "raw-through-root-link",
                 domain="security_master",
                 source_profile="fixture-security.v1",
+                source_profile_version="fixture-security.v1",
+                source_profile_digest=fixture_profile_digest("fixture-security.v1"),
                 request={"fixture": "raw-through-root-link"},
                 retrieved_at=FIXED_TIME,
                 payload=json_payload([security_row()]),

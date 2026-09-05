@@ -713,7 +713,8 @@
       "000333.SZ"
     ]
   },
-  "snapshot_id": "snapshot-6edfedf2c336a6ce6f7290d0bf85c5c5c3740abd392ab5e1985cdced4aef647e",
+  "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
+  "source_expectation_path": "independent-frozen-raw-profile-checker.v1",
   "source_pit_classification": "current-observed-best-effort",
   "status": "PASS"
 }

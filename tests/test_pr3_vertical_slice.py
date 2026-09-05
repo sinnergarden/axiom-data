@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 import socket
@@ -12,20 +11,22 @@ from unittest.mock import patch
 from axiom_data import (
     MARKET_VIEW_FIELDS,
     RECONCILIATION_CATEGORIES,
+    ArtifactError,
     BuildApplication,
     QlibViewReader,
     SnapshotReader,
     TushareCollector,
     TushareMarketBuilder,
     build_qlib_view,
-    canonical_market_observations,
     compare_direct_and_qlib,
     create_snapshot,
+    independent_tushare_market_expectations,
     load_raw_batch,
     load_snapshot,
     load_tushare_source_profile,
     rebuild_catalog,
     reconcile_market,
+    tushare_source_profile_digest,
     validate_domain_commit_closure,
 )
 
@@ -208,6 +209,10 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         daily_raw = load_raw_batch(self.root, ids["market"][0])
         self.assertEqual(daily_raw.manifest["request"]["endpoint"], "daily")
         self.assertEqual(
+            daily_raw.manifest["source_profile_digest"],
+            tushare_source_profile_digest(),
+        )
+        self.assertEqual(
             json.loads(daily_raw.payload), fixture["responses"]["daily"]
         )
         self.assertGreater(len(client.calls), 0)
@@ -215,11 +220,19 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         artifacts = build_fixture(self.root, fixture, ids)
         snapshot = load_snapshot(self.root, artifacts["snapshot"])
         for domain in ("trading_calendar", "security_master", "market_daily"):
+            commit = validate_domain_commit_closure(
+                self.root, domain, artifacts[domain]
+            )
+            self.assertEqual(commit.ref.commit_id, artifacts[domain])
             self.assertEqual(
-                validate_domain_commit_closure(
-                    self.root, domain, artifacts[domain]
-                ).ref.commit_id,
-                artifacts[domain],
+                commit.manifest["builder_config"]["source_profile_digest"],
+                tushare_source_profile_digest(),
+            )
+            self.assertTrue(
+                all(
+                    ref["source_profile_digest"] == tushare_source_profile_digest()
+                    for ref in commit.manifest["ordered_raw_batch_refs"]
+                )
             )
         self.assertEqual(snapshot.ref.snapshot_id, artifacts["snapshot"])
 
@@ -325,7 +338,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         fixture = load_fixture("listing_slice")
         ids, _ = collect_fixture(self.root, fixture)
         artifacts = build_fixture(self.root, fixture, ids)
-        source = canonical_market_observations(
+        source = independent_tushare_market_expectations(
             self.root,
             ids["market"],
             symbols=fixture["symbols"],
@@ -357,6 +370,179 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         )
         self.assertEqual(report["contract_or_build_bug_count"], 0)
 
+    def test_independent_raw_expectations_freeze_market_mappings_and_join_key(self) -> None:
+        fixture = load_fixture("listing_slice")
+        ids, _ = collect_fixture(self.root, fixture)
+        rows = independent_tushare_market_expectations(
+            self.root,
+            ids["market"],
+            symbols=fixture["symbols"],
+            start_session="2025-01-02",
+            end_session="2025-01-03",
+        )
+        row = {(item["session"], item["symbol"]): item for item in rows}[
+            ("2025-01-02", "000001.SZ")
+        ]
+        self.assertEqual(row["volume_shares"], 181_959_699)
+        self.assertEqual(row["amount_cny"], 2_102_923_078.0)
+        self.assertEqual(row["circulating_market_cap_cny"], 221_806_208_345.0)
+        self.assertEqual(row["total_market_cap_cny"], 221_809_645_003.0)
+        self.assertEqual(row["turnover_rate"], 0.9377)
+        self.assertEqual(row["pre_close"], 11.7)
+        self.assertEqual(row["adj_factor"], 127.7841)
+
+    def test_independent_checker_catches_injected_production_volume_bug(self) -> None:
+        fixture = load_fixture("listing_slice")
+        ids, _ = collect_fixture(self.root, fixture)
+
+        def broken_volume(value: object) -> int:
+            return int(float(value) * 0.01)  # type: ignore[arg-type]
+
+        with patch("axiom_data.tushare._volume_shares", side_effect=broken_volume):
+            artifacts = build_fixture(self.root, fixture, ids)
+        source = independent_tushare_market_expectations(
+            self.root,
+            ids["market"],
+            symbols=fixture["symbols"],
+            start_session="2025-01-02",
+            end_session="2025-01-03",
+        )
+        report = reconcile_market(
+            self.root,
+            artifacts["snapshot"],
+            source_rows=source,
+            qsys_rows=source,
+            symbols=fixture["symbols"],
+            start_session="2025-01-02",
+            end_session="2025-01-03",
+        )
+        volume_failures = [
+            item
+            for item in report["differences"]
+            if item["field"] == "volume_shares"
+        ]
+        self.assertEqual(report["status"], "FAIL")
+        self.assertGreater(report["contract_or_build_bug_count"], 0)
+        self.assertTrue(volume_failures)
+        self.assertTrue(all(item["contract_or_build_bug"] for item in volume_failures))
+        self.assertTrue(
+            all(item["preliminary_cause"] == "contract_or_build_bug" for item in volume_failures)
+        )
+
+    def test_source_profile_content_digest_changes_identity_and_rejects_old_raw(self) -> None:
+        fixture = load_fixture("listing_slice")
+        ids, _ = collect_fixture(self.root, fixture)
+        baseline = build_fixture(self.root, fixture, ids)
+        changed_profile = json.loads(json.dumps(load_tushare_source_profile()))
+        commentary_only = json.loads(json.dumps(changed_profile))
+        commentary_only["comment"] = "formatting-only note"
+        commentary_only["endpoints"]["daily"]["comment"] = "non-semantic note"
+        self.assertEqual(
+            tushare_source_profile_digest(commentary_only),
+            tushare_source_profile_digest(changed_profile),
+        )
+        changed_profile["endpoints"]["daily"]["units"]["vol"] = "shares"
+        self.assertEqual(changed_profile["profile_version"], "tushare_phase1.v1")
+        self.assertNotEqual(
+            tushare_source_profile_digest(changed_profile),
+            tushare_source_profile_digest(),
+        )
+
+        changed_root = Path(self.temporary.name) / "changed-profile"
+        with patch(
+            "axiom_data.tushare.load_tushare_source_profile",
+            return_value=changed_profile,
+        ):
+            changed_ids, _ = collect_fixture(changed_root, fixture)
+            changed = build_fixture(changed_root, fixture, changed_ids)
+            with self.assertRaisesRegex(ArtifactError, "source profile mismatch"):
+                build_fixture(self.root, fixture, ids)
+
+        self.assertNotEqual(ids["market"][0], changed_ids["market"][0])
+        self.assertNotEqual(baseline["market_daily"], changed["market_daily"])
+        self.assertNotEqual(baseline["snapshot"], changed["snapshot"])
+        changed_raw = load_raw_batch(changed_root, changed_ids["market"][0])
+        self.assertEqual(
+            changed_raw.manifest["source_profile_digest"],
+            tushare_source_profile_digest(changed_profile),
+        )
+
+    def test_calendar_request_scope_requires_every_day_and_exchange(self) -> None:
+        fixture = load_fixture("listing_slice")
+        normal_ids, _ = collect_fixture(self.root, fixture)
+        normal = build_fixture(self.root, fixture, normal_ids)
+        self.assertEqual(
+            len(SnapshotReader(self.root, normal["snapshot"]).trading_calendar()),
+            12,
+        )
+
+        omissions = {
+            "left-boundary": "20250101",
+            "right-boundary": "20250106",
+            "middle-closed-day": "20250104",
+        }
+        for label, missing_date in omissions.items():
+            with self.subTest(label=label):
+                changed = json.loads(json.dumps(fixture))
+                changed["responses"]["trade_cal"] = [
+                    row
+                    for row in changed["responses"]["trade_cal"]
+                    if not (
+                        row["exchange"] == "SSE"
+                        and row["cal_date"] == missing_date
+                    )
+                ]
+                root = Path(self.temporary.name) / f"calendar-{label}"
+                ids, _ = collect_fixture(root, changed)
+                with self.assertRaisesRegex(ArtifactError, "completely cover"):
+                    build_fixture(root, changed, ids)
+
+        root = Path(self.temporary.name) / "calendar-missing-exchange"
+        ids, _ = collect_fixture(root, fixture)
+        ids["calendar"] = [
+            raw_id
+            for raw_id in ids["calendar"]
+            if load_raw_batch(root, raw_id).manifest["request"]["params"]["exchange"]
+            != "SSE"
+        ]
+        with self.assertRaisesRegex(ArtifactError, "every scoped exchange"):
+            build_fixture(root, fixture, ids)
+
+    def test_calendar_rejects_request_metadata_and_payload_scope_mismatch(self) -> None:
+        fixture = load_fixture("listing_slice")
+        root = Path(self.temporary.name) / "calendar-request-mismatch"
+        ids, client = collect_fixture(root, fixture)
+        wrong = TushareCollector(root, client).collect(
+            "trade_cal",
+            {"exchange": "SSE", "start_date": "20250102", "end_date": "20250106"},
+            retrieved_at=FIXED_TIME,
+        )
+        ids["calendar"] = [
+            wrong.raw_batch_id
+            if load_raw_batch(root, raw_id).manifest["request"]["params"]["exchange"]
+            == "SSE"
+            else raw_id
+            for raw_id in ids["calendar"]
+        ]
+        with self.assertRaisesRegex(ArtifactError, "request scope mismatch"):
+            build_fixture(root, fixture, ids)
+
+        outside = json.loads(json.dumps(fixture))
+        extra = dict(outside["responses"]["trade_cal"][0])
+        extra["cal_date"] = "20250107"
+        outside["responses"]["trade_cal"].append(extra)
+        other_root = Path(self.temporary.name) / "calendar-payload-mismatch"
+        other_ids, _ = collect_fixture(other_root, outside)
+        with self.assertRaisesRegex(ArtifactError, "outside the declared"):
+            build_fixture(other_root, outside, other_ids)
+
+    def test_unknown_nonempty_suspend_timing_is_rejected(self) -> None:
+        fixture = load_fixture("suspension_slice")
+        fixture["responses"]["suspend_d"][0]["suspend_timing"] = "10:00-11:00"
+        ids, _ = collect_fixture(self.root, fixture)
+        with self.assertRaisesRegex(ArtifactError, "suspend_timing"):
+            build_fixture(self.root, fixture, ids)
+
     def test_committed_real_run_evidence_is_complete(self) -> None:
         run = json.loads((REPORTS / "run_manifest.json").read_text(encoding="utf-8"))
         equivalence = json.loads(
@@ -370,6 +556,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         offline = json.loads(
             (REPORTS / "offline_rebuild.json").read_text(encoding="utf-8")
         )
+        self.assertEqual(run["report_version"], "pr3-real-market-slice.v2")
         self.assertEqual(run["scope"]["sse_symbols"], 10)
         self.assertEqual(run["scope"]["szse_symbols"], 10)
         self.assertEqual(len(run["raw_batches"]), 46)
@@ -381,16 +568,25 @@ class Pr3VerticalSliceTest(unittest.TestCase):
                 "sha256:"
             )
         )
-        profile_content = json.dumps(
-            load_tushare_source_profile(),
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
         self.assertEqual(
             run["source_profile"]["normalized_content_digest"],
-            f"sha256:{hashlib.sha256(profile_content).hexdigest()}",
+            tushare_source_profile_digest(),
         )
+        self.assertTrue(
+            all(
+                item["source_profile_digest"]
+                == run["source_profile"]["normalized_content_digest"]
+                for item in run["raw_batches"]
+            )
+        )
+        for commit in run["domain_commits"].values():
+            self.assertTrue(
+                all(
+                    item["source_profile_digest"]
+                    == run["source_profile"]["normalized_content_digest"]
+                    for item in commit["ordered_source_profiles"]
+                )
+            )
         self.assertEqual(run["domain_commits"]["trading_calendar"]["rows"], 730)
         self.assertEqual(run["domain_commits"]["security_master"]["rows"], 20)
         self.assertEqual(run["domain_commits"]["market_daily"]["rows"], 4858)
@@ -399,6 +595,19 @@ class Pr3VerticalSliceTest(unittest.TestCase):
             run["qlib_view"]["snapshot_ref"]["snapshot_id"],
             run["snapshot"]["snapshot_id"],
         )
+        self.assertEqual(
+            run["frozen_real_closure"]["path"],
+            "/var/lib/axiom-data/forensic/"
+            "pr3-market-slice-20260905-blocker-fix-v2",
+        )
+        self.assertEqual(
+            run["frozen_real_closure"]["snapshot_id"],
+            run["snapshot"]["snapshot_id"],
+        )
+        self.assertEqual(
+            run["frozen_real_closure"]["qlib_view_id"],
+            run["qlib_view"]["view_id"],
+        )
         self.assertEqual(len(run["real_cases"]["confirmed_suspensions"]), 6)
         self.assertGreater(
             len(run["real_cases"]["pre_close_not_prior_close_examples"]), 0
@@ -406,6 +615,10 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         self.assertEqual(equivalence["status"], "PASS")
         self.assertEqual(equivalence["mismatches"], [])
         self.assertEqual(reconciliation["status"], "PASS")
+        self.assertEqual(
+            reconciliation["source_expectation_path"],
+            "independent-frozen-raw-profile-checker.v1",
+        )
         self.assertEqual(reconciliation["contract_or_build_bug_count"], 0)
         self.assertEqual(offline["status"], "PASS")
         self.assertEqual(offline["network_calls"], 0)

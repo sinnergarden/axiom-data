@@ -94,10 +94,16 @@
       "primary_key": ["ts_code", "trade_date", "suspend_type"],
       "represented_session_field": "trade_date",
       "fields": ["ts_code", "trade_date", "suspend_timing", "suspend_type"],
-      "units": {"suspend_type": "S suspension, R resumption"},
+      "units": {
+        "suspend_type": "S suspension, R resumption",
+        "suspend_timing": "null or empty means full-day; non-empty intraday timing is unsupported"
+      },
       "missing_row": "no explicit suspension evidence; it does not prove normal trading",
       "terminal_history": "current observed suspension event history; original availability is unknown",
-      "canonical_mapping": {"is_suspended": "true only for explicit suspend_type S rows; R is not emitted as a market row"}
+      "canonical_mapping": {
+        "is_suspended": "true only for explicit full-day suspend_type S rows; R is not emitted as a market row",
+        "suspend_timing": "null or empty is the only supported full-day form; any non-empty value is rejected"
+      }
     }
   }
 }

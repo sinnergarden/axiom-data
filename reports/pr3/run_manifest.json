@@ -3,76 +3,358 @@
     "market_daily": {
       "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
       "contract_version": "market_daily.v1",
-      "domain_commit_id": "market_daily-c6ad26d7143d716b01366384718e804243337c1af67d05375c28079bb9280d06",
-      "identity_digest": "sha256:c6ad26d7143d716b01366384718e804243337c1af67d05375c28079bb9280d06",
+      "domain_commit_id": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+      "identity_digest": "sha256:4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
       "logical_content_digest": "sha256:04d1637feb6ce6875a8869bcff710c2e12c735487126bd185063a62f46341406",
       "ordered_raw_batch_ids": [
-        "tushare-daily-fb6596f1d559cb97c0307fb5f7e4104ed9b052dc29754ad71cb3a06a49412b07",
-        "tushare-adj_factor-e0e3f007af58fc068ad19666ce18d398749073294b78a3a9edecdb9c750ec2a7",
-        "tushare-daily_basic-47fb81ef8f5aeec254a8f77b9c0c8a2ed50c5a4ee6c371baf4be1c65348af7b1",
-        "tushare-daily_basic-962b41e1e79054d0b1ffb296092610933d0baf7cbd825b624c2849d1f581a3da",
-        "tushare-daily_basic-fd8884e4a4af974937e982fd93def3693d2582bfa6864622865b65a096fcccc5",
-        "tushare-daily_basic-da6666a78b38bb809b92b92788e6f9b3dcd189b9cd2c3fce8d779de0f57c9b26",
-        "tushare-daily_basic-66e7c98cde54b9196548890518daa832ff018ff20eb85e384d435aba5c3aebbc",
-        "tushare-daily_basic-cac7173e381498caf084d158fc861b7d0ca40a1ea2aec363e4a580e0c3cb6cb0",
-        "tushare-daily_basic-6a2efc73208fa7b67a0076f4325af4cb5428e195addd39cad5ce754a28e3cc4a",
-        "tushare-daily_basic-584a5a95417ba94eb50c06eb043ef8ec01cb834d0caa1a2872cf406e16ff50cb",
-        "tushare-daily_basic-b902d4bebdc782c9ecc4a7d3c07c25b8c92ccd6ad6ca2e4bd6fc6f518eaa1f7c",
-        "tushare-daily_basic-dc9d50fa9662b27c413124dc90692c8ec72e69e9f3c80d4b6926f48ccfd2e839",
-        "tushare-daily_basic-e9e6c0feea775a514170ce1dc51e40b99d273055902e341ccc72efbc5aea8652",
-        "tushare-daily_basic-32c1c0a30ad5761b95f6f3d9f4c6f46976c4c468b52b09b85d3ef5755e871b6d",
-        "tushare-daily_basic-7b402c00e526ea5ddc8da9bc51e5c8b3ea7b7cfa6ddfd5dd8c01d8f766ec8880",
-        "tushare-daily_basic-fa48549b714cff90dc487c7b6b00b23878a7307dfe219f8466224a18b3c4716f",
-        "tushare-daily_basic-e853317bd0c77518cd251837e598017c7012a6cf8a009e471c773fa50a414c02",
-        "tushare-daily_basic-da18c2fa6c8f01144ec83788f6c12fa7cc16f9af3b5fc6cefeef352d2b54e211",
-        "tushare-daily_basic-49be780e33cc5163f376ad1c8d6a9d035dfa3ea43e610e84a76808d9a949cff3",
-        "tushare-daily_basic-261b19e5ae94c1671dd3b345af8a57e3a0a4f46521207da09fb569b3b98f999e",
-        "tushare-daily_basic-24f64b31b460e50e6a66c25e0e53b93e39bf922f438b57833f2d81ae4dbd7a3e",
-        "tushare-daily_basic-27503c149a6ea692a31774a18e84611ec7fa26ef520ccb5efb4947e699d345bf",
-        "tushare-stk_limit-bec5e1aa9f42f12b9def08dffa6a7020026d80cc0d2eba969ef40e32f5c4822b",
-        "tushare-stk_limit-d5c2551c90e4edaf1de191115480285e6162ebd7e16a4853970d474af9a711a4",
-        "tushare-stk_limit-d48ece645e1d09edfc0e8d49c4e0824616758ffce7568e13b296b2afbf7eb3fc",
-        "tushare-stk_limit-9d6a931586941ddab5624d9d2160f1f6be891cac642d454d83b2b8ba89db6f1b",
-        "tushare-stk_limit-01d4163eb55daaf46f98a5e5d0bf349fcf61d251b7c7a4a106e2d63a22722b78",
-        "tushare-stk_limit-fe36d61ad81a5c91e763e77d90495de4110e4dab00cf3cd5c0a30fddba352233",
-        "tushare-stk_limit-3e0b5c31e8e0a51810cfc3df730426068acd59030152ec40fbdf3eabad1704f2",
-        "tushare-stk_limit-a55c1622725ca68691c27dd52c71f421f0b7e5dd8156df7700b9bcc3d582ed9b",
-        "tushare-stk_limit-ee24e8c472971267df3db65e444f6756ce88eb865240a322251fd0c386093421",
-        "tushare-stk_limit-327efa6828a8b87a93852609e51957d72a09e8e4c0f4b73fcd11b2de3ab6c098",
-        "tushare-stk_limit-9982f48422a6bbce4590f1c60f1a405a9b75e39b30dac113c31e5f6ea915eb34",
-        "tushare-stk_limit-68cfadad4a4f7dc025d5c528ddc2957b56d4c877bd02eb32ba052be3fb802f86",
-        "tushare-stk_limit-faf73a299d356f45ef2ed3d197a9137d900ed21f020ff169a4fb8885864a8197",
-        "tushare-stk_limit-64cc57b8a265abe21a51fb94779ce91235c306866e09306dd69fe25991bf6d87",
-        "tushare-stk_limit-b0a2875b6afe9b9aee6178754075bb6bf66b5e28ab7ac3e971744f40fdaf409e",
-        "tushare-stk_limit-1db3112fe73ddfecc4a5b3b60f3dd4d54caa1fc08e9cce57e3e07afb7cc98e44",
-        "tushare-stk_limit-c481063e92890b9ec99e316def577614d1c213b6794aa8f20976bfb779667c8e",
-        "tushare-stk_limit-452743d0b5b9a71b14e64ba2017088412d2c529a85fcd846046ba6794691da6a",
-        "tushare-stk_limit-8f0854db2ad6e0cf0d13166f95e4b7f3d982a3f62b89cd833e98dbbbfc8ff7b9",
-        "tushare-stk_limit-ad8e6a8065af74c4641c92e2faf4351867c1d8c280b46ec99a5eed65dc7ad34b",
-        "tushare-suspend_d-852a1c7d59f6654c0dfcf5e871abc9a8bec516c29dfc9a35373a410396921770"
+        "tushare-daily-78138be41282646a9408ec4d804a6cc68cd1583d9ab577472be765998fd88e2a",
+        "tushare-adj_factor-fdbd25e3f208a41c0f725807afe5a2bdc0ef557d47fe415e677ae12df6b0280e",
+        "tushare-daily_basic-9ce7ff8014748021ded2730766a947d278cc7bf2450a7e984260437a28513c7e",
+        "tushare-daily_basic-442b9a1bdca73b335cfccbf44aac08648037a2783f25fb823b5b7513a7d55859",
+        "tushare-daily_basic-37525e253ff5e3fa8021d2b1939bc932d4121965be1404bd3a8e424aeae16720",
+        "tushare-daily_basic-2d6eb7ae740f66578aefc2bf6f6c6760a61b2d5cc235f8e696b804a9257e2bca",
+        "tushare-daily_basic-f0880fff7ff14f1948aee44da9b0bdad8330e0e0243d794dfd3a474982cb0378",
+        "tushare-daily_basic-fb69a6d4c7295dc245fafb858343545252d4a0b7772ee59d596d6d19168eb811",
+        "tushare-daily_basic-a8970ecaaf628e0530d6f7d042e94cf98aab1bf3078551f7bfaca2be7c723708",
+        "tushare-daily_basic-6f1ff2c7f346c3b9870cbf96d2033238059c77c714fd6a02987ccfddde193242",
+        "tushare-daily_basic-5c1809c0fe41a696c9d6e142aa1b42703a3e2523fd048021acfa23eed133ce93",
+        "tushare-daily_basic-b941678136b18a4f20b121401193404d94ec2a267072ea6dcc24aeaeefb9c07e",
+        "tushare-daily_basic-19de9a3f81eb3ce5e1f8a0143f66a371cd74886599c327d4f9ec615ba5063824",
+        "tushare-daily_basic-5503d32d3b584a00ab9e04b76c6580f10fd9f27329010f0e01e92c95b38439ee",
+        "tushare-daily_basic-f884f3d53b296f5a5620970a6a9b280a39d81cb7adbe226356a9fd0b0fc8716f",
+        "tushare-daily_basic-253218a5e2b6247d3cf14f4f3b294b4ffeacaf6af5849c4e00d4f217b5642a6e",
+        "tushare-daily_basic-f4a34566927ffc8240ebe45040496e547565e669af1ab606004a312fde610851",
+        "tushare-daily_basic-950773fe13ac60544b63179c964d11a0f58dab7cd75828f66bbeeda5b940f7e3",
+        "tushare-daily_basic-75cf20462c0cd4ff5bdba6a22463197ec6603ca0358db83d47040344fba05212",
+        "tushare-daily_basic-54b6fcbcd51ec4064db40f674ff711a1a224a1df3f25fe94c771f26e6e5c2e2c",
+        "tushare-daily_basic-722147ac9b50660fa853eb5a0d2af56bc95522781e01f8cbdcdac4dc5f695c84",
+        "tushare-daily_basic-69d9a7685cf3f529b04c2902817f6cc28739173fe88c26e096467007a2c2f8eb",
+        "tushare-stk_limit-b0044b8e86a38ab5e3b2db586b272593239811be799afbac4e3bf201fd377487",
+        "tushare-stk_limit-4a826d98a83972936f5d58091725eac8681932d6954592b400359afcfc9668d2",
+        "tushare-stk_limit-60d8f73937c9f67632781386be1fe0c7ed9f3b3bedefa972b06bf5ba9207adb2",
+        "tushare-stk_limit-eb07a5e405ac231ea47cf26053dd22a9df6b5fb9767f822bac1ae487fd35cdfe",
+        "tushare-stk_limit-6e3d33e9093f88512798ed5a1ee00546808bc1f92bdd167f73c8e0180907519d",
+        "tushare-stk_limit-a90855832b891c71f211082fefffb3eeb272fa00b7a1f20ebfa1deefb5cb3586",
+        "tushare-stk_limit-872762b9bfd2b3bba0e1ac9da4fd401493fc21f4f96dc9cb809cf833eb76ff92",
+        "tushare-stk_limit-04a61ed43c5c96e16740db1fb2b87d814605f522fe3cc588b4ef005b59c8b9f0",
+        "tushare-stk_limit-ec548a9301d4f85b4a3e7d7d4588b23bbc2e6c8ff6c6a00b026b582ec3e59b2e",
+        "tushare-stk_limit-e4947b50c13584c4ece5b8ccfc08fbeb8e8c3f0b4e0931f77acd5cc66154b5c2",
+        "tushare-stk_limit-cd256db0bd404cff6d2580dee84a01fbf6dbc1c1e156bfc20967b5dddfffd2bb",
+        "tushare-stk_limit-f21dd9f34ec7bd5ef02dccd1ec590900416516cedd5570eb232a9eac71279906",
+        "tushare-stk_limit-592e55b1bae0ba6288b08a3c70aea14ebd6e5c3cf428b5712dcb8a1ce177bcfd",
+        "tushare-stk_limit-301d554a01789357ea13c793bcaae2fcd2064c0b043db64b37b4a0f26ba9fdf3",
+        "tushare-stk_limit-8e6b5f2da64601a642aa9a804b0d8e1d8142bd7e07e1540e254cc6aea13c5fd0",
+        "tushare-stk_limit-2a8097a9d0ed75003d5a7486b0644d635bb86bc268b577623914b612ba6ed079",
+        "tushare-stk_limit-de00b79053660efdc6cd36ce241d360c29bebfe0d39be1c7f896d4c062e9928d",
+        "tushare-stk_limit-575629e7b25f16ef5d71fef2d895c25da90f323a0ab94312c0169733f1690790",
+        "tushare-stk_limit-93ea4409f0133ea2768e4c88106b75b8c2498c3bdb17a4fd2ced075a0d09115b",
+        "tushare-stk_limit-41a7c2b4b7b00ed0229aef77509855e425d568e2afa003a9c5d0f4a45b75f518",
+        "tushare-suspend_d-65d2d26d6764e3f3a1f28593876b8b551e23b1236a4413740e7f2b10e82e7134"
+      ],
+      "ordered_source_profiles": [
+        {
+          "raw_batch_id": "tushare-daily-78138be41282646a9408ec4d804a6cc68cd1583d9ab577472be765998fd88e2a",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-adj_factor-fdbd25e3f208a41c0f725807afe5a2bdc0ef557d47fe415e677ae12df6b0280e",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.adj_factor.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-9ce7ff8014748021ded2730766a947d278cc7bf2450a7e984260437a28513c7e",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-442b9a1bdca73b335cfccbf44aac08648037a2783f25fb823b5b7513a7d55859",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-37525e253ff5e3fa8021d2b1939bc932d4121965be1404bd3a8e424aeae16720",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-2d6eb7ae740f66578aefc2bf6f6c6760a61b2d5cc235f8e696b804a9257e2bca",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-f0880fff7ff14f1948aee44da9b0bdad8330e0e0243d794dfd3a474982cb0378",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-fb69a6d4c7295dc245fafb858343545252d4a0b7772ee59d596d6d19168eb811",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-a8970ecaaf628e0530d6f7d042e94cf98aab1bf3078551f7bfaca2be7c723708",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-6f1ff2c7f346c3b9870cbf96d2033238059c77c714fd6a02987ccfddde193242",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-5c1809c0fe41a696c9d6e142aa1b42703a3e2523fd048021acfa23eed133ce93",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-b941678136b18a4f20b121401193404d94ec2a267072ea6dcc24aeaeefb9c07e",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-19de9a3f81eb3ce5e1f8a0143f66a371cd74886599c327d4f9ec615ba5063824",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-5503d32d3b584a00ab9e04b76c6580f10fd9f27329010f0e01e92c95b38439ee",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-f884f3d53b296f5a5620970a6a9b280a39d81cb7adbe226356a9fd0b0fc8716f",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-253218a5e2b6247d3cf14f4f3b294b4ffeacaf6af5849c4e00d4f217b5642a6e",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-f4a34566927ffc8240ebe45040496e547565e669af1ab606004a312fde610851",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-950773fe13ac60544b63179c964d11a0f58dab7cd75828f66bbeeda5b940f7e3",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-75cf20462c0cd4ff5bdba6a22463197ec6603ca0358db83d47040344fba05212",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-54b6fcbcd51ec4064db40f674ff711a1a224a1df3f25fe94c771f26e6e5c2e2c",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-722147ac9b50660fa853eb5a0d2af56bc95522781e01f8cbdcdac4dc5f695c84",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-daily_basic-69d9a7685cf3f529b04c2902817f6cc28739173fe88c26e096467007a2c2f8eb",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.daily_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-b0044b8e86a38ab5e3b2db586b272593239811be799afbac4e3bf201fd377487",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-4a826d98a83972936f5d58091725eac8681932d6954592b400359afcfc9668d2",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-60d8f73937c9f67632781386be1fe0c7ed9f3b3bedefa972b06bf5ba9207adb2",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-eb07a5e405ac231ea47cf26053dd22a9df6b5fb9767f822bac1ae487fd35cdfe",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-6e3d33e9093f88512798ed5a1ee00546808bc1f92bdd167f73c8e0180907519d",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-a90855832b891c71f211082fefffb3eeb272fa00b7a1f20ebfa1deefb5cb3586",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-872762b9bfd2b3bba0e1ac9da4fd401493fc21f4f96dc9cb809cf833eb76ff92",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-04a61ed43c5c96e16740db1fb2b87d814605f522fe3cc588b4ef005b59c8b9f0",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-ec548a9301d4f85b4a3e7d7d4588b23bbc2e6c8ff6c6a00b026b582ec3e59b2e",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-e4947b50c13584c4ece5b8ccfc08fbeb8e8c3f0b4e0931f77acd5cc66154b5c2",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-cd256db0bd404cff6d2580dee84a01fbf6dbc1c1e156bfc20967b5dddfffd2bb",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-f21dd9f34ec7bd5ef02dccd1ec590900416516cedd5570eb232a9eac71279906",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-592e55b1bae0ba6288b08a3c70aea14ebd6e5c3cf428b5712dcb8a1ce177bcfd",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-301d554a01789357ea13c793bcaae2fcd2064c0b043db64b37b4a0f26ba9fdf3",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-8e6b5f2da64601a642aa9a804b0d8e1d8142bd7e07e1540e254cc6aea13c5fd0",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-2a8097a9d0ed75003d5a7486b0644d635bb86bc268b577623914b612ba6ed079",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-de00b79053660efdc6cd36ce241d360c29bebfe0d39be1c7f896d4c062e9928d",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-575629e7b25f16ef5d71fef2d895c25da90f323a0ab94312c0169733f1690790",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-93ea4409f0133ea2768e4c88106b75b8c2498c3bdb17a4fd2ced075a0d09115b",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-stk_limit-41a7c2b4b7b00ed0229aef77509855e425d568e2afa003a9c5d0f4a45b75f518",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stk_limit.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-suspend_d-65d2d26d6764e3f3a1f28593876b8b551e23b1236a4413740e7f2b10e82e7134",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.suspend_d.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        }
       ],
       "rows": 4858
     },
     "security_master": {
       "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
       "contract_version": "security_master.v1",
-      "domain_commit_id": "security_master-52a7f86a9972e03591801911bdb0d20d8677cc63937d3ff8a8d6dab2a3e94fa4",
-      "identity_digest": "sha256:52a7f86a9972e03591801911bdb0d20d8677cc63937d3ff8a8d6dab2a3e94fa4",
+      "domain_commit_id": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+      "identity_digest": "sha256:679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
       "logical_content_digest": "sha256:2e5849575f202b811f8b4f00f29709af29ff93fa5ba8b8398288833569ee0cf5",
       "ordered_raw_batch_ids": [
-        "tushare-stock_basic-764ac373686c56acb069efd90145da238d451ef1c99cb35cf4d5635c3cee33b4"
+        "tushare-stock_basic-f65761a3d9da6c4acba77fdf9ec419626945df1fc01192dc4e000a072ae7c730"
+      ],
+      "ordered_source_profiles": [
+        {
+          "raw_batch_id": "tushare-stock_basic-f65761a3d9da6c4acba77fdf9ec419626945df1fc01192dc4e000a072ae7c730",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.stock_basic.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        }
       ],
       "rows": 20
     },
     "trading_calendar": {
       "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
       "contract_version": "trading_calendar.v1",
-      "domain_commit_id": "trading_calendar-15f26983775e133defcec1920a38160b8b72cbb3d4b1d15c0dbe98db9857b600",
-      "identity_digest": "sha256:15f26983775e133defcec1920a38160b8b72cbb3d4b1d15c0dbe98db9857b600",
+      "domain_commit_id": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
+      "identity_digest": "sha256:dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
       "logical_content_digest": "sha256:38af51a9c9219f730a70fa1f47638585728f88e1d5acb4cc55e0b19f5bec6a36",
       "ordered_raw_batch_ids": [
-        "tushare-trade_cal-3737bb81f62213de603c767828253e60acc9cc06bbc05710d21fc794c8a96da9",
-        "tushare-trade_cal-abbf6a0629a41e1a73af6409f1348d21a9a0987e6e7255fd6235f95cd4269278"
+        "tushare-trade_cal-39f4edca62f827068a1d12bd9a150ff38f0b9a7dfa59c9d08e97261c4b3bdafc",
+        "tushare-trade_cal-aa65e5e60b7c84cd7bc612f7409a42ba68b250947859dc5cc79f2302fa023fd9"
+      ],
+      "ordered_source_profiles": [
+        {
+          "raw_batch_id": "tushare-trade_cal-39f4edca62f827068a1d12bd9a150ff38f0b9a7dfa59c9d08e97261c4b3bdafc",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.trade_cal.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        },
+        {
+          "raw_batch_id": "tushare-trade_cal-aa65e5e60b7c84cd7bc612f7409a42ba68b250947859dc5cc79f2302fa023fd9",
+          "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+          "source_profile_ref": "tushare.trade_cal.v1",
+          "source_profile_version": "tushare_phase1.v1"
+        }
       ],
       "rows": 730
     }
@@ -86,7 +368,13 @@
     "stk_limit",
     "suspend_d"
   ],
-  "generated_at": "2026-09-05T07:29:15.134292+00:00",
+  "frozen_real_closure": {
+    "path": "/var/lib/axiom-data/forensic/pr3-market-slice-20260905-blocker-fix-v2",
+    "qlib_view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
+    "role": "immutable-validation-forensic-closure; not production current",
+    "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+  },
+  "generated_at": "2026-09-05T11:10:47.690059+00:00",
   "pit": {
     "classification": "current-observed-best-effort",
     "historical_revision_availability": "unknown"
@@ -113,7 +401,7 @@
       "total_market_cap_cny",
       "circulating_market_cap_cny"
     ],
-    "identity_digest": "sha256:fb03519f54bd99f24302975ba25ffbffefb54376af6afb3e26a309748e0d1fcf",
+    "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
     "instrument_storage_scope": [
       {
         "end_session": "2025-12-31",
@@ -284,10 +572,10 @@
       ]
     },
     "snapshot_ref": {
-      "identity_digest": "sha256:6edfedf2c336a6ce6f7290d0bf85c5c5c3740abd392ab5e1985cdced4aef647e",
-      "snapshot_id": "snapshot-6edfedf2c336a6ce6f7290d0bf85c5c5c3740abd392ab5e1985cdced4aef647e"
+      "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
+      "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
     },
-    "view_id": "qlib-fb03519f54bd99f24302975ba25ffbffefb54376af6afb3e26a309748e0d1fcf"
+    "view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90"
   },
   "qsys_reference": {
     "bytes": 89478083,
@@ -298,645 +586,783 @@
   "raw_batches": [
     {
       "endpoint": "trade_cal",
-      "manifest_digest": "sha256:ab6a6cde7dd116bb0ddb31352c10076efdabd639d339ba9b6059774ad4a3fca7",
+      "manifest_digest": "sha256:97042cce322b54fff61d0c4bfe8911984082346feb21d0bf8f0a3ce8bdf272ee",
       "payload_digest": "sha256:d1d44c622e467ca9478adc6f4f28c715aa028432ed031e22f7c21a10627f6236",
-      "raw_batch_id": "tushare-trade_cal-3737bb81f62213de603c767828253e60acc9cc06bbc05710d21fc794c8a96da9",
+      "raw_batch_id": "tushare-trade_cal-39f4edca62f827068a1d12bd9a150ff38f0b9a7dfa59c9d08e97261c4b3bdafc",
       "request_params": {
         "end_date": "20251231",
         "exchange": "SSE",
         "start_date": "20250101"
       },
-      "retrieved_at": "2026-09-05T07:28:27.002791+00:00",
+      "retrieved_at": "2026-09-05T11:09:59.058002+00:00",
       "role": "calendar",
-      "rows": 365
+      "rows": 365,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.trade_cal.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "trade_cal",
-      "manifest_digest": "sha256:c818d41f6117b6c81f8edb5a5ffd56500b3443cb0042dfe141e131d5f3eb4798",
+      "manifest_digest": "sha256:2aa2a3c42811141122b6f0fc27658c766c569a54b66814c6a6654d39c4356b6e",
       "payload_digest": "sha256:e7d0a6bd6919b43ffd740db33af884f5004647c66b02d3a2c149c5001aedc1df",
-      "raw_batch_id": "tushare-trade_cal-abbf6a0629a41e1a73af6409f1348d21a9a0987e6e7255fd6235f95cd4269278",
+      "raw_batch_id": "tushare-trade_cal-aa65e5e60b7c84cd7bc612f7409a42ba68b250947859dc5cc79f2302fa023fd9",
       "request_params": {
         "end_date": "20251231",
         "exchange": "SZSE",
         "start_date": "20250101"
       },
-      "retrieved_at": "2026-09-05T07:28:27.099798+00:00",
+      "retrieved_at": "2026-09-05T11:09:59.144190+00:00",
       "role": "calendar",
-      "rows": 365
+      "rows": 365,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.trade_cal.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stock_basic",
-      "manifest_digest": "sha256:4efee196d9c6b2ec746193e5a5831baa20c7332ea943f4a111d548b0c0958bb4",
+      "manifest_digest": "sha256:0d09513cc37395d340324757fdb1cf276a871a50d9a3067137b946b45553e3c8",
       "payload_digest": "sha256:ec440fc4d3e329dc40991d031ca1f0ef0cab79fbee4bbc777034b528fed5c270",
-      "raw_batch_id": "tushare-stock_basic-764ac373686c56acb069efd90145da238d451ef1c99cb35cf4d5635c3cee33b4",
+      "raw_batch_id": "tushare-stock_basic-f65761a3d9da6c4acba77fdf9ec419626945df1fc01192dc4e000a072ae7c730",
       "request_params": {
         "exchange": "",
         "list_status": "L"
       },
-      "retrieved_at": "2026-09-05T07:28:27.317949+00:00",
+      "retrieved_at": "2026-09-05T11:09:59.362989+00:00",
       "role": "security",
-      "rows": 5556
+      "rows": 5556,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stock_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily",
-      "manifest_digest": "sha256:670515b76dd5e9744b855e02311c76eed84322d746e23b82239fe56089940de6",
+      "manifest_digest": "sha256:71cf3f150ff94ea998e616b66746530ab0ad2ef9997f113247d30b066fef4eec",
       "payload_digest": "sha256:657bb40f195551c96ed0d981a5f407444028640b6718ffffb63c395c21360961",
-      "raw_batch_id": "tushare-daily-fb6596f1d559cb97c0307fb5f7e4104ed9b052dc29754ad71cb3a06a49412b07",
+      "raw_batch_id": "tushare-daily-78138be41282646a9408ec4d804a6cc68cd1583d9ab577472be765998fd88e2a",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600000.SH,600036.SH,600519.SH,600900.SH,601318.SH,601398.SH,601857.SH,603501.SH,688981.SH,603072.SH,000001.SZ,000002.SZ,000333.SZ,000651.SZ,000858.SZ,002415.SZ,002594.SZ,300059.SZ,300750.SZ,301581.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:27.674614+00:00",
+      "retrieved_at": "2026-09-05T11:09:59.720666+00:00",
       "role": "market",
-      "rows": 4852
+      "rows": 4852,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "adj_factor",
-      "manifest_digest": "sha256:8040d533a5be0e0ff8e79546212b3ce0661702503749bd1a8775bd2ecee80dae",
+      "manifest_digest": "sha256:273d18d43a4e529e3fbce78d496b9c9a6a7c0eeea24d64d1ded89a3633541e32",
       "payload_digest": "sha256:b10ec4100698b75e0affc605c55de86075c896ce828b79bf4a66eed5a3f5cc6a",
-      "raw_batch_id": "tushare-adj_factor-e0e3f007af58fc068ad19666ce18d398749073294b78a3a9edecdb9c750ec2a7",
+      "raw_batch_id": "tushare-adj_factor-fdbd25e3f208a41c0f725807afe5a2bdc0ef557d47fe415e677ae12df6b0280e",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600000.SH,600036.SH,600519.SH,600900.SH,601318.SH,601398.SH,601857.SH,603501.SH,688981.SH,603072.SH,000001.SZ,000002.SZ,000333.SZ,000651.SZ,000858.SZ,002415.SZ,002594.SZ,300059.SZ,300750.SZ,301581.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:27.847148+00:00",
+      "retrieved_at": "2026-09-05T11:09:59.896663+00:00",
       "role": "market",
-      "rows": 4858
+      "rows": 4858,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.adj_factor.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:2c6d6cbe89e7235af774ccfd92f9778520f44449b9c5b5724a393c6d4a5cea1b",
+      "manifest_digest": "sha256:dbf7cf282f5f59bdbc1c40a8a4f0b05d5e2e9bf7d64a496a14cece7a6cae1530",
       "payload_digest": "sha256:bc17694a3d4d68898aa8fbafdfbbdcd4446424bc7d7101f052be563f3878f48b",
-      "raw_batch_id": "tushare-daily_basic-47fb81ef8f5aeec254a8f77b9c0c8a2ed50c5a4ee6c371baf4be1c65348af7b1",
+      "raw_batch_id": "tushare-daily_basic-9ce7ff8014748021ded2730766a947d278cc7bf2450a7e984260437a28513c7e",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600000.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:27.930095+00:00",
+      "retrieved_at": "2026-09-05T11:09:59.987004+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:42a4a34343850f9faa0e2d4f03ee14d5505d2ba772b085076e223f601a642913",
+      "manifest_digest": "sha256:4059cfbbb8c1ec0e4f4bd0b66a69c10ce67fa9f2c04ebdff16a1940d2017016b",
       "payload_digest": "sha256:4c15989fcd48eeb7935022fbd7693edfe2c10336b7411a499263c35d4cb448f1",
-      "raw_batch_id": "tushare-daily_basic-962b41e1e79054d0b1ffb296092610933d0baf7cbd825b624c2849d1f581a3da",
+      "raw_batch_id": "tushare-daily_basic-442b9a1bdca73b335cfccbf44aac08648037a2783f25fb823b5b7513a7d55859",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600036.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:28.006992+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.068165+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:6790d554fa7bc6bfa77ab85675d6851761f94e3b57d0092bcc2f25214e10be73",
+      "manifest_digest": "sha256:36d78e07cbbab7e51dd2e38d929e21331f7fbcc7270723fc2696c44b0b134361",
       "payload_digest": "sha256:e27eb99906e27c9a768f5bc05cfbcdf20fbdf547a459b70df0a1ae551c42cfe9",
-      "raw_batch_id": "tushare-daily_basic-fd8884e4a4af974937e982fd93def3693d2582bfa6864622865b65a096fcccc5",
+      "raw_batch_id": "tushare-daily_basic-37525e253ff5e3fa8021d2b1939bc932d4121965be1404bd3a8e424aeae16720",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600519.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:28.099451+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.164230+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:2cc9d4f4ff75ff32aa70d6da6ed11b2795405d564e05a6a135805996d7255539",
+      "manifest_digest": "sha256:d9c61f20ff4c9b8c4863a69901726db50f28ecbe1eec61bc4848f4f30b3fdadf",
       "payload_digest": "sha256:29f1a315dd983bd064b246cd478dd3b5238100bf548f387ad57893b55d932c23",
-      "raw_batch_id": "tushare-daily_basic-da6666a78b38bb809b92b92788e6f9b3dcd189b9cd2c3fce8d779de0f57c9b26",
+      "raw_batch_id": "tushare-daily_basic-2d6eb7ae740f66578aefc2bf6f6c6760a61b2d5cc235f8e696b804a9257e2bca",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600900.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:28.290593+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.263464+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:79f7100cdeb1a32a365bdcffae7c01f096c35643762dd8bf3553f9b747cfe3a7",
+      "manifest_digest": "sha256:1869e546a7e7b50803cd3f3e7a2d79eae607e03d2c49e842f405fde848d841a9",
       "payload_digest": "sha256:4d3227fb0044591ba66d380ed2bf2883b2125dc85d6497578cd25dbaf37d2283",
-      "raw_batch_id": "tushare-daily_basic-66e7c98cde54b9196548890518daa832ff018ff20eb85e384d435aba5c3aebbc",
+      "raw_batch_id": "tushare-daily_basic-f0880fff7ff14f1948aee44da9b0bdad8330e0e0243d794dfd3a474982cb0378",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "601318.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:28.387794+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.347246+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:e93dd7f24e7e3d9e3cd2c36a172982ac52695f9198bbef007291b686ce183bf1",
+      "manifest_digest": "sha256:87f505bf700787f49b94d675c0f1dfc0614b69bfeedac941896b29274d60d5a8",
       "payload_digest": "sha256:fbf8704c116b2180321ea2389a12b0bfe07ef6b1a126a6806ad4bfa1856505bf",
-      "raw_batch_id": "tushare-daily_basic-cac7173e381498caf084d158fc861b7d0ca40a1ea2aec363e4a580e0c3cb6cb0",
+      "raw_batch_id": "tushare-daily_basic-fb69a6d4c7295dc245fafb858343545252d4a0b7772ee59d596d6d19168eb811",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "601398.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:28.484054+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.427343+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:f3f340f101a29eaed696e04c006f74565fe6fe7f30f8432052dd83572bbb0789",
+      "manifest_digest": "sha256:38d3318aa7d1b777e2eabae63b0d6a9c70c3600b6ef391bfeeb01592ad0b6e2d",
       "payload_digest": "sha256:88bb8d5614d19ab8f65c2fed929e9e0b5b57e29c1df480c827e126e83167358e",
-      "raw_batch_id": "tushare-daily_basic-6a2efc73208fa7b67a0076f4325af4cb5428e195addd39cad5ce754a28e3cc4a",
+      "raw_batch_id": "tushare-daily_basic-a8970ecaaf628e0530d6f7d042e94cf98aab1bf3078551f7bfaca2be7c723708",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "601857.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:28.596131+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.517059+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:5adbfc1362c27916073d92db199962d911c4be20f068b62b9f3115ebf0ae23f3",
+      "manifest_digest": "sha256:9e34370d3c4e8893a41c7019880a7b50a3b1d36763ac909d1d4afab33d7c24e7",
       "payload_digest": "sha256:02c39ac086579f7fbb944bbe1fb0cbc34817ba1b43571237689bef187e241afc",
-      "raw_batch_id": "tushare-daily_basic-584a5a95417ba94eb50c06eb043ef8ec01cb834d0caa1a2872cf406e16ff50cb",
+      "raw_batch_id": "tushare-daily_basic-6f1ff2c7f346c3b9870cbf96d2033238059c77c714fd6a02987ccfddde193242",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "603501.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:28.677826+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.623637+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:a11d598de8b9a0d032a0df3e5861be2a588c00f9e688e350cd47ad8846921e3a",
+      "manifest_digest": "sha256:f66a69c360c71293437a3acd61d646d61bba4123961a4891ab7468a1188d6ffe",
       "payload_digest": "sha256:bc2e093ee0dc59a42f81b75ba4be4f1f450cddfe28166e2b093c386667660ec1",
-      "raw_batch_id": "tushare-daily_basic-b902d4bebdc782c9ecc4a7d3c07c25b8c92ccd6ad6ca2e4bd6fc6f518eaa1f7c",
+      "raw_batch_id": "tushare-daily_basic-5c1809c0fe41a696c9d6e142aa1b42703a3e2523fd048021acfa23eed133ce93",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "688981.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:28.761760+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.717402+00:00",
       "role": "market",
-      "rows": 237
+      "rows": 237,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:c06bbbc13910be988423afa7b52bb6d4a745a8f8eb4ccaf6efb1b97953f1530c",
+      "manifest_digest": "sha256:d8653dd157190bd0392996ed3c9e8e4d9768a8814d7e7a129079ff1f94a361bb",
       "payload_digest": "sha256:1cfc8ec94e5f23a20f587e5a2fa85a82f3cc220fb866baed3fdd0e97af6415d2",
-      "raw_batch_id": "tushare-daily_basic-dc9d50fa9662b27c413124dc90692c8ec72e69e9f3c80d4b6926f48ccfd2e839",
+      "raw_batch_id": "tushare-daily_basic-b941678136b18a4f20b121401193404d94ec2a267072ea6dcc24aeaeefb9c07e",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "603072.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:28.875071+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.859203+00:00",
       "role": "market",
-      "rows": 242
+      "rows": 242,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:e3b6aafb3d93d3a317e1851e8b620906265e6ef82886d05935fae3e0cd61e57a",
+      "manifest_digest": "sha256:8080bf09eff82720c9f3c5c6d64ff2d2c49f5ce3a4642d68f86b835991637fc5",
       "payload_digest": "sha256:7ebbfbd7202377e895b201f99a3c757274938e3b9db5049495c45dacb80103a8",
-      "raw_batch_id": "tushare-daily_basic-e9e6c0feea775a514170ce1dc51e40b99d273055902e341ccc72efbc5aea8652",
+      "raw_batch_id": "tushare-daily_basic-19de9a3f81eb3ce5e1f8a0143f66a371cd74886599c327d4f9ec615ba5063824",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000001.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:28.988605+00:00",
+      "retrieved_at": "2026-09-05T11:10:00.948693+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:56b881683245035fb9bb0d4c6fb221c425f96aab9e183ac0382de119b4375a06",
+      "manifest_digest": "sha256:57423c8d5682ab129656fd2695e117ab5d77938e67280f5ece30b80e6f9b9944",
       "payload_digest": "sha256:c29752178a04b8f172a35694a4e88defac38fefa357cc9b4ae10b3b38795d0ff",
-      "raw_batch_id": "tushare-daily_basic-32c1c0a30ad5761b95f6f3d9f4c6f46976c4c468b52b09b85d3ef5755e871b6d",
+      "raw_batch_id": "tushare-daily_basic-5503d32d3b584a00ab9e04b76c6580f10fd9f27329010f0e01e92c95b38439ee",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000002.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:29.067860+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.045634+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:372cd831cff3cc106f3758afdaa44bb24e6c644cbd83c4ef233d6a5f5b60c21e",
+      "manifest_digest": "sha256:2bf3c5ff8784c5438b7896b19a1c055c409b14675ae337d5ff644a7ea9f86cb3",
       "payload_digest": "sha256:03a07d8bef716ed4737896d928a1013a39f138a73fbf771d3daf6d4ef687770c",
-      "raw_batch_id": "tushare-daily_basic-7b402c00e526ea5ddc8da9bc51e5c8b3ea7b7cfa6ddfd5dd8c01d8f766ec8880",
+      "raw_batch_id": "tushare-daily_basic-f884f3d53b296f5a5620970a6a9b280a39d81cb7adbe226356a9fd0b0fc8716f",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000333.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:29.155316+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.132869+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:8850850497be96576ba61e3715b610c59afd5e78821126d7e24a8342e4cc34d6",
+      "manifest_digest": "sha256:da39f55715a38578a9713666cd5df706434be93588fac4751072ea880fd91296",
       "payload_digest": "sha256:b9d6d922ceb52254e62cd792ce3fa7e6769daf017481b22ef8376d882bc7fdb5",
-      "raw_batch_id": "tushare-daily_basic-fa48549b714cff90dc487c7b6b00b23878a7307dfe219f8466224a18b3c4716f",
+      "raw_batch_id": "tushare-daily_basic-253218a5e2b6247d3cf14f4f3b294b4ffeacaf6af5849c4e00d4f217b5642a6e",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000651.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:29.268925+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.233115+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:2531be761f07ef418504bd0b5a894da01cacf984988f02f2d11217869d10e63b",
+      "manifest_digest": "sha256:751becf3c59db3309dcb88a3c5f2a2aaa30d0c4c6351587cd0ad52a17027bb0e",
       "payload_digest": "sha256:08b94a0da122cea8969aaceacc92db41d859eeaf1e843d148491c6165ca88552",
-      "raw_batch_id": "tushare-daily_basic-e853317bd0c77518cd251837e598017c7012a6cf8a009e471c773fa50a414c02",
+      "raw_batch_id": "tushare-daily_basic-f4a34566927ffc8240ebe45040496e547565e669af1ab606004a312fde610851",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000858.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:29.363136+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.314439+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:66e2a389d458c016ee143638ee5ef53e631c1637f925d0d686e81ae8228b5a76",
+      "manifest_digest": "sha256:7ee5a6be8cd02802fd36a37a7d4ab58172fdcbfe08637c1a0e4b3a2cbe0c945d",
       "payload_digest": "sha256:d4774125240d6d5f00d12c2606c0baf429b58fb87f40443858079e8549e354ed",
-      "raw_batch_id": "tushare-daily_basic-da18c2fa6c8f01144ec83788f6c12fa7cc16f9af3b5fc6cefeef352d2b54e211",
+      "raw_batch_id": "tushare-daily_basic-950773fe13ac60544b63179c964d11a0f58dab7cd75828f66bbeeda5b940f7e3",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "002415.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:29.456473+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.408422+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:eace16381e893036baaec84ca61d8b2d6fc5655a29d1098296234d8fda114a95",
+      "manifest_digest": "sha256:a8157f003433be9a6ff0b02e92038b6f48523d79baf0cfd73234c11e6be06bf9",
       "payload_digest": "sha256:3822c6ca041555cc9208b329b9a48bd4ee64eea8645424a51f717b96032a7c01",
-      "raw_batch_id": "tushare-daily_basic-49be780e33cc5163f376ad1c8d6a9d035dfa3ea43e610e84a76808d9a949cff3",
+      "raw_batch_id": "tushare-daily_basic-75cf20462c0cd4ff5bdba6a22463197ec6603ca0358db83d47040344fba05212",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "002594.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:29.554566+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.504632+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:db694b7532af4f8c8132c065719a7e80c2b6c0d926e3a7842ac32e7e499025f7",
+      "manifest_digest": "sha256:bd5cd94107c439d74b7953650826c790ce725a1f7dbb8f31b987e7dbf9c8d162",
       "payload_digest": "sha256:60d7b30f6077b40f6afedf5a8c3a3442747379df718caf13011dfdce8dcfab04",
-      "raw_batch_id": "tushare-daily_basic-261b19e5ae94c1671dd3b345af8a57e3a0a4f46521207da09fb569b3b98f999e",
+      "raw_batch_id": "tushare-daily_basic-54b6fcbcd51ec4064db40f674ff711a1a224a1df3f25fe94c771f26e6e5c2e2c",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "300059.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:29.635072+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.589557+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:f4f91eb4365b8973bc37cdbe0b87e5e23f110cf50bf2e06eb64a172f8bd99996",
+      "manifest_digest": "sha256:0eb0a56f7916a5c3c34367a8397f9d2b1cf77c03d93d450297876a0de007e5b2",
       "payload_digest": "sha256:1439389c0f83a9a6c30e32c6bd256ec4af7921914e39775ca39961ad3e04c1bf",
-      "raw_batch_id": "tushare-daily_basic-24f64b31b460e50e6a66c25e0e53b93e39bf922f438b57833f2d81ae4dbd7a3e",
+      "raw_batch_id": "tushare-daily_basic-722147ac9b50660fa853eb5a0d2af56bc95522781e01f8cbdcdac4dc5f695c84",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "300750.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:29.720418+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.698261+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "daily_basic",
-      "manifest_digest": "sha256:e3a4026a4bcc61e668de489d22e0323fff4341808c3814714bb7d16a93febae6",
+      "manifest_digest": "sha256:0122779b8c4e08d201ae2d11af146ab0fedcbd7bfcc305a8f78f8451b38f26cf",
       "payload_digest": "sha256:becab591ccc340ff338f5bbb7de6749f9811236a32dc0c74ab2e3e3bcf4b150a",
-      "raw_batch_id": "tushare-daily_basic-27503c149a6ea692a31774a18e84611ec7fa26ef520ccb5efb4947e699d345bf",
+      "raw_batch_id": "tushare-daily_basic-69d9a7685cf3f529b04c2902817f6cc28739173fe88c26e096467007a2c2f8eb",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "301581.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:29.801251+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.797283+00:00",
       "role": "market",
-      "rows": 242
+      "rows": 242,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:ed649eaf1af36d7a38de380fe64225022542ddc0887557b51f40f031b3a82d54",
+      "manifest_digest": "sha256:b21f70aca47f0760d6402d920351983fe85bfd774a1322283d45a369e7b0de0f",
       "payload_digest": "sha256:4b94c4c02b254a770a9ce386bec5f6facf34e7194945aac26a4540734fa4a945",
-      "raw_batch_id": "tushare-stk_limit-bec5e1aa9f42f12b9def08dffa6a7020026d80cc0d2eba969ef40e32f5c4822b",
+      "raw_batch_id": "tushare-stk_limit-b0044b8e86a38ab5e3b2db586b272593239811be799afbac4e3bf201fd377487",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600000.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:30.897760+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.902494+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:b85c7f454f770ef3a9477e651826f99e117ee5d4d0a933ca9d1558d5aa477833",
+      "manifest_digest": "sha256:8a4288184c9ffefcd4e9bb733b11112ef31a0ad370049258b58d7a6d98fb0658",
       "payload_digest": "sha256:1b82cf3d029eedd6d87c4025efa33ad99cd9b12fddaf973c3116a16726e0ef61",
-      "raw_batch_id": "tushare-stk_limit-d5c2551c90e4edaf1de191115480285e6162ebd7e16a4853970d474af9a711a4",
+      "raw_batch_id": "tushare-stk_limit-4a826d98a83972936f5d58091725eac8681932d6954592b400359afcfc9668d2",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600036.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:31.001689+00:00",
+      "retrieved_at": "2026-09-05T11:10:01.988899+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:d91fea78c77346a6e00ba9a8490699c1f7cee01a5223cd8d9d100575de5c76f2",
+      "manifest_digest": "sha256:ee9c7e9bebebf4d75f9d558cec4f960df48775abb9e235fb8804646db09618f0",
       "payload_digest": "sha256:5f41967e7285957ba1e126bb2bf3dc19a9f192a6f88dc2c62b69d80512fe0d2b",
-      "raw_batch_id": "tushare-stk_limit-d48ece645e1d09edfc0e8d49c4e0824616758ffce7568e13b296b2afbf7eb3fc",
+      "raw_batch_id": "tushare-stk_limit-60d8f73937c9f67632781386be1fe0c7ed9f3b3bedefa972b06bf5ba9207adb2",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600519.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:31.108713+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.094836+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:1729d5fef16a3c6a7592b005338a40bd3716c63c2f247bb277577cbb280c6846",
+      "manifest_digest": "sha256:d24b721eba451550ad3c3c155caf828aad005bd8f01c8919b578c18496be96ec",
       "payload_digest": "sha256:b0b787d624c17b22019b959df7f2bc79cca13bd296ac9ac3ba50ca6de921932b",
-      "raw_batch_id": "tushare-stk_limit-9d6a931586941ddab5624d9d2160f1f6be891cac642d454d83b2b8ba89db6f1b",
+      "raw_batch_id": "tushare-stk_limit-eb07a5e405ac231ea47cf26053dd22a9df6b5fb9767f822bac1ae487fd35cdfe",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "600900.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:31.212274+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.177491+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:7dd746e4209c5ed7507e3fa641563c5c58d644a0786981c8b3e2a55436a3fa72",
+      "manifest_digest": "sha256:2cb43f72d2219f3b8e7346ddd0062fdf85462363104150bbfb8a151d532efb21",
       "payload_digest": "sha256:76b87973d5965d1aaddba89762bb6ee49c1172f2aca98c6afa938ec9e29ed2aa",
-      "raw_batch_id": "tushare-stk_limit-01d4163eb55daaf46f98a5e5d0bf349fcf61d251b7c7a4a106e2d63a22722b78",
+      "raw_batch_id": "tushare-stk_limit-6e3d33e9093f88512798ed5a1ee00546808bc1f92bdd167f73c8e0180907519d",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "601318.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:31.302248+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.277470+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:90e553ce9908596a197772d2db621f8b30728984b2d09563970bbcac388973b3",
+      "manifest_digest": "sha256:e2c28237a9753c1066f3fc1c16eb05e219032454849c0f0f87fba1cac4fbb9b0",
       "payload_digest": "sha256:904f848c17eb60a75caaee8940bee0cbdba4b4c3089a4b7e57d87e93996f1a4a",
-      "raw_batch_id": "tushare-stk_limit-fe36d61ad81a5c91e763e77d90495de4110e4dab00cf3cd5c0a30fddba352233",
+      "raw_batch_id": "tushare-stk_limit-a90855832b891c71f211082fefffb3eeb272fa00b7a1f20ebfa1deefb5cb3586",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "601398.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:31.388622+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.382212+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:6816ab3e40789fa76c28e12b64a9b508056bc7d1a1f444b44e36167b36434bc1",
+      "manifest_digest": "sha256:1abcd1964cdf9984634eddd6c130e9066743edce1916fc5ed64de743545dd8bd",
       "payload_digest": "sha256:2b20f8645605d6f6421d672423701f332d45609611041e455094631e34137789",
-      "raw_batch_id": "tushare-stk_limit-3e0b5c31e8e0a51810cfc3df730426068acd59030152ec40fbdf3eabad1704f2",
+      "raw_batch_id": "tushare-stk_limit-872762b9bfd2b3bba0e1ac9da4fd401493fc21f4f96dc9cb809cf833eb76ff92",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "601857.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:31.475810+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.502463+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:39b509962868627a029c00f02f7354c72a497b1c2914f4c442e363868e8e4890",
+      "manifest_digest": "sha256:a7b5d8d34f5f1cca3790539bc01b31f1a87536cd9322363c1ef1e15fdf7ed728",
       "payload_digest": "sha256:6991df75f65a03d3bf0428b132597943694b5be299077e710102d59fd743257e",
-      "raw_batch_id": "tushare-stk_limit-a55c1622725ca68691c27dd52c71f421f0b7e5dd8156df7700b9bcc3d582ed9b",
+      "raw_batch_id": "tushare-stk_limit-04a61ed43c5c96e16740db1fb2b87d814605f522fe3cc588b4ef005b59c8b9f0",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "603501.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:31.565471+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.587407+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:aad4144e1351dad29639b7a474f5f0cbaf5de2b5123ee711c4a8de5cfe19bece",
+      "manifest_digest": "sha256:c7c9ea1ddcc7eb8d782b279c255209afe962185443bc32b9d024f34571571573",
       "payload_digest": "sha256:520dfd0625c0e7b091a98cc1d1815f1ee9a8f20a373d8a7c520ba78665eccc23",
-      "raw_batch_id": "tushare-stk_limit-ee24e8c472971267df3db65e444f6756ce88eb865240a322251fd0c386093421",
+      "raw_batch_id": "tushare-stk_limit-ec548a9301d4f85b4a3e7d7d4588b23bbc2e6c8ff6c6a00b026b582ec3e59b2e",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "688981.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:31.657077+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.665419+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:2aae35bc7d54a913dc3a060ef2a7ad48dba5abe288fb6b033af185b63ddb0065",
+      "manifest_digest": "sha256:774ff913fda26bcb3a21ca376aecbf7c34be0b6266e0b05b11c6fea3956cddbf",
       "payload_digest": "sha256:28731bf66ffc0fae8314c469eee6e383797939683957de3d39a5c6c0c6211893",
-      "raw_batch_id": "tushare-stk_limit-327efa6828a8b87a93852609e51957d72a09e8e4c0f4b73fcd11b2de3ab6c098",
+      "raw_batch_id": "tushare-stk_limit-e4947b50c13584c4ece5b8ccfc08fbeb8e8c3f0b4e0931f77acd5cc66154b5c2",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "603072.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:31.755308+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.765559+00:00",
       "role": "market",
-      "rows": 242
+      "rows": 242,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:9d7c0b5e173c341e6e38c4de96c9390590aeeec967a51cd116d47bb30abfa942",
+      "manifest_digest": "sha256:40c913161819c48018d7337597952945e5dae340e58582f149c121e2ffb3b973",
       "payload_digest": "sha256:f5a70fba5ce94b43045023f8cc43d2156e337e1fd3c3fe714bb95acaf72162a3",
-      "raw_batch_id": "tushare-stk_limit-9982f48422a6bbce4590f1c60f1a405a9b75e39b30dac113c31e5f6ea915eb34",
+      "raw_batch_id": "tushare-stk_limit-cd256db0bd404cff6d2580dee84a01fbf6dbc1c1e156bfc20967b5dddfffd2bb",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000001.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:31.873695+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.856606+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:0cd5192c6f0cab0f1b5d9cef1dd3dee7cb6086bd56e856ff7d9fdcab245baa07",
+      "manifest_digest": "sha256:36d9a3d6b6241a4628178e189e1a69117d9e4ee432526077902db80c96293d91",
       "payload_digest": "sha256:db582d7476539dc6170cba7c92ad91a5f1091928967953590fe9d08b98f5341b",
-      "raw_batch_id": "tushare-stk_limit-68cfadad4a4f7dc025d5c528ddc2957b56d4c877bd02eb32ba052be3fb802f86",
+      "raw_batch_id": "tushare-stk_limit-f21dd9f34ec7bd5ef02dccd1ec590900416516cedd5570eb232a9eac71279906",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000002.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:31.962912+00:00",
+      "retrieved_at": "2026-09-05T11:10:02.956243+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:63fe8eb4b6ce9dee833fbf29bff57f4a076cfbaa8dcee4bb9b69c0e1364ccfc6",
+      "manifest_digest": "sha256:c614162612f3b805e92d6a019062db953e2bf9a1bc01d708838b46dc2d3ac949",
       "payload_digest": "sha256:c9eda0125ee7d4afc70b8b509985133ac67057f6e2bc5c6130f87299c93368a6",
-      "raw_batch_id": "tushare-stk_limit-faf73a299d356f45ef2ed3d197a9137d900ed21f020ff169a4fb8885864a8197",
+      "raw_batch_id": "tushare-stk_limit-592e55b1bae0ba6288b08a3c70aea14ebd6e5c3cf428b5712dcb8a1ce177bcfd",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000333.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:32.076533+00:00",
+      "retrieved_at": "2026-09-05T11:10:03.046672+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:dc6cd8199bfc2c924febf724d88e76a5a77cabf2eda6186298375e958ce0db55",
+      "manifest_digest": "sha256:a2e9ed36b335852a541ce40c27b825e1b1dba262bda08ebaa66004dd8ca83796",
       "payload_digest": "sha256:d375b6d5c78675a4c0c9cd75d08caa32cf81c90564f78996c094061aa03f0c64",
-      "raw_batch_id": "tushare-stk_limit-64cc57b8a265abe21a51fb94779ce91235c306866e09306dd69fe25991bf6d87",
+      "raw_batch_id": "tushare-stk_limit-301d554a01789357ea13c793bcaae2fcd2064c0b043db64b37b4a0f26ba9fdf3",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000651.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:32.184303+00:00",
+      "retrieved_at": "2026-09-05T11:10:03.133314+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:bfd81df78692d179ae394ab3c696a9b0223ce5d0651c8d81d6b3b8f9224f6e32",
+      "manifest_digest": "sha256:8622e26789aa884959848e7560f354ee24801758ec74505387c418ef846294e0",
       "payload_digest": "sha256:8dc4f6302d5951aa0d3d335a67ada7844c08164c15e07d7b78bf6ab8c057da0d",
-      "raw_batch_id": "tushare-stk_limit-b0a2875b6afe9b9aee6178754075bb6bf66b5e28ab7ac3e971744f40fdaf409e",
+      "raw_batch_id": "tushare-stk_limit-8e6b5f2da64601a642aa9a804b0d8e1d8142bd7e07e1540e254cc6aea13c5fd0",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "000858.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:32.281092+00:00",
+      "retrieved_at": "2026-09-05T11:10:03.230498+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:422eef1502bb80a5251f451c4a71df031cd1aa015fa9c5f583781d21a3dae7c8",
+      "manifest_digest": "sha256:1e223bcbef633df72f699a7314b44042364ec489650f318237230a129de8e94f",
       "payload_digest": "sha256:9f551f96e0f3709dcd7f0e44504d290f4c2cd5e6cd7fe61ed952b170b43b7b22",
-      "raw_batch_id": "tushare-stk_limit-1db3112fe73ddfecc4a5b3b60f3dd4d54caa1fc08e9cce57e3e07afb7cc98e44",
+      "raw_batch_id": "tushare-stk_limit-2a8097a9d0ed75003d5a7486b0644d635bb86bc268b577623914b612ba6ed079",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "002415.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:32.380072+00:00",
+      "retrieved_at": "2026-09-05T11:10:03.317351+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:77a457b819418aeb43c4273df8679827637029e91d49d849d37fe89be5efbaf4",
+      "manifest_digest": "sha256:ab44c70f2de7f84aaee18c8a5b3d4362f0cabc7c0c9359aefdae45036e5b27f7",
       "payload_digest": "sha256:664f1d11648d89cfb24dd7735ec52d43ae3d8fa10a896d70894ea377e94bf188",
-      "raw_batch_id": "tushare-stk_limit-c481063e92890b9ec99e316def577614d1c213b6794aa8f20976bfb779667c8e",
+      "raw_batch_id": "tushare-stk_limit-de00b79053660efdc6cd36ce241d360c29bebfe0d39be1c7f896d4c062e9928d",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "002594.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:32.469783+00:00",
+      "retrieved_at": "2026-09-05T11:10:03.421944+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:d848266c852a72eae683581f39294d65652465f17e3aecfffe8ca7b1ff682f14",
+      "manifest_digest": "sha256:77fcd2d37e445e5bb22156e2ddf2e8a6c30da65c112444e40bdf7dc75295080d",
       "payload_digest": "sha256:80e90c588161522c03de77cdeeaf4f3355f442e6bbf95eb3bd7a768825e4ac1c",
-      "raw_batch_id": "tushare-stk_limit-452743d0b5b9a71b14e64ba2017088412d2c529a85fcd846046ba6794691da6a",
+      "raw_batch_id": "tushare-stk_limit-575629e7b25f16ef5d71fef2d895c25da90f323a0ab94312c0169733f1690790",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "300059.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:32.560411+00:00",
+      "retrieved_at": "2026-09-05T11:10:03.507694+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:20d2b87a6c1c6fe482254f5f170e81609fc8d9967247bc438aed52449e5b68cb",
+      "manifest_digest": "sha256:ff4eb3c22e72a6adbf0e0db969e2d7600bff41c11ac91dc66f247867db29f0a6",
       "payload_digest": "sha256:4753e07ac6dfddc2c9fcb1790fba41de13bd50dfa34f5fe3b1ab2f6ee947a1ae",
-      "raw_batch_id": "tushare-stk_limit-8f0854db2ad6e0cf0d13166f95e4b7f3d982a3f62b89cd833e98dbbbfc8ff7b9",
+      "raw_batch_id": "tushare-stk_limit-93ea4409f0133ea2768e4c88106b75b8c2498c3bdb17a4fd2ced075a0d09115b",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "300750.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:32.661169+00:00",
+      "retrieved_at": "2026-09-05T11:10:03.590473+00:00",
       "role": "market",
-      "rows": 243
+      "rows": 243,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "stk_limit",
-      "manifest_digest": "sha256:fc3a667bc92236433c2f8ebdc4d40c4c634c8a437e27b5912a441b4c9e79d3bb",
+      "manifest_digest": "sha256:4984afbddaa39b795689419258295f1c6868fba42c515f4aaa204d148b3ecf7b",
       "payload_digest": "sha256:1f118ef6a6ecdbbfad653536f5f6b4122461080e5524269ab96a34b265f49da1",
-      "raw_batch_id": "tushare-stk_limit-ad8e6a8065af74c4641c92e2faf4351867c1d8c280b46ec99a5eed65dc7ad34b",
+      "raw_batch_id": "tushare-stk_limit-41a7c2b4b7b00ed0229aef77509855e425d568e2afa003a9c5d0f4a45b75f518",
       "request_params": {
         "end_date": "20251231",
         "start_date": "20250101",
         "ts_code": "301581.SZ"
       },
-      "retrieved_at": "2026-09-05T07:28:32.740950+00:00",
+      "retrieved_at": "2026-09-05T11:10:03.678308+00:00",
       "role": "market",
-      "rows": 242
+      "rows": 242,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
     },
     {
       "endpoint": "suspend_d",
-      "manifest_digest": "sha256:a28571ff3c69b96e5759cc9ad43c173d166b7baabdc5c11a346f2490318d0b99",
+      "manifest_digest": "sha256:a099e7ee55848188d1969c26ceb39b229ac185e133156ab322c0cbf831dc4050",
       "payload_digest": "sha256:534d24ae118f52ac0eb2bf89df8e40a11dfb08f432bcef9059f70918a591e4dd",
-      "raw_batch_id": "tushare-suspend_d-852a1c7d59f6654c0dfcf5e871abc9a8bec516c29dfc9a35373a410396921770",
+      "raw_batch_id": "tushare-suspend_d-65d2d26d6764e3f3a1f28593876b8b551e23b1236a4413740e7f2b10e82e7134",
       "request_params": {
         "suspend_date": "20250901",
         "ts_code": "688981.SH"
       },
-      "retrieved_at": "2026-09-05T07:28:32.828063+00:00",
+      "retrieved_at": "2026-09-05T11:10:03.775989+00:00",
       "role": "market",
-      "rows": 7
+      "rows": 7,
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
     }
   ],
   "real_cases": {
@@ -1053,7 +1479,7 @@
       }
     ]
   },
-  "report_version": "pr3-real-market-slice.v1",
+  "report_version": "pr3-real-market-slice.v2",
   "scope": {
     "end_session": "2025-12-31",
     "sse_symbols": 10,
@@ -1088,32 +1514,32 @@
         "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
         "contract_version": "market_daily.v1",
         "domain": "market_daily",
-        "domain_commit_id": "market_daily-c6ad26d7143d716b01366384718e804243337c1af67d05375c28079bb9280d06",
-        "identity_digest": "sha256:c6ad26d7143d716b01366384718e804243337c1af67d05375c28079bb9280d06",
+        "domain_commit_id": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+        "identity_digest": "sha256:4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
         "logical_content_digest": "sha256:04d1637feb6ce6875a8869bcff710c2e12c735487126bd185063a62f46341406"
       },
       "security_master": {
         "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
         "contract_version": "security_master.v1",
         "domain": "security_master",
-        "domain_commit_id": "security_master-52a7f86a9972e03591801911bdb0d20d8677cc63937d3ff8a8d6dab2a3e94fa4",
-        "identity_digest": "sha256:52a7f86a9972e03591801911bdb0d20d8677cc63937d3ff8a8d6dab2a3e94fa4",
+        "domain_commit_id": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+        "identity_digest": "sha256:679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
         "logical_content_digest": "sha256:2e5849575f202b811f8b4f00f29709af29ff93fa5ba8b8398288833569ee0cf5"
       },
       "trading_calendar": {
         "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
         "contract_version": "trading_calendar.v1",
         "domain": "trading_calendar",
-        "domain_commit_id": "trading_calendar-15f26983775e133defcec1920a38160b8b72cbb3d4b1d15c0dbe98db9857b600",
-        "identity_digest": "sha256:15f26983775e133defcec1920a38160b8b72cbb3d4b1d15c0dbe98db9857b600",
+        "domain_commit_id": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
+        "identity_digest": "sha256:dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
         "logical_content_digest": "sha256:38af51a9c9219f730a70fa1f47638585728f88e1d5acb4cc55e0b19f5bec6a36"
       }
     },
-    "identity_digest": "sha256:6edfedf2c336a6ce6f7290d0bf85c5c5c3740abd392ab5e1985cdced4aef647e",
-    "snapshot_id": "snapshot-6edfedf2c336a6ce6f7290d0bf85c5c5c3740abd392ab5e1985cdced4aef647e"
+    "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
+    "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
   },
   "source_profile": {
-    "normalized_content_digest": "sha256:c7b9b74ebbc5d254427a08454964a126d63b9653f589264a6b1d7a2b293651a3",
+    "normalized_content_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
     "profile_version": "tushare_phase1.v1"
   }
 }

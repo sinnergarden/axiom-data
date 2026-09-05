@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Mapping, Sequence
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from axiom_data.artifacts import ArtifactError
+from axiom_data.artifacts import ArtifactError, load_raw_batch
 from axiom_data.consumption import MARKET_VIEW_FIELDS, SnapshotReader
+from axiom_data.tushare import (
+    load_tushare_source_profile,
+    tushare_source_profile_digest,
+)
 
 
 RECONCILIATION_CATEGORIES = {
@@ -21,6 +27,182 @@ RECONCILIATION_CATEGORIES = {
     "source_current_missing": "source 当前缺失",
 }
 _MISSING = object()
+_INDEPENDENT_PROFILE_RULES = {
+    "daily": {
+        "primary_key": ["ts_code", "trade_date"],
+        "represented_session_field": "trade_date",
+        "units": {
+            "vol": "hundred-share lots",
+            "amount": "thousand CNY",
+        },
+        "canonical_mapping": {
+            "volume_shares": "vol multiplied by 100",
+            "amount_cny": "amount multiplied by 1000",
+            "OHLC_pre_close": "copied as unadjusted CNY/share",
+        },
+    },
+    "daily_basic": {
+        "primary_key": ["ts_code", "trade_date"],
+        "units": {
+            "turnover_rate": "percent of circulating shares",
+            "total_mv": "ten-thousand CNY",
+            "circ_mv": "ten-thousand CNY",
+        },
+        "canonical_mapping": {
+            "turnover_rate": "copied as percent",
+            "total_market_cap_cny": "total_mv multiplied by 10000",
+            "circulating_market_cap_cny": "circ_mv multiplied by 10000",
+        },
+    },
+    "adj_factor": {
+        "primary_key": ["ts_code", "trade_date"],
+        "canonical_mapping": {
+            "adj_factor": "copied; ratios are meaningful only within the same frozen series/anchor"
+        },
+    },
+    "stk_limit": {"primary_key": ["ts_code", "trade_date"]},
+}
+
+
+def _check_independent_profile(profile: Mapping[str, Any]) -> None:
+    endpoints = profile.get("endpoints")
+    if not isinstance(endpoints, Mapping):
+        raise ArtifactError("independent source checker requires endpoint profiles")
+    for endpoint, expected_sections in _INDEPENDENT_PROFILE_RULES.items():
+        definition = endpoints.get(endpoint)
+        if not isinstance(definition, Mapping):
+            raise ArtifactError(f"independent source checker has no {endpoint} profile")
+        for section, expected in expected_sections.items():
+            actual = definition.get(section)
+            if isinstance(expected, dict):
+                if not isinstance(actual, Mapping) or any(
+                    actual.get(name) != value for name, value in expected.items()
+                ):
+                    raise ArtifactError(
+                        f"independent source checker does not recognize {endpoint} {section}"
+                    )
+            elif actual != expected:
+                raise ArtifactError(
+                    f"independent source checker does not recognize {endpoint} {section}"
+                )
+
+
+def _source_session(value: object) -> str:
+    if not isinstance(value, str) or len(value) != 8 or not value.isdigit():
+        raise ArtifactError("independent source session must be YYYYMMDD text")
+    try:
+        return date.fromisoformat(
+            f"{value[0:4]}-{value[4:6]}-{value[6:8]}"
+        ).isoformat()
+    except ValueError as exc:
+        raise ArtifactError("independent source session is invalid") from exc
+
+
+def _source_number(value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ArtifactError("independent source numeric field is invalid")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ArtifactError("independent source numeric field is not finite")
+    return number
+
+
+def _source_scaled(value: object, multiplier: int) -> float | None:
+    number = _source_number(value)
+    return None if number is None else float(Decimal(str(number)) * multiplier)
+
+
+def independent_tushare_market_expectations(
+    data_root: str | Path,
+    raw_batch_ids: Sequence[str],
+    *,
+    symbols: Sequence[str],
+    start_session: str,
+    end_session: str,
+) -> tuple[dict[str, Any], ...]:
+    """Map a small raw market slice without calling production builder code."""
+
+    profile = load_tushare_source_profile()
+    _check_independent_profile(profile)
+    profile_digest = tushare_source_profile_digest(profile)
+    endpoints = profile["endpoints"]
+    tables: dict[str, dict[tuple[str, str], Mapping[str, Any]]] = {
+        endpoint: {} for endpoint in _INDEPENDENT_PROFILE_RULES
+    }
+    seen_endpoints: set[str] = set()
+    for raw_batch_id in raw_batch_ids:
+        raw = load_raw_batch(data_root, raw_batch_id)
+        request = raw.manifest.get("request")
+        endpoint = request.get("endpoint") if isinstance(request, dict) else None
+        if endpoint not in tables:
+            continue
+        seen_endpoints.add(endpoint)
+        definition = endpoints[endpoint]
+        if (
+            raw.manifest.get("domain") != "market_daily"
+            or raw.manifest.get("source_profile_ref")
+            != definition["source_profile_ref"]
+            or raw.manifest.get("source_profile_version")
+            != profile["profile_version"]
+            or raw.manifest.get("source_profile_digest") != profile_digest
+        ):
+            raise ArtifactError("independent source checker profile mismatch")
+        try:
+            rows = json.loads(raw.payload)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ArtifactError("independent source checker requires JSON rows") from exc
+        if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+            raise ArtifactError("independent source checker requires row objects")
+        for row in rows:
+            symbol = row.get("ts_code")
+            source_date = row.get("trade_date")
+            if not isinstance(symbol, str) or not isinstance(source_date, str):
+                raise ArtifactError("independent source join key must be text")
+            key = (symbol, source_date)
+            if key in tables[endpoint] and tables[endpoint][key] != row:
+                raise ArtifactError(f"independent source rows conflict at {key!r}")
+            tables[endpoint][key] = row
+    if seen_endpoints != set(tables):
+        raise ArtifactError("independent source checker is missing a required endpoint")
+
+    selected = set(symbols)
+    expected: list[dict[str, Any]] = []
+    for (symbol, source_date), daily in tables["daily"].items():
+        session = _source_session(source_date)
+        if symbol not in selected or not start_session <= session <= end_session:
+            continue
+        basic = tables["daily_basic"].get((symbol, source_date), {})
+        factor = tables["adj_factor"].get((symbol, source_date), {})
+        limit = tables["stk_limit"].get((symbol, source_date), {})
+        volume = _source_number(daily.get("vol"))
+        scaled_volume = None if volume is None else Decimal(str(volume)) * 100
+        if scaled_volume is None or scaled_volume != scaled_volume.to_integral_value():
+            raise ArtifactError("independent source volume does not convert to whole shares")
+        expected.append(
+            {
+                "session": session,
+                "symbol": symbol,
+                "open": _source_number(daily.get("open")),
+                "high": _source_number(daily.get("high")),
+                "low": _source_number(daily.get("low")),
+                "close": _source_number(daily.get("close")),
+                "pre_close": _source_number(daily.get("pre_close")),
+                "volume_shares": int(scaled_volume),
+                "amount_cny": _source_scaled(daily.get("amount"), 1000),
+                "adj_factor": _source_number(factor.get("adj_factor")),
+                "up_limit": _source_number(limit.get("up_limit")),
+                "down_limit": _source_number(limit.get("down_limit")),
+                "is_suspended": False,
+                "turnover_rate": _source_number(basic.get("turnover_rate")),
+                "total_market_cap_cny": _source_scaled(basic.get("total_mv"), 10000),
+                "circulating_market_cap_cny": _source_scaled(
+                    basic.get("circ_mv"), 10000
+                ),
+            }
+        )
+    return tuple(sorted(expected, key=lambda row: (row["session"], row["symbol"])))
 
 
 def load_frozen_qsys_market(
@@ -187,7 +369,9 @@ def reconcile_market(
                     "axiom": _shown(axiom_value),
                     "qsys": _shown(qsys_value),
                     "preliminary_cause": (
-                        "legacy_qsys_missing_or_different"
+                        "contract_or_build_bug"
+                        if contract_build_bug
+                        else "legacy_qsys_missing_or_different"
                         if category
                         in {"qsys_missing", "axiom_tushare_equal_qsys_different"}
                         else "supplier_drift_or_revision"
@@ -215,6 +399,7 @@ def reconcile_market(
             "fields": list(fields),
         },
         "source_pit_classification": "current-observed-best-effort",
+        "source_expectation_path": "independent-frozen-raw-profile-checker.v1",
         "qsys_role": "frozen-forensic-reference-only",
         "relative_tolerance": relative_tolerance,
         "counts": counts,
@@ -225,6 +410,7 @@ def reconcile_market(
 
 __all__ = [
     "RECONCILIATION_CATEGORIES",
+    "independent_tushare_market_expectations",
     "load_frozen_qsys_market",
     "reconcile_market",
 ]

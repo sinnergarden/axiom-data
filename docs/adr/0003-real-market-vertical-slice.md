@@ -28,6 +28,20 @@ semantics, date fields, and canonical mappings are frozen in
 the original returned fields and source units. Canonical builders consume only
 those frozen payloads through the PR2 publication path.
 
+The normalized semantic content of the SourceProfile is SHA-256 bound to every
+RawBatch identity and manifest. It includes endpoint keys, mappings, units,
+session and missing semantics, plus revision/PIT declarations, while excluding
+formatting and unrecognized commentary fields. DomainCommit ordered raw
+provenance and the Tushare builder configuration both carry the consumed
+profile digest. Rebuild rejects a frozen RawBatch when the currently supplied
+profile has the same version text but different semantic content.
+
+For `trade_cal`, the builder also verifies that request metadata exactly names
+the configured start/end scope and one RawBatch for every scoped exchange. The
+untrimmed payload must contain exactly one row for every natural day in that
+closed interval for each exchange; missing boundaries, interior dates, whole
+exchanges, and out-of-scope payload rows fail the build.
+
 The run is `current-observed-best-effort`. `retrieved_at` records when Axiom saw
 the response. A historical `trade_date`, `cal_date`, or `list_date` is a
 represented/effective session, not proof that the currently returned revision
@@ -46,7 +60,9 @@ from 2025-09-01 through 2025-09-08. Absence alone remains unknown. The frozen
 builder emits confirmed-suspended rows with null OHLC, zero volume/amount, and
 no forward fill. Removing that evidence leaves the dates absent rather than
 guessing suspension. The real fixture and regression test freeze this rule; no
-market v1 contract change was required.
+market v1 contract change was required. A null or empty `suspend_timing` is the
+only supported full-day form; any non-empty intraday timing is rejected rather
+than promoted to a full-day suspension.
 
 ## Reader
 
@@ -91,7 +107,19 @@ three-way equal field values, 13 Axiom/Tushare-equal values differing from Qsys,
 and 32 Qsys-missing values. The 13 differences are Tushare's four-decimal
 `turnover_rate` observations versus Qsys's more precise derived values. Qsys
 does not store `pre_close` or `adj_factor` in the frozen panel, accounting for
-the 32 missing values. No contract/build bug or source drift was observed.
+the 32 missing values. Its Tushare expectations are independently derived from
+frozen raw fields and the SourceProfile without calling the production builder
+or its normalization/join helpers. A regression test injects a production
+`volume` scaling bug and requires reconciliation to report a contract/build
+failure. No contract/build bug or source drift was observed in the real run.
+
+The complete real closure is retained read-only at
+`/var/lib/axiom-data/forensic/pr3-market-slice-20260905-blocker-fix-v2`.
+It contains Snapshot
+`snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974`
+and QlibView
+`qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90`;
+it is forensic validation evidence, not a production current selection.
 
 For recovery, only the already-published `raw/batches` closure was copied to a
 new empty root. With no collector/network call, the three DomainCommits,

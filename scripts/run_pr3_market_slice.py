@@ -17,9 +17,9 @@ from axiom_data import (
     TushareCollector,
     TushareMarketBuilder,
     build_qlib_view,
-    canonical_market_observations,
     compare_direct_and_qlib,
     create_snapshot,
+    independent_tushare_market_expectations,
     load_frozen_qsys_market,
     load_qlib_view,
     load_raw_batch,
@@ -27,6 +27,7 @@ from axiom_data import (
     load_tushare_source_profile,
     rebuild_catalog,
     reconcile_market,
+    tushare_source_profile_digest,
     validate_domain_commit_closure,
 )
 
@@ -165,6 +166,9 @@ def _raw_evidence(root: Path, raw_ids: dict[str, list[str]]) -> list[dict[str, A
                     "raw_batch_id": identity,
                     "manifest_digest": raw.ref.manifest_digest,
                     "payload_digest": raw.manifest["payload_files"][0]["content_digest"],
+                    "source_profile_ref": raw.manifest["source_profile_ref"],
+                    "source_profile_version": raw.manifest["source_profile_version"],
+                    "source_profile_digest": raw.manifest["source_profile_digest"],
                     "endpoint": raw.manifest["request"]["endpoint"],
                     "request_params": raw.manifest["request"]["params"],
                     "retrieved_at": raw.manifest["retrieved_at"],
@@ -249,7 +253,7 @@ def main() -> None:
     equivalence = compare_direct_and_qlib(
         args.data_root, artifacts["snapshot"], artifacts["qlib_view"]
     )
-    source_rows = canonical_market_observations(
+    source_rows = independent_tushare_market_expectations(
         args.data_root,
         raw_ids["market"],
         symbols=RECON_SYMBOLS,
@@ -320,20 +324,22 @@ def main() -> None:
                 ref["raw_batch_id"]
                 for ref in commit.manifest["ordered_raw_batch_refs"]
             ],
+            "ordered_source_profiles": [
+                {
+                    "raw_batch_id": ref["raw_batch_id"],
+                    "source_profile_ref": ref["source_profile_ref"],
+                    "source_profile_version": ref["source_profile_version"],
+                    "source_profile_digest": ref["source_profile_digest"],
+                }
+                for ref in commit.manifest["ordered_raw_batch_refs"]
+            ],
         }
     snapshot = load_snapshot(args.data_root, artifacts["snapshot"])
     qlib_view = load_qlib_view(args.data_root, artifacts["qlib_view"])
     source_profile = load_tushare_source_profile()
-    source_profile_digest = "sha256:" + hashlib.sha256(
-        json.dumps(
-            source_profile,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
-    ).hexdigest()
+    source_profile_digest = tushare_source_profile_digest(source_profile)
     run_manifest = {
-        "report_version": "pr3-real-market-slice.v1",
+        "report_version": "pr3-real-market-slice.v2",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "scope": {
             "symbols": list(SYMBOLS),
@@ -358,6 +364,12 @@ def main() -> None:
         "source_profile": {
             "profile_version": source_profile["profile_version"],
             "normalized_content_digest": source_profile_digest,
+        },
+        "frozen_real_closure": {
+            "path": str(args.data_root.resolve()),
+            "snapshot_id": snapshot.ref.snapshot_id,
+            "qlib_view_id": qlib_view.ref.view_id,
+            "role": "immutable-validation-forensic-closure; not production current",
         },
         "raw_batches": _raw_evidence(args.data_root, raw_ids),
         "domain_commits": commit_evidence,

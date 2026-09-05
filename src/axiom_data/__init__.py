@@ -41,14 +41,15 @@ from .consumption import (
 from .layout import DataRootLayout, LayoutError
 from .reconciliation import (
     RECONCILIATION_CATEGORIES,
+    independent_tushare_market_expectations,
     load_frozen_qsys_market,
     reconcile_market,
 )
 from .tushare import (
     TushareCollector,
     TushareMarketBuilder,
-    canonical_market_observations,
     load_tushare_source_profile,
+    tushare_source_profile_digest,
 )
 
 __all__ = [
@@ -78,9 +79,9 @@ __all__ = [
     "TushareCollector",
     "TushareMarketBuilder",
     "build_qlib_view",
-    "canonical_market_observations",
     "compare_direct_and_qlib",
     "create_snapshot",
+    "independent_tushare_market_expectations",
     "list_catalog",
     "load_domain_commit",
     "load_raw_batch",
@@ -91,6 +92,7 @@ __all__ = [
     "lookup_catalog",
     "rebuild_catalog",
     "reconcile_market",
+    "tushare_source_profile_digest",
     "validate_domain_commit_closure",
     "write_raw_batch",
 ]
