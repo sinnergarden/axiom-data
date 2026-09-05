@@ -653,6 +653,16 @@ def compare_direct_and_qlib(
     }
     return {
         "status": "PASS" if all(checks.values()) else "FAIL",
+        "source_snapshot_ref": {
+            "snapshot_id": direct.snapshot.ref.snapshot_id,
+            "manifest_digest": direct.snapshot.ref.manifest_digest,
+            "identity_digest": direct.snapshot.manifest["identity_digest"],
+        },
+        "qlib_view_ref": {
+            "view_id": view.view.ref.view_id,
+            "manifest_digest": view.view.ref.manifest_digest,
+            "identity_digest": view.view.manifest["identity_digest"],
+        },
         "checks": checks,
         "scope": scope,
         "fields": list(fields),
@@ -661,6 +671,212 @@ def compare_direct_and_qlib(
         "relative_tolerance": relative_tolerance,
         "mismatches": mismatches,
     }
+
+
+def _report_mapping(value: object, name: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ArtifactError(f"PR3 report {name} must be an object")
+    return value
+
+
+def _report_ref(
+    value: object, fields: Sequence[str], name: str
+) -> dict[str, Any]:
+    mapping = _report_mapping(value, name)
+    missing = [field for field in fields if field not in mapping]
+    if missing:
+        raise ArtifactError(f"PR3 report {name} is missing immutable refs")
+    return {field: mapping[field] for field in fields}
+
+
+def validate_pr3_report_refs(
+    run_manifest: Mapping[str, Any],
+    direct_qlib_report: Mapping[str, Any],
+    offline_rebuild_report: Mapping[str, Any],
+) -> None:
+    """Cross-check the immutable refs in the three fixed PR3 evidence reports."""
+
+    run = _report_mapping(run_manifest, "run manifest")
+    direct = _report_mapping(direct_qlib_report, "direct/Qlib report")
+    offline = _report_mapping(offline_rebuild_report, "offline rebuild report")
+    run_snapshot_value = _report_mapping(run.get("snapshot"), "run snapshot ref")
+    run_view_value = _report_mapping(run.get("qlib_view"), "run QlibView ref")
+    run_snapshot = _report_ref(
+        run_snapshot_value,
+        ("snapshot_id", "manifest_digest", "identity_digest"),
+        "run snapshot ref",
+    )
+    run_view = _report_ref(
+        run_view_value,
+        ("view_id", "manifest_digest", "identity_digest"),
+        "run QlibView ref",
+    )
+    direct_snapshot = _report_ref(
+        direct.get("source_snapshot_ref"),
+        tuple(run_snapshot),
+        "direct source Snapshot ref",
+    )
+    direct_view = _report_ref(
+        direct.get("qlib_view_ref"), tuple(run_view), "direct QlibView ref"
+    )
+    if direct_snapshot != run_snapshot or direct_view != run_view:
+        raise ArtifactError("PR3 direct/Qlib report refs do not match the run manifest")
+    if direct.get("scope") != run_view_value.get("scope"):
+        raise ArtifactError("PR3 direct/Qlib report scope does not match the run manifest")
+    if direct.get("fields") != run_view_value.get("fields"):
+        raise ArtifactError("PR3 direct/Qlib report fields do not match the run manifest")
+
+    run_commits_value = _report_mapping(run.get("domain_commits"), "run DomainCommit refs")
+    run_commits = {
+        domain: _report_ref(
+            run_commits_value.get(domain),
+            (
+                "domain_commit_id",
+                "manifest_digest",
+                "identity_digest",
+                "logical_content_digest",
+                "contract_digest",
+            ),
+            f"run {domain} DomainCommit ref",
+        )
+        for domain in ("trading_calendar", "security_master", "market_daily")
+    }
+    raw_fields = (
+        "role",
+        "raw_batch_id",
+        "manifest_digest",
+        "payload_digest",
+    )
+    run_raw_value = run.get("raw_batches")
+    if not isinstance(run_raw_value, list):
+        raise ArtifactError("PR3 run RawBatch refs must be a list")
+    run_raw = [
+        _report_ref(value, raw_fields, "run RawBatch ref") for value in run_raw_value
+    ]
+    run_raw_summary = {
+        "ordered_raw_batch_ids": [ref["raw_batch_id"] for ref in run_raw],
+        "ordered_refs_digest": _digest(_json_bytes(run_raw)),
+    }
+    expected_root_map = {
+        "domain_commits": {
+            domain: ref["domain_commit_id"] for domain, ref in run_commits.items()
+        },
+        "snapshot": run_snapshot["snapshot_id"],
+        "qlib_view": run_view["view_id"],
+    }
+    if offline.get("source_root_artifact_map") != expected_root_map:
+        raise ArtifactError("PR3 offline source root artifact map is inconsistent")
+
+    source_refs = _report_mapping(
+        offline.get("source_artifact_refs"), "offline source artifact refs"
+    )
+    rebuilt_refs = _report_mapping(
+        offline.get("rebuilt_artifact_refs"), "offline rebuilt artifact refs"
+    )
+
+    def checked_artifact_refs(
+        refs: Mapping[str, Any], name: str
+    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]], dict[str, Any], dict[str, Any]]:
+        snapshot_ref = _report_ref(
+            refs.get("snapshot"), tuple(run_snapshot), f"{name} Snapshot ref"
+        )
+        view_ref = _report_ref(
+            refs.get("qlib_view"), tuple(run_view), f"{name} QlibView ref"
+        )
+        commits_value = _report_mapping(
+            refs.get("domain_commits"), f"{name} DomainCommit refs"
+        )
+        commits = {
+            domain: _report_ref(
+                commits_value.get(domain), tuple(run_commits[domain]), f"{name} {domain} ref"
+            )
+            for domain in run_commits
+        }
+        raw = _report_ref(
+            refs.get("raw_batches"),
+            ("ordered_raw_batch_ids", "ordered_refs_digest"),
+            f"{name} RawBatch refs",
+        )
+        raw_ids = raw["ordered_raw_batch_ids"]
+        if not isinstance(raw_ids, list) or any(
+            not isinstance(raw_id, str) for raw_id in raw_ids
+        ):
+            raise ArtifactError(f"PR3 report {name} RawBatch IDs must be a list")
+        return snapshot_ref, commits, raw, view_ref
+
+    source_snapshot, source_commits, source_raw, source_view = checked_artifact_refs(
+        source_refs, "offline source"
+    )
+    rebuilt_snapshot, rebuilt_commits, rebuilt_raw, rebuilt_view = checked_artifact_refs(
+        rebuilt_refs, "offline rebuilt"
+    )
+    if (
+        source_snapshot != run_snapshot
+        or source_commits != run_commits
+        or source_raw != run_raw_summary
+        or source_view != run_view
+    ):
+        raise ArtifactError("PR3 offline source refs do not match the run manifest")
+
+    rebuilt_map = offline.get("rebuilt_root_artifact_map")
+    if not isinstance(rebuilt_map, Mapping) or rebuilt_map != {
+        "domain_commits": {
+            domain: ref["domain_commit_id"]
+            for domain, ref in rebuilt_commits.items()
+        },
+        "snapshot": rebuilt_snapshot["snapshot_id"],
+        "qlib_view": rebuilt_view["view_id"],
+    }:
+        raise ArtifactError("PR3 offline rebuilt root artifact map is inconsistent")
+
+    offline_direct = _report_mapping(
+        offline.get("direct_qlib_equivalence"), "offline direct/Qlib report"
+    )
+    if (
+        _report_ref(
+            offline_direct.get("source_snapshot_ref"),
+            tuple(run_snapshot),
+            "offline direct Snapshot ref",
+        )
+        != rebuilt_snapshot
+        or _report_ref(
+            offline_direct.get("qlib_view_ref"),
+            tuple(run_view),
+            "offline direct QlibView ref",
+        )
+        != rebuilt_view
+    ):
+        raise ArtifactError("PR3 offline direct/Qlib refs do not match rebuilt refs")
+
+    expected_identity = {
+        "root_artifact_maps": offline.get("source_root_artifact_map")
+        == offline.get("rebuilt_root_artifact_map"),
+        "snapshot": source_snapshot["snapshot_id"]
+        == rebuilt_snapshot["snapshot_id"]
+        and source_snapshot["identity_digest"]
+        == rebuilt_snapshot["identity_digest"],
+        "domain_commits": all(
+            source_commits[domain]["domain_commit_id"]
+            == rebuilt_commits[domain]["domain_commit_id"]
+            and source_commits[domain]["identity_digest"]
+            == rebuilt_commits[domain]["identity_digest"]
+            for domain in run_commits
+        ),
+        "raw_batches": source_raw == rebuilt_raw,
+        "qlib_view": source_view["view_id"] == rebuilt_view["view_id"]
+        and source_view["identity_digest"] == rebuilt_view["identity_digest"],
+    }
+    if offline.get("identity_equality") != expected_identity:
+        raise ArtifactError("PR3 offline identity equality summary is inconsistent")
+    logical = _report_mapping(offline.get("logical_equality"), "offline logical equality")
+    catalog = _report_mapping(offline.get("catalog_rebuild"), "offline catalog rebuild")
+    if offline.get("status") == "PASS" and (
+        not all(expected_identity.values())
+        or logical.get("canonical_rows") is not True
+        or catalog.get("status") != "PASS"
+        or offline_direct.get("status") != "PASS"
+    ):
+        raise ArtifactError("PR3 offline PASS is not supported by its artifact refs")
 
 
 __all__ = [

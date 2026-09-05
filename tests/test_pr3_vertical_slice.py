@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import socket
@@ -29,6 +30,7 @@ from axiom_data import (
     tushare_source_profile_digest,
     validate_domain_commit_closure,
 )
+from axiom_data.consumption import validate_pr3_report_refs
 
 
 FIXED_TIME = "2026-09-05T12:00:00+08:00"
@@ -55,6 +57,19 @@ class FixtureTushareClient:
                     continue
             selected.append({field: row.get(field) for field in requested_fields})
         return selected
+
+
+class CalendarPayloadClient:
+    def __init__(self, payloads: dict[str, list[dict[str, object]]]) -> None:
+        self.payloads = payloads
+
+    def query(self, endpoint: str, *, fields: str, **params: object):
+        assert endpoint == "trade_cal"
+        rows = self.payloads[str(params["exchange"])]
+        requested_fields = fields.split(",")
+        return [
+            {field: row.get(field) for field in requested_fields} for row in rows
+        ]
 
 
 def load_fixture(name: str) -> dict[str, object]:
@@ -173,6 +188,75 @@ def build_fixture(
     }
 
 
+def build_calendar_only(
+    root: Path,
+    raw_ids: list[str],
+    symbols: list[str],
+    start: str,
+    end: str,
+) -> object:
+    config = {
+        "source_profile_version": "tushare_phase1.v1",
+        "symbols": symbols,
+        "start_session": f"{start[:4]}-{start[4:6]}-{start[6:]}",
+        "end_session": f"{end[:4]}-{end[4:6]}-{end[6:]}",
+    }
+    return BuildApplication(
+        "trading_calendar",
+        TushareMarketBuilder(
+            root, "trading_calendar", builder_config=config, created_at=FIXED_TIME
+        ),
+    ).build(None, raw_ids, [], "trading_calendar.v1")
+
+
+def collect_calendar_payloads(
+    root: Path,
+    payloads: dict[str, list[dict[str, object]]],
+    exchanges: tuple[str, ...],
+    start: str,
+    end: str,
+) -> list[str]:
+    collector = TushareCollector(root, CalendarPayloadClient(payloads))
+    return [
+        collector.collect(
+            "trade_cal",
+            {"exchange": exchange, "start_date": start, "end_date": end},
+            retrieved_at=FIXED_TIME,
+        ).raw_batch_id
+        for exchange in exchanges
+    ]
+
+
+def rewrite_raw_as_pr2_v1(root: Path, raw_batch_id: str) -> None:
+    artifact_dir = root / "raw/batches" / raw_batch_id
+    manifest = json.loads((artifact_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest["schema_version"] = "raw_batch.v1"
+    manifest.pop("source_profile_version")
+    manifest.pop("source_profile_digest")
+    content = json.dumps(
+        manifest,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    (artifact_dir / "manifest.json").write_bytes(content)
+    (artifact_dir / "manifest.sha256").write_text(
+        f"sha256:{hashlib.sha256(content).hexdigest()}\n", encoding="ascii"
+    )
+
+
+def load_evidence_reports() -> tuple[dict[str, object], ...]:
+    return tuple(
+        json.loads((REPORTS / name).read_text(encoding="utf-8"))
+        for name in (
+            "run_manifest.json",
+            "direct_qlib_equivalence.json",
+            "offline_rebuild.json",
+        )
+    )
+
+
 class Pr3VerticalSliceTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -202,6 +286,38 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         )
         self.assertIn("unknown", profile["pit_classification"]["historical_availability"])
         self.assertIn("not verified PIT", profile["pit_classification"]["revision_capability"])
+
+    def test_tushare_requires_profile_bound_v2_but_v2_builds_normally(self) -> None:
+        fixture = load_fixture("listing_slice")
+        ids, _ = collect_fixture(self.root, fixture)
+        self.assertTrue(
+            all(
+                load_raw_batch(self.root, raw_id).manifest["schema_version"]
+                == "raw_batch.v2"
+                for raw_id in ids["calendar"]
+            )
+        )
+        build_calendar_only(
+            self.root,
+            ids["calendar"],
+            fixture["symbols"],
+            fixture["start_date"],
+            fixture["end_date"],
+        )
+
+        rewrite_raw_as_pr2_v1(self.root, ids["calendar"][0])
+        self.assertEqual(
+            load_raw_batch(self.root, ids["calendar"][0]).manifest["schema_version"],
+            "raw_batch.v1",
+        )
+        with self.assertRaisesRegex(ArtifactError, "profile-bound raw_batch.v2"):
+            build_calendar_only(
+                self.root,
+                ids["calendar"],
+                fixture["symbols"],
+                fixture["start_date"],
+                fixture["end_date"],
+            )
 
     def test_real_source_raw_snapshot_reader_and_empty_staging_qlib_view(self) -> None:
         fixture = load_fixture("listing_slice")
@@ -259,6 +375,23 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         )
         self.assertEqual(equivalence["status"], "PASS")
         self.assertEqual(equivalence["direct_keys"], 10)
+        self.assertEqual(
+            equivalence["source_snapshot_ref"],
+            {
+                "snapshot_id": snapshot.ref.snapshot_id,
+                "manifest_digest": snapshot.ref.manifest_digest,
+                "identity_digest": snapshot.manifest["identity_digest"],
+            },
+        )
+        loaded_view = QlibViewReader(self.root, view.view_id).view
+        self.assertEqual(
+            equivalence["qlib_view_ref"],
+            {
+                "view_id": loaded_view.ref.view_id,
+                "manifest_digest": loaded_view.ref.manifest_digest,
+                "identity_digest": loaded_view.manifest["identity_digest"],
+            },
+        )
 
         rows = reader.market_daily(
             fixture["symbols"], "2025-01-01", "2025-01-06"
@@ -536,12 +669,97 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         with self.assertRaisesRegex(ArtifactError, "outside the declared"):
             build_fixture(other_root, outside, other_ids)
 
+    def test_calendar_request_and_payload_are_validated_per_raw_batch(self) -> None:
+        fixture = load_fixture("listing_slice")
+        start = fixture["start_date"]
+        end = fixture["end_date"]
+        calendar = fixture["responses"]["trade_cal"]
+        assert isinstance(start, str) and isinstance(end, str)
+        assert isinstance(calendar, list)
+        payloads = {
+            exchange: [row for row in calendar if row["exchange"] == exchange]
+            for exchange in ("SSE", "SZSE")
+        }
+
+        for exchange, symbol in (("SSE", "600000.SH"), ("SZSE", "000001.SZ")):
+            with self.subTest(exchange=exchange):
+                root = Path(self.temporary.name) / f"calendar-valid-{exchange}"
+                ids = collect_calendar_payloads(
+                    root, payloads, (exchange,), start, end
+                )
+                ref = build_calendar_only(root, ids, [symbol], start, end)
+                self.assertEqual(ref.domain, "trading_calendar")
+
+        swapped_root = Path(self.temporary.name) / "calendar-swapped"
+        swapped = {"SSE": payloads["SZSE"], "SZSE": payloads["SSE"]}
+        swapped_ids = collect_calendar_payloads(
+            swapped_root, swapped, ("SSE", "SZSE"), start, end
+        )
+        with self.assertRaisesRegex(ArtifactError, "exchange does not match"):
+            build_calendar_only(
+                swapped_root,
+                swapped_ids,
+                ["600000.SH", "000001.SZ"],
+                start,
+                end,
+            )
+
+        mixed_root = Path(self.temporary.name) / "calendar-mixed"
+        mixed = json.loads(json.dumps(payloads))
+        mixed["SSE"].append(payloads["SZSE"][0])
+        mixed_ids = collect_calendar_payloads(
+            mixed_root, mixed, ("SSE", "SZSE"), start, end
+        )
+        with self.assertRaisesRegex(ArtifactError, "exchange does not match"):
+            build_calendar_only(
+                mixed_root,
+                mixed_ids,
+                ["600000.SH", "000001.SZ"],
+                start,
+                end,
+            )
+
     def test_unknown_nonempty_suspend_timing_is_rejected(self) -> None:
         fixture = load_fixture("suspension_slice")
         fixture["responses"]["suspend_d"][0]["suspend_timing"] = "10:00-11:00"
         ids, _ = collect_fixture(self.root, fixture)
         with self.assertRaisesRegex(ArtifactError, "suspend_timing"):
             build_fixture(self.root, fixture, ids)
+
+    def test_pr3_report_refs_match_run_manifest(self) -> None:
+        run, direct, offline = load_evidence_reports()
+
+        validate_pr3_report_refs(run, direct, offline)
+
+    def test_pr3_report_ref_tampering_is_rejected_even_when_status_is_pass(self) -> None:
+        run, direct, offline = load_evidence_reports()
+
+        changed_snapshot = json.loads(json.dumps(direct))
+        changed_snapshot["source_snapshot_ref"]["snapshot_id"] = "snapshot-tampered"
+        with self.assertRaisesRegex(ArtifactError, "do not match the run manifest"):
+            validate_pr3_report_refs(run, changed_snapshot, offline)
+
+        changed_view = json.loads(json.dumps(direct))
+        changed_view["qlib_view_ref"]["view_id"] = "qlib-tampered"
+        with self.assertRaisesRegex(ArtifactError, "do not match the run manifest"):
+            validate_pr3_report_refs(run, changed_view, offline)
+
+        inconsistent_pass = json.loads(json.dumps(offline))
+        inconsistent_pass["rebuilt_artifact_refs"]["snapshot"][
+            "snapshot_id"
+        ] = "snapshot-tampered"
+        with self.assertRaises(ArtifactError):
+            validate_pr3_report_refs(run, direct, inconsistent_pass)
+
+    def test_pr3_offline_report_requires_source_and_rebuilt_refs(self) -> None:
+        run, direct, offline = load_evidence_reports()
+
+        for field in ("source_artifact_refs", "rebuilt_artifact_refs"):
+            with self.subTest(field=field):
+                missing = json.loads(json.dumps(offline))
+                del missing[field]
+                with self.assertRaisesRegex(ArtifactError, "must be an object"):
+                    validate_pr3_report_refs(run, direct, missing)
 
     def test_committed_real_run_evidence_is_complete(self) -> None:
         run = json.loads((REPORTS / "run_manifest.json").read_text(encoding="utf-8"))
@@ -556,7 +774,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         offline = json.loads(
             (REPORTS / "offline_rebuild.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(run["report_version"], "pr3-real-market-slice.v2")
+        self.assertEqual(run["report_version"], "pr3-real-market-slice.v3")
         self.assertEqual(run["scope"]["sse_symbols"], 10)
         self.assertEqual(run["scope"]["szse_symbols"], 10)
         self.assertEqual(len(run["raw_batches"]), 46)
@@ -622,6 +840,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         self.assertEqual(reconciliation["contract_or_build_bug_count"], 0)
         self.assertEqual(offline["status"], "PASS")
         self.assertEqual(offline["network_calls"], 0)
+        validate_pr3_report_refs(run, equivalence, offline)
 
 
 if __name__ == "__main__":

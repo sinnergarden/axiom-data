@@ -28,19 +28,28 @@ semantics, date fields, and canonical mappings are frozen in
 the original returned fields and source units. Canonical builders consume only
 those frozen payloads through the PR2 publication path.
 
-The normalized semantic content of the SourceProfile is SHA-256 bound to every
-RawBatch identity and manifest. It includes endpoint keys, mappings, units,
-session and missing semantics, plus revision/PIT declarations, while excluding
-formatting and unrecognized commentary fields. DomainCommit ordered raw
-provenance and the Tushare builder configuration both carry the consumed
-profile digest. Rebuild rejects a frozen RawBatch when the currently supplied
-profile has the same version text but different semantic content.
+PR3 profile-bound collection publishes `raw_batch.v2`. Its normalized
+SourceProfile content is SHA-256 bound to the RawBatch identity and manifest.
+It includes endpoint keys, mappings, units, session and missing semantics, plus
+revision/PIT declarations, while excluding formatting and unrecognized
+commentary fields. DomainCommit ordered raw provenance and the Tushare builder
+configuration both carry the consumed profile digest. Rebuild rejects a frozen
+v2 RawBatch when the currently supplied profile has the same version text but
+different semantic content.
 
-For `trade_cal`, the builder also verifies that request metadata exactly names
-the configured start/end scope and one RawBatch for every scoped exchange. The
-untrimmed payload must contain exactly one row for every natural day in that
-closed interval for each exchange; missing boundaries, interior dates, whole
-exchanges, and out-of-scope payload rows fail the build.
+The loader explicitly dispatches both `raw_batch.v1` and `raw_batch.v2`.
+PR2-format v1 artifacts have no profile version/digest and remain readable by
+closure validation and catalog rebuild. They are not rewritten. The PR3
+Tushare builder and independent checker require profile-bound v2 inputs and
+reject a v1 input with an explicit error.
+
+For `trade_cal`, the builder verifies each RawBatch before aggregation: its
+request names one valid exchange and the configured start/end scope, every
+payload row names that same exchange, and its untrimmed date set contains
+exactly one row for every natural day in the closed interval. Only validated
+batches are combined, and one batch is required for every scoped exchange.
+Missing boundaries, interior dates, whole exchanges, exchanged payloads, mixed
+exchanges, and out-of-scope rows fail the build.
 
 The run is `current-observed-best-effort`. `retrieved_at` records when Axiom saw
 the response. A historical `trade_date`, `cal_date`, or `list_date` is a
@@ -120,6 +129,12 @@ It contains Snapshot
 and QlibView
 `qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90`;
 it is forensic validation evidence, not a production current selection.
+
+The direct/Qlib and offline rebuild reports carry the exact Snapshot and
+QlibView IDs plus manifest/identity digests. The offline report also records
+source and rebuilt root maps, DomainCommit refs, ordered RawBatch refs, logical
+equality, and catalog rebuild status. A PR3-specific consistency check rejects
+a PASS report whose refs do not match the run manifest or each other.
 
 For recovery, only the already-published `raw/batches` closure was copied to a
 new empty root. With no collector/network call, the three DomainCommits,

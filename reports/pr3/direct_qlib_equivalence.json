@@ -25,6 +25,11 @@
     "circulating_market_cap_cny"
   ],
   "mismatches": [],
+  "qlib_view_ref": {
+    "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
+    "manifest_digest": "sha256:75a60cb1ea1018c4bc7faed00d67b382498b6440443ef2e97e3b91d4a65c3aec",
+    "view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90"
+  },
   "qlib_keys": 4858,
   "relative_tolerance": 1e-06,
   "scope": {
@@ -53,6 +58,11 @@
       "300750.SZ",
       "301581.SZ"
     ]
+  },
+  "source_snapshot_ref": {
+    "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
+    "manifest_digest": "sha256:c5dd01dc4f282357fd90d5bfb13d91a36e0b18927ba29d45ded3892e48065d45",
+    "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
   },
   "status": "PASS"
 }

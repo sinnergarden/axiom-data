@@ -143,6 +143,42 @@ def write_rows(
     )
 
 
+def write_legacy_v1_rows(
+    root: Path,
+    raw_batch_id: str,
+    domain: str,
+    rows: list[dict[str, object]],
+) -> None:
+    """Write the exact RawBatch manifest shape published by the PR2 parent."""
+
+    payload = json_payload(rows)
+    artifact_dir = root / "raw/batches" / raw_batch_id
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "payload.bin").write_bytes(payload)
+    manifest: dict[str, object] = {
+        "artifact_type": "raw_batch",
+        "schema_version": "raw_batch.v1",
+        "raw_batch_id": raw_batch_id,
+        "domain": domain,
+        "source_profile_ref": f"fixture-{domain}.v1",
+        "request": {"fixture": raw_batch_id},
+        "retrieved_at": FIXED_TIME,
+        "collector_code_ref": "fixture-writer.v1",
+        "status": "success",
+        "summary": {"rows": len(rows)},
+        "payload_files": [
+            {
+                "path": "payload.bin",
+                "content_digest": (
+                    f"sha256:{hashlib.sha256(payload).hexdigest()}"
+                ),
+                "bytes": len(payload),
+            }
+        ],
+    }
+    rewrite_manifest(artifact_dir, manifest)
+
+
 def rewrite_manifest(artifact_dir: Path, manifest: dict[str, object]) -> None:
     content = json.dumps(
         manifest,
@@ -253,6 +289,7 @@ class ArtifactTest(unittest.TestCase):
             ],
         )
         self.assertEqual(loaded.payload, original_payload)
+        self.assertEqual(loaded.manifest["schema_version"], "raw_batch.v2")
         self.assertEqual(loaded.manifest["payload_files"][0]["path"], "payload.bin")
         self.assertNotIn(str(self.root), json.dumps(loaded.manifest))
         with self.assertRaises(ArtifactConflictError):
@@ -262,6 +299,34 @@ class ArtifactTest(unittest.TestCase):
                 **dict(arguments, payload=b"different supplier response"),
             )
         self.assertEqual(load_raw_batch(self.root, "raw-001").payload, original_payload)
+
+    def test_pr2_raw_batch_v1_remains_loadable_in_closure_and_catalog(self) -> None:
+        write_legacy_v1_rows(
+            self.root,
+            "raw-pr2-security",
+            "security_master",
+            [security_row()],
+        )
+
+        raw = load_raw_batch(self.root, "raw-pr2-security")
+        self.assertEqual(raw.manifest["schema_version"], "raw_batch.v1")
+        self.assertNotIn("source_profile_version", raw.manifest)
+        self.assertNotIn("source_profile_digest", raw.manifest)
+        commit_ref = build_commit(
+            self.root, "security_master", ["raw-pr2-security"]
+        )
+        commit = validate_domain_commit_closure(
+            self.root, "security_master", commit_ref.commit_id
+        )
+        self.assertEqual(
+            set(commit.manifest["ordered_raw_batch_refs"][0]),
+            {"raw_batch_id", "manifest_digest", "payload_digest"},
+        )
+        self.assertEqual(rebuild_catalog(self.root), 2)
+        self.assertEqual(
+            lookup_catalog(self.root, "raw_batch", "raw-pr2-security").artifact_id,
+            "raw-pr2-security",
+        )
 
     def test_failed_canonical_build_keeps_raw_and_publishes_no_commit(self) -> None:
         invalid = security_row()

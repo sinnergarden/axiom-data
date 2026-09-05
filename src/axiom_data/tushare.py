@@ -276,6 +276,10 @@ def _raw_endpoint_rows(raw_batches: Sequence[RawBatch]) -> dict[str, list[dict[s
     profile_digest = tushare_source_profile_digest(source_profile)
     grouped: dict[str, list[dict[str, Any]]] = {}
     for raw in raw_batches:
+        if raw.manifest.get("schema_version") != "raw_batch.v2":
+            raise ArtifactError(
+                "Tushare builder requires profile-bound raw_batch.v2 input"
+            )
         request = raw.manifest.get("request")
         endpoint = request.get("endpoint") if isinstance(request, dict) else None
         if not isinstance(endpoint, str):
@@ -417,13 +421,22 @@ class TushareMarketBuilder(MarketDomainBuilder):
         start: str,
         end: str,
     ) -> list[dict[str, Any]]:
-        grouped = _raw_endpoint_rows(raw_batches)
-        if set(grouped) != {"trade_cal"}:
-            raise ArtifactError("trading_calendar requires only trade_cal RawBatches")
         exchanges = {"SSE" if symbol.endswith(".SH") else "SZSE" for symbol in symbols}
+        first = date.fromisoformat(start)
+        last = date.fromisoformat(end)
+        expected_dates = {
+            (first + timedelta(days=offset)).isoformat()
+            for offset in range((last - first).days + 1)
+        }
         requested_exchanges: set[str] = set()
+        source: dict[tuple[str, str], Mapping[str, Any]] = {}
         for raw in raw_batches:
-            request = raw.manifest["request"]
+            grouped = _raw_endpoint_rows((raw,))
+            if set(grouped) != {"trade_cal"}:
+                raise ArtifactError("trading_calendar requires only trade_cal RawBatches")
+            request = raw.manifest.get("request")
+            if not isinstance(request, dict):
+                raise ArtifactError("trade_cal RawBatch request metadata is invalid")
             params = request.get("params")
             if request.get("endpoint") != "trade_cal" or not isinstance(params, dict):
                 raise ArtifactError("trade_cal RawBatch request metadata is invalid")
@@ -438,29 +451,29 @@ class TushareMarketBuilder(MarketDomainBuilder):
             ):
                 raise ArtifactError("trade_cal RawBatch request scope mismatch")
             requested_exchanges.add(exchange)
+            actual_dates: set[str] = set()
+            for row in grouped["trade_cal"]:
+                payload_exchange = row.get("exchange")
+                session = _source_date(row.get("cal_date"))
+                if payload_exchange != exchange:
+                    raise ArtifactError(
+                        "trade_cal payload exchange does not match its RawBatch request"
+                    )
+                if session not in expected_dates:
+                    raise ArtifactError(
+                        "trade_cal payload is outside the declared request scope"
+                    )
+                key = (exchange, session)
+                if key in source:
+                    raise ArtifactError("trade_cal payload has duplicate calendar rows")
+                source[key] = row
+                actual_dates.add(session)
+            if actual_dates != expected_dates:
+                raise ArtifactError(
+                    "trade_cal payload does not completely cover its RawBatch request scope"
+                )
         if requested_exchanges != exchanges:
             raise ArtifactError("trade_cal RawBatches do not cover every scoped exchange")
-
-        first = date.fromisoformat(start)
-        last = date.fromisoformat(end)
-        expected_dates = {
-            (first + timedelta(days=offset)).isoformat()
-            for offset in range((last - first).days + 1)
-        }
-        source: dict[tuple[str, str], Mapping[str, Any]] = {}
-        actual_dates = {exchange: set() for exchange in exchanges}
-        for row in grouped["trade_cal"]:
-            exchange = row.get("exchange")
-            session = _source_date(row.get("cal_date"))
-            if exchange not in exchanges or session not in expected_dates:
-                raise ArtifactError("trade_cal payload is outside the declared request scope")
-            key = (exchange, session)
-            if key in source:
-                raise ArtifactError("trade_cal payload has duplicate calendar rows")
-            source[key] = row
-            actual_dates[exchange].add(session)
-        if any(dates != expected_dates for dates in actual_dates.values()):
-            raise ArtifactError("trade_cal payload does not completely cover request scope")
 
         values: list[tuple[str, str, bool]] = []
         for row in source.values():

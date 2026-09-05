@@ -134,6 +134,10 @@ def independent_tushare_market_expectations(
     seen_endpoints: set[str] = set()
     for raw_batch_id in raw_batch_ids:
         raw = load_raw_batch(data_root, raw_batch_id)
+        if raw.manifest.get("schema_version") != "raw_batch.v2":
+            raise ArtifactError(
+                "independent source checker requires profile-bound raw_batch.v2 input"
+            )
         request = raw.manifest.get("request")
         endpoint = request.get("endpoint") if isinstance(request, dict) else None
         if endpoint not in tables:

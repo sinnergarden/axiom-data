@@ -43,6 +43,7 @@ _DOMAIN_VALIDATORS = {
 _SUFFIX_EXCHANGE = {".SH": "SSE", ".SZ": "SZSE"}
 _MARKET_BUILDER_REVISION = "market-json-builder.v1"
 _SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
+_RAW_BATCH_SCHEMAS = ("raw_batch.v1", "raw_batch.v2")
 
 
 class ArtifactError(ValueError):
@@ -286,10 +287,18 @@ def _load_manifest(
     artifact_dir: Path,
     *,
     artifact_type: str,
-    schema_version: str,
+    schema_version: str | Sequence[str],
     identity_field: str,
     identity: str,
 ) -> tuple[dict[str, Any], str]:
+    allowed_schema_versions = (
+        (schema_version,) if isinstance(schema_version, str) else tuple(schema_version)
+    )
+    if not allowed_schema_versions or any(
+        not isinstance(version, str) or not version
+        for version in allowed_schema_versions
+    ):
+        raise ArtifactError("allowed artifact schema versions are invalid")
     _safe_path(root, artifact_dir)
     if not artifact_dir.exists():
         raise ArtifactNotFoundError(f"{artifact_type} {identity!r} does not exist")
@@ -322,7 +331,7 @@ def _load_manifest(
         raise ArtifactError("artifact manifest must be a JSON object")
     if (
         manifest.get("artifact_type") != artifact_type
-        or manifest.get("schema_version") != schema_version
+        or manifest.get("schema_version") not in allowed_schema_versions
         or manifest.get(identity_field) != identity
     ):
         raise ArtifactError(f"{artifact_type} manifest identity mismatch")
@@ -474,7 +483,7 @@ def write_raw_batch(
 
     manifest = {
         "artifact_type": "raw_batch",
-        "schema_version": "raw_batch.v1",
+        "schema_version": "raw_batch.v2",
         "raw_batch_id": raw_batch_id,
         "domain": domain,
         "source_profile_ref": source_profile,
@@ -518,19 +527,19 @@ def load_raw_batch(data_root: str | Path, raw_batch_id: str) -> RawBatch:
         layout.root,
         target,
         artifact_type="raw_batch",
-        schema_version="raw_batch.v1",
+        schema_version=_RAW_BATCH_SCHEMAS,
         identity_field="raw_batch_id",
         identity=raw_batch_id,
     )
     if manifest.get("domain") not in MARKET_DOMAINS:
         raise ArtifactError("RawBatch has an unsupported domain")
-    for field in (
-        "source_profile_ref",
-        "source_profile_version",
-        "collector_code_ref",
-    ):
+    for field in ("source_profile_ref", "collector_code_ref"):
         _identity(field, manifest.get(field))
-    _validated_digest("source_profile_digest", manifest.get("source_profile_digest"))
+    if manifest["schema_version"] == "raw_batch.v2":
+        _identity("source_profile_version", manifest.get("source_profile_version"))
+        _validated_digest(
+            "source_profile_digest", manifest.get("source_profile_digest")
+        )
     if not isinstance(manifest.get("request"), dict):
         raise ArtifactError("RawBatch request metadata must be an object")
     if not isinstance(manifest.get("summary"), dict):
@@ -598,14 +607,21 @@ def _commit_ref(commit: DomainCommit) -> dict[str, Any]:
 
 
 def _raw_ref(raw: RawBatch) -> dict[str, Any]:
-    return {
+    ref = {
         "raw_batch_id": raw.ref.raw_batch_id,
         "manifest_digest": raw.ref.manifest_digest,
         "payload_digest": raw.manifest["payload_files"][0]["content_digest"],
-        "source_profile_ref": raw.manifest["source_profile_ref"],
-        "source_profile_version": raw.manifest["source_profile_version"],
-        "source_profile_digest": raw.manifest["source_profile_digest"],
     }
+    if raw.manifest["schema_version"] == "raw_batch.v2":
+        ref.update(
+            {
+                "schema_version": "raw_batch.v2",
+                "source_profile_ref": raw.manifest["source_profile_ref"],
+                "source_profile_version": raw.manifest["source_profile_version"],
+                "source_profile_digest": raw.manifest["source_profile_digest"],
+            }
+        )
+    return ref
 
 
 def _merge_rows(

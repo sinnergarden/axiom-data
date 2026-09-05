@@ -1,7 +1,8 @@
 {
-  "artifact_identities_equal": true,
-  "canonical_rows_equal": true,
-  "catalog_entries": 50,
+  "catalog_rebuild": {
+    "entries": 50,
+    "status": "PASS"
+  },
   "copied_input": "published raw/batches closure only",
   "direct_qlib_equivalence": {
     "checks": {
@@ -30,6 +31,11 @@
       "circulating_market_cap_cny"
     ],
     "mismatches": [],
+    "qlib_view_ref": {
+      "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
+      "manifest_digest": "sha256:a5d90ea89732f52787ca387ee3bfb0c825ccfaa0e12e274ebf2101da8202dab4",
+      "view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90"
+    },
     "qlib_keys": 4858,
     "relative_tolerance": 1e-06,
     "scope": {
@@ -59,9 +65,214 @@
         "301581.SZ"
       ]
     },
+    "source_snapshot_ref": {
+      "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
+      "manifest_digest": "sha256:7bd104f079c9e4e5a9460cb2854157b3ff555dc4c8a006bb5dd42cbf8fa6475d",
+      "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+    },
     "status": "PASS"
   },
+  "identity_equality": {
+    "domain_commits": true,
+    "qlib_view": true,
+    "raw_batches": true,
+    "root_artifact_maps": true,
+    "snapshot": true
+  },
+  "logical_equality": {
+    "canonical_rows": true
+  },
   "network_calls": 0,
+  "rebuilt_artifact_refs": {
+    "domain_commits": {
+      "market_daily": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+        "identity_digest": "sha256:4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+        "logical_content_digest": "sha256:04d1637feb6ce6875a8869bcff710c2e12c735487126bd185063a62f46341406",
+        "manifest_digest": "sha256:19758ff67dd43c219ce23c419b9cffcef08b38167320f4d68b96af85716f732b"
+      },
+      "security_master": {
+        "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
+        "domain_commit_id": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+        "identity_digest": "sha256:679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+        "logical_content_digest": "sha256:2e5849575f202b811f8b4f00f29709af29ff93fa5ba8b8398288833569ee0cf5",
+        "manifest_digest": "sha256:cc2429de495bb69a23074696fe0c30801f7dd0e73d482c53cd0a78675a3edde9"
+      },
+      "trading_calendar": {
+        "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
+        "domain_commit_id": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
+        "identity_digest": "sha256:dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
+        "logical_content_digest": "sha256:38af51a9c9219f730a70fa1f47638585728f88e1d5acb4cc55e0b19f5bec6a36",
+        "manifest_digest": "sha256:37eea105f7a124de45cef355d73b3e5cb7dc92cf82c06f482719acacb826a52e"
+      }
+    },
+    "qlib_view": {
+      "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
+      "manifest_digest": "sha256:a5d90ea89732f52787ca387ee3bfb0c825ccfaa0e12e274ebf2101da8202dab4",
+      "view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90"
+    },
+    "raw_batches": {
+      "ordered_raw_batch_ids": [
+        "tushare-trade_cal-39f4edca62f827068a1d12bd9a150ff38f0b9a7dfa59c9d08e97261c4b3bdafc",
+        "tushare-trade_cal-aa65e5e60b7c84cd7bc612f7409a42ba68b250947859dc5cc79f2302fa023fd9",
+        "tushare-stock_basic-f65761a3d9da6c4acba77fdf9ec419626945df1fc01192dc4e000a072ae7c730",
+        "tushare-daily-78138be41282646a9408ec4d804a6cc68cd1583d9ab577472be765998fd88e2a",
+        "tushare-adj_factor-fdbd25e3f208a41c0f725807afe5a2bdc0ef557d47fe415e677ae12df6b0280e",
+        "tushare-daily_basic-9ce7ff8014748021ded2730766a947d278cc7bf2450a7e984260437a28513c7e",
+        "tushare-daily_basic-442b9a1bdca73b335cfccbf44aac08648037a2783f25fb823b5b7513a7d55859",
+        "tushare-daily_basic-37525e253ff5e3fa8021d2b1939bc932d4121965be1404bd3a8e424aeae16720",
+        "tushare-daily_basic-2d6eb7ae740f66578aefc2bf6f6c6760a61b2d5cc235f8e696b804a9257e2bca",
+        "tushare-daily_basic-f0880fff7ff14f1948aee44da9b0bdad8330e0e0243d794dfd3a474982cb0378",
+        "tushare-daily_basic-fb69a6d4c7295dc245fafb858343545252d4a0b7772ee59d596d6d19168eb811",
+        "tushare-daily_basic-a8970ecaaf628e0530d6f7d042e94cf98aab1bf3078551f7bfaca2be7c723708",
+        "tushare-daily_basic-6f1ff2c7f346c3b9870cbf96d2033238059c77c714fd6a02987ccfddde193242",
+        "tushare-daily_basic-5c1809c0fe41a696c9d6e142aa1b42703a3e2523fd048021acfa23eed133ce93",
+        "tushare-daily_basic-b941678136b18a4f20b121401193404d94ec2a267072ea6dcc24aeaeefb9c07e",
+        "tushare-daily_basic-19de9a3f81eb3ce5e1f8a0143f66a371cd74886599c327d4f9ec615ba5063824",
+        "tushare-daily_basic-5503d32d3b584a00ab9e04b76c6580f10fd9f27329010f0e01e92c95b38439ee",
+        "tushare-daily_basic-f884f3d53b296f5a5620970a6a9b280a39d81cb7adbe226356a9fd0b0fc8716f",
+        "tushare-daily_basic-253218a5e2b6247d3cf14f4f3b294b4ffeacaf6af5849c4e00d4f217b5642a6e",
+        "tushare-daily_basic-f4a34566927ffc8240ebe45040496e547565e669af1ab606004a312fde610851",
+        "tushare-daily_basic-950773fe13ac60544b63179c964d11a0f58dab7cd75828f66bbeeda5b940f7e3",
+        "tushare-daily_basic-75cf20462c0cd4ff5bdba6a22463197ec6603ca0358db83d47040344fba05212",
+        "tushare-daily_basic-54b6fcbcd51ec4064db40f674ff711a1a224a1df3f25fe94c771f26e6e5c2e2c",
+        "tushare-daily_basic-722147ac9b50660fa853eb5a0d2af56bc95522781e01f8cbdcdac4dc5f695c84",
+        "tushare-daily_basic-69d9a7685cf3f529b04c2902817f6cc28739173fe88c26e096467007a2c2f8eb",
+        "tushare-stk_limit-b0044b8e86a38ab5e3b2db586b272593239811be799afbac4e3bf201fd377487",
+        "tushare-stk_limit-4a826d98a83972936f5d58091725eac8681932d6954592b400359afcfc9668d2",
+        "tushare-stk_limit-60d8f73937c9f67632781386be1fe0c7ed9f3b3bedefa972b06bf5ba9207adb2",
+        "tushare-stk_limit-eb07a5e405ac231ea47cf26053dd22a9df6b5fb9767f822bac1ae487fd35cdfe",
+        "tushare-stk_limit-6e3d33e9093f88512798ed5a1ee00546808bc1f92bdd167f73c8e0180907519d",
+        "tushare-stk_limit-a90855832b891c71f211082fefffb3eeb272fa00b7a1f20ebfa1deefb5cb3586",
+        "tushare-stk_limit-872762b9bfd2b3bba0e1ac9da4fd401493fc21f4f96dc9cb809cf833eb76ff92",
+        "tushare-stk_limit-04a61ed43c5c96e16740db1fb2b87d814605f522fe3cc588b4ef005b59c8b9f0",
+        "tushare-stk_limit-ec548a9301d4f85b4a3e7d7d4588b23bbc2e6c8ff6c6a00b026b582ec3e59b2e",
+        "tushare-stk_limit-e4947b50c13584c4ece5b8ccfc08fbeb8e8c3f0b4e0931f77acd5cc66154b5c2",
+        "tushare-stk_limit-cd256db0bd404cff6d2580dee84a01fbf6dbc1c1e156bfc20967b5dddfffd2bb",
+        "tushare-stk_limit-f21dd9f34ec7bd5ef02dccd1ec590900416516cedd5570eb232a9eac71279906",
+        "tushare-stk_limit-592e55b1bae0ba6288b08a3c70aea14ebd6e5c3cf428b5712dcb8a1ce177bcfd",
+        "tushare-stk_limit-301d554a01789357ea13c793bcaae2fcd2064c0b043db64b37b4a0f26ba9fdf3",
+        "tushare-stk_limit-8e6b5f2da64601a642aa9a804b0d8e1d8142bd7e07e1540e254cc6aea13c5fd0",
+        "tushare-stk_limit-2a8097a9d0ed75003d5a7486b0644d635bb86bc268b577623914b612ba6ed079",
+        "tushare-stk_limit-de00b79053660efdc6cd36ce241d360c29bebfe0d39be1c7f896d4c062e9928d",
+        "tushare-stk_limit-575629e7b25f16ef5d71fef2d895c25da90f323a0ab94312c0169733f1690790",
+        "tushare-stk_limit-93ea4409f0133ea2768e4c88106b75b8c2498c3bdb17a4fd2ced075a0d09115b",
+        "tushare-stk_limit-41a7c2b4b7b00ed0229aef77509855e425d568e2afa003a9c5d0f4a45b75f518",
+        "tushare-suspend_d-65d2d26d6764e3f3a1f28593876b8b551e23b1236a4413740e7f2b10e82e7134"
+      ],
+      "ordered_refs_digest": "sha256:fb9e0dca59140a8808ad140bcf6831eb0eeea44b1e5f015f6d4fc731a6655a35"
+    },
+    "snapshot": {
+      "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
+      "manifest_digest": "sha256:7bd104f079c9e4e5a9460cb2854157b3ff555dc4c8a006bb5dd42cbf8fa6475d",
+      "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+    }
+  },
+  "rebuilt_root_artifact_map": {
+    "domain_commits": {
+      "market_daily": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+      "security_master": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+      "trading_calendar": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc"
+    },
+    "qlib_view": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
+    "snapshot": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+  },
+  "source_artifact_refs": {
+    "domain_commits": {
+      "market_daily": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+        "identity_digest": "sha256:4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+        "logical_content_digest": "sha256:04d1637feb6ce6875a8869bcff710c2e12c735487126bd185063a62f46341406",
+        "manifest_digest": "sha256:edeacfe6fd6ac69dd8e44a290c96f86b57fe2b281c320a507f94928dc856a655"
+      },
+      "security_master": {
+        "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
+        "domain_commit_id": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+        "identity_digest": "sha256:679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+        "logical_content_digest": "sha256:2e5849575f202b811f8b4f00f29709af29ff93fa5ba8b8398288833569ee0cf5",
+        "manifest_digest": "sha256:12d471a4472531fb8e7525ddda375c5c0603141f9754a0e6ff628aef820cb268"
+      },
+      "trading_calendar": {
+        "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
+        "domain_commit_id": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
+        "identity_digest": "sha256:dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
+        "logical_content_digest": "sha256:38af51a9c9219f730a70fa1f47638585728f88e1d5acb4cc55e0b19f5bec6a36",
+        "manifest_digest": "sha256:d0c6d9e35dd8292600a54bd4158c6367bf296753b730824617a94b4d4800561f"
+      }
+    },
+    "qlib_view": {
+      "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
+      "manifest_digest": "sha256:75a60cb1ea1018c4bc7faed00d67b382498b6440443ef2e97e3b91d4a65c3aec",
+      "view_id": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90"
+    },
+    "raw_batches": {
+      "ordered_raw_batch_ids": [
+        "tushare-trade_cal-39f4edca62f827068a1d12bd9a150ff38f0b9a7dfa59c9d08e97261c4b3bdafc",
+        "tushare-trade_cal-aa65e5e60b7c84cd7bc612f7409a42ba68b250947859dc5cc79f2302fa023fd9",
+        "tushare-stock_basic-f65761a3d9da6c4acba77fdf9ec419626945df1fc01192dc4e000a072ae7c730",
+        "tushare-daily-78138be41282646a9408ec4d804a6cc68cd1583d9ab577472be765998fd88e2a",
+        "tushare-adj_factor-fdbd25e3f208a41c0f725807afe5a2bdc0ef557d47fe415e677ae12df6b0280e",
+        "tushare-daily_basic-9ce7ff8014748021ded2730766a947d278cc7bf2450a7e984260437a28513c7e",
+        "tushare-daily_basic-442b9a1bdca73b335cfccbf44aac08648037a2783f25fb823b5b7513a7d55859",
+        "tushare-daily_basic-37525e253ff5e3fa8021d2b1939bc932d4121965be1404bd3a8e424aeae16720",
+        "tushare-daily_basic-2d6eb7ae740f66578aefc2bf6f6c6760a61b2d5cc235f8e696b804a9257e2bca",
+        "tushare-daily_basic-f0880fff7ff14f1948aee44da9b0bdad8330e0e0243d794dfd3a474982cb0378",
+        "tushare-daily_basic-fb69a6d4c7295dc245fafb858343545252d4a0b7772ee59d596d6d19168eb811",
+        "tushare-daily_basic-a8970ecaaf628e0530d6f7d042e94cf98aab1bf3078551f7bfaca2be7c723708",
+        "tushare-daily_basic-6f1ff2c7f346c3b9870cbf96d2033238059c77c714fd6a02987ccfddde193242",
+        "tushare-daily_basic-5c1809c0fe41a696c9d6e142aa1b42703a3e2523fd048021acfa23eed133ce93",
+        "tushare-daily_basic-b941678136b18a4f20b121401193404d94ec2a267072ea6dcc24aeaeefb9c07e",
+        "tushare-daily_basic-19de9a3f81eb3ce5e1f8a0143f66a371cd74886599c327d4f9ec615ba5063824",
+        "tushare-daily_basic-5503d32d3b584a00ab9e04b76c6580f10fd9f27329010f0e01e92c95b38439ee",
+        "tushare-daily_basic-f884f3d53b296f5a5620970a6a9b280a39d81cb7adbe226356a9fd0b0fc8716f",
+        "tushare-daily_basic-253218a5e2b6247d3cf14f4f3b294b4ffeacaf6af5849c4e00d4f217b5642a6e",
+        "tushare-daily_basic-f4a34566927ffc8240ebe45040496e547565e669af1ab606004a312fde610851",
+        "tushare-daily_basic-950773fe13ac60544b63179c964d11a0f58dab7cd75828f66bbeeda5b940f7e3",
+        "tushare-daily_basic-75cf20462c0cd4ff5bdba6a22463197ec6603ca0358db83d47040344fba05212",
+        "tushare-daily_basic-54b6fcbcd51ec4064db40f674ff711a1a224a1df3f25fe94c771f26e6e5c2e2c",
+        "tushare-daily_basic-722147ac9b50660fa853eb5a0d2af56bc95522781e01f8cbdcdac4dc5f695c84",
+        "tushare-daily_basic-69d9a7685cf3f529b04c2902817f6cc28739173fe88c26e096467007a2c2f8eb",
+        "tushare-stk_limit-b0044b8e86a38ab5e3b2db586b272593239811be799afbac4e3bf201fd377487",
+        "tushare-stk_limit-4a826d98a83972936f5d58091725eac8681932d6954592b400359afcfc9668d2",
+        "tushare-stk_limit-60d8f73937c9f67632781386be1fe0c7ed9f3b3bedefa972b06bf5ba9207adb2",
+        "tushare-stk_limit-eb07a5e405ac231ea47cf26053dd22a9df6b5fb9767f822bac1ae487fd35cdfe",
+        "tushare-stk_limit-6e3d33e9093f88512798ed5a1ee00546808bc1f92bdd167f73c8e0180907519d",
+        "tushare-stk_limit-a90855832b891c71f211082fefffb3eeb272fa00b7a1f20ebfa1deefb5cb3586",
+        "tushare-stk_limit-872762b9bfd2b3bba0e1ac9da4fd401493fc21f4f96dc9cb809cf833eb76ff92",
+        "tushare-stk_limit-04a61ed43c5c96e16740db1fb2b87d814605f522fe3cc588b4ef005b59c8b9f0",
+        "tushare-stk_limit-ec548a9301d4f85b4a3e7d7d4588b23bbc2e6c8ff6c6a00b026b582ec3e59b2e",
+        "tushare-stk_limit-e4947b50c13584c4ece5b8ccfc08fbeb8e8c3f0b4e0931f77acd5cc66154b5c2",
+        "tushare-stk_limit-cd256db0bd404cff6d2580dee84a01fbf6dbc1c1e156bfc20967b5dddfffd2bb",
+        "tushare-stk_limit-f21dd9f34ec7bd5ef02dccd1ec590900416516cedd5570eb232a9eac71279906",
+        "tushare-stk_limit-592e55b1bae0ba6288b08a3c70aea14ebd6e5c3cf428b5712dcb8a1ce177bcfd",
+        "tushare-stk_limit-301d554a01789357ea13c793bcaae2fcd2064c0b043db64b37b4a0f26ba9fdf3",
+        "tushare-stk_limit-8e6b5f2da64601a642aa9a804b0d8e1d8142bd7e07e1540e254cc6aea13c5fd0",
+        "tushare-stk_limit-2a8097a9d0ed75003d5a7486b0644d635bb86bc268b577623914b612ba6ed079",
+        "tushare-stk_limit-de00b79053660efdc6cd36ce241d360c29bebfe0d39be1c7f896d4c062e9928d",
+        "tushare-stk_limit-575629e7b25f16ef5d71fef2d895c25da90f323a0ab94312c0169733f1690790",
+        "tushare-stk_limit-93ea4409f0133ea2768e4c88106b75b8c2498c3bdb17a4fd2ced075a0d09115b",
+        "tushare-stk_limit-41a7c2b4b7b00ed0229aef77509855e425d568e2afa003a9c5d0f4a45b75f518",
+        "tushare-suspend_d-65d2d26d6764e3f3a1f28593876b8b551e23b1236a4413740e7f2b10e82e7134"
+      ],
+      "ordered_refs_digest": "sha256:fb9e0dca59140a8808ad140bcf6831eb0eeea44b1e5f015f6d4fc731a6655a35"
+    },
+    "snapshot": {
+      "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
+      "manifest_digest": "sha256:c5dd01dc4f282357fd90d5bfb13d91a36e0b18927ba29d45ded3892e48065d45",
+      "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+    }
+  },
+  "source_root_artifact_map": {
+    "domain_commits": {
+      "market_daily": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
+      "security_master": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
+      "trading_calendar": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc"
+    },
+    "qlib_view": "qlib-4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
+    "snapshot": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
+  },
   "starting_state": {
     "canonical_exists": false,
     "catalog_exists": false,

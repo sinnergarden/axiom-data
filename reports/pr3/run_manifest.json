@@ -6,6 +6,7 @@
       "domain_commit_id": "market_daily-4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
       "identity_digest": "sha256:4b449f4bfbd14595ab759f77ad8fcb36431ec2af4e8ce56a60898ca5ed2efb30",
       "logical_content_digest": "sha256:04d1637feb6ce6875a8869bcff710c2e12c735487126bd185063a62f46341406",
+      "manifest_digest": "sha256:edeacfe6fd6ac69dd8e44a290c96f86b57fe2b281c320a507f94928dc856a655",
       "ordered_raw_batch_ids": [
         "tushare-daily-78138be41282646a9408ec4d804a6cc68cd1583d9ab577472be765998fd88e2a",
         "tushare-adj_factor-fdbd25e3f208a41c0f725807afe5a2bdc0ef557d47fe415e677ae12df6b0280e",
@@ -319,6 +320,7 @@
       "domain_commit_id": "security_master-679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
       "identity_digest": "sha256:679e7e78bea54573a048f333f09a14d04580e6e219377bb8652515471b6696fe",
       "logical_content_digest": "sha256:2e5849575f202b811f8b4f00f29709af29ff93fa5ba8b8398288833569ee0cf5",
+      "manifest_digest": "sha256:12d471a4472531fb8e7525ddda375c5c0603141f9754a0e6ff628aef820cb268",
       "ordered_raw_batch_ids": [
         "tushare-stock_basic-f65761a3d9da6c4acba77fdf9ec419626945df1fc01192dc4e000a072ae7c730"
       ],
@@ -338,6 +340,7 @@
       "domain_commit_id": "trading_calendar-dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
       "identity_digest": "sha256:dab7470727cb33fb88f66f56a59a64f7a9b4c9dc27a79246ce53bfa946755ebc",
       "logical_content_digest": "sha256:38af51a9c9219f730a70fa1f47638585728f88e1d5acb4cc55e0b19f5bec6a36",
+      "manifest_digest": "sha256:d0c6d9e35dd8292600a54bd4158c6367bf296753b730824617a94b4d4800561f",
       "ordered_raw_batch_ids": [
         "tushare-trade_cal-39f4edca62f827068a1d12bd9a150ff38f0b9a7dfa59c9d08e97261c4b3bdafc",
         "tushare-trade_cal-aa65e5e60b7c84cd7bc612f7409a42ba68b250947859dc5cc79f2302fa023fd9"
@@ -402,6 +405,7 @@
       "circulating_market_cap_cny"
     ],
     "identity_digest": "sha256:4bdf486c3df5f9298598218b549f061b285a5d722103e13ba6d21107e3ddfb90",
+    "manifest_digest": "sha256:75a60cb1ea1018c4bc7faed00d67b382498b6440443ef2e97e3b91d4a65c3aec",
     "instrument_storage_scope": [
       {
         "end_session": "2025-12-31",
@@ -1479,7 +1483,7 @@
       }
     ]
   },
-  "report_version": "pr3-real-market-slice.v2",
+  "report_version": "pr3-real-market-slice.v3",
   "scope": {
     "end_session": "2025-12-31",
     "sse_symbols": 10,
@@ -1536,6 +1540,7 @@
       }
     },
     "identity_digest": "sha256:843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974",
+    "manifest_digest": "sha256:c5dd01dc4f282357fd90d5bfb13d91a36e0b18927ba29d45ded3892e48065d45",
     "snapshot_id": "snapshot-843117ad2d44fdbb4f2ec5cdaa8aa1e324358a344e0da91e464aac7396ce5974"
   },
   "source_profile": {

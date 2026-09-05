@@ -30,6 +30,7 @@ from axiom_data import (
     tushare_source_profile_digest,
     validate_domain_commit_closure,
 )
+from axiom_data.consumption import validate_pr3_report_refs
 
 
 SYMBOLS = (
@@ -164,6 +165,7 @@ def _raw_evidence(root: Path, raw_ids: dict[str, list[str]]) -> list[dict[str, A
                 {
                     "role": role,
                     "raw_batch_id": identity,
+                    "schema_version": raw.manifest["schema_version"],
                     "manifest_digest": raw.ref.manifest_digest,
                     "payload_digest": raw.manifest["payload_files"][0]["content_digest"],
                     "source_profile_ref": raw.manifest["source_profile_ref"],
@@ -176,6 +178,78 @@ def _raw_evidence(root: Path, raw_ids: dict[str, list[str]]) -> list[dict[str, A
                 }
             )
     return evidence
+
+
+def _root_artifact_map(artifacts: dict[str, str]) -> dict[str, Any]:
+    return {
+        "domain_commits": {
+            domain: artifacts[domain]
+            for domain in ("trading_calendar", "security_master", "market_daily")
+        },
+        "snapshot": artifacts["snapshot"],
+        "qlib_view": artifacts["qlib_view"],
+    }
+
+
+def _artifact_refs(
+    root: Path,
+    raw_ids: dict[str, list[str]],
+    artifacts: dict[str, str],
+) -> dict[str, Any]:
+    raw_refs = []
+    for role, identities in raw_ids.items():
+        for identity in identities:
+            raw = load_raw_batch(root, identity)
+            raw_refs.append(
+                {
+                    "role": role,
+                    "raw_batch_id": identity,
+                    "manifest_digest": raw.ref.manifest_digest,
+                    "payload_digest": raw.manifest["payload_files"][0][
+                        "content_digest"
+                    ],
+                }
+            )
+    commits = {}
+    for domain in ("trading_calendar", "security_master", "market_daily"):
+        commit = validate_domain_commit_closure(root, domain, artifacts[domain])
+        commits[domain] = {
+            "domain_commit_id": commit.ref.commit_id,
+            "manifest_digest": commit.manifest_digest,
+            "identity_digest": commit.manifest["identity_digest"],
+            "logical_content_digest": commit.manifest["logical_content_digest"],
+            "contract_digest": commit.manifest["contract_digest"],
+        }
+    snapshot = load_snapshot(root, artifacts["snapshot"])
+    view = load_qlib_view(root, artifacts["qlib_view"])
+    raw_content = json.dumps(
+        raw_refs,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return {
+        "snapshot": {
+            "snapshot_id": snapshot.ref.snapshot_id,
+            "manifest_digest": snapshot.ref.manifest_digest,
+            "identity_digest": snapshot.manifest["identity_digest"],
+        },
+        "domain_commits": commits,
+        "raw_batches": {
+            "ordered_raw_batch_ids": [
+                ref["raw_batch_id"] for ref in raw_refs
+            ],
+            "ordered_refs_digest": (
+                f"sha256:{hashlib.sha256(raw_content).hexdigest()}"
+            ),
+        },
+        "qlib_view": {
+            "view_id": view.ref.view_id,
+            "manifest_digest": view.ref.manifest_digest,
+            "identity_digest": view.manifest["identity_digest"],
+        },
+    }
 
 
 def _sha256(path: Path) -> str:
@@ -291,20 +365,48 @@ def main() -> None:
         offline_artifacts["snapshot"],
         offline_artifacts["qlib_view"],
     )
+    source_refs = _artifact_refs(args.data_root, raw_ids, artifacts)
+    rebuilt_refs = _artifact_refs(args.offline_root, raw_ids, offline_artifacts)
+    source_root_map = _root_artifact_map(artifacts)
+    rebuilt_root_map = _root_artifact_map(offline_artifacts)
+    identity_equality = {
+        "root_artifact_maps": source_root_map == rebuilt_root_map,
+        "snapshot": source_refs["snapshot"]["snapshot_id"]
+        == rebuilt_refs["snapshot"]["snapshot_id"]
+        and source_refs["snapshot"]["identity_digest"]
+        == rebuilt_refs["snapshot"]["identity_digest"],
+        "domain_commits": all(
+            source_refs["domain_commits"][domain]["domain_commit_id"]
+            == rebuilt_refs["domain_commits"][domain]["domain_commit_id"]
+            and source_refs["domain_commits"][domain]["identity_digest"]
+            == rebuilt_refs["domain_commits"][domain]["identity_digest"]
+            for domain in ("trading_calendar", "security_master", "market_daily")
+        ),
+        "raw_batches": source_refs["raw_batches"] == rebuilt_refs["raw_batches"],
+        "qlib_view": source_refs["qlib_view"]["view_id"]
+        == rebuilt_refs["qlib_view"]["view_id"]
+        and source_refs["qlib_view"]["identity_digest"]
+        == rebuilt_refs["qlib_view"]["identity_digest"],
+    }
+    canonical_rows_equal = tuple(reader.commits["market_daily"].rows) == tuple(
+        offline_reader.commits["market_daily"].rows
+    )
     offline = {
         "status": "PASS"
-        if artifacts == offline_artifacts
-        and tuple(reader.commits["market_daily"].rows)
-        == tuple(offline_reader.commits["market_daily"].rows)
+        if all(identity_equality.values())
+        and canonical_rows_equal
         and offline_equivalence["status"] == "PASS"
         else "FAIL",
         "starting_state": before,
         "copied_input": "published raw/batches closure only",
         "network_calls": 0,
-        "artifact_identities_equal": artifacts == offline_artifacts,
-        "canonical_rows_equal": tuple(reader.commits["market_daily"].rows)
-        == tuple(offline_reader.commits["market_daily"].rows),
-        "catalog_entries": catalog_entries,
+        "source_root_artifact_map": source_root_map,
+        "rebuilt_root_artifact_map": rebuilt_root_map,
+        "source_artifact_refs": source_refs,
+        "rebuilt_artifact_refs": rebuilt_refs,
+        "identity_equality": identity_equality,
+        "logical_equality": {"canonical_rows": canonical_rows_equal},
+        "catalog_rebuild": {"status": "PASS", "entries": catalog_entries},
         "direct_qlib_equivalence": offline_equivalence,
     }
 
@@ -315,6 +417,7 @@ def main() -> None:
         )
         commit_evidence[domain] = {
             "domain_commit_id": commit.ref.commit_id,
+            "manifest_digest": commit.manifest_digest,
             "identity_digest": commit.manifest["identity_digest"],
             "contract_version": commit.ref.contract_version,
             "contract_digest": commit.manifest["contract_digest"],
@@ -339,7 +442,7 @@ def main() -> None:
     source_profile = load_tushare_source_profile()
     source_profile_digest = tushare_source_profile_digest(source_profile)
     run_manifest = {
-        "report_version": "pr3-real-market-slice.v2",
+        "report_version": "pr3-real-market-slice.v3",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "scope": {
             "symbols": list(SYMBOLS),
@@ -375,11 +478,13 @@ def main() -> None:
         "domain_commits": commit_evidence,
         "snapshot": {
             "snapshot_id": snapshot.ref.snapshot_id,
+            "manifest_digest": snapshot.ref.manifest_digest,
             "identity_digest": snapshot.manifest["identity_digest"],
             "domain_refs": snapshot.manifest["domain_refs"],
         },
         "qlib_view": {
             "view_id": qlib_view.ref.view_id,
+            "manifest_digest": qlib_view.ref.manifest_digest,
             "identity_digest": qlib_view.manifest["identity_digest"],
             "snapshot_ref": qlib_view.manifest["snapshot_ref"],
             "fields": qlib_view.manifest["fields"],
@@ -397,6 +502,7 @@ def main() -> None:
             "role": "frozen-forensic-reference-only",
         },
     }
+    validate_pr3_report_refs(run_manifest, equivalence, offline)
     _write_json(args.report_dir / "run_manifest.json", run_manifest)
     _write_json(args.report_dir / "direct_qlib_equivalence.json", equivalence)
     _write_json(args.report_dir / "tushare_axiom_qsys_reconciliation.json", reconciliation)
