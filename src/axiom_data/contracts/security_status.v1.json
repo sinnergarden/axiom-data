@@ -1,0 +1,24 @@
+{
+  "contract_version": "security_status.v1",
+  "domain": "security_status",
+  "primary_key": ["session", "symbol"],
+  "sort_order": ["session", "symbol"],
+  "semantics": {
+    "status": "A session fact, not a tradable boolean. Suspension and absence are never inferred from each other.",
+    "canonical_values": ["normal_active", "suspended", "not_yet_listed", "delisted", "unknown_source_gap"],
+    "interval": "Each row is effective for its exchange-local calendar session only.",
+    "pit": "Current terminal-history observations are observed/best_effort unless independent availability evidence makes them verified."
+  },
+  "fields": [
+    {"name": "session", "type": "date", "nullable": false, "unit": "Asia/Shanghai calendar date"},
+    {"name": "symbol", "type": "string", "nullable": false, "unit": "canonical security code"},
+    {"name": "status", "type": "string", "nullable": false, "unit": null},
+    {"name": "reason", "type": "string", "nullable": false, "unit": null},
+    {"name": "source_available_at", "type": "datetime", "nullable": true, "unit": "timezone-aware"},
+    {"name": "first_observed_at", "type": "datetime", "nullable": false, "unit": "timezone-aware"},
+    {"name": "availability_basis", "type": "string", "nullable": false, "unit": null},
+    {"name": "pit_qualification", "type": "string", "nullable": false, "unit": null},
+    {"name": "source_ref", "type": "string", "nullable": false, "unit": null}
+  ],
+  "validation": ["exact schema and ordered unique keys", "status/reason combinations are canonical", "session belongs to calendar and security identity", "normal/suspended status agrees with explicit market evidence"]
+}

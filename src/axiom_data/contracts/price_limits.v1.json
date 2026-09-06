@@ -1,0 +1,25 @@
+{
+  "contract_version": "price_limits.v1",
+  "domain": "price_limits",
+  "primary_key": ["session", "symbol"],
+  "sort_order": ["session", "symbol"],
+  "semantics": {
+    "meaning": "Observed daily price-limit facts; they do not decide order eligibility or execution.",
+    "states": {"limited": "both bounds are present", "no_limit": "source explicitly declares no limit", "unknown": "source evidence is absent or insufficient"},
+    "price_basis": "unadjusted CNY per share"
+  },
+  "fields": [
+    {"name": "session", "type": "date", "nullable": false, "unit": "Asia/Shanghai exchange session"},
+    {"name": "symbol", "type": "string", "nullable": false, "unit": "canonical security code"},
+    {"name": "limit_state", "type": "string", "nullable": false, "unit": null},
+    {"name": "upper_limit", "type": "float64", "nullable": true, "unit": "CNY/share unadjusted"},
+    {"name": "lower_limit", "type": "float64", "nullable": true, "unit": "CNY/share unadjusted"},
+    {"name": "rule_ref", "type": "string", "nullable": false, "unit": null},
+    {"name": "source_available_at", "type": "datetime", "nullable": true, "unit": "timezone-aware"},
+    {"name": "first_observed_at", "type": "datetime", "nullable": false, "unit": "timezone-aware"},
+    {"name": "availability_basis", "type": "string", "nullable": false, "unit": null},
+    {"name": "pit_qualification", "type": "string", "nullable": false, "unit": null},
+    {"name": "source_ref", "type": "string", "nullable": false, "unit": null}
+  ],
+  "validation": ["limited has two finite positive ordered bounds", "no_limit and unknown have null bounds", "session and security identity references are valid"]
+}

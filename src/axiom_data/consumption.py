@@ -48,6 +48,7 @@ MARKET_VIEW_FIELDS = (
     "circulating_market_cap_cny",
 )
 _QLIB_EXPORTER_REVISION = "qlib-binary-market.v1"
+_ADJUSTED_PRICE_FIELDS = ("open", "high", "low", "close")
 
 
 def _session(value: object, name: str) -> str:
@@ -90,7 +91,7 @@ class SnapshotReader:
                 domain,
                 self.snapshot.manifest["domain_refs"][domain]["domain_commit_id"],
             )
-            for domain in ("trading_calendar", "security_master", "market_daily")
+            for domain in self.snapshot.manifest["domain_refs"]
         }
 
     def schema(self, domain: str) -> tuple[str, ...]:
@@ -147,6 +148,43 @@ class SnapshotReader:
             if row["symbol"] in selected and start <= row["session"] <= end
         )
 
+    def facts(
+        self,
+        domain: str,
+        *,
+        symbols: Sequence[str] | None = None,
+        start_session: str | None = None,
+        end_session: str | None = None,
+        fields: Sequence[str] | None = None,
+    ) -> tuple[dict[str, Any], ...]:
+        """Read one canonical fact domain without resolving or building anything."""
+
+        if domain not in self.commits:
+            raise ArtifactError(f"snapshot has no readable domain {domain!r}")
+        available = self.schema(domain)
+        selected_fields = tuple(fields or available)
+        if not selected_fields or len(selected_fields) != len(set(selected_fields)) or any(
+            field not in available for field in selected_fields
+        ):
+            raise ArtifactError("Fact fields must be a non-empty ordered schema subset")
+        selected_symbols = set(_symbols(symbols)) if symbols is not None else None
+        start = _session(start_session, "start_session") if start_session else None
+        end = _session(end_session, "end_session") if end_session else None
+        if start is not None and end is not None and start > end:
+            raise ArtifactError("fact session interval is reversed")
+        rows = []
+        for row in self.commits[domain].rows:
+            row_symbol = row.get("symbol")
+            row_session = row.get("session", row.get("effective_date"))
+            if selected_symbols is not None and row_symbol not in selected_symbols:
+                continue
+            if start is not None and (not isinstance(row_session, str) or row_session < start):
+                continue
+            if end is not None and (not isinstance(row_session, str) or row_session > end):
+                continue
+            rows.append(_ordered_row(row, selected_fields))
+        return tuple(rows)
+
 
 @dataclass(frozen=True, slots=True)
 class QlibViewRef:
@@ -195,6 +233,10 @@ def build_qlib_view(
     start_session: str,
     end_session: str,
     fields: Sequence[str] = MARKET_VIEW_FIELDS,
+    adjusted_price_view_id: str | None = None,
+    price_basis: str = "unadjusted",
+    pit_policy: str = "best_effort",
+    decision_cutoff: str | None = None,
     created_at: str | None = None,
 ) -> QlibViewRef:
     """Atomically create one immutable Qlib binary view from an explicit Snapshot."""
@@ -212,6 +254,35 @@ def build_qlib_view(
         or any(field not in MARKET_VIEW_FIELDS for field in view_fields)
     ):
         raise ArtifactError("QlibView fields must be an ordered unique market field subset")
+    if price_basis not in {"unadjusted", "anchor_adjusted"}:
+        raise ArtifactError("QlibView price basis is invalid")
+    if pit_policy not in {"strict_decision_time", "research_non_pit", "best_effort"}:
+        raise ArtifactError("QlibView PIT policy is invalid")
+    adjusted = None
+    if price_basis == "anchor_adjusted":
+        if pit_policy not in {"strict_decision_time", "research_non_pit"}:
+            raise ArtifactError("adjusted QlibView requires an explicit PIT policy")
+        if adjusted_price_view_id is None:
+            raise ArtifactError("adjusted QlibView requires an explicit Derived ref")
+        from axiom_data.views import load_adjusted_price_view
+
+        adjusted = load_adjusted_price_view(data_root, adjusted_price_view_id)
+        if adjusted.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
+            raise ArtifactError("QlibView Derived ref belongs to another Snapshot")
+        if adjusted.manifest["scope"] != {
+            "symbols": list(selected),
+            "start_session": start,
+            "end_session": end,
+            "interval": "closed",
+        }:
+            raise ArtifactError("QlibView Derived scope mismatch")
+        if decision_cutoff is None:
+            raise ArtifactError("adjusted QlibView requires an explicit decision cutoff")
+        cutoff = _session(decision_cutoff, "decision_cutoff")
+        if pit_policy == "strict_decision_time" and adjusted.manifest["anchor_session"] > cutoff:
+            raise ArtifactError("QlibView cannot use a future adjustment anchor")
+    elif adjusted_price_view_id is not None:
+        raise ArtifactError("unadjusted QlibView must not carry an adjusted Derived ref")
 
     calendar = sorted(
         {
@@ -231,6 +302,15 @@ def build_qlib_view(
         (row["session"], row["symbol"]): row
         for row in reader.market_daily(selected, start, end)
     }
+    if adjusted is not None:
+        adjusted_rows = {
+            (row["session"], row["symbol"]): row for row in adjusted.rows
+        }
+        for key, row in market.items():
+            derived = adjusted_rows.get(key)
+            if derived is not None:
+                for field in _ADJUSTED_PRICE_FIELDS:
+                    row[field] = derived[field]
 
     instrument_scope: list[dict[str, str]] = []
     for symbol in selected:
@@ -291,7 +371,7 @@ def build_qlib_view(
     exporter["digest"] = _digest(_json_bytes(exporter))
     manifest: dict[str, Any] = {
         "artifact_type": "qlib_view",
-        "schema_version": "qlib_view.v1",
+        "schema_version": "qlib_view.v2" if adjusted is not None else "qlib_view.v1",
         "snapshot_ref": {
             "snapshot_id": reader.snapshot.ref.snapshot_id,
             "identity_digest": reader.snapshot.manifest["identity_digest"],
@@ -318,6 +398,22 @@ def build_qlib_view(
             "fields": len(view_fields),
         },
     }
+    if adjusted is not None:
+        manifest.update(
+            {
+                "derived_refs": [
+                    {
+                        "view_id": adjusted.ref.view_id,
+                        "identity_digest": adjusted.manifest["identity_digest"],
+                    }
+                ],
+                "price_basis": price_basis,
+                "anchor_session": adjusted.manifest["anchor_session"],
+                "pit_policy": pit_policy,
+                "decision_cutoff": cutoff,
+                "source_quality_refs": adjusted.manifest["domain_refs"],
+            }
+        )
     identity_digest = _identity_digest(manifest, "view_id")
     view_id = _derived_identity("qlib", identity_digest)
     manifest["view_id"] = view_id
@@ -348,7 +444,7 @@ def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
         layout.root,
         target,
         artifact_type="qlib_view",
-        schema_version="qlib_view.v1",
+        schema_version=("qlib_view.v1", "qlib_view.v2"),
         identity_field="view_id",
         identity=view_id,
     )
@@ -364,6 +460,35 @@ def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
         "identity_digest": snapshot.manifest["identity_digest"],
     }:
         raise ArtifactError("QlibView snapshot ref does not match its artifact")
+    if manifest.get("schema_version") == "qlib_view.v2":
+        from axiom_data.views import load_adjusted_price_view
+
+        derived_refs = manifest.get("derived_refs")
+        if not isinstance(derived_refs, list) or len(derived_refs) != 1:
+            raise ArtifactError("adjusted QlibView Derived refs are invalid")
+        ref = derived_refs[0]
+        if not isinstance(ref, dict) or not isinstance(ref.get("view_id"), str):
+            raise ArtifactError("adjusted QlibView Derived ref is invalid")
+        adjusted = load_adjusted_price_view(layout.root, ref["view_id"])
+        if ref != {
+            "view_id": adjusted.ref.view_id,
+            "identity_digest": adjusted.manifest["identity_digest"],
+        }:
+            raise ArtifactError("adjusted QlibView Derived ref mismatch")
+        if (
+            manifest.get("price_basis") != "anchor_adjusted"
+            or manifest.get("anchor_session") != adjusted.manifest["anchor_session"]
+            or manifest.get("decision_cutoff") is None
+            or manifest.get("pit_policy") not in {"strict_decision_time", "research_non_pit"}
+        ):
+            raise ArtifactError("adjusted QlibView anchor/PIT metadata is invalid")
+        if manifest.get("source_quality_refs") != adjusted.manifest["domain_refs"]:
+            raise ArtifactError("adjusted QlibView source/quality refs are invalid")
+        if manifest.get("scope") != adjusted.manifest["scope"]:
+            raise ArtifactError("adjusted QlibView scope differs from its Derived view")
+        cutoff = _session(manifest["decision_cutoff"], "QlibView decision cutoff")
+        if manifest["pit_policy"] == "strict_decision_time" and manifest["anchor_session"] > cutoff:
+            raise ArtifactError("adjusted QlibView uses a future anchor")
     fields = manifest.get("fields")
     scope = manifest.get("scope")
     instruments = manifest.get("instrument_storage_scope")
@@ -599,6 +724,20 @@ def compare_direct_and_qlib(
             scope["symbols"], scope["start_session"], scope["end_session"]
         )
     }
+    if manifest.get("schema_version") == "qlib_view.v2":
+        from axiom_data.views import load_adjusted_price_view
+
+        adjusted = load_adjusted_price_view(
+            data_root, manifest["derived_refs"][0]["view_id"]
+        )
+        adjusted_rows = {
+            (row["session"], row["symbol"]): row for row in adjusted.rows
+        }
+        for key, row in direct_rows.items():
+            derived = adjusted_rows.get(key)
+            if derived is not None:
+                for field in _ADJUSTED_PRICE_FIELDS:
+                    row[field] = derived[field]
     view_rows = {
         (row["session"], row["symbol"]): row for row in view.market_daily()
     }

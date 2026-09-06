@@ -22,23 +22,40 @@ from axiom_data.build import (
 )
 from axiom_data.contracts import load_contract
 from axiom_data.domains import (
+    ALL_CANONICAL_DOMAINS,
+    DM1_SNAPSHOT_DOMAINS,
     MARKET_DOMAINS,
     MarketContractError,
     security_identity_state,
     validate_market_daily_rows,
     validate_security_master_rows,
     validate_trading_calendar_rows,
+    validate_dm1_snapshot_rows,
 )
+from axiom_data.domains.dm1 import DOMAIN_VALIDATORS as DM1_DOMAIN_VALIDATORS
 from axiom_data.layout import DataRootLayout
 
 
 _MANIFEST = "manifest.json"
 _MANIFEST_DIGEST = "manifest.sha256"
 _REQUIRED_SNAPSHOT_DOMAINS = frozenset(MARKET_DOMAINS)
+_REQUIRED_DM1_SNAPSHOT_DOMAINS = frozenset(DM1_SNAPSHOT_DOMAINS)
 _DOMAIN_VALIDATORS = {
     "trading_calendar": validate_trading_calendar_rows,
     "security_master": validate_security_master_rows,
     "market_daily": validate_market_daily_rows,
+}
+_DOMAIN_VALIDATORS.update(DM1_DOMAIN_VALIDATORS)
+_DOMAIN_DEPENDENCIES = {
+    "trading_calendar": (),
+    "security_master": (),
+    "market_daily": ("trading_calendar", "security_master"),
+    "security_status": ("trading_calendar", "security_master", "market_daily"),
+    "price_limits": ("trading_calendar", "security_master"),
+    "corporate_actions": ("trading_calendar", "security_master"),
+    "adjustment_factors": ("trading_calendar", "security_master", "market_daily"),
+    "benchmark_daily": ("trading_calendar",),
+    "security_capital": ("trading_calendar", "security_master"),
 }
 _SUFFIX_EXCHANGE = {".SH": "SSE", ".SZ": "SZSE"}
 _MARKET_BUILDER_REVISION = "market-json-builder.v1"
@@ -458,8 +475,8 @@ def write_raw_batch(
 
     layout = _layout(data_root)
     raw_batch_id = _identity("raw_batch_id", raw_batch_id)
-    if domain not in MARKET_DOMAINS:
-        raise ArtifactError("RawBatch domain must be a Phase 1 market domain")
+    if domain not in ALL_CANONICAL_DOMAINS:
+        raise ArtifactError("RawBatch domain must be a registered canonical domain")
     source_profile = _identity("source_profile", source_profile)
     source_profile_version = _identity(
         "source_profile_version", source_profile_version
@@ -532,7 +549,7 @@ def load_raw_batch(data_root: str | Path, raw_batch_id: str) -> RawBatch:
         identity_field="raw_batch_id",
         identity=raw_batch_id,
     )
-    if manifest.get("domain") not in MARKET_DOMAINS:
+    if manifest.get("domain") not in ALL_CANONICAL_DOMAINS:
         raise ArtifactError("RawBatch has an unsupported domain")
     for field in ("source_profile_ref", "collector_code_ref"):
         _identity(field, manifest.get(field))
@@ -561,7 +578,7 @@ def _find_exact_artifact_type(layout: DataRootLayout, artifact_id: str) -> str |
     snapshot_path = _safe_path(layout.root, layout.snapshots / artifact_id)
     if snapshot_path.exists():
         return "data_snapshot"
-    for domain in MARKET_DOMAINS:
+    for domain in ALL_CANONICAL_DOMAINS:
         commit_path = _safe_path(
             layout.root, layout.domain_commits(domain) / artifact_id
         )
@@ -706,7 +723,7 @@ def _validate_market_dependencies(
 
 
 class MarketDomainBuilder:
-    """PR1 BuildExecutor that publishes one immutable Phase 1 market commit."""
+    """BuildExecutor that publishes one immutable canonical domain commit."""
 
     implementation_revision = _MARKET_BUILDER_REVISION
 
@@ -719,10 +736,11 @@ class MarketDomainBuilder:
         commit_id: str | None = None,
         calendar_commit_id: str | None = None,
         security_master_commit_id: str | None = None,
+        dependency_commit_ids: Mapping[str, str] | None = None,
         created_at: str | None = None,
     ) -> None:
-        if domain not in MARKET_DOMAINS:
-            raise ArtifactError("builder domain must be a Phase 1 market domain")
+        if domain not in ALL_CANONICAL_DOMAINS:
+            raise ArtifactError("builder domain must be a registered canonical domain")
         self.layout = _layout(data_root)
         self.domain = domain
         if builder_config is not None and not isinstance(builder_config, Mapping):
@@ -741,6 +759,27 @@ class MarketDomainBuilder:
             if security_master_commit_id is not None
             else None
         )
+        if dependency_commit_ids is not None and not isinstance(
+            dependency_commit_ids, Mapping
+        ):
+            raise ArtifactError("dependency_commit_ids must be a mapping")
+        explicit_dependencies = {
+            str(name): _identity(f"{name}_commit_id", identity)
+            for name, identity in (dependency_commit_ids or {}).items()
+        }
+        legacy_dependencies = {
+            name: identity
+            for name, identity in {
+                "trading_calendar": self.calendar_commit_id,
+                "security_master": self.security_master_commit_id,
+            }.items()
+            if identity is not None
+        }
+        for name, identity in legacy_dependencies.items():
+            if name in explicit_dependencies and explicit_dependencies[name] != identity:
+                raise ArtifactError("legacy and explicit dependency identities disagree")
+            explicit_dependencies[name] = identity
+        self.dependency_commit_ids = explicit_dependencies
         self.created_at = _timestamp(created_at)
 
     def _build_rows(
@@ -783,23 +822,23 @@ class MarketDomainBuilder:
         calendar = None
         security = None
         dependencies: dict[str, dict[str, Any]] = {}
-        if self.domain == "market_daily":
-            if self.calendar_commit_id is None or self.security_master_commit_id is None:
-                raise ArtifactError(
-                    "market_daily publication requires explicit calendar and security commits"
-                )
-            calendar = validate_domain_commit_closure(
-                self.layout.root, "trading_calendar", self.calendar_commit_id
+        required_dependencies = set(_DOMAIN_DEPENDENCIES[self.domain])
+        if set(self.dependency_commit_ids) != required_dependencies:
+            raise ArtifactError(
+                f"{self.domain} requires explicit dependency commits "
+                f"{sorted(required_dependencies)!r}"
             )
-            security = validate_domain_commit_closure(
-                self.layout.root, "security_master", self.security_master_commit_id
+        loaded_dependencies = {
+            name: validate_domain_commit_closure(
+                self.layout.root, name, self.dependency_commit_ids[name]
             )
-            dependencies = {
-                "trading_calendar": _commit_ref(calendar),
-                "security_master": _commit_ref(security),
-            }
-        elif self.calendar_commit_id is not None or self.security_master_commit_id is not None:
-            raise ArtifactError("only market_daily accepts cross-domain dependency commits")
+            for name in _DOMAIN_DEPENDENCIES[self.domain]
+        }
+        dependencies = {
+            name: _commit_ref(commit) for name, commit in loaded_dependencies.items()
+        }
+        calendar = loaded_dependencies.get("trading_calendar")
+        security = loaded_dependencies.get("security_master")
 
         rows = self._build_rows(
             contract,
@@ -837,7 +876,7 @@ class MarketDomainBuilder:
             "validation_summary": {
                 "status": "PASS",
                 "contract_rows": len(rows),
-                "cross_domain": "PASS" if self.domain == "market_daily" else "NOT_APPLICABLE",
+                "cross_domain": "PASS" if dependencies else "NOT_APPLICABLE",
             },
         }
         identity_digest = _identity_digest(manifest, "domain_commit_id")
@@ -854,7 +893,7 @@ class MarketDomainBuilder:
             _write_file(candidate / "rows.json", rows_content)
             staged_rows = json.loads((candidate / "rows.json").read_bytes())
             _validate_domain_rows(self.domain, staged_rows)
-            if calendar is not None and security is not None:
+            if self.domain == "market_daily" and calendar is not None and security is not None:
                 _validate_market_dependencies(staged_rows, calendar, security)
             if _digest((candidate / "contract.json").read_bytes()) != contract_digest:
                 raise ArtifactError("staged contract digest mismatch")
@@ -881,8 +920,8 @@ def load_domain_commit(
     """Load one exact immutable DomainCommit and verify its local closure."""
 
     layout = _layout(data_root)
-    if domain not in MARKET_DOMAINS:
-        raise ArtifactError("domain must be a Phase 1 market domain")
+    if domain not in ALL_CANONICAL_DOMAINS:
+        raise ArtifactError("domain must be a registered canonical domain")
     domain_commit_id = _identity("domain_commit_id", domain_commit_id)
     target = layout.domain_commits(domain) / domain_commit_id
     if not target.exists():
@@ -957,7 +996,9 @@ def load_domain_commit(
     if output.get("rows") != len(rows):
         raise ArtifactError("DomainCommit row count mismatch")
     _validate_domain_rows(domain, rows)
-    expected_cross_domain = "PASS" if domain == "market_daily" else "NOT_APPLICABLE"
+    expected_cross_domain = (
+        "PASS" if _DOMAIN_DEPENDENCIES[domain] else "NOT_APPLICABLE"
+    )
     if manifest.get("validation_summary") != {
         "status": "PASS",
         "contract_rows": len(rows),
@@ -1027,17 +1068,17 @@ def _validate_domain_commit_closure(
                 raise ArtifactError("DomainCommit parent has a different contract lineage")
 
         dependency_refs = commit.manifest.get("dependency_commit_refs")
-        if domain == "market_daily":
-            required = {"trading_calendar", "security_master"}
+        required = set(_DOMAIN_DEPENDENCIES[domain])
+        if required:
             if not isinstance(dependency_refs, dict) or set(dependency_refs) != required:
-                raise ArtifactError("market_daily dependency refs are incomplete")
+                raise ArtifactError(f"{domain} dependency refs are incomplete")
             dependencies: dict[str, DomainCommit] = {}
             for dependency_domain in required:
                 dependency_ref = dependency_refs[dependency_domain]
                 if not isinstance(dependency_ref, dict) or not isinstance(
                     dependency_ref.get("domain_commit_id"), str
                 ):
-                    raise ArtifactError("market_daily dependency ref is invalid")
+                    raise ArtifactError(f"{domain} dependency ref is invalid")
                 dependency = _validate_domain_commit_closure(
                     root,
                     dependency_domain,
@@ -1047,16 +1088,17 @@ def _validate_domain_commit_closure(
                 )
                 if _commit_ref(dependency) != dependency_ref:
                     raise ArtifactError(
-                        "market_daily dependency ref does not match its artifact"
+                        f"{domain} dependency ref does not match its artifact"
                     )
                 dependencies[dependency_domain] = dependency
-            _validate_market_dependencies(
-                commit.rows,
-                dependencies["trading_calendar"],
-                dependencies["security_master"],
-            )
+            if domain == "market_daily":
+                _validate_market_dependencies(
+                    commit.rows,
+                    dependencies["trading_calendar"],
+                    dependencies["security_master"],
+                )
         elif dependency_refs != {}:
-            raise ArtifactError("only market_daily may contain dependency commit refs")
+            raise ArtifactError(f"{domain} must not contain dependency commit refs")
     finally:
         active.remove(key)
 
@@ -1086,8 +1128,13 @@ def _checked_snapshot_commits(
     data_root: Path,
     domain_commit_ids: Mapping[str, str],
 ) -> dict[str, DomainCommit]:
-    if set(domain_commit_ids) != _REQUIRED_SNAPSHOT_DOMAINS:
-        raise ArtifactError("DataSnapshot requires exactly the three Phase 1 market domains")
+    requested_domains = set(domain_commit_ids)
+    if requested_domains == _REQUIRED_SNAPSHOT_DOMAINS:
+        ordered_domains = MARKET_DOMAINS
+    elif requested_domains == _REQUIRED_DM1_SNAPSHOT_DOMAINS:
+        ordered_domains = DM1_SNAPSHOT_DOMAINS
+    else:
+        raise ArtifactError("DataSnapshot requires exactly the legacy or D-M1 domain set")
     cache: dict[tuple[str, str], DomainCommit] = {}
     commits = {
         domain: _validate_domain_commit_closure(
@@ -1097,7 +1144,7 @@ def _checked_snapshot_commits(
             set(),
             cache,
         )
-        for domain in MARKET_DOMAINS
+        for domain in ordered_domains
     }
     market_dependencies = commits["market_daily"].manifest.get("dependency_commit_refs")
     expected_dependencies = {
@@ -1106,11 +1153,25 @@ def _checked_snapshot_commits(
     }
     if market_dependencies != expected_dependencies:
         raise ArtifactError("snapshot domain refs do not match market_daily fixed dependencies")
+    for domain in ordered_domains:
+        expected = {
+            dependency: _commit_ref(commits[dependency])
+            for dependency in _DOMAIN_DEPENDENCIES[domain]
+        }
+        if commits[domain].manifest.get("dependency_commit_refs") != expected:
+            raise ArtifactError(
+                f"snapshot domain refs do not match {domain} fixed dependencies"
+            )
     _validate_market_dependencies(
         commits["market_daily"].rows,
         commits["trading_calendar"],
         commits["security_master"],
     )
+    if ordered_domains == DM1_SNAPSHOT_DOMAINS:
+        try:
+            validate_dm1_snapshot_rows(commits)
+        except MarketContractError as exc:
+            raise ArtifactError("D-M1 snapshot cross-domain validation failed") from exc
     return commits
 
 
@@ -1125,18 +1186,25 @@ def create_snapshot(
 
     layout = _layout(data_root)
     commits = _checked_snapshot_commits(layout.root, domain_commit_ids)
-    domain_refs = {domain: _commit_ref(commits[domain]) for domain in MARKET_DOMAINS}
+    ordered_domains = (
+        DM1_SNAPSHOT_DOMAINS
+        if set(commits) == _REQUIRED_DM1_SNAPSHOT_DOMAINS
+        else MARKET_DOMAINS
+    )
+    domain_refs = {domain: _commit_ref(commits[domain]) for domain in ordered_domains}
     expected_snapshot_id = (
         _identity("snapshot_id", snapshot_id) if snapshot_id is not None else None
     )
     created_at = _timestamp(created_at)
     manifest = {
         "artifact_type": "data_snapshot",
-        "schema_version": "data_snapshot.v1",
+        "schema_version": (
+            "data_snapshot.v2" if ordered_domains == DM1_SNAPSHOT_DOMAINS else "data_snapshot.v1"
+        ),
         "domain_refs": domain_refs,
         "validation_summary": {
             "status": "PASS",
-            "required_domains": list(MARKET_DOMAINS),
+            "required_domains": list(ordered_domains),
             "cross_domain": "PASS",
         },
     }
@@ -1175,7 +1243,7 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
         layout.root,
         target,
         artifact_type="data_snapshot",
-        schema_version="data_snapshot.v1",
+        schema_version=("data_snapshot.v1", "data_snapshot.v2"),
         identity_field="snapshot_id",
         identity=snapshot_id,
     )
@@ -1184,22 +1252,27 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     if not isinstance(manifest.get("created_at"), str):
         raise ArtifactError("DataSnapshot created_at is missing")
     _timestamp(manifest["created_at"])
-    if not isinstance(domain_refs, dict) or set(domain_refs) != _REQUIRED_SNAPSHOT_DOMAINS:
+    schema_version = manifest.get("schema_version")
+    ordered_domains = (
+        MARKET_DOMAINS if schema_version == "data_snapshot.v1" else DM1_SNAPSHOT_DOMAINS
+    )
+    required_domains = frozenset(ordered_domains)
+    if not isinstance(domain_refs, dict) or set(domain_refs) != required_domains:
         raise ArtifactError("DataSnapshot manifest has incomplete domain refs")
     if manifest.get("validation_summary") != {
         "status": "PASS",
-        "required_domains": list(MARKET_DOMAINS),
+        "required_domains": list(ordered_domains),
         "cross_domain": "PASS",
     }:
         raise ArtifactError("DataSnapshot validation summary is invalid")
     ids: dict[str, str] = {}
-    for domain in MARKET_DOMAINS:
+    for domain in ordered_domains:
         ref = domain_refs[domain]
         if not isinstance(ref, dict) or not isinstance(ref.get("domain_commit_id"), str):
             raise ArtifactError("DataSnapshot domain ref is invalid")
         ids[domain] = ref["domain_commit_id"]
     commits = _checked_snapshot_commits(layout.root, ids)
-    for domain in MARKET_DOMAINS:
+    for domain in ordered_domains:
         if domain_refs[domain] != _commit_ref(commits[domain]):
             raise ArtifactError("DataSnapshot domain ref digest mismatch")
     return DataSnapshot(DataSnapshotRef(snapshot_id, manifest_digest), manifest)
@@ -1235,7 +1308,7 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
                 raw.ref.manifest_digest,
             )
         )
-    for domain in MARKET_DOMAINS:
+    for domain in ALL_CANONICAL_DOMAINS:
         directory = layout.domain_commits(domain)
         for artifact_dir in _artifact_directories(layout.root, directory):
             commit = _validate_domain_commit_closure(

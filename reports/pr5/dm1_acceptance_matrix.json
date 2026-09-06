@@ -1,0 +1,49 @@
+{
+  "gates": {
+    "D01": {
+      "evidence": "tests.test_pr5_dm1 old/new data_snapshot.v1/v2 coexist",
+      "status": "PASS"
+    },
+    "D02": {
+      "evidence": "offline_recovery identity + logical equality",
+      "status": "PASS"
+    },
+    "D03": {
+      "evidence": "RawBatch v2 identity binds request/retrieved_at/payload and immutable publisher rejects collision",
+      "status": "PASS"
+    },
+    "D04": {
+      "evidence": "independent raw factor/limit/capital x10000 checks plus PR3 market mapping checker",
+      "status": "PASS"
+    },
+    "D05": {
+      "evidence": "BuildApplication exact registered contract and parent lineage tests",
+      "status": "PASS"
+    },
+    "D10": {
+      "evidence": "cross-domain conflict test leaves snapshots unchanged and retains raw",
+      "status": "PASS"
+    },
+    "D11": {
+      "evidence": "clean raw-only no-network root and catalog rebuild",
+      "status": "PASS"
+    },
+    "D12": {
+      "evidence": "committed rows digest corruption rejection test",
+      "status": "PASS"
+    },
+    "D13": {
+      "evidence": "terminal history remains best_effort/unknown, never promoted to verified",
+      "status": "PASS"
+    },
+    "D14": {
+      "evidence": "adjusted direct/Qlib keys/calendar/missing/value comparison",
+      "status": "PASS"
+    },
+    "D15": {
+      "evidence": "formal status domain + synthetic lifecycle/gap counterexamples",
+      "status": "PASS"
+    }
+  },
+  "status": "PASS"
+}

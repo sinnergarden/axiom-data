@@ -1,0 +1,23 @@
+{
+  "contract_version": "adjustment_factors.v1",
+  "domain": "adjustment_factors",
+  "primary_key": ["session", "symbol"],
+  "sort_order": ["session", "symbol"],
+  "semantics": {
+    "meaning": "Positive cumulative adjustment fact. It is not an adjusted price or a Research Feature.",
+    "ratio": "adjusted_price(t, A) = unadjusted_price(t) * factor(t) / factor(A)",
+    "missing": "Unknown; it must not be silently replaced by 1.0.",
+    "anchor": "Only an explicit derived/view anchor gives the factor ratio meaning."
+  },
+  "fields": [
+    {"name": "session", "type": "date", "nullable": false, "unit": "Asia/Shanghai exchange session"},
+    {"name": "symbol", "type": "string", "nullable": false, "unit": "canonical security code"},
+    {"name": "factor", "type": "float64", "nullable": false, "unit": "dimensionless cumulative factor"},
+    {"name": "source_available_at", "type": "datetime", "nullable": true, "unit": "timezone-aware"},
+    {"name": "first_observed_at", "type": "datetime", "nullable": false, "unit": "timezone-aware"},
+    {"name": "availability_basis", "type": "string", "nullable": false, "unit": null},
+    {"name": "pit_qualification", "type": "string", "nullable": false, "unit": null},
+    {"name": "source_ref", "type": "string", "nullable": false, "unit": null}
+  ],
+  "validation": ["factor is finite and strictly positive", "session aligns with market/calendar/security identity", "availability qualification is explicit"]
+}

@@ -1,0 +1,120 @@
+{
+  "schema_version": "axiom_data.pr5_d_m1_scope.v1",
+  "authority": {
+    "axiom_overview": "01_axiom_overview.md",
+    "axiom_data": "02_axiom_data.md",
+    "pr4_package": "axiom-qsys-pr4-audit.c969c74-20260906-r5",
+    "data_leaf_manifest_sha256": "4fb9ed254fbd47ef7d7091f5b6734aa8fd6b24b4ea836704f670ad51f6481cc9",
+    "leaf_to_migration_slice_sha256": "73095f6da881ea32703fd34368f0274e1e1c7ae65380d3020f4e866258b4beeb"
+  },
+  "pr5": {
+    "milestone": "D-M1 market/reference completion",
+    "slice_ids": [
+      "slice_adjusted_price_view",
+      "slice_adjustment_facts",
+      "slice_benchmark_market",
+      "slice_market_reference",
+      "slice_security_capital",
+      "slice_security_status_rules"
+    ],
+    "leaf_ids": [
+      "adjusted_price.anchored_ohlc",
+      "adjustment.factor",
+      "benchmark.close",
+      "market.amount",
+      "market.circ_mv",
+      "market.close",
+      "market.high",
+      "market.high_limit",
+      "market.low",
+      "market.low_limit",
+      "market.open",
+      "market.paused",
+      "market.session",
+      "market.total_mv",
+      "market.turnover_rate",
+      "market.volume",
+      "shares.float",
+      "shares.total"
+    ],
+    "stable_derived_requirements": [
+      {
+        "id": "adjusted_price.anchored_ohlc",
+        "inputs": ["market.unadjusted_ohlc", "adjustment.factor"],
+        "required_binding": ["snapshot", "market_commit", "adjustment_commit", "anchor", "scope", "cutoff_policy"]
+      }
+    ],
+    "md_required_domains_without_distinct_pr4_leaf": [
+      "security_status",
+      "price_limits",
+      "corporate_actions"
+    ],
+    "ownership_corrections": {
+      "market.high_limit": "price_limits",
+      "market.low_limit": "price_limits",
+      "market.paused": "security_status",
+      "adjustment.factor": "adjustment_factors"
+    }
+  },
+  "deferred": {
+    "pr6": {
+      "slice_ids": [
+        "slice_financial_as_reported",
+        "slice_financial_stable_derived",
+        "slice_pit_industry",
+        "slice_pit_universe",
+        "slice_valuation"
+      ],
+      "leaf_ids": [
+        "balance.accounts_receivable",
+        "balance.current_assets",
+        "balance.current_liabilities",
+        "balance.equity",
+        "balance.inventory",
+        "balance.total_assets",
+        "cashflow.operating",
+        "financial.single_quarter_oper_cost",
+        "financial.single_quarter_revenue",
+        "financial.ttm_net_income",
+        "financial.ttm_revenue",
+        "income.net_income",
+        "income.oper_cost",
+        "income.revenue",
+        "indicator.current_ratio",
+        "indicator.debt_ratio",
+        "indicator.gross_margin",
+        "indicator.roe",
+        "industry.membership",
+        "universe.membership",
+        "valuation.pb",
+        "valuation.pe",
+        "valuation.ps"
+      ]
+    },
+    "pr7": {
+      "slice_ids": [
+        "slice_forecast",
+        "slice_margin_lending",
+        "slice_moneyflow",
+        "slice_shareholder"
+      ],
+      "leaf_ids": [
+        "forecast.announcement",
+        "forecast.period_end",
+        "forecast.type",
+        "holder.number",
+        "holder.top10_ratio",
+        "margin.balance",
+        "margin.buy",
+        "margin.lend_balance_volume",
+        "margin.lend_repay_volume",
+        "margin.lend_sell_volume",
+        "margin.repay",
+        "margin.total_balance",
+        "moneyflow.big_buy",
+        "moneyflow.big_sell",
+        "moneyflow.net"
+      ]
+    }
+  }
+}

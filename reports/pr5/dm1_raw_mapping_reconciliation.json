@@ -1,0 +1,25 @@
+{
+  "checks": {
+    "capital_x10000": true,
+    "factor_passthrough": true,
+    "price_limit_passthrough": true,
+    "status_evidence": true
+  },
+  "mismatch_count": 0,
+  "mismatches": [],
+  "scope": {
+    "end_session": "2025-09-05",
+    "start_session": "2025-06-01",
+    "symbols": [
+      "600000.SH",
+      "600036.SH",
+      "688981.SH",
+      "603072.SH",
+      "000001.SZ",
+      "301581.SZ"
+    ]
+  },
+  "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
+  "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+  "status": "PASS"
+}

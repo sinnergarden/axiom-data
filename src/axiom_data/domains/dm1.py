@@ -1,0 +1,312 @@
+"""D-M1 reference-domain contracts and explicit cross-domain checks."""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Mapping, Sequence
+from datetime import datetime
+from typing import Any
+
+from .market import (
+    MARKET_DOMAINS,
+    MarketContractError,
+    _date,
+    _number,
+    _rows,
+    _symbol,
+    _validate_keys,
+    security_identity_state,
+    validate_market_daily_rows,
+)
+
+
+DM1_REFERENCE_DOMAINS = (
+    "security_status",
+    "price_limits",
+    "corporate_actions",
+    "adjustment_factors",
+    "benchmark_daily",
+    "security_capital",
+)
+DM1_SNAPSHOT_DOMAINS = MARKET_DOMAINS + DM1_REFERENCE_DOMAINS
+ALL_CANONICAL_DOMAINS = DM1_SNAPSHOT_DOMAINS
+PIT_QUALIFICATIONS = frozenset({"verified", "observed", "best_effort", "unknown"})
+_INDEX = re.compile(r"[0-9]{6}\.(SH|SZ)\Z")
+_STATUS_REASON = {
+    "normal_active": "daily_observation",
+    "suspended": "explicit_full_day_suspension",
+    "not_yet_listed": "identity_not_effective",
+    "delisted": "delisting_effective",
+    "unknown_source_gap": "source_gap",
+}
+
+
+def _text(name: str, value: object, *, nullable: bool = False) -> str | None:
+    if value is None and nullable:
+        return None
+    if not isinstance(value, str) or not value:
+        raise MarketContractError(f"{name} must be non-empty text")
+    return value
+
+
+def _timestamp(name: str, value: object, *, nullable: bool = False) -> str | None:
+    text = _text(name, value, nullable=nullable)
+    if text is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise MarketContractError(f"{name} must be an ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None:
+        raise MarketContractError(f"{name} must include a UTC offset")
+    return text
+
+
+def _provenance(row: Mapping[str, object]) -> None:
+    _timestamp("source_available_at", row["source_available_at"], nullable=True)
+    _timestamp("first_observed_at", row["first_observed_at"])
+    _text("availability_basis", row["availability_basis"])
+    qualification = _text("pit_qualification", row["pit_qualification"])
+    if qualification not in PIT_QUALIFICATIONS:
+        raise MarketContractError("pit_qualification is not canonical")
+    _text("source_ref", row["source_ref"])
+
+
+def validate_security_status_rows(rows: object) -> None:
+    frozen = _rows("security_status", rows)
+    for index, row in enumerate(frozen):
+        _date(f"row {index} session", row["session"])
+        _symbol(row["symbol"])
+        status = _text("status", row["status"])
+        if status not in _STATUS_REASON or row["reason"] != _STATUS_REASON[status]:
+            raise MarketContractError("security status/reason combination is invalid")
+        _provenance(row)
+    _validate_keys("security_status", frozen)
+
+
+def validate_price_limits_rows(rows: object) -> None:
+    frozen = _rows("price_limits", rows)
+    for index, row in enumerate(frozen):
+        _date(f"row {index} session", row["session"])
+        _symbol(row["symbol"])
+        state = _text("limit_state", row["limit_state"])
+        upper = _number("upper_limit", row["upper_limit"])
+        lower = _number("lower_limit", row["lower_limit"])
+        if state == "limited":
+            if upper is None or lower is None or lower <= 0 or upper <= lower:
+                raise MarketContractError("limited rows require positive ordered bounds")
+        elif state in {"no_limit", "unknown"}:
+            if upper is not None or lower is not None:
+                raise MarketContractError("no_limit/unknown rows require null bounds")
+        else:
+            raise MarketContractError("limit_state is not canonical")
+        _text("rule_ref", row["rule_ref"])
+        _provenance(row)
+    _validate_keys("price_limits", frozen)
+
+
+def validate_adjustment_factor_rows(rows: object) -> None:
+    frozen = _rows("adjustment_factors", rows)
+    for index, row in enumerate(frozen):
+        _date(f"row {index} session", row["session"])
+        _symbol(row["symbol"])
+        factor = _number("factor", row["factor"])
+        if factor is None or factor <= 0:
+            raise MarketContractError("adjustment factor must be strictly positive")
+        _provenance(row)
+    _validate_keys("adjustment_factors", frozen)
+
+
+def validate_benchmark_daily_rows(rows: object) -> None:
+    frozen = _rows("benchmark_daily", rows)
+    for index, row in enumerate(frozen):
+        _date(f"row {index} session", row["session"])
+        benchmark = row["benchmark"]
+        if not isinstance(benchmark, str) or _INDEX.fullmatch(benchmark) is None:
+            raise MarketContractError("benchmark must be a canonical exchange-qualified code")
+        close = _number("close", row["close"])
+        if close is None:
+            raise MarketContractError("benchmark close must be present")
+        _provenance(row)
+    _validate_keys("benchmark_daily", frozen)
+
+
+def validate_security_capital_rows(rows: object) -> None:
+    frozen = _rows("security_capital", rows)
+    for index, row in enumerate(frozen):
+        _date(f"row {index} session", row["session"])
+        _symbol(row["symbol"])
+        total = _number("total_shares", row["total_shares"])
+        circulating = _number("circulating_shares", row["circulating_shares"])
+        if total is None or circulating is None or total <= 0 or circulating <= 0:
+            raise MarketContractError("share counts must be strictly positive")
+        if circulating > total:
+            raise MarketContractError("circulating shares must not exceed total shares")
+        _provenance(row)
+    _validate_keys("security_capital", frozen)
+
+
+def validate_corporate_action_rows(rows: object) -> None:
+    frozen = _rows("corporate_actions", rows)
+    for index, row in enumerate(frozen):
+        _symbol(row["symbol"])
+        _text("action_id", row["action_id"])
+        _text("action_version", row["action_version"])
+        action_type = _text("action_type", row["action_type"])
+        for name in (
+            "announcement_date",
+            "record_date",
+            "ex_date",
+            "payment_date",
+            "share_available_date",
+        ):
+            _date(f"row {index} {name}", row[name], nullable=True)
+        _date(f"row {index} effective_date", row["effective_date"])
+        terms = {
+            "cash_dividend": "cash_per_share",
+            "stock_dividend": "stock_ratio",
+            "capital_transfer": "transfer_ratio",
+            "split": "split_ratio",
+            "consolidation": "split_ratio",
+        }
+        if action_type not in terms:
+            raise MarketContractError("corporate action type is unsupported")
+        values = {
+            name: _number(name, row[name])
+            for name in ("cash_per_share", "stock_ratio", "transfer_ratio", "split_ratio")
+        }
+        selected = terms[action_type]
+        if values[selected] is None or values[selected] <= 0:  # type: ignore[operator]
+            raise MarketContractError("corporate action term must be positive")
+        if any(value is not None for name, value in values.items() if name != selected):
+            raise MarketContractError("corporate action row must contain one economic term")
+        ratio = values["split_ratio"]
+        if action_type == "split" and ratio is not None and ratio <= 1:
+            raise MarketContractError("split ratio must exceed one")
+        if action_type == "consolidation" and ratio is not None and ratio >= 1:
+            raise MarketContractError("consolidation ratio must be below one")
+        _provenance(row)
+    _validate_keys("corporate_actions", frozen)
+
+
+def validate_dm1_snapshot_rows(
+    commits: Mapping[str, Any],
+) -> None:
+    """Validate D-M1 relationships without inventing a generic rule engine."""
+
+    calendar = {
+        (row["exchange"], row["session"]): row
+        for row in commits["trading_calendar"].rows
+    }
+    securities = {row["symbol"]: row for row in commits["security_master"].rows}
+    market = {
+        (row["session"], row["symbol"]): row for row in commits["market_daily"].rows
+    }
+
+    def checked_session_symbol(row: Mapping[str, Any], *, open_only: bool = True) -> None:
+        symbol = row["symbol"]
+        identity = securities.get(symbol)
+        if identity is None:
+            raise MarketContractError(f"{symbol!r} has no security identity")
+        exchange = identity["exchange"]
+        cal = calendar.get((exchange, row["session"]))
+        if cal is None or (open_only and cal["is_open"] is not True):
+            raise MarketContractError("D-M1 fact refers to an invalid calendar session")
+        state = security_identity_state(identity, row["session"])
+        if state != "within_identity_interval":
+            raise MarketContractError("D-M1 fact is outside its security identity interval")
+
+    for row in commits["security_status"].rows:
+        symbol = row["symbol"]
+        identity = securities.get(symbol)
+        if identity is None:
+            raise MarketContractError("security status has no security identity")
+        cal = calendar.get((identity["exchange"], row["session"]))
+        if cal is None or cal["is_open"] is not True:
+            raise MarketContractError("security status refers to an invalid calendar session")
+        identity_state = security_identity_state(identity, row["session"])
+        expected_lifecycle = {
+            "not_yet_listed": "not_yet_listed",
+            "delisted": "delisted",
+        }
+        if row["status"] in expected_lifecycle:
+            if identity_state != expected_lifecycle[row["status"]]:
+                raise MarketContractError("security lifecycle status conflicts with identity")
+        elif identity_state != "within_identity_interval":
+            raise MarketContractError("active security status is outside identity interval")
+        observed = market.get((row["session"], row["symbol"]))
+        if row["status"] == "normal_active" and (
+            observed is None or observed["is_suspended"] is not False
+        ):
+            raise MarketContractError("normal status has no normal market evidence")
+        if row["status"] == "suspended" and (
+            observed is None or observed["is_suspended"] is not True
+        ):
+            raise MarketContractError("suspended status has no explicit suspended market row")
+        if row["status"] == "unknown_source_gap" and observed is not None:
+            raise MarketContractError("unknown source gap conflicts with a market row")
+
+    for row in commits["price_limits"].rows:
+        checked_session_symbol(row)
+        legacy = market.get((row["session"], row["symbol"]))
+        if row["limit_state"] == "limited" and legacy is not None and (
+            legacy["up_limit"] != row["upper_limit"]
+            or legacy["down_limit"] != row["lower_limit"]
+        ):
+            raise MarketContractError("formal price limits conflict with market_daily evidence")
+
+    for row in commits["adjustment_factors"].rows:
+        checked_session_symbol(row)
+        legacy = market.get((row["session"], row["symbol"]))
+        if legacy is not None and legacy["adj_factor"] != row["factor"]:
+            raise MarketContractError("formal adjustment factor conflicts with market_daily")
+
+    for row in commits["security_capital"].rows:
+        checked_session_symbol(row)
+
+    for row in commits["corporate_actions"].rows:
+        identity = securities.get(row["symbol"])
+        if identity is None:
+            raise MarketContractError("corporate action has no security identity")
+        exchange_dates = sorted(
+            session for exchange, session in calendar if exchange == identity["exchange"]
+        )
+        for name in ("announcement_date", "record_date", "effective_date", "ex_date"):
+            value = row[name]
+            if value is None:
+                continue
+            state = security_identity_state(identity, value)
+            if state not in {"within_identity_interval", "unknown"}:
+                raise MarketContractError("corporate action date is outside security lifecycle")
+            if (
+                exchange_dates
+                and exchange_dates[0] <= value <= exchange_dates[-1]
+                and (identity["exchange"], value) not in calendar
+            ):
+                raise MarketContractError("corporate action date is outside calendar coverage")
+
+    for row in commits["benchmark_daily"].rows:
+        exchange = "SSE" if row["benchmark"].endswith(".SH") else "SZSE"
+        cal = calendar.get((exchange, row["session"]))
+        if cal is None or cal["is_open"] is not True:
+            raise MarketContractError("benchmark row is not on an open calendar session")
+
+
+DOMAIN_VALIDATORS = {
+    "security_status": validate_security_status_rows,
+    "price_limits": validate_price_limits_rows,
+    "corporate_actions": validate_corporate_action_rows,
+    "adjustment_factors": validate_adjustment_factor_rows,
+    "benchmark_daily": validate_benchmark_daily_rows,
+    "security_capital": validate_security_capital_rows,
+}
+
+
+__all__ = [
+    "ALL_CANONICAL_DOMAINS",
+    "DM1_REFERENCE_DOMAINS",
+    "DM1_SNAPSHOT_DOMAINS",
+    "DOMAIN_VALIDATORS",
+    "PIT_QUALIFICATIONS",
+    "validate_dm1_snapshot_rows",
+]

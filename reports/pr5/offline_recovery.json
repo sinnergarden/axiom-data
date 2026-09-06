@@ -1,0 +1,308 @@
+{
+  "anchor_semantics_equal": true,
+  "catalog_rebuild": {
+    "entries": 60,
+    "status": "PASS"
+  },
+  "direct_qlib_equivalence": {
+    "checks": {
+      "calendar": true,
+      "field_order": true,
+      "instrument_mapping": true,
+      "keys": true,
+      "snapshot": true,
+      "values_and_nulls": true
+    },
+    "direct_keys": 414,
+    "fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "pre_close",
+      "volume_shares",
+      "amount_cny",
+      "adj_factor",
+      "up_limit",
+      "down_limit",
+      "is_suspended",
+      "turnover_rate",
+      "total_market_cap_cny",
+      "circulating_market_cap_cny"
+    ],
+    "mismatches": [],
+    "qlib_keys": 414,
+    "qlib_view_ref": {
+      "identity_digest": "sha256:6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
+      "manifest_digest": "sha256:ee932edb78944511676b6a7f1a6ccc179e7380767f6b3b95243c29c12291b470",
+      "view_id": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573"
+    },
+    "relative_tolerance": 1e-06,
+    "scope": {
+      "end_session": "2025-09-05",
+      "interval": "closed",
+      "start_session": "2025-06-01",
+      "symbols": [
+        "600000.SH",
+        "600036.SH",
+        "688981.SH",
+        "603072.SH",
+        "000001.SZ",
+        "301581.SZ"
+      ]
+    },
+    "source_snapshot_ref": {
+      "identity_digest": "sha256:f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
+      "manifest_digest": "sha256:6d6a2da0111859de526d9ca19fb1f4dca10d78c6113f062b4cedc4ddc88b9be9",
+      "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624"
+    },
+    "status": "PASS"
+  },
+  "domain_logical_equality": {
+    "adjustment_factors": true,
+    "benchmark_daily": true,
+    "corporate_actions": true,
+    "market_daily": true,
+    "price_limits": true,
+    "security_capital": true,
+    "security_master": true,
+    "security_status": true,
+    "trading_calendar": true
+  },
+  "identity_equality": true,
+  "network_calls": 0,
+  "rebuilt_artifacts": {
+    "adjusted_price_view": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc",
+    "adjustment_factors": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+    "benchmark_daily": "benchmark_daily-ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
+    "corporate_actions": "corporate_actions-fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
+    "market_daily": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+    "market_replay_view": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876",
+    "price_limits": "price_limits-3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
+    "qlib_view": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
+    "security_capital": "security_capital-3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
+    "security_master": "security_master-1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+    "security_status": "security_status-7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
+    "snapshot": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
+    "trading_calendar": "trading_calendar-3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8"
+  },
+  "rebuilt_refs": {
+    "adjusted_price_view": {
+      "anchor_session": "2025-09-05",
+      "identity_digest": "sha256:3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc",
+      "manifest_digest": "sha256:9af28c01cc42d259df0dad68dbbb17693871acd4dfa4d9d73b0af1cf0f56ced9",
+      "view_id": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc"
+    },
+    "domain_commits": {
+      "adjustment_factors": {
+        "contract_digest": "sha256:66971791dc0d2b20f0b5d2593ed19001199ec5456b538b32ee5c068ff3927938",
+        "domain_commit_id": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+        "identity_digest": "sha256:8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+        "logical_content_digest": "sha256:3842f691fc221c0b43823c04d62744dd85390063b1afdc3f82621ed43dddfd6d",
+        "manifest_digest": "sha256:579bfd96c357cc8de120bdd69234738380b8e514ddbea2af7e1ba0ce16504629",
+        "rows": 414
+      },
+      "benchmark_daily": {
+        "contract_digest": "sha256:c51644aed6b743f86d2d97685eb85b7dd3dcc17dc12bd4d0d74445a3c2538564",
+        "domain_commit_id": "benchmark_daily-ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
+        "identity_digest": "sha256:ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
+        "logical_content_digest": "sha256:26eae361b39665507c1b0470e390279746d00d9266e2dce9b2ed7931d896ff2d",
+        "manifest_digest": "sha256:7ab0297f3d6f03bd120819e4e71429c48dcf3522f555e2362aa8a82692bdd6f5",
+        "rows": 69
+      },
+      "corporate_actions": {
+        "contract_digest": "sha256:a114e87537228ca12dc977909b4baccba382ddb7c497baec0f619881e62634d0",
+        "domain_commit_id": "corporate_actions-fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
+        "identity_digest": "sha256:fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
+        "logical_content_digest": "sha256:512b8482246cb0153d72b8f0be377067cee952e0c73e0321beadad9595e32e89",
+        "manifest_digest": "sha256:593239298a4feca4800545ebfa3a643fc0d1097353210ab42ea3c223fcde071e",
+        "rows": 3
+      },
+      "market_daily": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+        "identity_digest": "sha256:3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:83d49bd724b879f47bab10a3a49f2850b512f12db5ed0ac663068df45ab44019",
+        "rows": 414
+      },
+      "price_limits": {
+        "contract_digest": "sha256:df88b568f1835e5df26dd8534279e67271f1d0d33b6135b22298674b9b939d15",
+        "domain_commit_id": "price_limits-3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
+        "identity_digest": "sha256:3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
+        "logical_content_digest": "sha256:c4ac417ac5dc4a18ee7164aaa370cc7b0b916d4e351fb157edbd48a0565a7e4d",
+        "manifest_digest": "sha256:c5fb7d445659a9d68ee797d3ccbd8fd7d01888a50f971f832f28fa0d6d9a8a64",
+        "rows": 414
+      },
+      "security_capital": {
+        "contract_digest": "sha256:6e3d7cdb208e19e7fd6c26761783f59e7c57d9687f82c81fcb5d70aa42acd270",
+        "domain_commit_id": "security_capital-3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
+        "identity_digest": "sha256:3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
+        "logical_content_digest": "sha256:39c30f96390814d9d2e17d061300ccd68c40927d673479e784e4602870fd7d3e",
+        "manifest_digest": "sha256:b49316c5cf777cfb47d2d02cd0191437081dc453ec290d7836ba3aca738b1933",
+        "rows": 409
+      },
+      "security_master": {
+        "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
+        "domain_commit_id": "security_master-1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+        "identity_digest": "sha256:1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+        "logical_content_digest": "sha256:5eb0c9d0111a495797bd6daa6a27ea1c2495f92553df6d734b86d4ce24383c4f",
+        "manifest_digest": "sha256:d1fe65558b46c877f53595750c91c41fd8036d89260614cf539f62f2c1861c50",
+        "rows": 6
+      },
+      "security_status": {
+        "contract_digest": "sha256:1087b0f2bd9e28a7578da2b4a9a807d0323d7010bc6aca14db79377b515c9e8a",
+        "domain_commit_id": "security_status-7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
+        "identity_digest": "sha256:7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
+        "logical_content_digest": "sha256:91d3b86d5cd36c4934b3f8aeae9dff4a316f5c258cc3dc029f8636f230d07e52",
+        "manifest_digest": "sha256:30223ccc9fc7c02200a06a0b9c1af20bb24b8dceb9cc1a02f6eb42d1fc5026c2",
+        "rows": 414
+      },
+      "trading_calendar": {
+        "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
+        "domain_commit_id": "trading_calendar-3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8",
+        "identity_digest": "sha256:3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8",
+        "logical_content_digest": "sha256:41a6653591c21e74512e40d818230c031fcf073e8f815a973d29ec7c25dafa82",
+        "manifest_digest": "sha256:9cfb42253475fa9ca558f36667b6b1e16c0b336d1fbc8a690a2f0003d1b71f32",
+        "rows": 194
+      }
+    },
+    "market_replay_view": {
+      "identity_digest": "sha256:9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876",
+      "manifest_digest": "sha256:79613232065ef03bda2c48c3c117ce7ec83db22ff2ef42a5aaed3a5396b20ab9",
+      "view_id": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876"
+    },
+    "qlib_view": {
+      "anchor_session": "2025-09-05",
+      "identity_digest": "sha256:6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
+      "manifest_digest": "sha256:ee932edb78944511676b6a7f1a6ccc179e7380767f6b3b95243c29c12291b470",
+      "view_id": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573"
+    },
+    "snapshot": {
+      "identity_digest": "sha256:f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
+      "manifest_digest": "sha256:6d6a2da0111859de526d9ca19fb1f4dca10d78c6113f062b4cedc4ddc88b9be9",
+      "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624"
+    }
+  },
+  "source_artifacts": {
+    "adjusted_price_view": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc",
+    "adjustment_factors": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+    "benchmark_daily": "benchmark_daily-ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
+    "corporate_actions": "corporate_actions-fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
+    "market_daily": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+    "market_replay_view": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876",
+    "price_limits": "price_limits-3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
+    "qlib_view": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
+    "security_capital": "security_capital-3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
+    "security_master": "security_master-1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+    "security_status": "security_status-7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
+    "snapshot": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
+    "trading_calendar": "trading_calendar-3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8"
+  },
+  "source_refs": {
+    "adjusted_price_view": {
+      "anchor_session": "2025-09-05",
+      "identity_digest": "sha256:3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc",
+      "manifest_digest": "sha256:672e937c33d7db0520b0789e0e05d238e836a26aaa2b20e6ecb3069d55509c53",
+      "view_id": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc"
+    },
+    "domain_commits": {
+      "adjustment_factors": {
+        "contract_digest": "sha256:66971791dc0d2b20f0b5d2593ed19001199ec5456b538b32ee5c068ff3927938",
+        "domain_commit_id": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+        "identity_digest": "sha256:8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+        "logical_content_digest": "sha256:3842f691fc221c0b43823c04d62744dd85390063b1afdc3f82621ed43dddfd6d",
+        "manifest_digest": "sha256:ad8542db2b6266459663fa0a6ce8dfe5ce5657bc708bc126aaef402d509925c5",
+        "rows": 414
+      },
+      "benchmark_daily": {
+        "contract_digest": "sha256:c51644aed6b743f86d2d97685eb85b7dd3dcc17dc12bd4d0d74445a3c2538564",
+        "domain_commit_id": "benchmark_daily-ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
+        "identity_digest": "sha256:ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
+        "logical_content_digest": "sha256:26eae361b39665507c1b0470e390279746d00d9266e2dce9b2ed7931d896ff2d",
+        "manifest_digest": "sha256:a7de3cc80a8a95882a25e0d246d3fb394fbacf3439d1f1e64cdf3fa568a80cd8",
+        "rows": 69
+      },
+      "corporate_actions": {
+        "contract_digest": "sha256:a114e87537228ca12dc977909b4baccba382ddb7c497baec0f619881e62634d0",
+        "domain_commit_id": "corporate_actions-fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
+        "identity_digest": "sha256:fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
+        "logical_content_digest": "sha256:512b8482246cb0153d72b8f0be377067cee952e0c73e0321beadad9595e32e89",
+        "manifest_digest": "sha256:105394f3f8764afeaf3f1bfb18cebdd32488dded4912b372007253ac7cbb715d",
+        "rows": 3
+      },
+      "market_daily": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+        "identity_digest": "sha256:3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:22eebf6e7cdc80300f70c1211c176f8a081ff376aa51b92baf9f68d3a940afcc",
+        "rows": 414
+      },
+      "price_limits": {
+        "contract_digest": "sha256:df88b568f1835e5df26dd8534279e67271f1d0d33b6135b22298674b9b939d15",
+        "domain_commit_id": "price_limits-3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
+        "identity_digest": "sha256:3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
+        "logical_content_digest": "sha256:c4ac417ac5dc4a18ee7164aaa370cc7b0b916d4e351fb157edbd48a0565a7e4d",
+        "manifest_digest": "sha256:5956fc11978b95b8c188f49616cc87cb23c78a4264739c05a2f9be67d62dd323",
+        "rows": 414
+      },
+      "security_capital": {
+        "contract_digest": "sha256:6e3d7cdb208e19e7fd6c26761783f59e7c57d9687f82c81fcb5d70aa42acd270",
+        "domain_commit_id": "security_capital-3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
+        "identity_digest": "sha256:3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
+        "logical_content_digest": "sha256:39c30f96390814d9d2e17d061300ccd68c40927d673479e784e4602870fd7d3e",
+        "manifest_digest": "sha256:84682b2051e552348edcb7fb840af646f5c01bad620bf205d0ecb2be007d00f9",
+        "rows": 409
+      },
+      "security_master": {
+        "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
+        "domain_commit_id": "security_master-1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+        "identity_digest": "sha256:1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+        "logical_content_digest": "sha256:5eb0c9d0111a495797bd6daa6a27ea1c2495f92553df6d734b86d4ce24383c4f",
+        "manifest_digest": "sha256:708e9d5de56b4dceb1c8b6aa20db504f975d7c583c772fdc9dd089b427976d31",
+        "rows": 6
+      },
+      "security_status": {
+        "contract_digest": "sha256:1087b0f2bd9e28a7578da2b4a9a807d0323d7010bc6aca14db79377b515c9e8a",
+        "domain_commit_id": "security_status-7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
+        "identity_digest": "sha256:7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
+        "logical_content_digest": "sha256:91d3b86d5cd36c4934b3f8aeae9dff4a316f5c258cc3dc029f8636f230d07e52",
+        "manifest_digest": "sha256:01a84d5712ac4d2dd390936b22f197d3fda68b39a2e4b373b4500cb06ee6530d",
+        "rows": 414
+      },
+      "trading_calendar": {
+        "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
+        "domain_commit_id": "trading_calendar-3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8",
+        "identity_digest": "sha256:3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8",
+        "logical_content_digest": "sha256:41a6653591c21e74512e40d818230c031fcf073e8f815a973d29ec7c25dafa82",
+        "manifest_digest": "sha256:1a7b1da8b4afe757cb85ba77d8d76288b849bd11465590872083f56577b13527",
+        "rows": 194
+      }
+    },
+    "market_replay_view": {
+      "identity_digest": "sha256:9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876",
+      "manifest_digest": "sha256:1bed3445a345a98687b4c73d01c972a48472c6325eceb5f7f3b5d03ccf7d312b",
+      "view_id": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876"
+    },
+    "qlib_view": {
+      "anchor_session": "2025-09-05",
+      "identity_digest": "sha256:6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
+      "manifest_digest": "sha256:604b1e7e1493c4aad161a5cc4b4023a4590cb31f801972bce9b275d599676485",
+      "view_id": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573"
+    },
+    "snapshot": {
+      "identity_digest": "sha256:f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
+      "manifest_digest": "sha256:38e71242c023d7ace6a272a76f4f26c9b9ce1eee2da1a0d89dee9d1cb99784b7",
+      "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624"
+    }
+  },
+  "starting_state": {
+    "canonical": false,
+    "catalog.sqlite": false,
+    "derived": false,
+    "exports": false,
+    "snapshots": false
+  },
+  "status": "PASS"
+}

@@ -1,0 +1,1699 @@
+{
+  "artifact_refs": {
+    "adjusted_price_view": {
+      "anchor_session": "2025-09-05",
+      "identity_digest": "sha256:3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc",
+      "manifest_digest": "sha256:672e937c33d7db0520b0789e0e05d238e836a26aaa2b20e6ecb3069d55509c53",
+      "view_id": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc"
+    },
+    "domain_commits": {
+      "adjustment_factors": {
+        "contract_digest": "sha256:66971791dc0d2b20f0b5d2593ed19001199ec5456b538b32ee5c068ff3927938",
+        "domain_commit_id": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+        "identity_digest": "sha256:8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+        "logical_content_digest": "sha256:3842f691fc221c0b43823c04d62744dd85390063b1afdc3f82621ed43dddfd6d",
+        "manifest_digest": "sha256:ad8542db2b6266459663fa0a6ce8dfe5ce5657bc708bc126aaef402d509925c5",
+        "rows": 414
+      },
+      "benchmark_daily": {
+        "contract_digest": "sha256:c51644aed6b743f86d2d97685eb85b7dd3dcc17dc12bd4d0d74445a3c2538564",
+        "domain_commit_id": "benchmark_daily-ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
+        "identity_digest": "sha256:ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
+        "logical_content_digest": "sha256:26eae361b39665507c1b0470e390279746d00d9266e2dce9b2ed7931d896ff2d",
+        "manifest_digest": "sha256:a7de3cc80a8a95882a25e0d246d3fb394fbacf3439d1f1e64cdf3fa568a80cd8",
+        "rows": 69
+      },
+      "corporate_actions": {
+        "contract_digest": "sha256:a114e87537228ca12dc977909b4baccba382ddb7c497baec0f619881e62634d0",
+        "domain_commit_id": "corporate_actions-fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
+        "identity_digest": "sha256:fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
+        "logical_content_digest": "sha256:512b8482246cb0153d72b8f0be377067cee952e0c73e0321beadad9595e32e89",
+        "manifest_digest": "sha256:105394f3f8764afeaf3f1bfb18cebdd32488dded4912b372007253ac7cbb715d",
+        "rows": 3
+      },
+      "market_daily": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+        "identity_digest": "sha256:3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:22eebf6e7cdc80300f70c1211c176f8a081ff376aa51b92baf9f68d3a940afcc",
+        "rows": 414
+      },
+      "price_limits": {
+        "contract_digest": "sha256:df88b568f1835e5df26dd8534279e67271f1d0d33b6135b22298674b9b939d15",
+        "domain_commit_id": "price_limits-3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
+        "identity_digest": "sha256:3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
+        "logical_content_digest": "sha256:c4ac417ac5dc4a18ee7164aaa370cc7b0b916d4e351fb157edbd48a0565a7e4d",
+        "manifest_digest": "sha256:5956fc11978b95b8c188f49616cc87cb23c78a4264739c05a2f9be67d62dd323",
+        "rows": 414
+      },
+      "security_capital": {
+        "contract_digest": "sha256:6e3d7cdb208e19e7fd6c26761783f59e7c57d9687f82c81fcb5d70aa42acd270",
+        "domain_commit_id": "security_capital-3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
+        "identity_digest": "sha256:3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
+        "logical_content_digest": "sha256:39c30f96390814d9d2e17d061300ccd68c40927d673479e784e4602870fd7d3e",
+        "manifest_digest": "sha256:84682b2051e552348edcb7fb840af646f5c01bad620bf205d0ecb2be007d00f9",
+        "rows": 409
+      },
+      "security_master": {
+        "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
+        "domain_commit_id": "security_master-1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+        "identity_digest": "sha256:1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+        "logical_content_digest": "sha256:5eb0c9d0111a495797bd6daa6a27ea1c2495f92553df6d734b86d4ce24383c4f",
+        "manifest_digest": "sha256:708e9d5de56b4dceb1c8b6aa20db504f975d7c583c772fdc9dd089b427976d31",
+        "rows": 6
+      },
+      "security_status": {
+        "contract_digest": "sha256:1087b0f2bd9e28a7578da2b4a9a807d0323d7010bc6aca14db79377b515c9e8a",
+        "domain_commit_id": "security_status-7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
+        "identity_digest": "sha256:7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
+        "logical_content_digest": "sha256:91d3b86d5cd36c4934b3f8aeae9dff4a316f5c258cc3dc029f8636f230d07e52",
+        "manifest_digest": "sha256:01a84d5712ac4d2dd390936b22f197d3fda68b39a2e4b373b4500cb06ee6530d",
+        "rows": 414
+      },
+      "trading_calendar": {
+        "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
+        "domain_commit_id": "trading_calendar-3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8",
+        "identity_digest": "sha256:3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8",
+        "logical_content_digest": "sha256:41a6653591c21e74512e40d818230c031fcf073e8f815a973d29ec7c25dafa82",
+        "manifest_digest": "sha256:1a7b1da8b4afe757cb85ba77d8d76288b849bd11465590872083f56577b13527",
+        "rows": 194
+      }
+    },
+    "market_replay_view": {
+      "identity_digest": "sha256:9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876",
+      "manifest_digest": "sha256:1bed3445a345a98687b4c73d01c972a48472c6325eceb5f7f3b5d03ccf7d312b",
+      "view_id": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876"
+    },
+    "qlib_view": {
+      "anchor_session": "2025-09-05",
+      "identity_digest": "sha256:6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
+      "manifest_digest": "sha256:604b1e7e1493c4aad161a5cc4b4023a4590cb31f801972bce9b275d599676485",
+      "view_id": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573"
+    },
+    "snapshot": {
+      "identity_digest": "sha256:f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
+      "manifest_digest": "sha256:38e71242c023d7ace6a272a76f4f26c9b9ce1eee2da1a0d89dee9d1cb99784b7",
+      "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624"
+    }
+  },
+  "artifacts": {
+    "adjusted_price_view": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc",
+    "adjustment_factors": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+    "benchmark_daily": "benchmark_daily-ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
+    "corporate_actions": "corporate_actions-fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
+    "market_daily": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+    "market_replay_view": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876",
+    "price_limits": "price_limits-3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
+    "qlib_view": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
+    "security_capital": "security_capital-3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
+    "security_master": "security_master-1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+    "security_status": "security_status-7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
+    "snapshot": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
+    "trading_calendar": "trading_calendar-3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8"
+  },
+  "catalog_rebuild": {
+    "entries": 60,
+    "status": "PASS"
+  },
+  "code_branch": "phase1/pr5-market-reference-completion",
+  "code_content_digests": {
+    "scripts/run_pr5_dm1_slice.py": "sha256:f3a3baa278cc8a5c60495216d0ad8e7bd4216a9889efa2d263c5c20d258b1733",
+    "src/axiom_data/artifacts.py": "sha256:177d8ccbfd7d1f536c1e8efa07c623cdda3b283b22f410497b8002fb22e1063c",
+    "src/axiom_data/consumption.py": "sha256:28dc54cb401e1f4466b94a29cdf5b8d6b9f6512079265e74701e836fc9531c9f",
+    "src/axiom_data/dm1_source.py": "sha256:06ee3857d16442eb72a0a59d0b2a1bf5b3aa4456a38c37de8592b424874be4e7",
+    "src/axiom_data/domains/dm1.py": "sha256:eb0860c80bf75cd516081ad23d0f937199c86ccd5b298b1f882edd7d1afefe71",
+    "src/axiom_data/views.py": "sha256:44999e18a361b09d4c48c17166d8938d78b24e705d862df9c6cb1cda28df7cb4"
+  },
+  "fact_view": {
+    "anchor": "2025-09-05",
+    "derived_refs": [
+      {
+        "adjustment_factors": {
+          "contract_digest": "sha256:66971791dc0d2b20f0b5d2593ed19001199ec5456b538b32ee5c068ff3927938",
+          "contract_version": "adjustment_factors.v1",
+          "domain": "adjustment_factors",
+          "domain_commit_id": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+          "identity_digest": "sha256:8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
+          "logical_content_digest": "sha256:3842f691fc221c0b43823c04d62744dd85390063b1afdc3f82621ed43dddfd6d"
+        },
+        "market_daily": {
+          "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+          "contract_version": "market_daily.v1",
+          "domain": "market_daily",
+          "domain_commit_id": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+          "identity_digest": "sha256:3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+          "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df"
+        },
+        "view_id": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc"
+      }
+    ],
+    "price_basis": "anchor_adjusted",
+    "rows": 414,
+    "snapshot_ref": {
+      "manifest_digest": "sha256:38e71242c023d7ace6a272a76f4f26c9b9ce1eee2da1a0d89dee9d1cb99784b7",
+      "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624"
+    }
+  },
+  "forensic_closure": {
+    "path": "/var/lib/axiom-data/forensic/pr5-dm1-market-reference-20260906-r3",
+    "role": "immutable validation evidence; not production current"
+  },
+  "generated_at": "2026-09-06T06:21:59.137204+00:00",
+  "market_replay_view": {
+    "rows": 414,
+    "unsupported_events": [
+      "rights_issue",
+      "intraday_suspension",
+      "split",
+      "consolidation"
+    ],
+    "view_id": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876"
+  },
+  "qsys_reference": {
+    "bytes": 89478083,
+    "content_digest": "sha256:4f9ce6d340ccfa90979f048e9a7463b42c695f79ed2ae11d31bcc2fa8d49bbe4",
+    "path": "/home/liuming/.openclaw/workspace/SysQ/data/raw_panels/raw_panel_csi800_20200101_20251231.parquet",
+    "role": "frozen reconciliation evidence only; not truth authority"
+  },
+  "raw_batches": [
+    {
+      "domain": "trading_calendar",
+      "manifest_digest": "sha256:7a617f568ea85238fb93b1105be60010f80625288a6831d61968420f3c8995df",
+      "payload_digest": "sha256:72890b4a9df5a56be8bd995610a74742cba679f78e844885175bbb3ff2afb74a",
+      "raw_batch_id": "tushare-trade_cal-8d0ef81e4bffa0ee18491266ef313ffe361b9cc9a04051958200704000eb9df4",
+      "request": {
+        "endpoint": "trade_cal",
+        "fields": [
+          "exchange",
+          "cal_date",
+          "is_open",
+          "pretrade_date"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "exchange": "SSE",
+          "start_date": "20250601"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:30.584714+00:00",
+      "rows": 97,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.trade_cal.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "trading_calendar",
+      "manifest_digest": "sha256:b6822b8cfbe2e315ba3b06edd917518d9684e95ac9aaaf869c39f574f29c1870",
+      "payload_digest": "sha256:5d2a11c1041cbeb8ef1d7d87aae915dd180eae72171e86b703e9b476c8dd6488",
+      "raw_batch_id": "tushare-trade_cal-1fb537e0c06115b14c2f6f4525be42930396328755b30eb0eccfd1eded0b2e27",
+      "request": {
+        "endpoint": "trade_cal",
+        "fields": [
+          "exchange",
+          "cal_date",
+          "is_open",
+          "pretrade_date"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "exchange": "SZSE",
+          "start_date": "20250601"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:30.662932+00:00",
+      "rows": 97,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.trade_cal.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "security_master",
+      "manifest_digest": "sha256:e0e1635915dc66e3f69841bf49749a93dba43dac79a29b85f166dd5ee690e8a5",
+      "payload_digest": "sha256:ec440fc4d3e329dc40991d031ca1f0ef0cab79fbee4bbc777034b528fed5c270",
+      "raw_batch_id": "tushare-stock_basic-a641a4015aeea578d7fafce263354f46890ddeb2135d9b04c65eb3a87cd612e8",
+      "request": {
+        "endpoint": "stock_basic",
+        "fields": [
+          "ts_code",
+          "name",
+          "exchange",
+          "list_status",
+          "list_date",
+          "delist_date"
+        ],
+        "params": {
+          "exchange": "",
+          "list_status": "L"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:30.891556+00:00",
+      "rows": 5556,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stock_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:0e062ba73d7172817719a6af07b895d66263cc3a973125ecfef553c5c552abfe",
+      "payload_digest": "sha256:4616c8d28f9858202f5f3318cb378a6e4ef8a47bae76acda7c5b8f5d8880175d",
+      "raw_batch_id": "tushare-daily-c50d63ed42ded1e3843510b882be10ec6c32655d3a9e3c2fde8bfac177c454a9",
+      "request": {
+        "endpoint": "daily",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "open",
+          "high",
+          "low",
+          "close",
+          "pre_close",
+          "change",
+          "pct_chg",
+          "vol",
+          "amount"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH,600036.SH,688981.SH,603072.SH,000001.SZ,301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.014025+00:00",
+      "rows": 409,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:e5cdada7af12b1bcbf13447c417262e5de775b88d97980a092544cd51ee279a4",
+      "payload_digest": "sha256:48916ec1db8a0cbc1637c9e0bf6fe9f01bdcfa4aa6c33524dceb314d8c01e26f",
+      "raw_batch_id": "tushare-adj_factor-dd84fa65e73dfcf9db985efc683b48f2c35c2b64e5330fd5d7234c7b3ec0457a",
+      "request": {
+        "endpoint": "adj_factor",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "adj_factor"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH,600036.SH,688981.SH,603072.SH,000001.SZ,301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.122933+00:00",
+      "rows": 414,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.adj_factor.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:cb90c4e0c3fa2e7ea602c0834cc3168f96f4798071c53ba908af63939b7f0e32",
+      "payload_digest": "sha256:ef507bf6f17e289fd90e9e72c525904f750d8665221deadf452ddb288023fff8",
+      "raw_batch_id": "tushare-daily_basic-490fe023fcf13849b0587df3205db0c215e469d8ad5e6dd8093b06d3405db994",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "turnover_rate",
+          "total_mv",
+          "circ_mv"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.226533+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:93a876863e2429e68710e49270e02e71b148303032c50bf2586857a30ae313e4",
+      "payload_digest": "sha256:682a67d86c00a63272c57cc87866e065ca45bff7e6ebff62bfd39243a4886d48",
+      "raw_batch_id": "tushare-daily_basic-51a4c470b6817a15b72bdcea63acb718509bc519815d43e337c3eb54f1fd3aeb",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "turnover_rate",
+          "total_mv",
+          "circ_mv"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600036.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.331187+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:efaa88ecc6382cf8f17538770e35e3f269350874723527a38420106f788ce55c",
+      "payload_digest": "sha256:50ec9b4f24ab8dfdf111f3e6f33ea5f288dfd04cc60d99d397315cda24c819e1",
+      "raw_batch_id": "tushare-daily_basic-b8c4fc74184f8125a9d0eaeddf88d6c1093e167728f92017df552f18d7bd3b0e",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "turnover_rate",
+          "total_mv",
+          "circ_mv"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "688981.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.427525+00:00",
+      "rows": 64,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:69cc14e17ac92ca63edf6b051e6fbd85c3930bb289fe60bb8c64514c749684da",
+      "payload_digest": "sha256:77784aca87cf4b9970cb59a3c180f248ed8adf058984dccf2cd6555a8178cffd",
+      "raw_batch_id": "tushare-daily_basic-1b475f3a68e6fbda34767f62f1e9c3abd627a7d849d7bdf47c099945d3ff6d4d",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "turnover_rate",
+          "total_mv",
+          "circ_mv"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "603072.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.539740+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:0947af676a983917f954d65f02781cb94be524515a7bfa68848ac261b687ce0b",
+      "payload_digest": "sha256:db47cec4b4ee805f664dc4afec55653c5fbe2f44c1c89be42c5afca80d6a409a",
+      "raw_batch_id": "tushare-daily_basic-c6a637997027b2ed59f0893c310ced89a21733ff0c13db3410de512fa4479992",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "turnover_rate",
+          "total_mv",
+          "circ_mv"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "000001.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.629022+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:ac0314c69612713fbe96a7b91972a518063ed88f0f636390ae798aef77634943",
+      "payload_digest": "sha256:edcf4fc76ce567699541e4d3ff0d95795b87e183ebc4ba6f822df2df44c76dd4",
+      "raw_batch_id": "tushare-daily_basic-dc1fb5401a300710d3ce04810d5f1e2ac7f48eb66de69d3df752c5c3cf24f414",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "turnover_rate",
+          "total_mv",
+          "circ_mv"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.729421+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:dc29002aaadc1b9eb87289b20cda79a881bbca9cfc38ea78a16c4e0b7035b568",
+      "payload_digest": "sha256:d0d571b6ef4a7d3d61bae71b6e07c968ee2d658cf4afcd54d71d108607c53f21",
+      "raw_batch_id": "tushare-stk_limit-e685ddfcd1b91bd04cd8e71e10a15eb81bf97718d6e84605310a6719a86a2a34",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.825981+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:b61a049f2cbb483327d8267c0afd09baa7b8252edd549ec984df8e31ee0ed5b2",
+      "payload_digest": "sha256:2b9f61473d35bbc7b6939c62700bead6ca268d92b9448c2d9e5cb93742249892",
+      "raw_batch_id": "tushare-stk_limit-28e881b13a3aa98245e61998f6938c2bc1dc1938bd264df2e46f2d4024350326",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600036.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:31.938334+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:625b7d8ced290985d5736e1edc529fbf7c35f6cf520cc0f88cf6eaa7813206ac",
+      "payload_digest": "sha256:4344c103296d5c4a688d955593211d68e15404327eced25563db27e069703dec",
+      "raw_batch_id": "tushare-stk_limit-f077d6cb70c6b7a9a1b7ea5aee3c7db11eb9b355ccb7c8a0b1efe8db222779c8",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "688981.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:32.027624+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:d5ba9cf6f02e7448f3e8d5b99e5c88a8d55db409a353b8d3d7e5a18a9ab4d1b2",
+      "payload_digest": "sha256:b1a33b7923089134a04f3195847d2f0d554b72240afaea42af7978f29637d3a1",
+      "raw_batch_id": "tushare-stk_limit-52418a9e4ac3dc19c4fde17cb87d619b32c9fd50cef51e4e10bbede613a2644f",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "603072.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.131744+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:3e37e46474dc4fe680ef749ad65baf0e8f02c3d6456c4591014676ab26ee807e",
+      "payload_digest": "sha256:944eb93ed2d33ee4e83cd30cdd1f266bb1aa15cc04e8ee51e9d517942d6f706c",
+      "raw_batch_id": "tushare-stk_limit-a550818f5bfb931e12fc9fe0215869721f075b22313f97685ebb2a6bc55ceaa8",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "000001.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.247939+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:84e4800ff52d97bd193e89b8dc0aa882d47eee34dd43dba935105a244a84a930",
+      "payload_digest": "sha256:8fb1dab4ccc0ab2ece329ed3fbcd3f996fd4f2aab44a01db2dff9c47688f40cc",
+      "raw_batch_id": "tushare-stk_limit-ed29699953a3ee4ab4374323abce27702f592833df50d393d75a5736d1062b07",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.341953+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:60dc21a0ba40b027255cbd43dacb64d3762c41ee589e54f91bc43001300e9b67",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-df588ff468ac6ae716c24b71e715f7b398c6354f2b5d9435dd1a774b67ca990c",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.447374+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:0541cf5d63168ef7cbf93226a6bc033a8b74b9175c81ffe864469c266e4232b6",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-644d1d8cf2365ef472caeb3d27e86054d39133dde76f9a77bd63af00d1048906",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600036.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.530697+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:bb5391e348172bc3ef5460fa21a2604ea6d9e2368c7ce449a0f49f327ea2821f",
+      "payload_digest": "sha256:5525382264b09ba9f2e529e9e974bfd6b96ba99e564c665d664688dd220c3273",
+      "raw_batch_id": "tushare-suspend_d-93813bbf14991db3e4056d52237543f59233d8e1f568d5d441c16d0b8c72e97e",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "688981.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.632482+00:00",
+      "rows": 5,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:493ce93efdbaba66d8340696709632dd760e4b4ff32cf23c1645762bdec11332",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-0a5e3031b50ffeb708ce97391c9a866830891d914a850f4eeecd790f8a613a4c",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "603072.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.719234+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:19902ca5be4448db633b6af066641a36419cf3b683b0fb966b9304637028885c",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-75da01b4e526995b89b7b585649c019137d93ad516600ebf0093b0caec1837be",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "000001.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.798593+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:2f0ed4d12c44b429f80159fef08a1beec9a463475108c337a1e6f9107389d221",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-b2ee14146b2f92aa5b9e8792cdb421dca2273e961df263c991e415bc99edd380",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.877326+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:2bfa44902ab15b3ca313fca5e5bf5d05af364075bf209cde7923e11e06b73191",
+      "payload_digest": "sha256:738d4f3934614da0e99598afccede4c03f807c14b0f1b72c42747164ae2d1433",
+      "raw_batch_id": "tushare-security_status-daily-e188bf1eb9008bb70143672b50628d6a967b03df5913447b55c44529b3b0ba93",
+      "request": {
+        "endpoint": "daily",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "open",
+          "high",
+          "low",
+          "close",
+          "pre_close",
+          "vol",
+          "amount"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH,600036.SH,688981.SH,603072.SH,000001.SZ,301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:33.981447+00:00",
+      "rows": 409,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.daily.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:8ad021b59a7134f4971acba0376a76aef398aff7a5e796da4285f8baca31eb23",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-621f9e6af308e78975a2bc8034ba153d6806461cdc0901892d3110802a35ba6b",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.068864+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:940976d66ec983960fa45eb382727324051a2364841deb5d8ec7ebb1643ede66",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-609441c9aca403b47d7b54d8a9307f8b5994ae38e1314aeec2f5f2de34c9f55e",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600036.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.459593+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:b9c9a040f28f76aa2af37b05af5bc88d5672f235b69cf2b619f0c11ce93a5229",
+      "payload_digest": "sha256:5525382264b09ba9f2e529e9e974bfd6b96ba99e564c665d664688dd220c3273",
+      "raw_batch_id": "tushare-security_status-suspend_d-1e5366c6bc7ea4c48abd33ddb127fc53bc9881babaee56465e192841fa77a616",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "688981.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.851698+00:00",
+      "rows": 5,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:74e4be14ba4cfa9502be17b93a2075b5e685936207941e1bc115c54734deb826",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-da1f9e755e1a3e9b8f7d7dd9620f3520e327e5bf58571e6b0e06ac571b0fb5ca",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "603072.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.230851+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:52ecbfc448b5299796aa2cea48ec930df368fed3e2ceaac7eb5a94b2d50eeadf",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-44e56abc502bc7b27d647dead38230295487048fa95627015c2e35da5808426a",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "000001.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.629519+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:386e21408e5d313f6c960afac3b07e566f1ace18d35bec7219aa3ca33d7bf952",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-1dcb56be5606f32449a3ec8ad2c783d2aaeb920c9c8ab9712f1dfb6dbbeed2ef",
+      "request": {
+        "endpoint": "suspend_d",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "suspend_timing",
+          "suspend_type"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.992814+00:00",
+      "rows": 0,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:15ba0e5a4034ef6d1a1ce2ba7665b8a24eddb355021734e57def55da6b464cd2",
+      "payload_digest": "sha256:d0d571b6ef4a7d3d61bae71b6e07c968ee2d658cf4afcd54d71d108607c53f21",
+      "raw_batch_id": "tushare-price_limits-stk_limit-ee4df6b1249c96c5495acea19d7adde0d4f4de9183fcbe966a3851dbf273a266",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.172435+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:9274c74fc2014f0f4413efd0cfce4c54ba4101d8266d1d132ed8756ae76a2728",
+      "payload_digest": "sha256:2b9f61473d35bbc7b6939c62700bead6ca268d92b9448c2d9e5cb93742249892",
+      "raw_batch_id": "tushare-price_limits-stk_limit-fc429e09e6e0c1cbb78ba09b28864e321343277513084b921c5cb3e5fbaed4e9",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600036.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.559350+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:0f7cb1bc8c0e5465c7a83102fc7909f4882b1c940fb8cbea5a08b8e8d53cdd13",
+      "payload_digest": "sha256:4344c103296d5c4a688d955593211d68e15404327eced25563db27e069703dec",
+      "raw_batch_id": "tushare-price_limits-stk_limit-fbb5152b38fdcd3116135360ddad6b83cabeea29f9804e741c6ae44f3bb7a778",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "688981.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.945498+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:a8e03609e9dc916da43e8f669aaa250cc54bc3f8f7cfbb4632d786058044a4ea",
+      "payload_digest": "sha256:b1a33b7923089134a04f3195847d2f0d554b72240afaea42af7978f29637d3a1",
+      "raw_batch_id": "tushare-price_limits-stk_limit-e1f28c091de463595bb8a88ffcd9257eadb5b529466bb06b6875dc0698de3ee2",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "603072.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.326817+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:9ba5f9876fec3bc1a3d6ec9b0bf143b1b8e976b372030a571f72304559287502",
+      "payload_digest": "sha256:944eb93ed2d33ee4e83cd30cdd1f266bb1aa15cc04e8ee51e9d517942d6f706c",
+      "raw_batch_id": "tushare-price_limits-stk_limit-37f85b445bf5471fb2da59de4effe57f522cd162d1d176829f9a4125023908fb",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "000001.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.726837+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:ea88e6e72e6f248270f3acd5a68c4937c3118e674e592f7c2733c1fe643ea81f",
+      "payload_digest": "sha256:8fb1dab4ccc0ab2ece329ed3fbcd3f996fd4f2aab44a01db2dff9c47688f40cc",
+      "raw_batch_id": "tushare-price_limits-stk_limit-69b1c5e0fe25110e22ea9435ec4cbde52292b6071bb5c8bedf585cac870f9673",
+      "request": {
+        "endpoint": "stk_limit",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "up_limit",
+          "down_limit"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:36.100916+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:6bdce189e4b3dc03412841ec9de87eae412a79575c339627793acf6cfb046dc4",
+      "payload_digest": "sha256:d25199a31bfee0d5b16b957bead997792c59fbb69b903af3b42500f3401f1ced",
+      "raw_batch_id": "tushare-corporate_actions-dividend-9be49ae6724ec75f0837fa836ca40dae7990024c603c777ca958d61f876b1154",
+      "request": {
+        "endpoint": "dividend",
+        "fields": [
+          "ts_code",
+          "ann_date",
+          "end_date",
+          "div_proc",
+          "stk_div",
+          "stk_bo_rate",
+          "stk_co_rate",
+          "cash_div_tax",
+          "record_date",
+          "ex_date",
+          "pay_date",
+          "div_listdate"
+        ],
+        "params": {
+          "div_proc": "实施",
+          "ts_code": "600000.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.285469+00:00",
+      "rows": 78,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:1e75f4eef79b0dc2a1921b95f013188c485a79cf13c6992f7ac00a2f82416b8c",
+      "payload_digest": "sha256:7f4d3a2bfcd60c99dd68f64809277aa77dc7882e5cd4cb215da1d41973b9fbd8",
+      "raw_batch_id": "tushare-corporate_actions-dividend-f96031615378eee0e66797c6b6790ea3575c1d6798ee3f19a65cd07fe32e0260",
+      "request": {
+        "endpoint": "dividend",
+        "fields": [
+          "ts_code",
+          "ann_date",
+          "end_date",
+          "div_proc",
+          "stk_div",
+          "stk_bo_rate",
+          "stk_co_rate",
+          "cash_div_tax",
+          "record_date",
+          "ex_date",
+          "pay_date",
+          "div_listdate"
+        ],
+        "params": {
+          "div_proc": "实施",
+          "ts_code": "600036.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.664389+00:00",
+      "rows": 75,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:880dae66e5ada1b74113b77ad4894d621f359f4e6a5282df28d1011e1116e5e6",
+      "payload_digest": "sha256:de5c5aee9cfffe000ddcf63bebce981f2dd75642fc689b854b22c3d31b2eb048",
+      "raw_batch_id": "tushare-corporate_actions-dividend-59eef59cfcb81d6242ad0182d24e001ea85ba32b3c2d04ea5875f28cb1d0feb4",
+      "request": {
+        "endpoint": "dividend",
+        "fields": [
+          "ts_code",
+          "ann_date",
+          "end_date",
+          "div_proc",
+          "stk_div",
+          "stk_bo_rate",
+          "stk_co_rate",
+          "cash_div_tax",
+          "record_date",
+          "ex_date",
+          "pay_date",
+          "div_listdate"
+        ],
+        "params": {
+          "div_proc": "实施",
+          "ts_code": "688981.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.030207+00:00",
+      "rows": 26,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:6c824f887e5cf00202ed208e355c5837ef5da16634fdf0fdcf034767aea27e6c",
+      "payload_digest": "sha256:9144876fc7a268672ecc824f9b2b96ec53aa2f3dead4bc05d0ff844a343a0720",
+      "raw_batch_id": "tushare-corporate_actions-dividend-0e124afe62258b82f0337e6968862f1112286f5c8c535cbfd3b2aec05c10e04a",
+      "request": {
+        "endpoint": "dividend",
+        "fields": [
+          "ts_code",
+          "ann_date",
+          "end_date",
+          "div_proc",
+          "stk_div",
+          "stk_bo_rate",
+          "stk_co_rate",
+          "cash_div_tax",
+          "record_date",
+          "ex_date",
+          "pay_date",
+          "div_listdate"
+        ],
+        "params": {
+          "div_proc": "实施",
+          "ts_code": "603072.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.426082+00:00",
+      "rows": 12,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:f05835dbdd8be198eada582ff0758c8a6633657fcd936d2dc05feab929c8cb12",
+      "payload_digest": "sha256:2f1fd3c16ab3e48a0255549a839676f01778d6123739fb3d429c7dc1285a18ab",
+      "raw_batch_id": "tushare-corporate_actions-dividend-33c87c38a5638871c501c0c452fd7088c33c0bf5978b3e92fd6733e8284d4c8d",
+      "request": {
+        "endpoint": "dividend",
+        "fields": [
+          "ts_code",
+          "ann_date",
+          "end_date",
+          "div_proc",
+          "stk_div",
+          "stk_bo_rate",
+          "stk_co_rate",
+          "cash_div_tax",
+          "record_date",
+          "ex_date",
+          "pay_date",
+          "div_listdate"
+        ],
+        "params": {
+          "div_proc": "实施",
+          "ts_code": "000001.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.816342+00:00",
+      "rows": 97,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:bbd5e7b4e1ac99185dbf770449d0bd2f5e77c891dc66e2a1e0af85f826bd890d",
+      "payload_digest": "sha256:1e19853fea511e5f7ced277127b228ac1964d550fb3a0c44805f33f260c780ad",
+      "raw_batch_id": "tushare-corporate_actions-dividend-7b86498c51cc339ecd6ccc5bea096461232d9bc8937a04541a05a211f4d265be",
+      "request": {
+        "endpoint": "dividend",
+        "fields": [
+          "ts_code",
+          "ann_date",
+          "end_date",
+          "div_proc",
+          "stk_div",
+          "stk_bo_rate",
+          "stk_co_rate",
+          "cash_div_tax",
+          "record_date",
+          "ex_date",
+          "pay_date",
+          "div_listdate"
+        ],
+        "params": {
+          "div_proc": "实施",
+          "ts_code": "301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:36.201264+00:00",
+      "rows": 10,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "adjustment_factors",
+      "manifest_digest": "sha256:6c7423988a2fae3335015c1ecc2929b4898d6ce40ef593ed96968d8ef2927a0a",
+      "payload_digest": "sha256:48916ec1db8a0cbc1637c9e0bf6fe9f01bdcfa4aa6c33524dceb314d8c01e26f",
+      "raw_batch_id": "tushare-adjustment_factors-adj_factor-548d90a2731664bd0edb4f722e60091f255b8a98dc3b1338665f4485470f59b9",
+      "request": {
+        "endpoint": "adj_factor",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "adj_factor"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH,600036.SH,688981.SH,603072.SH,000001.SZ,301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:36.390187+00:00",
+      "rows": 414,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.adj_factor.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "benchmark_daily",
+      "manifest_digest": "sha256:fb14c0e0139495b2f20c1e6a8b668c2571f21b976f203974cd0d289f6222ebe1",
+      "payload_digest": "sha256:c9c4d43ae3ed81892c38a8a8631f2051e1afac02eb99b23fefc291e3096cca70",
+      "raw_batch_id": "tushare-benchmark_daily-index_daily-2b0670ca02848ab9d9b529c348a92101102769c162ace0202bd17123d1d9b7c1",
+      "request": {
+        "endpoint": "index_daily",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "close"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "000300.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:36.482033+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.index_daily.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:ba8743cf7f04c1958aa32eeeae599632c8ddd6bff41c034b08900ba24bdddf16",
+      "payload_digest": "sha256:41471ed45e87d6110cb983336621f9b25745e59f72818b66afe0a52430763156",
+      "raw_batch_id": "tushare-security_capital-daily_basic-4cd4e0b8c983114d9e87c68927ce89ed28194cbfa2da0b5cde4e7b238cbd7277",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "total_share",
+          "float_share"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600000.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.373968+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:9dc5a28fe490b2b942e7cc4f581a74b93d7fddf04528787fc036308733830cf1",
+      "payload_digest": "sha256:b360f29957bca638c5731afe85b76910356046ec66798d89c2d6866a0831988f",
+      "raw_batch_id": "tushare-security_capital-daily_basic-bdda8969da59a648a14e3ed1f2d3c658c0b8b5a63da1cee0af2510f0aa621edd",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "total_share",
+          "float_share"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "600036.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:34.749826+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:a5ea83fec2ab5a76cb69e5311f332dd9c95ee25093e47cedd56515b10b290cf1",
+      "payload_digest": "sha256:3cdcf50cbfd53fb65778bed949f61aeaa142103408d2a49bc979a722aa33ba0a",
+      "raw_batch_id": "tushare-security_capital-daily_basic-b7becb88d98fde4ce449d0c70ae1ff1ebcfdb25f6c7f09c8ef157f5eeb69f128",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "total_share",
+          "float_share"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "688981.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.134340+00:00",
+      "rows": 64,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:6bd6eb8717eb45f64142ea3ec5eaab779f0c17ec348b11969d348385a82d7824",
+      "payload_digest": "sha256:08b47ae66d2fc0af9123206312057f850cf762d199461c9f2df197cf022dc697",
+      "raw_batch_id": "tushare-security_capital-daily_basic-3e69fe30a7915f73efda5dc7baf78a0c8ebe137eca38f92bdf8da65a8112adbf",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "total_share",
+          "float_share"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "603072.SH"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.521908+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:21e470c6e1aecb90b6bbd0f0f8cf2a210d396793f954d4371c648d046ed92433",
+      "payload_digest": "sha256:2d8d084575b22f953a86cd5c8f6557456f7188bd90b1f69b40cce4079b5501fb",
+      "raw_batch_id": "tushare-security_capital-daily_basic-e32018125af68a7cb076825e42d17b643dd1742e0ea87ea0b2a99fa2ba5f5d0d",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "total_share",
+          "float_share"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "000001.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:35.910037+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:f08781f71dace2a524853adc5f63866411099206f505b26824a20b80a97249d9",
+      "payload_digest": "sha256:c9017dbf9b2949da16ae18ffbd05061fb483c3646a3d65ae0dd2561b97e83fc9",
+      "raw_batch_id": "tushare-security_capital-daily_basic-5dc87fc781fcc42d955923ad6c5c90ce5329c01cdca5d7016a1e95ec70f284a9",
+      "request": {
+        "endpoint": "daily_basic",
+        "fields": [
+          "ts_code",
+          "trade_date",
+          "total_share",
+          "float_share"
+        ],
+        "params": {
+          "end_date": "20250905",
+          "start_date": "20250601",
+          "ts_code": "301581.SZ"
+        }
+      },
+      "retrieved_at": "2026-09-06T06:21:36.295449+00:00",
+      "rows": 69,
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    }
+  ],
+  "real_cases": {
+    "confirmed_suspensions": [
+      [
+        "2025-09-01",
+        "688981.SH"
+      ],
+      [
+        "2025-09-02",
+        "688981.SH"
+      ],
+      [
+        "2025-09-03",
+        "688981.SH"
+      ],
+      [
+        "2025-09-04",
+        "688981.SH"
+      ],
+      [
+        "2025-09-05",
+        "688981.SH"
+      ]
+    ],
+    "corporate_actions": [
+      {
+        "action_id": "ca-35abff54a84d9ccb97203d6a160a755e46c3f8ce66a0376a096db387a0089038",
+        "action_type": "cash_dividend",
+        "action_version": "obs-d7a4231adc9ffa02e68204fdf2dfecff19733c9837694f5f4088bb2789d816b5",
+        "announcement_date": "2025-05-24",
+        "availability_basis": "terminal_history_observed",
+        "cash_per_share": 0.362,
+        "effective_date": "2025-06-12",
+        "ex_date": "2025-06-12",
+        "first_observed_at": "2026-09-06T06:21:35.816342+00:00",
+        "payment_date": "2025-06-12",
+        "pit_qualification": "best_effort",
+        "record_date": "2025-06-11",
+        "share_available_date": null,
+        "source_available_at": null,
+        "source_ref": "tushare-corporate_actions-dividend-33c87c38a5638871c501c0c452fd7088c33c0bf5978b3e92fd6733e8284d4c8d",
+        "split_ratio": null,
+        "stock_ratio": null,
+        "symbol": "000001.SZ",
+        "transfer_ratio": null
+      },
+      {
+        "action_id": "ca-77cc33de43b4a82a1c8835937c37ef273bc33bd0c6c525ab6772f942c32b3ca2",
+        "action_type": "cash_dividend",
+        "action_version": "obs-ae127c9bd6758a6d88caa55074e26700d0f4f81d3a37bdae928335ef1ef113e9",
+        "announcement_date": "2025-06-26",
+        "availability_basis": "terminal_history_observed",
+        "cash_per_share": 2.0,
+        "effective_date": "2025-07-11",
+        "ex_date": "2025-07-11",
+        "first_observed_at": "2026-09-06T06:21:34.664389+00:00",
+        "payment_date": "2025-07-11",
+        "pit_qualification": "best_effort",
+        "record_date": "2025-07-10",
+        "share_available_date": null,
+        "source_available_at": null,
+        "source_ref": "tushare-corporate_actions-dividend-f96031615378eee0e66797c6b6790ea3575c1d6798ee3f19a65cd07fe32e0260",
+        "split_ratio": null,
+        "stock_ratio": null,
+        "symbol": "600036.SH",
+        "transfer_ratio": null
+      },
+      {
+        "action_id": "ca-1854b8600c74a4ecb012e7238b5cfa42b8ac8b7f68890ace1d26bbebe5dd1360",
+        "action_type": "cash_dividend",
+        "action_version": "obs-f5309fcc440f58de5eb3a44f4ad6dc166fc92d26fe5fa6df666e62c3b170d97f",
+        "announcement_date": "2025-06-28",
+        "availability_basis": "terminal_history_observed",
+        "cash_per_share": 0.41,
+        "effective_date": "2025-07-16",
+        "ex_date": "2025-07-16",
+        "first_observed_at": "2026-09-06T06:21:34.285469+00:00",
+        "payment_date": "2025-07-16",
+        "pit_qualification": "best_effort",
+        "record_date": "2025-07-15",
+        "share_available_date": null,
+        "source_available_at": null,
+        "source_ref": "tushare-corporate_actions-dividend-9be49ae6724ec75f0837fa836ca40dae7990024c603c777ca958d61f876b1154",
+        "split_ratio": null,
+        "stock_ratio": null,
+        "symbol": "600000.SH",
+        "transfer_ratio": null
+      }
+    ],
+    "factor_changes": [
+      {
+        "first": 127.7841,
+        "last": 131.7878,
+        "symbol": "000001.SZ"
+      },
+      {
+        "first": 16.1051,
+        "last": 16.5935,
+        "symbol": "600000.SH"
+      },
+      {
+        "first": 6.0581,
+        "last": 6.3201,
+        "symbol": "600036.SH"
+      }
+    ],
+    "limited_rows": 414,
+    "pre_close_not_prior_row_close": [
+      {
+        "pre_close": 11.49,
+        "prior_row_close": 11.85,
+        "session": "2025-06-12",
+        "symbol": "000001.SZ"
+      },
+      {
+        "pre_close": 46.24,
+        "prior_row_close": 48.24,
+        "session": "2025-07-11",
+        "symbol": "600036.SH"
+      },
+      {
+        "pre_close": 13.52,
+        "prior_row_close": 13.93,
+        "session": "2025-07-16",
+        "symbol": "600000.SH"
+      }
+    ],
+    "unknown_source_gaps": []
+  },
+  "reports": [
+    "direct_qlib_equivalence.json",
+    "dm1_raw_mapping_reconciliation.json",
+    "qsys_reconciliation.json",
+    "offline_recovery.json",
+    "dm1_acceptance_matrix.json"
+  ],
+  "schema_version": "axiom_data.pr5_dm1_run.v1",
+  "scope": {
+    "benchmarks": [
+      "000300.SH"
+    ],
+    "end_session": "2025-09-05",
+    "start_session": "2025-06-01",
+    "symbols": [
+      "600000.SH",
+      "600036.SH",
+      "688981.SH",
+      "603072.SH",
+      "000001.SZ",
+      "301581.SZ"
+    ]
+  },
+  "scope_manifest": {
+    "content_digest": "sha256:7cac369637cb23b9bc19e3f1fcf39d21010049ce6e0fb6c97626788b0e5b67ea",
+    "path": "src/axiom_data/scope/pr5_d_m1_scope.v1.json"
+  },
+  "source_profile": {
+    "digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+    "version": "tushare_dm1.v1"
+  },
+  "status": "PASS"
+}
