@@ -488,22 +488,47 @@ class Pr5Dm1Test(unittest.TestCase):
                 ),
             ).build(None, [raw_id], [], "adjustment_factors.v1")
 
-        with self.assertRaisesRegex(ArtifactError, "violate"):
+        with self.assertRaisesRegex(ArtifactError, "VERIFIED_EVIDENCE_UNAVAILABLE"):
             publish_factor(
-                "raw-verified-no-availability",
+                "raw-verified-current-batch",
                 "verified",
                 "revision_specific_public_evidence",
-                None,
-                "2026-01-01T00:00:00+00:00",
+                "2025-01-01T00:00:00+00:00",
+                FIXED_TIME,
             )
-        with self.assertRaisesRegex(ArtifactError, "outside the immutable RawBatch closure"):
+        for name, source_ref in (
+            ("other-raw", self.ids["adjustment_factors"][0]),
+            ("domain-commit", artifacts["adjustment_factors"]),
+            ("snapshot", artifacts["snapshot"]),
+            ("fabricated", "evidence-random-artifact-id"),
+        ):
+            with self.subTest(verified_source=name), self.assertRaisesRegex(
+                ArtifactError, "VERIFIED_EVIDENCE_UNAVAILABLE"
+            ):
+                publish_factor(
+                    f"raw-verified-{name}",
+                    "verified",
+                    "revision_specific_public_evidence",
+                    "2025-01-01T00:00:00+00:00",
+                    FIXED_TIME,
+                    source_ref=source_ref,
+                )
+
+        valid_observed = publish_factor(
+            "raw-observed-valid",
+            "observed",
+            "first_observation",
+            None,
+            FIXED_TIME,
+        )
+        self.assertTrue(valid_observed.commit_id.startswith("adjustment_factors-"))
+        with self.assertRaisesRegex(ArtifactError, "predates its RawBatch retrieval"):
             publish_factor(
-                "raw-verified-fake-ref",
-                "verified",
-                "revision_specific_public_evidence",
-                "2026-01-01T00:00:00+00:00",
-                "2026-01-01T00:00:00+00:00",
-                source_ref="raw-not-in-this-closure",
+                "raw-observed-too-early",
+                "observed",
+                "first_observation",
+                None,
+                "2026-09-06T01:00:00+00:00",
             )
 
         observed = publish_factor(
@@ -511,7 +536,7 @@ class Pr5Dm1Test(unittest.TestCase):
             "observed",
             "first_observation",
             None,
-            "2026-09-06T00:00:00+00:00",
+            FIXED_TIME,
         )
         snapshot_ids = {
             name: artifacts[name]
@@ -659,32 +684,56 @@ class Pr5Dm1Test(unittest.TestCase):
                 "dm1_acceptance_matrix",
             )
         }
-        validate_pr5_evidence(*reports.values())
-        cases = []
+        data_root = Path(reports["run_manifest"]["forensic_closure"]["path"])
+        validate_pr5_evidence(data_root, *reports.values())
+
+        def coordinated(old: str, new: str) -> dict[str, object]:
+            return json.loads(json.dumps(reports).replace(old, new))
+
+        refs = reports["run_manifest"]["artifact_refs"]
+        coordinated_cases = (
+            ("adjusted", refs["adjusted_price_view"]["view_id"], "adjusted-price-" + "0" * 64),
+            ("replay", refs["market_replay_view"]["view_id"], "market-replay-" + "0" * 64),
+            ("qlib", refs["qlib_view"]["view_id"], "qlib-" + "0" * 64),
+            ("snapshot", refs["snapshot"]["snapshot_id"], "snapshot-" + "0" * 64),
+            ("manifest-digest", refs["adjusted_price_view"]["manifest_digest"], "sha256:" + "0" * 64),
+        )
+        for name, old, new in coordinated_cases:
+            with self.subTest(coordinated=name), self.assertRaises(ArtifactError):
+                validate_pr5_evidence(data_root, *coordinated(old, new).values())
+
+        gate_cases = []
         changed = deepcopy(reports)
-        changed["run_manifest"]["artifact_refs"]["adjusted_price_view"]["view_id"] = "adjusted-price-tampered"
-        cases.append(("adjusted", changed))
+        del changed["dm1_acceptance_matrix"]["gates"]["D01"]["checks"]["immutable_snapshot_coexists"]
+        gate_cases.append(("missing", changed))
         changed = deepcopy(reports)
-        changed["run_manifest"]["artifact_refs"]["market_replay_view"]["content_digest"] = "sha256:" + "0" * 64
-        cases.append(("replay", changed))
+        check = changed["dm1_acceptance_matrix"]["gates"]["D01"]["checks"].pop("immutable_snapshot_coexists")
+        changed["dm1_acceptance_matrix"]["gates"]["D01"]["checks"]["immutable_snapshot_ok"] = check
+        gate_cases.append(("rename", changed))
         changed = deepcopy(reports)
-        changed["direct_qlib_equivalence"]["qlib_view_ref"]["view_id"] = "qlib-tampered"
-        cases.append(("qlib", changed))
+        changed["dm1_acceptance_matrix"]["gates"]["D01"]["checks"] = {"unrelated_claim": True}
+        gate_cases.append(("replacement", changed))
         changed = deepcopy(reports)
-        changed["run_manifest"]["artifact_refs"]["snapshot"]["snapshot_id"] = "snapshot-tampered"
-        cases.append(("snapshot", changed))
-        changed = deepcopy(reports)
-        changed["dm1_acceptance_matrix"]["gates"]["D14"]["checks"]["values_and_nulls"] = False
-        cases.append(("acceptance", changed))
+        changed["dm1_acceptance_matrix"]["gates"]["D01"]["checks"]["immutable_snapshot_coexists"] = False
+        gate_cases.append(("false-pass", changed))
         changed = deepcopy(reports)
         changed["offline_recovery"]["rebuilt_refs"]["snapshot"]["snapshot_id"] = "snapshot-tampered"
-        cases.append(("offline", changed))
-        changed = deepcopy(reports)
-        changed["offline_recovery"]["catalog_rebuild"]["exact_view_lookups"]["qlib_view"] = False
-        cases.append(("offline-catalog", changed))
-        for name, changed in cases:
+        gate_cases.append(("rebuilt-ref", changed))
+        for name, changed in gate_cases:
             with self.subTest(name=name), self.assertRaises(ArtifactError):
-                validate_pr5_evidence(*changed.values())
+                validate_pr5_evidence(data_root, *changed.values())
+
+        corrupt_root = Path(self.temporary.name) / "corrupt-evidence-root"
+        shutil.copytree(data_root, corrupt_root)
+        adjusted_rows = (
+            corrupt_root
+            / "derived/adjusted_price/commits"
+            / refs["adjusted_price_view"]["view_id"]
+            / "rows.json"
+        )
+        adjusted_rows.write_bytes(adjusted_rows.read_bytes() + b"corrupt")
+        with self.assertRaisesRegex(ArtifactError, "digest"):
+            validate_pr5_evidence(corrupt_root, *reports.values())
 
 
 if __name__ == "__main__":

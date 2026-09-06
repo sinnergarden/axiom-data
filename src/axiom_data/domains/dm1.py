@@ -34,6 +34,7 @@ PIT_QUALIFICATIONS = frozenset({"verified", "observed", "best_effort", "unknown"
 _PIT_STRENGTH = {"unknown": 0, "best_effort": 1, "observed": 2, "verified": 3}
 REVISION_SPECIFIC_PUBLIC_EVIDENCE = "revision_specific_public_evidence"
 FIRST_OBSERVATION_EVIDENCE = "first_observation"
+TERMINAL_HISTORY_EVIDENCE = "terminal_history_observed"
 _INDEX = re.compile(r"[0-9]{6}\.(SH|SZ)\Z")
 _STATUS_REASON = {
     "normal_active": "daily_observation",
@@ -74,17 +75,21 @@ def _provenance(row: Mapping[str, object]) -> None:
     qualification = _text("pit_qualification", row["pit_qualification"])
     if qualification not in PIT_QUALIFICATIONS:
         raise MarketContractError("pit_qualification is not canonical")
-    if qualification == "verified" and (
-        source_available is None or basis != REVISION_SPECIFIC_PUBLIC_EVIDENCE
-    ):
+    if qualification == "verified":
         raise MarketContractError(
-            "verified PIT requires revision-specific public availability evidence"
+            "VERIFIED_EVIDENCE_UNAVAILABLE: D-M1 has no typed SourceEvidence artifact"
         )
     if qualification == "observed" and (
         source_available is not None or basis != FIRST_OBSERVATION_EVIDENCE
     ):
         raise MarketContractError(
             "observed PIT must be supported only by first observation"
+        )
+    if qualification == "best_effort" and (
+        source_available is not None or basis != TERMINAL_HISTORY_EVIDENCE
+    ):
+        raise MarketContractError(
+            "best_effort PIT requires explicit terminal-history observation semantics"
         )
     _text("source_ref", row["source_ref"])
 
@@ -107,14 +112,13 @@ def validate_strict_decision_time(
 
     cutoff = _date("decision cutoff", cutoff_session)
     for row in rows:
+        _provenance(row)
         qualification = row.get("pit_qualification")
         if qualification in {"best_effort", "unknown"}:
             raise MarketContractError(
                 "best-effort or unknown historical facts cannot support strict decision time"
             )
-        timestamp_name = (
-            "source_available_at" if qualification == "verified" else "first_observed_at"
-        )
+        timestamp_name = "first_observed_at"
         timestamp = _timestamp(timestamp_name, row.get(timestamp_name))
         assert timestamp is not None
         if datetime.fromisoformat(timestamp.replace("Z", "+00:00")).date() > cutoff:
@@ -362,6 +366,7 @@ __all__ = [
     "PIT_QUALIFICATIONS",
     "FIRST_OBSERVATION_EVIDENCE",
     "REVISION_SPECIFIC_PUBLIC_EVIDENCE",
+    "TERMINAL_HISTORY_EVIDENCE",
     "validate_dm1_snapshot_rows",
     "validate_strict_decision_time",
     "weakest_pit_qualification",

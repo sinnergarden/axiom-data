@@ -618,7 +618,7 @@
   "gates": {
     "D01": {
       "checks": {
-        "snapshot_v2_loads": true
+        "immutable_snapshot_coexists": true
       },
       "mismatch_count": 0,
       "mismatches": [],

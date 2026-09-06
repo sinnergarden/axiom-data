@@ -34,11 +34,13 @@ D-M1 Snapshot v2 contains the original three PR3 domains plus:
 Every new observation follows the independent
 `tushare_dm1.v1 -> raw_batch.v2 -> domain_commit.v1` path.  Its normalized
 SourceProfile digest is part of RawBatch and DomainCommit identity.  A current
-terminal-history response is `best_effort` unless separate evidence qualifies
-it; an economic date alone never implies verified PIT availability.  A
-`verified` row requires a source-availability time, revision-specific public
-evidence, and an evidence ref resolvable in the same immutable closure.  A row
-with only first-observation evidence is `observed`.
+terminal-history response is `best_effort`; an economic date alone never
+implies verified PIT availability.  A typed SourceEvidence artifact is not
+implemented in PR5, so D-M1 canonical
+builders reject every `verified` row with `VERIFIED_EVIDENCE_UNAVAILABLE`.
+A row with only first-observation evidence is `observed`; its source ref must
+resolve to a same-domain RawBatch and cannot claim observation before that
+RawBatch was retrieved.
 
 Each RawBatch is validated before endpoint payloads are aggregated.  The
 validator binds endpoint/profile and collector revisions, exact requested
@@ -95,6 +97,12 @@ catalog deletion is handled by manifest scanning.  Catalog rebuilding validates
 and indexes RawBatch, DomainCommit, Snapshot, adjusted-price, MarketReplay, and
 Qlib manifests through their normal loaders; the catalog remains a disposable
 index rather than provenance authority.
+
+PR5 evidence validation takes an explicit immutable data root.  It loads every
+reported RawBatch, DomainCommit, Snapshot, adjusted-price view,
+MarketReplayView, and QlibView through the formal loaders before comparing
+reports.  Its D01-D15 checks and required refs are a fixed PR5 map; report
+`PASS` values are summaries derived from those loaded objects, not authority.
 
 ## Exclusions
 

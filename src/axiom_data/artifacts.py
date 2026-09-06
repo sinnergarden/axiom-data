@@ -611,7 +611,36 @@ def _validate_domain_rows(domain: str, rows: object) -> None:
     try:
         _DOMAIN_VALIDATORS[domain](rows)
     except MarketContractError as exc:
-        raise ArtifactError(f"{domain} rows violate {domain}.v1") from exc
+        raise ArtifactError(f"{domain} rows violate {domain}.v1: {exc}") from exc
+
+
+def _validate_dm1_observation_refs(
+    root: Path, domain: str, rows: Sequence[Mapping[str, Any]]
+) -> None:
+    """Resolve observed provenance to an actual same-domain RawBatch observation."""
+
+    for row in rows:
+        if row.get("pit_qualification") != "observed":
+            continue
+        source_ref = row.get("source_ref")
+        try:
+            raw = load_raw_batch(root, source_ref)  # type: ignore[arg-type]
+        except ArtifactError as exc:
+            raise ArtifactError(
+                "observed PIT source_ref must resolve to an actual RawBatch"
+            ) from exc
+        if raw.manifest.get("domain") != domain:
+            raise ArtifactError("observed PIT RawBatch belongs to another domain")
+        observed_at = datetime.fromisoformat(
+            str(row["first_observed_at"]).replace("Z", "+00:00")
+        )
+        retrieved_at = datetime.fromisoformat(
+            raw.manifest["retrieved_at"].replace("Z", "+00:00")
+        )
+        if observed_at < retrieved_at:
+            raise ArtifactError(
+                "observed PIT first_observed_at predates its RawBatch retrieval"
+            )
 
 
 def _commit_ref(commit: DomainCommit) -> dict[str, Any]:
@@ -847,15 +876,7 @@ class MarketDomainBuilder:
             raw_batches,
         )
         if self.domain in DM1_REFERENCE_DOMAINS:
-            raw_ids = {raw.ref.raw_batch_id for raw in raw_batches}
-            if any(
-                row.get("pit_qualification") == "verified"
-                and row.get("source_ref") not in raw_ids
-                for row in rows
-            ):
-                raise ArtifactError(
-                    "verified PIT evidence ref is outside the immutable RawBatch closure"
-                )
+            _validate_dm1_observation_refs(self.layout.root, self.domain, rows)
         rows_content = _json_bytes(rows)
         logical_digest = _digest(rows_content)
         builder_config_digest = _digest(_json_bytes(self.builder_config))
@@ -1051,14 +1072,7 @@ def _validate_domain_commit_closure(
         if len(raw_ids) != len(raw_refs):
             raise ArtifactError("DomainCommit raw refs must not contain duplicates")
         if domain in DM1_REFERENCE_DOMAINS:
-            for row in commit.rows:
-                if (
-                    row.get("pit_qualification") == "verified"
-                    and row.get("source_ref") not in raw_ids
-                ):
-                    raise ArtifactError(
-                        "verified PIT evidence ref is outside the immutable RawBatch closure"
-                    )
+            _validate_dm1_observation_refs(root, domain, commit.rows)
 
         if commit.manifest.get("ordered_patch_refs") != []:
             raise ArtifactError("Phase 1 PR2 DomainCommit patch refs must be empty")

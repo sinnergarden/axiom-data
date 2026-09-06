@@ -491,7 +491,7 @@ def main() -> None:
         }
 
     acceptance = {
-        "D01": gate({"snapshot_v2_loads": load_snapshot(args.data_root, artifacts["snapshot"]).manifest["schema_version"] == "data_snapshot.v2"}, ["snapshot"]),
+        "D01": gate({"immutable_snapshot_coexists": load_snapshot(args.data_root, artifacts["snapshot"]).manifest["schema_version"] == "data_snapshot.v2"}, ["snapshot"]),
         "D02": gate({"identity_equality": identity_equal, "logical_equality": all(logical_checks), "pit_binding_equal": recovery["pit_binding_equal"]}, ["raw_batches", "domain_commits", "snapshot", "adjusted_price_view", "market_replay_view", "qlib_view"]),
         "D03": gate({"all_raw_v2": all(item["schema_version"] == "raw_batch.v2" for item in raw), "raw_ids_unique": len(raw) == len({item["raw_batch_id"] for item in raw})}, ["raw_batches"]),
         "D04": gate(dict(dm1_recon["checks"]), ["raw_batches", "domain_commits", "snapshot"]),
@@ -553,6 +553,7 @@ def main() -> None:
     }
     acceptance_report = {"status": "PASS" if all(item["status"] == "PASS" for item in acceptance.values()) else "FAIL", "artifact_refs": refs, "gates": acceptance}
     validate_pr5_evidence(
+        args.data_root,
         run_manifest,
         direct_qlib,
         dm1_recon,

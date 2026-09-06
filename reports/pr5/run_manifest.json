@@ -649,15 +649,15 @@
   },
   "code_branch": "phase1/pr5-market-reference-completion",
   "code_content_digests": {
-    "scripts/run_pr5_dm1_slice.py": "sha256:e3a84aaccb2ba8d0744ac160750e0bd23e7f988fbb9919ef88438f86d1bb206a",
-    "src/axiom_data/artifacts.py": "sha256:efda1d4316e2551192be91bb441b670677c229199928bc70908167c25b794523",
+    "scripts/run_pr5_dm1_slice.py": "sha256:9954a6711ffa66fd5b8bf89c87620f9f0e5924f9ba779511e582d73f618fc7c3",
+    "src/axiom_data/artifacts.py": "sha256:d24994b27d6cff812a187e3c827e57b8e43f365f6754f17d624c92f4305a6bcf",
     "src/axiom_data/consumption.py": "sha256:81cd1bd493c07c877493accb131db62d023e056a36fb4d7b5b36af50c84fe8ee",
     "src/axiom_data/contracts/adjusted_price.v1.json": "sha256:c5a3cc8419f6623a93f04bdb2de194148f952310b027295693fb0834555269b9",
     "src/axiom_data/contracts/corporate_actions.v1.json": "sha256:671bebbbda59b69fc54e698a53827da4a1a92783d4e5d2f95672bc1ed6d6e20e",
     "src/axiom_data/dm1_reconciliation.py": "sha256:061d964c571042a6e4ded64217f1a021d4626d6de0aad3b9adafdd829049c5ff",
     "src/axiom_data/dm1_source.py": "sha256:413b1f4d46fe71a0e0d8715a0eefc81b9c51aee01e446e1830d4a5c0ecfa6ec0",
-    "src/axiom_data/domains/dm1.py": "sha256:650a90904923895389d3d57c42eb6c141436226b579963bf567de5aa77a274e5",
-    "src/axiom_data/evidence.py": "sha256:1525d83c5dd56ffc5da32e23ecc32edbca24eb26537edd851619b0e79a82dfc4",
+    "src/axiom_data/domains/dm1.py": "sha256:6a95eb9160f5a5967464a2570d2659aacbd92b4e5686f888db076577d33cfaf7",
+    "src/axiom_data/evidence.py": "sha256:38f050c0884a317033d509b5161a8993b9a82631fbc80ecb4e89a961ba45946e",
     "src/axiom_data/views.py": "sha256:fae86c7768a1c90ebe5e0dbd9dc59b059fe44ce3b3de71bcd326fd6fd30c61d2"
   },
   "fact_view": {
