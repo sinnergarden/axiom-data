@@ -6,7 +6,7 @@
   "semantics": {
     "meaning": "Observed security-level economic action facts; Data does not calculate cash or position consequences.",
     "supported_types": ["cash_dividend", "stock_dividend", "capital_transfer", "split", "consolidation"],
-    "support_matrix": {"tushare.dividend.v2": ["cash_dividend", "stock_dividend", "capital_transfer"], "split": "contract-supported but current source mapping unavailable", "consolidation": "contract-supported but current source mapping unavailable"},
+    "support_matrix": {"tushare.dividend.dm1.v1": ["cash_dividend", "stock_dividend", "capital_transfer"], "split": "contract-supported but current source mapping unavailable", "consolidation": "contract-supported but current source mapping unavailable"},
     "dates": "announcement, record, ex/effective, payment, and share-available dates remain distinct; none substitutes for another.",
     "unsupported": "A source row with non-zero unsupported economic terms is a build error, never silently discarded."
   },

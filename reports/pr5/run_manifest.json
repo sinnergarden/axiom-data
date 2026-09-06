@@ -2,173 +2,717 @@
   "artifact_refs": {
     "adjusted_price_view": {
       "anchor_session": "2025-09-05",
-      "identity_digest": "sha256:3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc",
-      "manifest_digest": "sha256:672e937c33d7db0520b0789e0e05d238e836a26aaa2b20e6ecb3069d55509c53",
-      "view_id": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc"
+      "content_digest": "sha256:a3647bda641dc4f08050c54fa19dcccc6e3606929fee9532bc1939ab305a052e",
+      "decision_cutoff": "2025-09-05",
+      "identity_digest": "sha256:15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7",
+      "manifest_digest": "sha256:76ea303120701442acce0ed9b8e5bada3395840bd15e094b95b73e9d100588e8",
+      "pit_policy": "research_non_pit",
+      "pit_qualification": "best_effort",
+      "view_id": "adjusted-price-15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7"
     },
     "domain_commits": {
       "adjustment_factors": {
         "contract_digest": "sha256:66971791dc0d2b20f0b5d2593ed19001199ec5456b538b32ee5c068ff3927938",
-        "domain_commit_id": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
-        "identity_digest": "sha256:8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
-        "logical_content_digest": "sha256:3842f691fc221c0b43823c04d62744dd85390063b1afdc3f82621ed43dddfd6d",
-        "manifest_digest": "sha256:ad8542db2b6266459663fa0a6ce8dfe5ce5657bc708bc126aaef402d509925c5",
+        "domain_commit_id": "adjustment_factors-8a856b64b376aabfc21b49760521b6e9d933ea2a224cad712f149778abea665c",
+        "identity_digest": "sha256:8a856b64b376aabfc21b49760521b6e9d933ea2a224cad712f149778abea665c",
+        "logical_content_digest": "sha256:5795a1a77f124793fdb79c7ac09e58d905309380433d187510e5f1742468397d",
+        "manifest_digest": "sha256:ca5013f19743b7d4d61257aee39aab6d544a02b693fedb31d7940ae86bc701b9",
         "rows": 414
       },
       "benchmark_daily": {
         "contract_digest": "sha256:c51644aed6b743f86d2d97685eb85b7dd3dcc17dc12bd4d0d74445a3c2538564",
-        "domain_commit_id": "benchmark_daily-ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
-        "identity_digest": "sha256:ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
-        "logical_content_digest": "sha256:26eae361b39665507c1b0470e390279746d00d9266e2dce9b2ed7931d896ff2d",
-        "manifest_digest": "sha256:a7de3cc80a8a95882a25e0d246d3fb394fbacf3439d1f1e64cdf3fa568a80cd8",
+        "domain_commit_id": "benchmark_daily-4bceb56643d7769f49baccdd589a00db02f8f2f98a7c4a9d0127fbdd469d4491",
+        "identity_digest": "sha256:4bceb56643d7769f49baccdd589a00db02f8f2f98a7c4a9d0127fbdd469d4491",
+        "logical_content_digest": "sha256:25517c11c50fa7456a4a8f761589e771dee074dca302faeeec8cdda818085d29",
+        "manifest_digest": "sha256:f0db01b3b316d54f2a5f334fa3a51cf79f6d637db5d21f11b938d758e2771cbd",
         "rows": 69
       },
       "corporate_actions": {
-        "contract_digest": "sha256:a114e87537228ca12dc977909b4baccba382ddb7c497baec0f619881e62634d0",
-        "domain_commit_id": "corporate_actions-fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
-        "identity_digest": "sha256:fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
-        "logical_content_digest": "sha256:512b8482246cb0153d72b8f0be377067cee952e0c73e0321beadad9595e32e89",
-        "manifest_digest": "sha256:105394f3f8764afeaf3f1bfb18cebdd32488dded4912b372007253ac7cbb715d",
+        "contract_digest": "sha256:db00fa9fc152f32faa028022b5cb956bc26c606e28a0d601aae4e508fe976d03",
+        "domain_commit_id": "corporate_actions-957d093d72f1a27fff1c958b5b305b39637ddc4fc4e8ce4603ebe354b5b43e35",
+        "identity_digest": "sha256:957d093d72f1a27fff1c958b5b305b39637ddc4fc4e8ce4603ebe354b5b43e35",
+        "logical_content_digest": "sha256:72bf59f2fd2b1c814de6eef8d72f46f61a74096105f3ec88f0d51bcb322d3307",
+        "manifest_digest": "sha256:f26cb9be14f2f70406fe5c2d0adca830991fcc931e261d3d954d76e317ba96fa",
         "rows": 3
       },
       "market_daily": {
         "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
-        "domain_commit_id": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
-        "identity_digest": "sha256:3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
         "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
-        "manifest_digest": "sha256:22eebf6e7cdc80300f70c1211c176f8a081ff376aa51b92baf9f68d3a940afcc",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
         "rows": 414
       },
       "price_limits": {
         "contract_digest": "sha256:df88b568f1835e5df26dd8534279e67271f1d0d33b6135b22298674b9b939d15",
-        "domain_commit_id": "price_limits-3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
-        "identity_digest": "sha256:3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
-        "logical_content_digest": "sha256:c4ac417ac5dc4a18ee7164aaa370cc7b0b916d4e351fb157edbd48a0565a7e4d",
-        "manifest_digest": "sha256:5956fc11978b95b8c188f49616cc87cb23c78a4264739c05a2f9be67d62dd323",
+        "domain_commit_id": "price_limits-2b99b479a166bc05b21db6300e6de39213e6770d6fb61fbf84f13266a2647167",
+        "identity_digest": "sha256:2b99b479a166bc05b21db6300e6de39213e6770d6fb61fbf84f13266a2647167",
+        "logical_content_digest": "sha256:c1998b79843d1f4a5dec9e446b056cc9ad64bc38956d875830eadc00dd074def",
+        "manifest_digest": "sha256:f7bb2636a7749c6f9b8fdf5a6d598fbe43cf492720db169656e46b05696d7f29",
         "rows": 414
       },
       "security_capital": {
         "contract_digest": "sha256:6e3d7cdb208e19e7fd6c26761783f59e7c57d9687f82c81fcb5d70aa42acd270",
-        "domain_commit_id": "security_capital-3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
-        "identity_digest": "sha256:3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
-        "logical_content_digest": "sha256:39c30f96390814d9d2e17d061300ccd68c40927d673479e784e4602870fd7d3e",
-        "manifest_digest": "sha256:84682b2051e552348edcb7fb840af646f5c01bad620bf205d0ecb2be007d00f9",
+        "domain_commit_id": "security_capital-7e1715e17f79e1c337c3d43947e743fb868d28c56c3e3d06ce019f386982840a",
+        "identity_digest": "sha256:7e1715e17f79e1c337c3d43947e743fb868d28c56c3e3d06ce019f386982840a",
+        "logical_content_digest": "sha256:883380692328a5f88997acfd3fed63d02140011ef0e9cfc0d7de24237e82823a",
+        "manifest_digest": "sha256:43f2abc05bf78636066938a49a4234f5385ad6394ca61d411878ed5b8d3a8623",
         "rows": 409
       },
       "security_master": {
         "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
-        "domain_commit_id": "security_master-1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
-        "identity_digest": "sha256:1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
+        "domain_commit_id": "security_master-ba8fd15db3e356ab8b507ccd869071cc74b115984df9025eb282c147f5dc6316",
+        "identity_digest": "sha256:ba8fd15db3e356ab8b507ccd869071cc74b115984df9025eb282c147f5dc6316",
         "logical_content_digest": "sha256:5eb0c9d0111a495797bd6daa6a27ea1c2495f92553df6d734b86d4ce24383c4f",
-        "manifest_digest": "sha256:708e9d5de56b4dceb1c8b6aa20db504f975d7c583c772fdc9dd089b427976d31",
+        "manifest_digest": "sha256:64bb474afb2a1444651a41bbd3a16975c944552ebb1b277820daa2f549f61b07",
         "rows": 6
       },
       "security_status": {
         "contract_digest": "sha256:1087b0f2bd9e28a7578da2b4a9a807d0323d7010bc6aca14db79377b515c9e8a",
-        "domain_commit_id": "security_status-7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
-        "identity_digest": "sha256:7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
-        "logical_content_digest": "sha256:91d3b86d5cd36c4934b3f8aeae9dff4a316f5c258cc3dc029f8636f230d07e52",
-        "manifest_digest": "sha256:01a84d5712ac4d2dd390936b22f197d3fda68b39a2e4b373b4500cb06ee6530d",
+        "domain_commit_id": "security_status-9639a9dc93f5aa6ccdde1d40891f4b4919a9805c86f188a0a7c1412a111e6dd5",
+        "identity_digest": "sha256:9639a9dc93f5aa6ccdde1d40891f4b4919a9805c86f188a0a7c1412a111e6dd5",
+        "logical_content_digest": "sha256:0d20ef8ca8cc787b248fbde8c4bd12f414c8b5f147a55f8bf05100b59063c498",
+        "manifest_digest": "sha256:c2ff5ca0009da21b8245bc79d6e2d3c14831c683db33ce1bc8fb6f826713c8f0",
         "rows": 414
       },
       "trading_calendar": {
         "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
-        "domain_commit_id": "trading_calendar-3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8",
-        "identity_digest": "sha256:3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8",
+        "domain_commit_id": "trading_calendar-a2783ca26529f7af3ede5570d42bdf7d0c9ce2c40ad9185f26cf0964a90a4fbc",
+        "identity_digest": "sha256:a2783ca26529f7af3ede5570d42bdf7d0c9ce2c40ad9185f26cf0964a90a4fbc",
         "logical_content_digest": "sha256:41a6653591c21e74512e40d818230c031fcf073e8f815a973d29ec7c25dafa82",
-        "manifest_digest": "sha256:1a7b1da8b4afe757cb85ba77d8d76288b849bd11465590872083f56577b13527",
+        "manifest_digest": "sha256:e66ecae8338f2526bca2da9a4c7ff9048addcdcfcc5a9d73cd100bb040a89dca",
         "rows": 194
       }
     },
     "market_replay_view": {
-      "identity_digest": "sha256:9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876",
-      "manifest_digest": "sha256:1bed3445a345a98687b4c73d01c972a48472c6325eceb5f7f3b5d03ccf7d312b",
-      "view_id": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876"
+      "content_digest": "sha256:c9fc31e2f8415eeefba7da516eb396abd84805011c33afefe805f3aae49f6e03",
+      "identity_digest": "sha256:5571b1740afd8cab88e4aef445c529d04e384b577f94b0016c21e77b50b26478",
+      "manifest_digest": "sha256:019bc44f48ae610a2a3efae11e3956100a4833afb2996812e115aef506fb50f7",
+      "temporal_policy": {
+        "mode": "post_session_replay",
+        "pit_policy": "research_non_pit",
+        "pit_qualification": "best_effort",
+        "replay_cutoff_session": "2025-09-05"
+      },
+      "view_id": "market-replay-5571b1740afd8cab88e4aef445c529d04e384b577f94b0016c21e77b50b26478"
     },
     "qlib_view": {
       "anchor_session": "2025-09-05",
-      "identity_digest": "sha256:6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
-      "manifest_digest": "sha256:604b1e7e1493c4aad161a5cc4b4023a4590cb31f801972bce9b275d599676485",
-      "view_id": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573"
+      "content_digest": "sha256:eba4378a835091200be876dda9a37cdbbad089088f36bfe890c641ac04cc1866",
+      "decision_cutoff": "2025-09-05",
+      "derived_view_id": "adjusted-price-15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7",
+      "identity_digest": "sha256:a38edcdf5ed2039e81ca7c1c90dca942e604e55271e94728ea0fe17b3dcee57b",
+      "manifest_digest": "sha256:aca981c2d2bfc187f7902d721ecfe86886ff957bc49085f89862e4601d016d54",
+      "pit_policy": "research_non_pit",
+      "pit_qualification": "best_effort",
+      "view_id": "qlib-a38edcdf5ed2039e81ca7c1c90dca942e604e55271e94728ea0fe17b3dcee57b"
     },
+    "raw_batches": [
+      {
+        "domain": "trading_calendar",
+        "manifest_digest": "sha256:c2d15373a38a1a943b0daa970880bdb6345bd9c728c20a23ed0c394f6542be98",
+        "payload_digest": "sha256:72890b4a9df5a56be8bd995610a74742cba679f78e844885175bbb3ff2afb74a",
+        "raw_batch_id": "tushare-trade_cal-a04594c8a38858bc5d28f314ebbb4455514c75d144afc740cd889551b63d6abd",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.trade_cal.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "trading_calendar",
+        "manifest_digest": "sha256:5f6b70ea437840ae0d205d31bad28e9a5b3bcaedc4b949095219deb1a3599f50",
+        "payload_digest": "sha256:5d2a11c1041cbeb8ef1d7d87aae915dd180eae72171e86b703e9b476c8dd6488",
+        "raw_batch_id": "tushare-trade_cal-f0846fe4370b5ec5c5efe8a40a53a41ba8f13803830cef092624a7390c4f8c80",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.trade_cal.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "security_master",
+        "manifest_digest": "sha256:4c170232f593c40ec9d2cc584c788b7a22d29b70b1697014d5d850260b7f6d23",
+        "payload_digest": "sha256:ec440fc4d3e329dc40991d031ca1f0ef0cab79fbee4bbc777034b528fed5c270",
+        "raw_batch_id": "tushare-stock_basic-4d8efca385e8e800a90b078c193ee830b0e5f4fb62dc87138ef8b9be106c1ee8",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.stock_basic.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:fb865e8a633fe075e50ecf875f1d63797e482eb9eebccd080f3e6f81baefa64a",
+        "payload_digest": "sha256:4616c8d28f9858202f5f3318cb378a6e4ef8a47bae76acda7c5b8f5d8880175d",
+        "raw_batch_id": "tushare-daily-acf9709fae50c8484f8d5c5660a93b664ba379acd0ce29243cf30569bd19d0f5",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.daily.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:9f43edfae9bd29c1ca9c08f99c351443288ba727b8893b2530553f9bc5434928",
+        "payload_digest": "sha256:48916ec1db8a0cbc1637c9e0bf6fe9f01bdcfa4aa6c33524dceb314d8c01e26f",
+        "raw_batch_id": "tushare-adj_factor-4f0b26011a54d17a5f65cfd6f4b04991fa2052e3a4472b6ccc3536a7520e034b",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.adj_factor.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:ce8b2f08fa4eb423de927f49c78c0cac7a93c39dc2fc04484484a3c7b4097541",
+        "payload_digest": "sha256:ef507bf6f17e289fd90e9e72c525904f750d8665221deadf452ddb288023fff8",
+        "raw_batch_id": "tushare-daily_basic-85513edabccd5f65d41924786a9b591207d1a5ee10eab24aa659913db4a31ae4",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.daily_basic.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:b6d39f054b825a465e247860675021a1477f5ff7b08c3a8b12a780d2f833d249",
+        "payload_digest": "sha256:682a67d86c00a63272c57cc87866e065ca45bff7e6ebff62bfd39243a4886d48",
+        "raw_batch_id": "tushare-daily_basic-e926221d00100c0f745512489556d3320318a9d267527b688a906c885ea5f007",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.daily_basic.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:551248c7dd76381906c9ea5cef60cd5306d4b436b48155caa1809a7a659fbc9d",
+        "payload_digest": "sha256:50ec9b4f24ab8dfdf111f3e6f33ea5f288dfd04cc60d99d397315cda24c819e1",
+        "raw_batch_id": "tushare-daily_basic-ad95c2dc90da0b9e87f2efd54c4b06dd84e2036351702fec31cde7cb7150dc98",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.daily_basic.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:f83b2783d8dd9810977424da77c3f433bdb5dde4803a9511ea7ede77c4abf33a",
+        "payload_digest": "sha256:77784aca87cf4b9970cb59a3c180f248ed8adf058984dccf2cd6555a8178cffd",
+        "raw_batch_id": "tushare-daily_basic-39b1eb8cbc7c2f83963c8167338b5178c85a39dff846af53c6a292b4e9a95b1a",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.daily_basic.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:887fa2013f7f60768eaa09a8c64a00268d879bdd4d731b69ca6ed3ddf0670640",
+        "payload_digest": "sha256:db47cec4b4ee805f664dc4afec55653c5fbe2f44c1c89be42c5afca80d6a409a",
+        "raw_batch_id": "tushare-daily_basic-929b76b4b5ce52ce8672231c464594f53a7ce47050b3fed5f9cac15845bed057",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.daily_basic.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:fc33955eb1a67d51fe876bbc89c407a9f7b1e9ac7d30d6571e459e28cb886a7f",
+        "payload_digest": "sha256:edcf4fc76ce567699541e4d3ff0d95795b87e183ebc4ba6f822df2df44c76dd4",
+        "raw_batch_id": "tushare-daily_basic-022296f265bd1c83841f21728658325e5d494f02cdb6e7b54a34fa59d1d125a2",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.daily_basic.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:7634a092a7bccbbffd2475a12af307c8d73aaefc4b86ac00b42fc99c09a9d610",
+        "payload_digest": "sha256:d0d571b6ef4a7d3d61bae71b6e07c968ee2d658cf4afcd54d71d108607c53f21",
+        "raw_batch_id": "tushare-stk_limit-dfe6b23138cf0396fb2905c224529d667b2878872cc77700024dfe47a92c8b3d",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.stk_limit.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:97ff45bfccbfc098b9050c672eb4c2d85471565bf54691a32f5f8732a672068e",
+        "payload_digest": "sha256:2b9f61473d35bbc7b6939c62700bead6ca268d92b9448c2d9e5cb93742249892",
+        "raw_batch_id": "tushare-stk_limit-a03127aba700d14ec27796b48ab4645bff50ad82bc11705b9b2234b29b7131aa",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.stk_limit.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:35885ad81e88ad6c28553b2fdb1d6164c02cc1e7da60e37d4b7c16202bfda7be",
+        "payload_digest": "sha256:4344c103296d5c4a688d955593211d68e15404327eced25563db27e069703dec",
+        "raw_batch_id": "tushare-stk_limit-0f3acb45b22eb6ce6081f0d46ab3bd517faa091d6ff863e475de9fff2335b66f",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.stk_limit.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:3d6770abf39554c0a653e32b589d321d5526eb08769388fb2d90373e2665dd4e",
+        "payload_digest": "sha256:b1a33b7923089134a04f3195847d2f0d554b72240afaea42af7978f29637d3a1",
+        "raw_batch_id": "tushare-stk_limit-1c97ac1b3feaec7309874ccbbd6a05ca1614da972b963b4c783a277080add07e",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.stk_limit.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:4d74c168ac1b5a9a4124319ca7a8d0fce5a798ccf38a972277da95626a0755bc",
+        "payload_digest": "sha256:944eb93ed2d33ee4e83cd30cdd1f266bb1aa15cc04e8ee51e9d517942d6f706c",
+        "raw_batch_id": "tushare-stk_limit-3ed16700a88c4bbb07d93172afb5f3a575875e6c2c0807aa0c0daf5ab3d8c3c0",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.stk_limit.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:13a55857e53e8643a520e9a533622ecbe321c4f0bc61028cdf4a60b92c49a479",
+        "payload_digest": "sha256:8fb1dab4ccc0ab2ece329ed3fbcd3f996fd4f2aab44a01db2dff9c47688f40cc",
+        "raw_batch_id": "tushare-stk_limit-3680302900acecaf32587a31018f0c843683af5bbb0f6816dc53512b611a53cb",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.stk_limit.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:1f60090dc067e82fdb9ca47bc1185ea9d91e2c149c0d3e630b1eccfaa149bce7",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-suspend_d-af019d673c285b61e95a82dad17d52aafd6d4a1f521d8c4c3aee26fd0443ec8a",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.suspend_d.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:d57845a48e5e1d85b795bd23fa818486553838ed34df3831eaafeb725984309c",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-suspend_d-ec3e1c769b31ae2a7e130574bd1905ba6e93d4750dbc8fbfb5d477058145f5fe",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.suspend_d.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:a455ed0b284e3f0c5a6be7a6675c5843e33c0204fef4de611b731c509efb202c",
+        "payload_digest": "sha256:5525382264b09ba9f2e529e9e974bfd6b96ba99e564c665d664688dd220c3273",
+        "raw_batch_id": "tushare-suspend_d-5283290707216c71ded751d717caf44c1ad06ffbe8032c25237e6938ac8a937e",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.suspend_d.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:8874effefe245cff9bfdf8228817467bc9d014204092e2e3fc9156830ab77ab9",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-suspend_d-932f570a84ebad011915d1e94733b09d61afa6ee6294e74eb391d376f1e524a0",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.suspend_d.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:d3d3353da8c4dca5d09a21198001f7a7e1c165f395f52b296c219a7e36a2ced3",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-suspend_d-08ee0b5e04cfa68be24d2018c1a22aa4d123f6cd7bbf00058c18f3acafa4efcd",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.suspend_d.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "market_daily",
+        "manifest_digest": "sha256:889bd1767f58323f164d3634564f0f0096a78d2efdc9891eeac309b3173ef54a",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-suspend_d-407e22538e880e54e6db9ada8859f1464ce366ea02eeed3e091d17015aeecad9",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_ref": "tushare.suspend_d.v1",
+        "source_profile_version": "tushare_phase1.v1"
+      },
+      {
+        "domain": "security_status",
+        "manifest_digest": "sha256:075969bae93e10e5cacea1d79d9c71db36e300857527953ca1b10694334ece85",
+        "payload_digest": "sha256:738d4f3934614da0e99598afccede4c03f807c14b0f1b72c42747164ae2d1433",
+        "raw_batch_id": "tushare-security_status-daily-d40398bac36d4a2c586ffc8a28fedd3fb70708f617434735501adfa2bfaae9d3",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.daily.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_status",
+        "manifest_digest": "sha256:a72a2f0e29bcb5089bc885be10c3bb939bd44879e5e85692098b9124bb373d4c",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-security_status-suspend_d-38bba932c4f652916ec4bc519d47571cf71e1f62beff6efdab4762b54dbc0595",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.suspend_d.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_status",
+        "manifest_digest": "sha256:a1bdba2dfd681593e4dd16541ba562207fdb3a2dcd7d19376e904e4e96785742",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-security_status-suspend_d-fb1bdb9d1e76a3ee45f51bd2f58195d3129dabf4801c7e24291a8f308809892c",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.suspend_d.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_status",
+        "manifest_digest": "sha256:1f6213a4d27435cff7390a951bfa6fa24e3efb1b2852aa28095a53a52182dce2",
+        "payload_digest": "sha256:5525382264b09ba9f2e529e9e974bfd6b96ba99e564c665d664688dd220c3273",
+        "raw_batch_id": "tushare-security_status-suspend_d-a1991427253a1b3b6f6f68723271f2e029fc1f77bd50d7f0b1e0d7bb075dd523",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.suspend_d.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_status",
+        "manifest_digest": "sha256:942957c52ee79669f29ce8c7c8a57fcb2c72e5a2cf72f22f8c70c0e82f055e5a",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-security_status-suspend_d-091520fd4459f88ec6c22bfb9681a909ff0788ab6f72e0c81ce2d340e7dc612a",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.suspend_d.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_status",
+        "manifest_digest": "sha256:ae2c6fc1cb16c61bf63c3c560a1384a428ce8f3ee1bbc176de1964520eaf9b69",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-security_status-suspend_d-7952fafbd67d094572bcfe8d31dac54d5748df82d014c96a5609afd80c606434",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.suspend_d.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_status",
+        "manifest_digest": "sha256:f087a218e64838a543503eed445b1ec6b277638448f14121dcbfa1bdef57bcdb",
+        "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "raw_batch_id": "tushare-security_status-suspend_d-ec57f8427a6734c119b417e0b914d30001ab2c658433989cbfa85a726994418f",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.suspend_d.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "price_limits",
+        "manifest_digest": "sha256:833b1c36c9103be89053b5d70760bb77f28a82e45c04f45d4ef513d5d3976aff",
+        "payload_digest": "sha256:d0d571b6ef4a7d3d61bae71b6e07c968ee2d658cf4afcd54d71d108607c53f21",
+        "raw_batch_id": "tushare-price_limits-stk_limit-736ac10db18641356d277f7efe6761e4e43f7850783de2591924e792651b99cf",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.stk_limit.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "price_limits",
+        "manifest_digest": "sha256:3a722bf8d15a791e012830254c71b5956c1feb92414f043cca4b081a7c237fb9",
+        "payload_digest": "sha256:2b9f61473d35bbc7b6939c62700bead6ca268d92b9448c2d9e5cb93742249892",
+        "raw_batch_id": "tushare-price_limits-stk_limit-4c87de060a480d362ab88f6ecf63348974f846d9e7613aa86cd5ca4af77a4d35",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.stk_limit.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "price_limits",
+        "manifest_digest": "sha256:181da781bbc766dfe1ffa1235ff45b0e2f6e42bf7fb284ae7bb82c5be7fc3244",
+        "payload_digest": "sha256:4344c103296d5c4a688d955593211d68e15404327eced25563db27e069703dec",
+        "raw_batch_id": "tushare-price_limits-stk_limit-840eed5840ccdb069f659dc472fd072e7bec70bdd9d10145fce5d1238df07acc",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.stk_limit.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "price_limits",
+        "manifest_digest": "sha256:89a609e876568fc45b3a02302cfd85cdbd4240f2da470b707128b505521d53da",
+        "payload_digest": "sha256:b1a33b7923089134a04f3195847d2f0d554b72240afaea42af7978f29637d3a1",
+        "raw_batch_id": "tushare-price_limits-stk_limit-c41169f7fb63cc701c715cd5eb77139fcf74ba34ee80751e9fd555a1ae54074b",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.stk_limit.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "price_limits",
+        "manifest_digest": "sha256:6ddd31bc64f592219a4fcf60c19ad7dd6836b865a1d6aa46e81e5df820f2ca79",
+        "payload_digest": "sha256:944eb93ed2d33ee4e83cd30cdd1f266bb1aa15cc04e8ee51e9d517942d6f706c",
+        "raw_batch_id": "tushare-price_limits-stk_limit-131d46b5e0ae9ae50f83479698888a9b43517b952079a48729a66c1102a9f872",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.stk_limit.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "price_limits",
+        "manifest_digest": "sha256:232bfa105fefd0ae8b0a3160924c01a6b703c6dce3e8c3a2cdbc61fdaa386f0a",
+        "payload_digest": "sha256:8fb1dab4ccc0ab2ece329ed3fbcd3f996fd4f2aab44a01db2dff9c47688f40cc",
+        "raw_batch_id": "tushare-price_limits-stk_limit-4d30e942de68777aae2f0f649318be7b2f9fcc2551a1529d2eaaf0ca091d53e4",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.stk_limit.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "corporate_actions",
+        "manifest_digest": "sha256:cc37eadaa1cad8f70eec8462f18952eabf492a45e95cb0f17af36e0c95f5d72f",
+        "payload_digest": "sha256:d25199a31bfee0d5b16b957bead997792c59fbb69b903af3b42500f3401f1ced",
+        "raw_batch_id": "tushare-corporate_actions-dividend-41df31ba8b9bc14657305f1002317f3613139e2347a928cdc17f9891dc2bb64d",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.dividend.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "corporate_actions",
+        "manifest_digest": "sha256:1d9c4b8f219ee20bc9795ce2f8fa527e3cace470a12318201a35cddeffb87492",
+        "payload_digest": "sha256:7f4d3a2bfcd60c99dd68f64809277aa77dc7882e5cd4cb215da1d41973b9fbd8",
+        "raw_batch_id": "tushare-corporate_actions-dividend-2434313a50d6d06fc1c6733feb68030af72486c5bd27243b6d66e573a5b32855",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.dividend.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "corporate_actions",
+        "manifest_digest": "sha256:80d8435271e9d5df60586af90c90e7a69587d2b67a49adbac76f4c26bfac6f1f",
+        "payload_digest": "sha256:de5c5aee9cfffe000ddcf63bebce981f2dd75642fc689b854b22c3d31b2eb048",
+        "raw_batch_id": "tushare-corporate_actions-dividend-70cdba6a51986e9047cc22b5792357be0af74efcaff8d3ccd53fe1659aa15613",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.dividend.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "corporate_actions",
+        "manifest_digest": "sha256:bf7ee659163b59aa7ff4949b226e595fc3bf0c19a815a4f7837f340fa87820de",
+        "payload_digest": "sha256:9144876fc7a268672ecc824f9b2b96ec53aa2f3dead4bc05d0ff844a343a0720",
+        "raw_batch_id": "tushare-corporate_actions-dividend-80f840f4f827a02081201a156773e507e8e39503e3c53cacdc63032c16e33461",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.dividend.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "corporate_actions",
+        "manifest_digest": "sha256:8a5b96368aa28787d53adf2dc13fdd5885d3f8ea84b1cb945394985941e1ade7",
+        "payload_digest": "sha256:2f1fd3c16ab3e48a0255549a839676f01778d6123739fb3d429c7dc1285a18ab",
+        "raw_batch_id": "tushare-corporate_actions-dividend-ef589b1d25cb47dd1e4553b0e3d2f4f22c95ef105eaa5470a397f17a06daeefa",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.dividend.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "corporate_actions",
+        "manifest_digest": "sha256:82b2181acd7a9a519ce17c98749f9d5cd81800cacfa0aaca0addf56d729b632f",
+        "payload_digest": "sha256:1e19853fea511e5f7ced277127b228ac1964d550fb3a0c44805f33f260c780ad",
+        "raw_batch_id": "tushare-corporate_actions-dividend-21685f8670f2d05b574e0146d9fbe79fa31d4bf750df6dfcb449a517fdba1a49",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.dividend.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "adjustment_factors",
+        "manifest_digest": "sha256:94aae4a241d43279b6463ac2b3e18312d5b6d683e39aef94301093f3f39af946",
+        "payload_digest": "sha256:48916ec1db8a0cbc1637c9e0bf6fe9f01bdcfa4aa6c33524dceb314d8c01e26f",
+        "raw_batch_id": "tushare-adjustment_factors-adj_factor-85d7ac9d2155e4ba2bca861a2a2c16552afc9bdaa7d1d3d7f4420f15739188a5",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.adj_factor.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "benchmark_daily",
+        "manifest_digest": "sha256:28687fcdad4e4a7a60b0936a34ca80d66c6492c5291cefc4b07a767cd1db26dd",
+        "payload_digest": "sha256:c9c4d43ae3ed81892c38a8a8631f2051e1afac02eb99b23fefc291e3096cca70",
+        "raw_batch_id": "tushare-benchmark_daily-index_daily-a2c730c62bac3ff79de5e230d98ba93013422dc72b8ec5d3c14f47987bc4a803",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.index_daily.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_capital",
+        "manifest_digest": "sha256:8350e3506b667f4e8730af38408dd81858a512bb0c79a39b8845bd255ef0ce02",
+        "payload_digest": "sha256:41471ed45e87d6110cb983336621f9b25745e59f72818b66afe0a52430763156",
+        "raw_batch_id": "tushare-security_capital-daily_basic-521ffafec3dcc33b54a71c0260d6056cab09ce1485785eb0d9b5b1dc77f52339",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_capital",
+        "manifest_digest": "sha256:3e8fc4b847956f01fa6846aedb9a2c1ed3c3e6e4a45ebda13950b5f6b1b944e1",
+        "payload_digest": "sha256:b360f29957bca638c5731afe85b76910356046ec66798d89c2d6866a0831988f",
+        "raw_batch_id": "tushare-security_capital-daily_basic-90a7e9ed270842cda48e0c51540e29201c34a1a2da783450b503c2b19fa259d7",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_capital",
+        "manifest_digest": "sha256:e3d68399679aaf3ddf7fc610cba59d5e44f26ff781a071551ea24a60a5233b16",
+        "payload_digest": "sha256:3cdcf50cbfd53fb65778bed949f61aeaa142103408d2a49bc979a722aa33ba0a",
+        "raw_batch_id": "tushare-security_capital-daily_basic-491d29a5a2bd0d2e3b63f23f9586ac6a384246abbabf576009b7156d9d43320f",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_capital",
+        "manifest_digest": "sha256:71be6f4856bceb5f0f72cecb8cd149d753d04b19262f415ec8f40bda034916fa",
+        "payload_digest": "sha256:08b47ae66d2fc0af9123206312057f850cf762d199461c9f2df197cf022dc697",
+        "raw_batch_id": "tushare-security_capital-daily_basic-79a7ddf2e7cb615f06ef7bf7fe3c1547c572166bd4d652685c5ce9665700c2b7",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_capital",
+        "manifest_digest": "sha256:b5b43160ac3795b6d7587e80b236f74c684eb59625290ce226578f5c63a8aa7c",
+        "payload_digest": "sha256:2d8d084575b22f953a86cd5c8f6557456f7188bd90b1f69b40cce4079b5501fb",
+        "raw_batch_id": "tushare-security_capital-daily_basic-5f2ca31c7409b76f5b01cae591a74d0cf8f9efeb739753131e9bba51ae4cf3e6",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      },
+      {
+        "domain": "security_capital",
+        "manifest_digest": "sha256:16fd6ad5371e89c5ccd914babbc8becc8834669e66e3d8a267b67165c1de3256",
+        "payload_digest": "sha256:c9017dbf9b2949da16ae18ffbd05061fb483c3646a3d65ae0dd2561b97e83fc9",
+        "raw_batch_id": "tushare-security_capital-daily_basic-6cecf79cde917ed3da65b4fe5ce746cb9b80b0dc17c41a48f2584531a7390e18",
+        "schema_version": "raw_batch.v2",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+        "source_profile_version": "tushare_dm1.v1"
+      }
+    ],
     "snapshot": {
-      "identity_digest": "sha256:f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
-      "manifest_digest": "sha256:38e71242c023d7ace6a272a76f4f26c9b9ce1eee2da1a0d89dee9d1cb99784b7",
-      "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624"
+      "identity_digest": "sha256:b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842",
+      "manifest_digest": "sha256:7d2ab20c3ba618059d8a5c2b00fbae1b34cd7a33a8b2886c2aa129a92f2daaed",
+      "snapshot_id": "snapshot-b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842"
     }
   },
   "artifacts": {
-    "adjusted_price_view": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc",
-    "adjustment_factors": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
-    "benchmark_daily": "benchmark_daily-ce168fca41864d19d0e458a4984b8fecd3c630d0e3d80c5d9c908bbcef35c4be",
-    "corporate_actions": "corporate_actions-fc6d5fe34628a730bd0fbdbc9cd3a7da3eaf73b2b8d1973d0f54e6db41f128fc",
-    "market_daily": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
-    "market_replay_view": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876",
-    "price_limits": "price_limits-3162f826a1ced3d9938b42abc8be6d2d76edb87d859de9743275f32bd2358fa7",
-    "qlib_view": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
-    "security_capital": "security_capital-3092de290a4d6fcbf9044838ac927fe2c31009a52db66719faf0c83a369b4ca7",
-    "security_master": "security_master-1166ef3f4418fed2a8a97c540cfac07b352f7ae62da04d132d49b5279088d1a5",
-    "security_status": "security_status-7ffb2094c9e6ab8ab9be854b0b13fdd07a7102a90e221eee811021a0187f2920",
-    "snapshot": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
-    "trading_calendar": "trading_calendar-3e615cea36c858ebd5e9917b106c68db8bae5f8a2a473c8ce155beae377820d8"
+    "adjusted_price_view": "adjusted-price-15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7",
+    "adjustment_factors": "adjustment_factors-8a856b64b376aabfc21b49760521b6e9d933ea2a224cad712f149778abea665c",
+    "benchmark_daily": "benchmark_daily-4bceb56643d7769f49baccdd589a00db02f8f2f98a7c4a9d0127fbdd469d4491",
+    "corporate_actions": "corporate_actions-957d093d72f1a27fff1c958b5b305b39637ddc4fc4e8ce4603ebe354b5b43e35",
+    "market_daily": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+    "market_replay_view": "market-replay-5571b1740afd8cab88e4aef445c529d04e384b577f94b0016c21e77b50b26478",
+    "price_limits": "price_limits-2b99b479a166bc05b21db6300e6de39213e6770d6fb61fbf84f13266a2647167",
+    "qlib_view": "qlib-a38edcdf5ed2039e81ca7c1c90dca942e604e55271e94728ea0fe17b3dcee57b",
+    "security_capital": "security_capital-7e1715e17f79e1c337c3d43947e743fb868d28c56c3e3d06ce019f386982840a",
+    "security_master": "security_master-ba8fd15db3e356ab8b507ccd869071cc74b115984df9025eb282c147f5dc6316",
+    "security_status": "security_status-9639a9dc93f5aa6ccdde1d40891f4b4919a9805c86f188a0a7c1412a111e6dd5",
+    "snapshot": "snapshot-b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842",
+    "trading_calendar": "trading_calendar-a2783ca26529f7af3ede5570d42bdf7d0c9ce2c40ad9185f26cf0964a90a4fbc"
   },
   "catalog_rebuild": {
-    "entries": 60,
+    "artifact_type_counts": {
+      "adjusted_price_view": 1,
+      "data_snapshot": 1,
+      "domain_commit": 9,
+      "market_replay_view": 1,
+      "qlib_view": 1,
+      "raw_batch": 50
+    },
+    "entries": 63,
+    "exact_view_lookups": {
+      "adjusted_price_view": true,
+      "market_replay_view": true,
+      "qlib_view": true
+    },
     "status": "PASS"
   },
   "code_branch": "phase1/pr5-market-reference-completion",
   "code_content_digests": {
-    "scripts/run_pr5_dm1_slice.py": "sha256:f3a3baa278cc8a5c60495216d0ad8e7bd4216a9889efa2d263c5c20d258b1733",
-    "src/axiom_data/artifacts.py": "sha256:177d8ccbfd7d1f536c1e8efa07c623cdda3b283b22f410497b8002fb22e1063c",
-    "src/axiom_data/consumption.py": "sha256:28dc54cb401e1f4466b94a29cdf5b8d6b9f6512079265e74701e836fc9531c9f",
-    "src/axiom_data/dm1_source.py": "sha256:06ee3857d16442eb72a0a59d0b2a1bf5b3aa4456a38c37de8592b424874be4e7",
-    "src/axiom_data/domains/dm1.py": "sha256:eb0860c80bf75cd516081ad23d0f937199c86ccd5b298b1f882edd7d1afefe71",
-    "src/axiom_data/views.py": "sha256:44999e18a361b09d4c48c17166d8938d78b24e705d862df9c6cb1cda28df7cb4"
+    "scripts/run_pr5_dm1_slice.py": "sha256:e3a84aaccb2ba8d0744ac160750e0bd23e7f988fbb9919ef88438f86d1bb206a",
+    "src/axiom_data/artifacts.py": "sha256:efda1d4316e2551192be91bb441b670677c229199928bc70908167c25b794523",
+    "src/axiom_data/consumption.py": "sha256:81cd1bd493c07c877493accb131db62d023e056a36fb4d7b5b36af50c84fe8ee",
+    "src/axiom_data/contracts/adjusted_price.v1.json": "sha256:c5a3cc8419f6623a93f04bdb2de194148f952310b027295693fb0834555269b9",
+    "src/axiom_data/contracts/corporate_actions.v1.json": "sha256:671bebbbda59b69fc54e698a53827da4a1a92783d4e5d2f95672bc1ed6d6e20e",
+    "src/axiom_data/dm1_reconciliation.py": "sha256:061d964c571042a6e4ded64217f1a021d4626d6de0aad3b9adafdd829049c5ff",
+    "src/axiom_data/dm1_source.py": "sha256:413b1f4d46fe71a0e0d8715a0eefc81b9c51aee01e446e1830d4a5c0ecfa6ec0",
+    "src/axiom_data/domains/dm1.py": "sha256:650a90904923895389d3d57c42eb6c141436226b579963bf567de5aa77a274e5",
+    "src/axiom_data/evidence.py": "sha256:1525d83c5dd56ffc5da32e23ecc32edbca24eb26537edd851619b0e79a82dfc4",
+    "src/axiom_data/views.py": "sha256:fae86c7768a1c90ebe5e0dbd9dc59b059fe44ce3b3de71bcd326fd6fd30c61d2"
   },
   "fact_view": {
     "anchor": "2025-09-05",
+    "cutoff_policy": "decision_cutoff=2025-09-05",
     "derived_refs": [
       {
         "adjustment_factors": {
           "contract_digest": "sha256:66971791dc0d2b20f0b5d2593ed19001199ec5456b538b32ee5c068ff3927938",
           "contract_version": "adjustment_factors.v1",
           "domain": "adjustment_factors",
-          "domain_commit_id": "adjustment_factors-8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
-          "identity_digest": "sha256:8b55899075265676ad1ed28c466265df81d488a203954c1613ed9a85099c217f",
-          "logical_content_digest": "sha256:3842f691fc221c0b43823c04d62744dd85390063b1afdc3f82621ed43dddfd6d"
+          "domain_commit_id": "adjustment_factors-8a856b64b376aabfc21b49760521b6e9d933ea2a224cad712f149778abea665c",
+          "identity_digest": "sha256:8a856b64b376aabfc21b49760521b6e9d933ea2a224cad712f149778abea665c",
+          "logical_content_digest": "sha256:5795a1a77f124793fdb79c7ac09e58d905309380433d187510e5f1742468397d"
         },
         "market_daily": {
           "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
           "contract_version": "market_daily.v1",
           "domain": "market_daily",
-          "domain_commit_id": "market_daily-3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
-          "identity_digest": "sha256:3789544e4c2e8861b11207fa401208e1e1792f6873ce7a4141965ff5cd3fc698",
+          "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+          "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
           "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df"
         },
-        "view_id": "adjusted-price-3dffda5259e4cf7bd5fd813bb9337adc688eefd8270868179b3515a6adad7ecc"
+        "view_id": "adjusted-price-15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7"
       }
     ],
+    "pit_policy": "research_non_pit",
+    "pit_qualification": "best_effort",
     "price_basis": "anchor_adjusted",
     "rows": 414,
     "snapshot_ref": {
-      "manifest_digest": "sha256:38e71242c023d7ace6a272a76f4f26c9b9ce1eee2da1a0d89dee9d1cb99784b7",
-      "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624"
+      "manifest_digest": "sha256:7d2ab20c3ba618059d8a5c2b00fbae1b34cd7a33a8b2886c2aa129a92f2daaed",
+      "snapshot_id": "snapshot-b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842"
     }
   },
   "forensic_closure": {
-    "path": "/var/lib/axiom-data/forensic/pr5-dm1-market-reference-20260906-r3",
+    "path": "/var/lib/axiom-data/forensic/pr5-dm1-market-reference-20260906-b1b6-r4",
     "role": "immutable validation evidence; not production current"
   },
-  "generated_at": "2026-09-06T06:21:59.137204+00:00",
+  "generated_at": "2026-09-06T08:27:27.754161+00:00",
   "market_replay_view": {
     "rows": 414,
+    "temporal_policy": {
+      "mode": "post_session_replay",
+      "pit_policy": "research_non_pit",
+      "pit_qualification": "best_effort",
+      "replay_cutoff_session": "2025-09-05"
+    },
     "unsupported_events": [
       "rights_issue",
       "intraday_suspension",
       "split",
       "consolidation"
     ],
-    "view_id": "market-replay-9861f5b2a5529abc4b5b0891082053e31bd3fbf8b5e68f089995b5ab7505e876"
+    "view_id": "market-replay-5571b1740afd8cab88e4aef445c529d04e384b577f94b0016c21e77b50b26478"
   },
   "qsys_reference": {
     "bytes": 89478083,
@@ -179,9 +723,9 @@
   "raw_batches": [
     {
       "domain": "trading_calendar",
-      "manifest_digest": "sha256:7a617f568ea85238fb93b1105be60010f80625288a6831d61968420f3c8995df",
+      "manifest_digest": "sha256:c2d15373a38a1a943b0daa970880bdb6345bd9c728c20a23ed0c394f6542be98",
       "payload_digest": "sha256:72890b4a9df5a56be8bd995610a74742cba679f78e844885175bbb3ff2afb74a",
-      "raw_batch_id": "tushare-trade_cal-8d0ef81e4bffa0ee18491266ef313ffe361b9cc9a04051958200704000eb9df4",
+      "raw_batch_id": "tushare-trade_cal-a04594c8a38858bc5d28f314ebbb4455514c75d144afc740cd889551b63d6abd",
       "request": {
         "endpoint": "trade_cal",
         "fields": [
@@ -196,7 +740,7 @@
           "start_date": "20250601"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:30.584714+00:00",
+      "retrieved_at": "2026-09-06T08:26:52.462331+00:00",
       "rows": 97,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -205,9 +749,9 @@
     },
     {
       "domain": "trading_calendar",
-      "manifest_digest": "sha256:b6822b8cfbe2e315ba3b06edd917518d9684e95ac9aaaf869c39f574f29c1870",
+      "manifest_digest": "sha256:5f6b70ea437840ae0d205d31bad28e9a5b3bcaedc4b949095219deb1a3599f50",
       "payload_digest": "sha256:5d2a11c1041cbeb8ef1d7d87aae915dd180eae72171e86b703e9b476c8dd6488",
-      "raw_batch_id": "tushare-trade_cal-1fb537e0c06115b14c2f6f4525be42930396328755b30eb0eccfd1eded0b2e27",
+      "raw_batch_id": "tushare-trade_cal-f0846fe4370b5ec5c5efe8a40a53a41ba8f13803830cef092624a7390c4f8c80",
       "request": {
         "endpoint": "trade_cal",
         "fields": [
@@ -222,7 +766,7 @@
           "start_date": "20250601"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:30.662932+00:00",
+      "retrieved_at": "2026-09-06T08:26:52.553975+00:00",
       "rows": 97,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -231,9 +775,9 @@
     },
     {
       "domain": "security_master",
-      "manifest_digest": "sha256:e0e1635915dc66e3f69841bf49749a93dba43dac79a29b85f166dd5ee690e8a5",
+      "manifest_digest": "sha256:4c170232f593c40ec9d2cc584c788b7a22d29b70b1697014d5d850260b7f6d23",
       "payload_digest": "sha256:ec440fc4d3e329dc40991d031ca1f0ef0cab79fbee4bbc777034b528fed5c270",
-      "raw_batch_id": "tushare-stock_basic-a641a4015aeea578d7fafce263354f46890ddeb2135d9b04c65eb3a87cd612e8",
+      "raw_batch_id": "tushare-stock_basic-4d8efca385e8e800a90b078c193ee830b0e5f4fb62dc87138ef8b9be106c1ee8",
       "request": {
         "endpoint": "stock_basic",
         "fields": [
@@ -249,7 +793,7 @@
           "list_status": "L"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:30.891556+00:00",
+      "retrieved_at": "2026-09-06T08:26:52.783242+00:00",
       "rows": 5556,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -258,9 +802,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:0e062ba73d7172817719a6af07b895d66263cc3a973125ecfef553c5c552abfe",
+      "manifest_digest": "sha256:fb865e8a633fe075e50ecf875f1d63797e482eb9eebccd080f3e6f81baefa64a",
       "payload_digest": "sha256:4616c8d28f9858202f5f3318cb378a6e4ef8a47bae76acda7c5b8f5d8880175d",
-      "raw_batch_id": "tushare-daily-c50d63ed42ded1e3843510b882be10ec6c32655d3a9e3c2fde8bfac177c454a9",
+      "raw_batch_id": "tushare-daily-acf9709fae50c8484f8d5c5660a93b664ba379acd0ce29243cf30569bd19d0f5",
       "request": {
         "endpoint": "daily",
         "fields": [
@@ -282,7 +826,7 @@
           "ts_code": "600000.SH,600036.SH,688981.SH,603072.SH,000001.SZ,301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.014025+00:00",
+      "retrieved_at": "2026-09-06T08:26:53.307476+00:00",
       "rows": 409,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -291,9 +835,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:e5cdada7af12b1bcbf13447c417262e5de775b88d97980a092544cd51ee279a4",
+      "manifest_digest": "sha256:9f43edfae9bd29c1ca9c08f99c351443288ba727b8893b2530553f9bc5434928",
       "payload_digest": "sha256:48916ec1db8a0cbc1637c9e0bf6fe9f01bdcfa4aa6c33524dceb314d8c01e26f",
-      "raw_batch_id": "tushare-adj_factor-dd84fa65e73dfcf9db985efc683b48f2c35c2b64e5330fd5d7234c7b3ec0457a",
+      "raw_batch_id": "tushare-adj_factor-4f0b26011a54d17a5f65cfd6f4b04991fa2052e3a4472b6ccc3536a7520e034b",
       "request": {
         "endpoint": "adj_factor",
         "fields": [
@@ -307,7 +851,7 @@
           "ts_code": "600000.SH,600036.SH,688981.SH,603072.SH,000001.SZ,301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.122933+00:00",
+      "retrieved_at": "2026-09-06T08:26:53.392866+00:00",
       "rows": 414,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -316,9 +860,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:cb90c4e0c3fa2e7ea602c0834cc3168f96f4798071c53ba908af63939b7f0e32",
+      "manifest_digest": "sha256:ce8b2f08fa4eb423de927f49c78c0cac7a93c39dc2fc04484484a3c7b4097541",
       "payload_digest": "sha256:ef507bf6f17e289fd90e9e72c525904f750d8665221deadf452ddb288023fff8",
-      "raw_batch_id": "tushare-daily_basic-490fe023fcf13849b0587df3205db0c215e469d8ad5e6dd8093b06d3405db994",
+      "raw_batch_id": "tushare-daily_basic-85513edabccd5f65d41924786a9b591207d1a5ee10eab24aa659913db4a31ae4",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -334,7 +878,7 @@
           "ts_code": "600000.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.226533+00:00",
+      "retrieved_at": "2026-09-06T08:26:53.474838+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -343,9 +887,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:93a876863e2429e68710e49270e02e71b148303032c50bf2586857a30ae313e4",
+      "manifest_digest": "sha256:b6d39f054b825a465e247860675021a1477f5ff7b08c3a8b12a780d2f833d249",
       "payload_digest": "sha256:682a67d86c00a63272c57cc87866e065ca45bff7e6ebff62bfd39243a4886d48",
-      "raw_batch_id": "tushare-daily_basic-51a4c470b6817a15b72bdcea63acb718509bc519815d43e337c3eb54f1fd3aeb",
+      "raw_batch_id": "tushare-daily_basic-e926221d00100c0f745512489556d3320318a9d267527b688a906c885ea5f007",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -361,7 +905,7 @@
           "ts_code": "600036.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.331187+00:00",
+      "retrieved_at": "2026-09-06T08:26:53.554646+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -370,9 +914,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:efaa88ecc6382cf8f17538770e35e3f269350874723527a38420106f788ce55c",
+      "manifest_digest": "sha256:551248c7dd76381906c9ea5cef60cd5306d4b436b48155caa1809a7a659fbc9d",
       "payload_digest": "sha256:50ec9b4f24ab8dfdf111f3e6f33ea5f288dfd04cc60d99d397315cda24c819e1",
-      "raw_batch_id": "tushare-daily_basic-b8c4fc74184f8125a9d0eaeddf88d6c1093e167728f92017df552f18d7bd3b0e",
+      "raw_batch_id": "tushare-daily_basic-ad95c2dc90da0b9e87f2efd54c4b06dd84e2036351702fec31cde7cb7150dc98",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -388,7 +932,7 @@
           "ts_code": "688981.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.427525+00:00",
+      "retrieved_at": "2026-09-06T08:26:53.653877+00:00",
       "rows": 64,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -397,9 +941,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:69cc14e17ac92ca63edf6b051e6fbd85c3930bb289fe60bb8c64514c749684da",
+      "manifest_digest": "sha256:f83b2783d8dd9810977424da77c3f433bdb5dde4803a9511ea7ede77c4abf33a",
       "payload_digest": "sha256:77784aca87cf4b9970cb59a3c180f248ed8adf058984dccf2cd6555a8178cffd",
-      "raw_batch_id": "tushare-daily_basic-1b475f3a68e6fbda34767f62f1e9c3abd627a7d849d7bdf47c099945d3ff6d4d",
+      "raw_batch_id": "tushare-daily_basic-39b1eb8cbc7c2f83963c8167338b5178c85a39dff846af53c6a292b4e9a95b1a",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -415,7 +959,7 @@
           "ts_code": "603072.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.539740+00:00",
+      "retrieved_at": "2026-09-06T08:26:53.770429+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -424,9 +968,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:0947af676a983917f954d65f02781cb94be524515a7bfa68848ac261b687ce0b",
+      "manifest_digest": "sha256:887fa2013f7f60768eaa09a8c64a00268d879bdd4d731b69ca6ed3ddf0670640",
       "payload_digest": "sha256:db47cec4b4ee805f664dc4afec55653c5fbe2f44c1c89be42c5afca80d6a409a",
-      "raw_batch_id": "tushare-daily_basic-c6a637997027b2ed59f0893c310ced89a21733ff0c13db3410de512fa4479992",
+      "raw_batch_id": "tushare-daily_basic-929b76b4b5ce52ce8672231c464594f53a7ce47050b3fed5f9cac15845bed057",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -442,7 +986,7 @@
           "ts_code": "000001.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.629022+00:00",
+      "retrieved_at": "2026-09-06T08:26:53.857988+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -451,9 +995,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:ac0314c69612713fbe96a7b91972a518063ed88f0f636390ae798aef77634943",
+      "manifest_digest": "sha256:fc33955eb1a67d51fe876bbc89c407a9f7b1e9ac7d30d6571e459e28cb886a7f",
       "payload_digest": "sha256:edcf4fc76ce567699541e4d3ff0d95795b87e183ebc4ba6f822df2df44c76dd4",
-      "raw_batch_id": "tushare-daily_basic-dc1fb5401a300710d3ce04810d5f1e2ac7f48eb66de69d3df752c5c3cf24f414",
+      "raw_batch_id": "tushare-daily_basic-022296f265bd1c83841f21728658325e5d494f02cdb6e7b54a34fa59d1d125a2",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -469,7 +1013,7 @@
           "ts_code": "301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.729421+00:00",
+      "retrieved_at": "2026-09-06T08:26:53.947876+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -478,9 +1022,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:dc29002aaadc1b9eb87289b20cda79a881bbca9cfc38ea78a16c4e0b7035b568",
+      "manifest_digest": "sha256:7634a092a7bccbbffd2475a12af307c8d73aaefc4b86ac00b42fc99c09a9d610",
       "payload_digest": "sha256:d0d571b6ef4a7d3d61bae71b6e07c968ee2d658cf4afcd54d71d108607c53f21",
-      "raw_batch_id": "tushare-stk_limit-e685ddfcd1b91bd04cd8e71e10a15eb81bf97718d6e84605310a6719a86a2a34",
+      "raw_batch_id": "tushare-stk_limit-dfe6b23138cf0396fb2905c224529d667b2878872cc77700024dfe47a92c8b3d",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -495,7 +1039,7 @@
           "ts_code": "600000.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.825981+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.061649+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -504,9 +1048,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:b61a049f2cbb483327d8267c0afd09baa7b8252edd549ec984df8e31ee0ed5b2",
+      "manifest_digest": "sha256:97ff45bfccbfc098b9050c672eb4c2d85471565bf54691a32f5f8732a672068e",
       "payload_digest": "sha256:2b9f61473d35bbc7b6939c62700bead6ca268d92b9448c2d9e5cb93742249892",
-      "raw_batch_id": "tushare-stk_limit-28e881b13a3aa98245e61998f6938c2bc1dc1938bd264df2e46f2d4024350326",
+      "raw_batch_id": "tushare-stk_limit-a03127aba700d14ec27796b48ab4645bff50ad82bc11705b9b2234b29b7131aa",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -521,7 +1065,7 @@
           "ts_code": "600036.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:31.938334+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.162622+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -530,9 +1074,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:625b7d8ced290985d5736e1edc529fbf7c35f6cf520cc0f88cf6eaa7813206ac",
+      "manifest_digest": "sha256:35885ad81e88ad6c28553b2fdb1d6164c02cc1e7da60e37d4b7c16202bfda7be",
       "payload_digest": "sha256:4344c103296d5c4a688d955593211d68e15404327eced25563db27e069703dec",
-      "raw_batch_id": "tushare-stk_limit-f077d6cb70c6b7a9a1b7ea5aee3c7db11eb9b355ccb7c8a0b1efe8db222779c8",
+      "raw_batch_id": "tushare-stk_limit-0f3acb45b22eb6ce6081f0d46ab3bd517faa091d6ff863e475de9fff2335b66f",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -547,7 +1091,7 @@
           "ts_code": "688981.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:32.027624+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.258041+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -556,9 +1100,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:d5ba9cf6f02e7448f3e8d5b99e5c88a8d55db409a353b8d3d7e5a18a9ab4d1b2",
+      "manifest_digest": "sha256:3d6770abf39554c0a653e32b589d321d5526eb08769388fb2d90373e2665dd4e",
       "payload_digest": "sha256:b1a33b7923089134a04f3195847d2f0d554b72240afaea42af7978f29637d3a1",
-      "raw_batch_id": "tushare-stk_limit-52418a9e4ac3dc19c4fde17cb87d619b32c9fd50cef51e4e10bbede613a2644f",
+      "raw_batch_id": "tushare-stk_limit-1c97ac1b3feaec7309874ccbbd6a05ca1614da972b963b4c783a277080add07e",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -573,7 +1117,7 @@
           "ts_code": "603072.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.131744+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.346355+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -582,9 +1126,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:3e37e46474dc4fe680ef749ad65baf0e8f02c3d6456c4591014676ab26ee807e",
+      "manifest_digest": "sha256:4d74c168ac1b5a9a4124319ca7a8d0fce5a798ccf38a972277da95626a0755bc",
       "payload_digest": "sha256:944eb93ed2d33ee4e83cd30cdd1f266bb1aa15cc04e8ee51e9d517942d6f706c",
-      "raw_batch_id": "tushare-stk_limit-a550818f5bfb931e12fc9fe0215869721f075b22313f97685ebb2a6bc55ceaa8",
+      "raw_batch_id": "tushare-stk_limit-3ed16700a88c4bbb07d93172afb5f3a575875e6c2c0807aa0c0daf5ab3d8c3c0",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -599,7 +1143,7 @@
           "ts_code": "000001.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.247939+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.459656+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -608,9 +1152,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:84e4800ff52d97bd193e89b8dc0aa882d47eee34dd43dba935105a244a84a930",
+      "manifest_digest": "sha256:13a55857e53e8643a520e9a533622ecbe321c4f0bc61028cdf4a60b92c49a479",
       "payload_digest": "sha256:8fb1dab4ccc0ab2ece329ed3fbcd3f996fd4f2aab44a01db2dff9c47688f40cc",
-      "raw_batch_id": "tushare-stk_limit-ed29699953a3ee4ab4374323abce27702f592833df50d393d75a5736d1062b07",
+      "raw_batch_id": "tushare-stk_limit-3680302900acecaf32587a31018f0c843683af5bbb0f6816dc53512b611a53cb",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -625,7 +1169,7 @@
           "ts_code": "301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.341953+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.548022+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -634,9 +1178,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:60dc21a0ba40b027255cbd43dacb64d3762c41ee589e54f91bc43001300e9b67",
+      "manifest_digest": "sha256:1f60090dc067e82fdb9ca47bc1185ea9d91e2c149c0d3e630b1eccfaa149bce7",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-suspend_d-df588ff468ac6ae716c24b71e715f7b398c6354f2b5d9435dd1a774b67ca990c",
+      "raw_batch_id": "tushare-suspend_d-af019d673c285b61e95a82dad17d52aafd6d4a1f521d8c4c3aee26fd0443ec8a",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -651,7 +1195,7 @@
           "ts_code": "600000.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.447374+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.632191+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -660,9 +1204,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:0541cf5d63168ef7cbf93226a6bc033a8b74b9175c81ffe864469c266e4232b6",
+      "manifest_digest": "sha256:d57845a48e5e1d85b795bd23fa818486553838ed34df3831eaafeb725984309c",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-suspend_d-644d1d8cf2365ef472caeb3d27e86054d39133dde76f9a77bd63af00d1048906",
+      "raw_batch_id": "tushare-suspend_d-ec3e1c769b31ae2a7e130574bd1905ba6e93d4750dbc8fbfb5d477058145f5fe",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -677,7 +1221,7 @@
           "ts_code": "600036.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.530697+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.720098+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -686,9 +1230,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:bb5391e348172bc3ef5460fa21a2604ea6d9e2368c7ce449a0f49f327ea2821f",
+      "manifest_digest": "sha256:a455ed0b284e3f0c5a6be7a6675c5843e33c0204fef4de611b731c509efb202c",
       "payload_digest": "sha256:5525382264b09ba9f2e529e9e974bfd6b96ba99e564c665d664688dd220c3273",
-      "raw_batch_id": "tushare-suspend_d-93813bbf14991db3e4056d52237543f59233d8e1f568d5d441c16d0b8c72e97e",
+      "raw_batch_id": "tushare-suspend_d-5283290707216c71ded751d717caf44c1ad06ffbe8032c25237e6938ac8a937e",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -703,7 +1247,7 @@
           "ts_code": "688981.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.632482+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.818523+00:00",
       "rows": 5,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -712,9 +1256,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:493ce93efdbaba66d8340696709632dd760e4b4ff32cf23c1645762bdec11332",
+      "manifest_digest": "sha256:8874effefe245cff9bfdf8228817467bc9d014204092e2e3fc9156830ab77ab9",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-suspend_d-0a5e3031b50ffeb708ce97391c9a866830891d914a850f4eeecd790f8a613a4c",
+      "raw_batch_id": "tushare-suspend_d-932f570a84ebad011915d1e94733b09d61afa6ee6294e74eb391d376f1e524a0",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -729,7 +1273,7 @@
           "ts_code": "603072.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.719234+00:00",
+      "retrieved_at": "2026-09-06T08:26:54.905937+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -738,9 +1282,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:19902ca5be4448db633b6af066641a36419cf3b683b0fb966b9304637028885c",
+      "manifest_digest": "sha256:d3d3353da8c4dca5d09a21198001f7a7e1c165f395f52b296c219a7e36a2ced3",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-suspend_d-75da01b4e526995b89b7b585649c019137d93ad516600ebf0093b0caec1837be",
+      "raw_batch_id": "tushare-suspend_d-08ee0b5e04cfa68be24d2018c1a22aa4d123f6cd7bbf00058c18f3acafa4efcd",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -755,7 +1299,7 @@
           "ts_code": "000001.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.798593+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.007102+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -764,9 +1308,9 @@
     },
     {
       "domain": "market_daily",
-      "manifest_digest": "sha256:2f0ed4d12c44b429f80159fef08a1beec9a463475108c337a1e6f9107389d221",
+      "manifest_digest": "sha256:889bd1767f58323f164d3634564f0f0096a78d2efdc9891eeac309b3173ef54a",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-suspend_d-b2ee14146b2f92aa5b9e8792cdb421dca2273e961df263c991e415bc99edd380",
+      "raw_batch_id": "tushare-suspend_d-407e22538e880e54e6db9ada8859f1464ce366ea02eeed3e091d17015aeecad9",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -781,7 +1325,7 @@
           "ts_code": "301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.877326+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.102111+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
       "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
@@ -790,9 +1334,9 @@
     },
     {
       "domain": "security_status",
-      "manifest_digest": "sha256:2bfa44902ab15b3ca313fca5e5bf5d05af364075bf209cde7923e11e06b73191",
+      "manifest_digest": "sha256:075969bae93e10e5cacea1d79d9c71db36e300857527953ca1b10694334ece85",
       "payload_digest": "sha256:738d4f3934614da0e99598afccede4c03f807c14b0f1b72c42747164ae2d1433",
-      "raw_batch_id": "tushare-security_status-daily-e188bf1eb9008bb70143672b50628d6a967b03df5913447b55c44529b3b0ba93",
+      "raw_batch_id": "tushare-security_status-daily-d40398bac36d4a2c586ffc8a28fedd3fb70708f617434735501adfa2bfaae9d3",
       "request": {
         "endpoint": "daily",
         "fields": [
@@ -812,18 +1356,18 @@
           "ts_code": "600000.SH,600036.SH,688981.SH,603072.SH,000001.SZ,301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:33.981447+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.214654+00:00",
       "rows": 409,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.daily.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_status",
-      "manifest_digest": "sha256:8ad021b59a7134f4971acba0376a76aef398aff7a5e796da4285f8baca31eb23",
+      "manifest_digest": "sha256:a72a2f0e29bcb5089bc885be10c3bb939bd44879e5e85692098b9124bb373d4c",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-security_status-suspend_d-621f9e6af308e78975a2bc8034ba153d6806461cdc0901892d3110802a35ba6b",
+      "raw_batch_id": "tushare-security_status-suspend_d-38bba932c4f652916ec4bc519d47571cf71e1f62beff6efdab4762b54dbc0595",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -838,18 +1382,18 @@
           "ts_code": "600000.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.068864+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.401952+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.suspend_d.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_status",
-      "manifest_digest": "sha256:940976d66ec983960fa45eb382727324051a2364841deb5d8ec7ebb1643ede66",
+      "manifest_digest": "sha256:a1bdba2dfd681593e4dd16541ba562207fdb3a2dcd7d19376e904e4e96785742",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-security_status-suspend_d-609441c9aca403b47d7b54d8a9307f8b5994ae38e1314aeec2f5f2de34c9f55e",
+      "raw_batch_id": "tushare-security_status-suspend_d-fb1bdb9d1e76a3ee45f51bd2f58195d3129dabf4801c7e24291a8f308809892c",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -864,18 +1408,18 @@
           "ts_code": "600036.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.459593+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.753670+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.suspend_d.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_status",
-      "manifest_digest": "sha256:b9c9a040f28f76aa2af37b05af5bc88d5672f235b69cf2b619f0c11ce93a5229",
+      "manifest_digest": "sha256:1f6213a4d27435cff7390a951bfa6fa24e3efb1b2852aa28095a53a52182dce2",
       "payload_digest": "sha256:5525382264b09ba9f2e529e9e974bfd6b96ba99e564c665d664688dd220c3273",
-      "raw_batch_id": "tushare-security_status-suspend_d-1e5366c6bc7ea4c48abd33ddb127fc53bc9881babaee56465e192841fa77a616",
+      "raw_batch_id": "tushare-security_status-suspend_d-a1991427253a1b3b6f6f68723271f2e029fc1f77bd50d7f0b1e0d7bb075dd523",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -890,18 +1434,18 @@
           "ts_code": "688981.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.851698+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.127544+00:00",
       "rows": 5,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.suspend_d.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_status",
-      "manifest_digest": "sha256:74e4be14ba4cfa9502be17b93a2075b5e685936207941e1bc115c54734deb826",
+      "manifest_digest": "sha256:942957c52ee79669f29ce8c7c8a57fcb2c72e5a2cf72f22f8c70c0e82f055e5a",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-security_status-suspend_d-da1f9e755e1a3e9b8f7d7dd9620f3520e327e5bf58571e6b0e06ac571b0fb5ca",
+      "raw_batch_id": "tushare-security_status-suspend_d-091520fd4459f88ec6c22bfb9681a909ff0788ab6f72e0c81ce2d340e7dc612a",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -916,18 +1460,18 @@
           "ts_code": "603072.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.230851+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.484394+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.suspend_d.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_status",
-      "manifest_digest": "sha256:52ecbfc448b5299796aa2cea48ec930df368fed3e2ceaac7eb5a94b2d50eeadf",
+      "manifest_digest": "sha256:ae2c6fc1cb16c61bf63c3c560a1384a428ce8f3ee1bbc176de1964520eaf9b69",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-security_status-suspend_d-44e56abc502bc7b27d647dead38230295487048fa95627015c2e35da5808426a",
+      "raw_batch_id": "tushare-security_status-suspend_d-7952fafbd67d094572bcfe8d31dac54d5748df82d014c96a5609afd80c606434",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -942,18 +1486,18 @@
           "ts_code": "000001.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.629519+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.889769+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.suspend_d.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_status",
-      "manifest_digest": "sha256:386e21408e5d313f6c960afac3b07e566f1ace18d35bec7219aa3ca33d7bf952",
+      "manifest_digest": "sha256:f087a218e64838a543503eed445b1ec6b277638448f14121dcbfa1bdef57bcdb",
       "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "raw_batch_id": "tushare-security_status-suspend_d-1dcb56be5606f32449a3ec8ad2c783d2aaeb920c9c8ab9712f1dfb6dbbeed2ef",
+      "raw_batch_id": "tushare-security_status-suspend_d-ec57f8427a6734c119b417e0b914d30001ab2c658433989cbfa85a726994418f",
       "request": {
         "endpoint": "suspend_d",
         "fields": [
@@ -968,18 +1512,18 @@
           "ts_code": "301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.992814+00:00",
+      "retrieved_at": "2026-09-06T08:26:57.255774+00:00",
       "rows": 0,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.suspend_d.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "price_limits",
-      "manifest_digest": "sha256:15ba0e5a4034ef6d1a1ce2ba7665b8a24eddb355021734e57def55da6b464cd2",
+      "manifest_digest": "sha256:833b1c36c9103be89053b5d70760bb77f28a82e45c04f45d4ef513d5d3976aff",
       "payload_digest": "sha256:d0d571b6ef4a7d3d61bae71b6e07c968ee2d658cf4afcd54d71d108607c53f21",
-      "raw_batch_id": "tushare-price_limits-stk_limit-ee4df6b1249c96c5495acea19d7adde0d4f4de9183fcbe966a3851dbf273a266",
+      "raw_batch_id": "tushare-price_limits-stk_limit-736ac10db18641356d277f7efe6761e4e43f7850783de2591924e792651b99cf",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -994,18 +1538,18 @@
           "ts_code": "600000.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.172435+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.492444+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.stk_limit.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "price_limits",
-      "manifest_digest": "sha256:9274c74fc2014f0f4413efd0cfce4c54ba4101d8266d1d132ed8756ae76a2728",
+      "manifest_digest": "sha256:3a722bf8d15a791e012830254c71b5956c1feb92414f043cca4b081a7c237fb9",
       "payload_digest": "sha256:2b9f61473d35bbc7b6939c62700bead6ca268d92b9448c2d9e5cb93742249892",
-      "raw_batch_id": "tushare-price_limits-stk_limit-fc429e09e6e0c1cbb78ba09b28864e321343277513084b921c5cb3e5fbaed4e9",
+      "raw_batch_id": "tushare-price_limits-stk_limit-4c87de060a480d362ab88f6ecf63348974f846d9e7613aa86cd5ca4af77a4d35",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -1020,18 +1564,18 @@
           "ts_code": "600036.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.559350+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.863936+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.stk_limit.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "price_limits",
-      "manifest_digest": "sha256:0f7cb1bc8c0e5465c7a83102fc7909f4882b1c940fb8cbea5a08b8e8d53cdd13",
+      "manifest_digest": "sha256:181da781bbc766dfe1ffa1235ff45b0e2f6e42bf7fb284ae7bb82c5be7fc3244",
       "payload_digest": "sha256:4344c103296d5c4a688d955593211d68e15404327eced25563db27e069703dec",
-      "raw_batch_id": "tushare-price_limits-stk_limit-fbb5152b38fdcd3116135360ddad6b83cabeea29f9804e741c6ae44f3bb7a778",
+      "raw_batch_id": "tushare-price_limits-stk_limit-840eed5840ccdb069f659dc472fd072e7bec70bdd9d10145fce5d1238df07acc",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -1046,18 +1590,18 @@
           "ts_code": "688981.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.945498+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.215021+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.stk_limit.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "price_limits",
-      "manifest_digest": "sha256:a8e03609e9dc916da43e8f669aaa250cc54bc3f8f7cfbb4632d786058044a4ea",
+      "manifest_digest": "sha256:89a609e876568fc45b3a02302cfd85cdbd4240f2da470b707128b505521d53da",
       "payload_digest": "sha256:b1a33b7923089134a04f3195847d2f0d554b72240afaea42af7978f29637d3a1",
-      "raw_batch_id": "tushare-price_limits-stk_limit-e1f28c091de463595bb8a88ffcd9257eadb5b529466bb06b6875dc0698de3ee2",
+      "raw_batch_id": "tushare-price_limits-stk_limit-c41169f7fb63cc701c715cd5eb77139fcf74ba34ee80751e9fd555a1ae54074b",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -1072,18 +1616,18 @@
           "ts_code": "603072.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.326817+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.592193+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.stk_limit.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "price_limits",
-      "manifest_digest": "sha256:9ba5f9876fec3bc1a3d6ec9b0bf143b1b8e976b372030a571f72304559287502",
+      "manifest_digest": "sha256:6ddd31bc64f592219a4fcf60c19ad7dd6836b865a1d6aa46e81e5df820f2ca79",
       "payload_digest": "sha256:944eb93ed2d33ee4e83cd30cdd1f266bb1aa15cc04e8ee51e9d517942d6f706c",
-      "raw_batch_id": "tushare-price_limits-stk_limit-37f85b445bf5471fb2da59de4effe57f522cd162d1d176829f9a4125023908fb",
+      "raw_batch_id": "tushare-price_limits-stk_limit-131d46b5e0ae9ae50f83479698888a9b43517b952079a48729a66c1102a9f872",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -1098,18 +1642,18 @@
           "ts_code": "000001.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.726837+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.985693+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.stk_limit.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "price_limits",
-      "manifest_digest": "sha256:ea88e6e72e6f248270f3acd5a68c4937c3118e674e592f7c2733c1fe643ea81f",
+      "manifest_digest": "sha256:232bfa105fefd0ae8b0a3160924c01a6b703c6dce3e8c3a2cdbc61fdaa386f0a",
       "payload_digest": "sha256:8fb1dab4ccc0ab2ece329ed3fbcd3f996fd4f2aab44a01db2dff9c47688f40cc",
-      "raw_batch_id": "tushare-price_limits-stk_limit-69b1c5e0fe25110e22ea9435ec4cbde52292b6071bb5c8bedf585cac870f9673",
+      "raw_batch_id": "tushare-price_limits-stk_limit-4d30e942de68777aae2f0f649318be7b2f9fcc2551a1529d2eaaf0ca091d53e4",
       "request": {
         "endpoint": "stk_limit",
         "fields": [
@@ -1124,18 +1668,18 @@
           "ts_code": "301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:36.100916+00:00",
+      "retrieved_at": "2026-09-06T08:26:57.353858+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.stk_limit.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "corporate_actions",
-      "manifest_digest": "sha256:6bdce189e4b3dc03412841ec9de87eae412a79575c339627793acf6cfb046dc4",
+      "manifest_digest": "sha256:cc37eadaa1cad8f70eec8462f18952eabf492a45e95cb0f17af36e0c95f5d72f",
       "payload_digest": "sha256:d25199a31bfee0d5b16b957bead997792c59fbb69b903af3b42500f3401f1ced",
-      "raw_batch_id": "tushare-corporate_actions-dividend-9be49ae6724ec75f0837fa836ca40dae7990024c603c777ca958d61f876b1154",
+      "raw_batch_id": "tushare-corporate_actions-dividend-41df31ba8b9bc14657305f1002317f3613139e2347a928cdc17f9891dc2bb64d",
       "request": {
         "endpoint": "dividend",
         "fields": [
@@ -1153,22 +1697,21 @@
           "div_listdate"
         ],
         "params": {
-          "div_proc": "实施",
           "ts_code": "600000.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.285469+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.576477+00:00",
       "rows": 78,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.dividend.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "corporate_actions",
-      "manifest_digest": "sha256:1e75f4eef79b0dc2a1921b95f013188c485a79cf13c6992f7ac00a2f82416b8c",
+      "manifest_digest": "sha256:1d9c4b8f219ee20bc9795ce2f8fa527e3cace470a12318201a35cddeffb87492",
       "payload_digest": "sha256:7f4d3a2bfcd60c99dd68f64809277aa77dc7882e5cd4cb215da1d41973b9fbd8",
-      "raw_batch_id": "tushare-corporate_actions-dividend-f96031615378eee0e66797c6b6790ea3575c1d6798ee3f19a65cd07fe32e0260",
+      "raw_batch_id": "tushare-corporate_actions-dividend-2434313a50d6d06fc1c6733feb68030af72486c5bd27243b6d66e573a5b32855",
       "request": {
         "endpoint": "dividend",
         "fields": [
@@ -1186,22 +1729,21 @@
           "div_listdate"
         ],
         "params": {
-          "div_proc": "实施",
           "ts_code": "600036.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.664389+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.954425+00:00",
       "rows": 75,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.dividend.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "corporate_actions",
-      "manifest_digest": "sha256:880dae66e5ada1b74113b77ad4894d621f359f4e6a5282df28d1011e1116e5e6",
+      "manifest_digest": "sha256:80d8435271e9d5df60586af90c90e7a69587d2b67a49adbac76f4c26bfac6f1f",
       "payload_digest": "sha256:de5c5aee9cfffe000ddcf63bebce981f2dd75642fc689b854b22c3d31b2eb048",
-      "raw_batch_id": "tushare-corporate_actions-dividend-59eef59cfcb81d6242ad0182d24e001ea85ba32b3c2d04ea5875f28cb1d0feb4",
+      "raw_batch_id": "tushare-corporate_actions-dividend-70cdba6a51986e9047cc22b5792357be0af74efcaff8d3ccd53fe1659aa15613",
       "request": {
         "endpoint": "dividend",
         "fields": [
@@ -1219,22 +1761,21 @@
           "div_listdate"
         ],
         "params": {
-          "div_proc": "实施",
           "ts_code": "688981.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.030207+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.303904+00:00",
       "rows": 26,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.dividend.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "corporate_actions",
-      "manifest_digest": "sha256:6c824f887e5cf00202ed208e355c5837ef5da16634fdf0fdcf034767aea27e6c",
+      "manifest_digest": "sha256:bf7ee659163b59aa7ff4949b226e595fc3bf0c19a815a4f7837f340fa87820de",
       "payload_digest": "sha256:9144876fc7a268672ecc824f9b2b96ec53aa2f3dead4bc05d0ff844a343a0720",
-      "raw_batch_id": "tushare-corporate_actions-dividend-0e124afe62258b82f0337e6968862f1112286f5c8c535cbfd3b2aec05c10e04a",
+      "raw_batch_id": "tushare-corporate_actions-dividend-80f840f4f827a02081201a156773e507e8e39503e3c53cacdc63032c16e33461",
       "request": {
         "endpoint": "dividend",
         "fields": [
@@ -1252,22 +1793,21 @@
           "div_listdate"
         ],
         "params": {
-          "div_proc": "实施",
           "ts_code": "603072.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.426082+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.698980+00:00",
       "rows": 12,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.dividend.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "corporate_actions",
-      "manifest_digest": "sha256:f05835dbdd8be198eada582ff0758c8a6633657fcd936d2dc05feab929c8cb12",
+      "manifest_digest": "sha256:8a5b96368aa28787d53adf2dc13fdd5885d3f8ea84b1cb945394985941e1ade7",
       "payload_digest": "sha256:2f1fd3c16ab3e48a0255549a839676f01778d6123739fb3d429c7dc1285a18ab",
-      "raw_batch_id": "tushare-corporate_actions-dividend-33c87c38a5638871c501c0c452fd7088c33c0bf5978b3e92fd6733e8284d4c8d",
+      "raw_batch_id": "tushare-corporate_actions-dividend-ef589b1d25cb47dd1e4553b0e3d2f4f22c95ef105eaa5470a397f17a06daeefa",
       "request": {
         "endpoint": "dividend",
         "fields": [
@@ -1285,22 +1825,21 @@
           "div_listdate"
         ],
         "params": {
-          "div_proc": "实施",
           "ts_code": "000001.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.816342+00:00",
+      "retrieved_at": "2026-09-06T08:26:57.079966+00:00",
       "rows": 97,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.dividend.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "corporate_actions",
-      "manifest_digest": "sha256:bbd5e7b4e1ac99185dbf770449d0bd2f5e77c891dc66e2a1e0af85f826bd890d",
+      "manifest_digest": "sha256:82b2181acd7a9a519ce17c98749f9d5cd81800cacfa0aaca0addf56d729b632f",
       "payload_digest": "sha256:1e19853fea511e5f7ced277127b228ac1964d550fb3a0c44805f33f260c780ad",
-      "raw_batch_id": "tushare-corporate_actions-dividend-7b86498c51cc339ecd6ccc5bea096461232d9bc8937a04541a05a211f4d265be",
+      "raw_batch_id": "tushare-corporate_actions-dividend-21685f8670f2d05b574e0146d9fbe79fa31d4bf750df6dfcb449a517fdba1a49",
       "request": {
         "endpoint": "dividend",
         "fields": [
@@ -1318,22 +1857,21 @@
           "div_listdate"
         ],
         "params": {
-          "div_proc": "实施",
           "ts_code": "301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:36.201264+00:00",
+      "retrieved_at": "2026-09-06T08:26:57.456714+00:00",
       "rows": 10,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.dividend.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "adjustment_factors",
-      "manifest_digest": "sha256:6c7423988a2fae3335015c1ecc2929b4898d6ce40ef593ed96968d8ef2927a0a",
+      "manifest_digest": "sha256:94aae4a241d43279b6463ac2b3e18312d5b6d683e39aef94301093f3f39af946",
       "payload_digest": "sha256:48916ec1db8a0cbc1637c9e0bf6fe9f01bdcfa4aa6c33524dceb314d8c01e26f",
-      "raw_batch_id": "tushare-adjustment_factors-adj_factor-548d90a2731664bd0edb4f722e60091f255b8a98dc3b1338665f4485470f59b9",
+      "raw_batch_id": "tushare-adjustment_factors-adj_factor-85d7ac9d2155e4ba2bca861a2a2c16552afc9bdaa7d1d3d7f4420f15739188a5",
       "request": {
         "endpoint": "adj_factor",
         "fields": [
@@ -1347,18 +1885,18 @@
           "ts_code": "600000.SH,600036.SH,688981.SH,603072.SH,000001.SZ,301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:36.390187+00:00",
+      "retrieved_at": "2026-09-06T08:26:57.728392+00:00",
       "rows": 414,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.adj_factor.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "benchmark_daily",
-      "manifest_digest": "sha256:fb14c0e0139495b2f20c1e6a8b668c2571f21b976f203974cd0d289f6222ebe1",
+      "manifest_digest": "sha256:28687fcdad4e4a7a60b0936a34ca80d66c6492c5291cefc4b07a767cd1db26dd",
       "payload_digest": "sha256:c9c4d43ae3ed81892c38a8a8631f2051e1afac02eb99b23fefc291e3096cca70",
-      "raw_batch_id": "tushare-benchmark_daily-index_daily-2b0670ca02848ab9d9b529c348a92101102769c162ace0202bd17123d1d9b7c1",
+      "raw_batch_id": "tushare-benchmark_daily-index_daily-a2c730c62bac3ff79de5e230d98ba93013422dc72b8ec5d3c14f47987bc4a803",
       "request": {
         "endpoint": "index_daily",
         "fields": [
@@ -1372,18 +1910,18 @@
           "ts_code": "000300.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:36.482033+00:00",
+      "retrieved_at": "2026-09-06T08:26:57.836329+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.index_daily.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_capital",
-      "manifest_digest": "sha256:ba8743cf7f04c1958aa32eeeae599632c8ddd6bff41c034b08900ba24bdddf16",
+      "manifest_digest": "sha256:8350e3506b667f4e8730af38408dd81858a512bb0c79a39b8845bd255ef0ce02",
       "payload_digest": "sha256:41471ed45e87d6110cb983336621f9b25745e59f72818b66afe0a52430763156",
-      "raw_batch_id": "tushare-security_capital-daily_basic-4cd4e0b8c983114d9e87c68927ce89ed28194cbfa2da0b5cde4e7b238cbd7277",
+      "raw_batch_id": "tushare-security_capital-daily_basic-521ffafec3dcc33b54a71c0260d6056cab09ce1485785eb0d9b5b1dc77f52339",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -1398,18 +1936,18 @@
           "ts_code": "600000.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.373968+00:00",
+      "retrieved_at": "2026-09-06T08:26:55.665647+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_capital",
-      "manifest_digest": "sha256:9dc5a28fe490b2b942e7cc4f581a74b93d7fddf04528787fc036308733830cf1",
+      "manifest_digest": "sha256:3e8fc4b847956f01fa6846aedb9a2c1ed3c3e6e4a45ebda13950b5f6b1b944e1",
       "payload_digest": "sha256:b360f29957bca638c5731afe85b76910356046ec66798d89c2d6866a0831988f",
-      "raw_batch_id": "tushare-security_capital-daily_basic-bdda8969da59a648a14e3ed1f2d3c658c0b8b5a63da1cee0af2510f0aa621edd",
+      "raw_batch_id": "tushare-security_capital-daily_basic-90a7e9ed270842cda48e0c51540e29201c34a1a2da783450b503c2b19fa259d7",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -1424,18 +1962,18 @@
           "ts_code": "600036.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:34.749826+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.040237+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_capital",
-      "manifest_digest": "sha256:a5ea83fec2ab5a76cb69e5311f332dd9c95ee25093e47cedd56515b10b290cf1",
+      "manifest_digest": "sha256:e3d68399679aaf3ddf7fc610cba59d5e44f26ff781a071551ea24a60a5233b16",
       "payload_digest": "sha256:3cdcf50cbfd53fb65778bed949f61aeaa142103408d2a49bc979a722aa33ba0a",
-      "raw_batch_id": "tushare-security_capital-daily_basic-b7becb88d98fde4ce449d0c70ae1ff1ebcfdb25f6c7f09c8ef157f5eeb69f128",
+      "raw_batch_id": "tushare-security_capital-daily_basic-491d29a5a2bd0d2e3b63f23f9586ac6a384246abbabf576009b7156d9d43320f",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -1450,18 +1988,18 @@
           "ts_code": "688981.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.134340+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.393571+00:00",
       "rows": 64,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_capital",
-      "manifest_digest": "sha256:6bd6eb8717eb45f64142ea3ec5eaab779f0c17ec348b11969d348385a82d7824",
+      "manifest_digest": "sha256:71be6f4856bceb5f0f72cecb8cd149d753d04b19262f415ec8f40bda034916fa",
       "payload_digest": "sha256:08b47ae66d2fc0af9123206312057f850cf762d199461c9f2df197cf022dc697",
-      "raw_batch_id": "tushare-security_capital-daily_basic-3e69fe30a7915f73efda5dc7baf78a0c8ebe137eca38f92bdf8da65a8112adbf",
+      "raw_batch_id": "tushare-security_capital-daily_basic-79a7ddf2e7cb615f06ef7bf7fe3c1547c572166bd4d652685c5ce9665700c2b7",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -1476,18 +2014,18 @@
           "ts_code": "603072.SH"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.521908+00:00",
+      "retrieved_at": "2026-09-06T08:26:56.805513+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_capital",
-      "manifest_digest": "sha256:21e470c6e1aecb90b6bbd0f0f8cf2a210d396793f954d4371c648d046ed92433",
+      "manifest_digest": "sha256:b5b43160ac3795b6d7587e80b236f74c684eb59625290ce226578f5c63a8aa7c",
       "payload_digest": "sha256:2d8d084575b22f953a86cd5c8f6557456f7188bd90b1f69b40cce4079b5501fb",
-      "raw_batch_id": "tushare-security_capital-daily_basic-e32018125af68a7cb076825e42d17b643dd1742e0ea87ea0b2a99fa2ba5f5d0d",
+      "raw_batch_id": "tushare-security_capital-daily_basic-5f2ca31c7409b76f5b01cae591a74d0cf8f9efeb739753131e9bba51ae4cf3e6",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -1502,18 +2040,18 @@
           "ts_code": "000001.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:35.910037+00:00",
+      "retrieved_at": "2026-09-06T08:26:57.170081+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     },
     {
       "domain": "security_capital",
-      "manifest_digest": "sha256:f08781f71dace2a524853adc5f63866411099206f505b26824a20b80a97249d9",
+      "manifest_digest": "sha256:16fd6ad5371e89c5ccd914babbc8becc8834669e66e3d8a267b67165c1de3256",
       "payload_digest": "sha256:c9017dbf9b2949da16ae18ffbd05061fb483c3646a3d65ae0dd2561b97e83fc9",
-      "raw_batch_id": "tushare-security_capital-daily_basic-5dc87fc781fcc42d955923ad6c5c90ce5329c01cdca5d7016a1e95ec70f284a9",
+      "raw_batch_id": "tushare-security_capital-daily_basic-6cecf79cde917ed3da65b4fe5ce746cb9b80b0dc17c41a48f2584531a7390e18",
       "request": {
         "endpoint": "daily_basic",
         "fields": [
@@ -1528,10 +2066,10 @@
           "ts_code": "301581.SZ"
         }
       },
-      "retrieved_at": "2026-09-06T06:21:36.295449+00:00",
+      "retrieved_at": "2026-09-06T08:26:57.614843+00:00",
       "rows": 69,
       "schema_version": "raw_batch.v2",
-      "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
       "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
       "source_profile_version": "tushare_dm1.v1"
     }
@@ -1569,13 +2107,13 @@
         "cash_per_share": 0.362,
         "effective_date": "2025-06-12",
         "ex_date": "2025-06-12",
-        "first_observed_at": "2026-09-06T06:21:35.816342+00:00",
+        "first_observed_at": "2026-09-06T08:26:57.079966+00:00",
         "payment_date": "2025-06-12",
         "pit_qualification": "best_effort",
         "record_date": "2025-06-11",
         "share_available_date": null,
         "source_available_at": null,
-        "source_ref": "tushare-corporate_actions-dividend-33c87c38a5638871c501c0c452fd7088c33c0bf5978b3e92fd6733e8284d4c8d",
+        "source_ref": "tushare-corporate_actions-dividend-ef589b1d25cb47dd1e4553b0e3d2f4f22c95ef105eaa5470a397f17a06daeefa",
         "split_ratio": null,
         "stock_ratio": null,
         "symbol": "000001.SZ",
@@ -1590,13 +2128,13 @@
         "cash_per_share": 2.0,
         "effective_date": "2025-07-11",
         "ex_date": "2025-07-11",
-        "first_observed_at": "2026-09-06T06:21:34.664389+00:00",
+        "first_observed_at": "2026-09-06T08:26:55.954425+00:00",
         "payment_date": "2025-07-11",
         "pit_qualification": "best_effort",
         "record_date": "2025-07-10",
         "share_available_date": null,
         "source_available_at": null,
-        "source_ref": "tushare-corporate_actions-dividend-f96031615378eee0e66797c6b6790ea3575c1d6798ee3f19a65cd07fe32e0260",
+        "source_ref": "tushare-corporate_actions-dividend-2434313a50d6d06fc1c6733feb68030af72486c5bd27243b6d66e573a5b32855",
         "split_ratio": null,
         "stock_ratio": null,
         "symbol": "600036.SH",
@@ -1611,13 +2149,13 @@
         "cash_per_share": 0.41,
         "effective_date": "2025-07-16",
         "ex_date": "2025-07-16",
-        "first_observed_at": "2026-09-06T06:21:34.285469+00:00",
+        "first_observed_at": "2026-09-06T08:26:55.576477+00:00",
         "payment_date": "2025-07-16",
         "pit_qualification": "best_effort",
         "record_date": "2025-07-15",
         "share_available_date": null,
         "source_available_at": null,
-        "source_ref": "tushare-corporate_actions-dividend-9be49ae6724ec75f0837fa836ca40dae7990024c603c777ca958d61f876b1154",
+        "source_ref": "tushare-corporate_actions-dividend-41df31ba8b9bc14657305f1002317f3613139e2347a928cdc17f9891dc2bb64d",
         "split_ratio": null,
         "stock_ratio": null,
         "symbol": "600000.SH",
@@ -1692,7 +2230,7 @@
     "path": "src/axiom_data/scope/pr5_d_m1_scope.v1.json"
   },
   "source_profile": {
-    "digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+    "digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
     "version": "tushare_dm1.v1"
   },
   "status": "PASS"

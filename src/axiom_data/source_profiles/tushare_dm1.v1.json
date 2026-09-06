@@ -52,7 +52,7 @@
       "units": {"cash_div_tax": "CNY/share", "stk_bo_rate": "bonus shares per old share", "stk_co_rate": "capital-transfer shares per old share"},
       "field_mapping": {"cash_dividend": "cash_div_tax", "stock_dividend": "stk_bo_rate", "capital_transfer": "stk_co_rate"},
       "missing_semantics": "only div_proc=实施 is promoted; proposals/approvals remain frozen raw observations, while an implemented row needs an explicit ex/effective date and unsupported non-zero terms block the build",
-      "date_semantics": "announcement, record, ex, pay, and listing dates remain distinct",
+      "date_semantics": "the endpoint request is security-only and may return every div_proc state; canonical mapping separately promotes implemented rows while announcement, record, ex, pay, and listing dates remain distinct",
       "terminal_history_risk": "current terminal history is observed/best_effort, not verified PIT"
     },
     "adj_factor": {

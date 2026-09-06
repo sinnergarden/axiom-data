@@ -31,6 +31,9 @@ DM1_REFERENCE_DOMAINS = (
 DM1_SNAPSHOT_DOMAINS = MARKET_DOMAINS + DM1_REFERENCE_DOMAINS
 ALL_CANONICAL_DOMAINS = DM1_SNAPSHOT_DOMAINS
 PIT_QUALIFICATIONS = frozenset({"verified", "observed", "best_effort", "unknown"})
+_PIT_STRENGTH = {"unknown": 0, "best_effort": 1, "observed": 2, "verified": 3}
+REVISION_SPECIFIC_PUBLIC_EVIDENCE = "revision_specific_public_evidence"
+FIRST_OBSERVATION_EVIDENCE = "first_observation"
 _INDEX = re.compile(r"[0-9]{6}\.(SH|SZ)\Z")
 _STATUS_REASON = {
     "normal_active": "daily_observation",
@@ -63,13 +66,62 @@ def _timestamp(name: str, value: object, *, nullable: bool = False) -> str | Non
 
 
 def _provenance(row: Mapping[str, object]) -> None:
-    _timestamp("source_available_at", row["source_available_at"], nullable=True)
+    source_available = _timestamp(
+        "source_available_at", row["source_available_at"], nullable=True
+    )
     _timestamp("first_observed_at", row["first_observed_at"])
-    _text("availability_basis", row["availability_basis"])
+    basis = _text("availability_basis", row["availability_basis"])
     qualification = _text("pit_qualification", row["pit_qualification"])
     if qualification not in PIT_QUALIFICATIONS:
         raise MarketContractError("pit_qualification is not canonical")
+    if qualification == "verified" and (
+        source_available is None or basis != REVISION_SPECIFIC_PUBLIC_EVIDENCE
+    ):
+        raise MarketContractError(
+            "verified PIT requires revision-specific public availability evidence"
+        )
+    if qualification == "observed" and (
+        source_available is not None or basis != FIRST_OBSERVATION_EVIDENCE
+    ):
+        raise MarketContractError(
+            "observed PIT must be supported only by first observation"
+        )
     _text("source_ref", row["source_ref"])
+
+
+def weakest_pit_qualification(rows: Sequence[Mapping[str, Any]]) -> str:
+    """Return the weakest qualification actually present in consumed rows."""
+
+    qualifications = [row.get("pit_qualification") for row in rows]
+    if not qualifications:
+        return "unknown"
+    if any(value not in PIT_QUALIFICATIONS for value in qualifications):
+        raise MarketContractError("consumed rows have invalid PIT qualification")
+    return min(qualifications, key=_PIT_STRENGTH.__getitem__)  # type: ignore[arg-type]
+
+
+def validate_strict_decision_time(
+    rows: Sequence[Mapping[str, Any]], cutoff_session: str
+) -> str:
+    """Prove every consumed observation was available by one decision cutoff."""
+
+    cutoff = _date("decision cutoff", cutoff_session)
+    for row in rows:
+        qualification = row.get("pit_qualification")
+        if qualification in {"best_effort", "unknown"}:
+            raise MarketContractError(
+                "best-effort or unknown historical facts cannot support strict decision time"
+            )
+        timestamp_name = (
+            "source_available_at" if qualification == "verified" else "first_observed_at"
+        )
+        timestamp = _timestamp(timestamp_name, row.get(timestamp_name))
+        assert timestamp is not None
+        if datetime.fromisoformat(timestamp.replace("Z", "+00:00")).date() > cutoff:
+            raise MarketContractError(
+                f"{timestamp_name} is later than the strict decision cutoff"
+            )
+    return weakest_pit_qualification(rows)
 
 
 def validate_security_status_rows(rows: object) -> None:
@@ -308,5 +360,9 @@ __all__ = [
     "DM1_SNAPSHOT_DOMAINS",
     "DOMAIN_VALIDATORS",
     "PIT_QUALIFICATIONS",
+    "FIRST_OBSERVATION_EVIDENCE",
+    "REVISION_SPECIFIC_PUBLIC_EVIDENCE",
     "validate_dm1_snapshot_rows",
+    "validate_strict_decision_time",
+    "weakest_pit_qualification",
 ]

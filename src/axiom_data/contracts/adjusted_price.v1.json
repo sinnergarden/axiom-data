@@ -4,6 +4,6 @@
   "primary_key": ["session", "symbol"],
   "sort_order": ["session", "symbol"],
   "formula": "adjusted_ohlc(t, A) = unadjusted_ohlc(t) * factor(t) / factor(A)",
-  "requirements": ["explicit DataSnapshot", "explicit market and adjustment commits", "explicit per-view anchor", "strict decision cutoff rejects future anchors", "missing factors remain missing"],
+  "requirements": ["explicit DataSnapshot", "explicit market and adjustment commits", "explicit per-view anchor", "PIT policy and decision cutoff are identity inputs", "strict decision time validates every consumed factor availability and rejects best-effort terminal history", "missing factors remain missing"],
   "fields": ["session", "symbol", "open", "high", "low", "close", "adjustment_state"]
 }

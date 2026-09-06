@@ -1,4 +1,14 @@
 {
+  "adjusted_price_view_ref": {
+    "anchor_session": "2025-09-05",
+    "content_digest": "sha256:a3647bda641dc4f08050c54fa19dcccc6e3606929fee9532bc1939ab305a052e",
+    "decision_cutoff": "2025-09-05",
+    "identity_digest": "sha256:15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7",
+    "manifest_digest": "sha256:76ea303120701442acce0ed9b8e5bada3395840bd15e094b95b73e9d100588e8",
+    "pit_policy": "research_non_pit",
+    "pit_qualification": "best_effort",
+    "view_id": "adjusted-price-15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7"
+  },
   "checks": {
     "calendar": true,
     "field_order": true,
@@ -25,11 +35,23 @@
     "circulating_market_cap_cny"
   ],
   "mismatches": [],
+  "pit_binding": {
+    "anchor_session": "2025-09-05",
+    "decision_cutoff": "2025-09-05",
+    "pit_policy": "research_non_pit",
+    "pit_qualification": "best_effort"
+  },
   "qlib_keys": 414,
   "qlib_view_ref": {
-    "identity_digest": "sha256:6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573",
-    "manifest_digest": "sha256:604b1e7e1493c4aad161a5cc4b4023a4590cb31f801972bce9b275d599676485",
-    "view_id": "qlib-6f51270a60e0d08a16d490869e62ea1e70365b10728a86d3d29a645651cec573"
+    "anchor_session": "2025-09-05",
+    "content_digest": "sha256:eba4378a835091200be876dda9a37cdbbad089088f36bfe890c641ac04cc1866",
+    "decision_cutoff": "2025-09-05",
+    "derived_view_id": "adjusted-price-15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7",
+    "identity_digest": "sha256:a38edcdf5ed2039e81ca7c1c90dca942e604e55271e94728ea0fe17b3dcee57b",
+    "manifest_digest": "sha256:aca981c2d2bfc187f7902d721ecfe86886ff957bc49085f89862e4601d016d54",
+    "pit_policy": "research_non_pit",
+    "pit_qualification": "best_effort",
+    "view_id": "qlib-a38edcdf5ed2039e81ca7c1c90dca942e604e55271e94728ea0fe17b3dcee57b"
   },
   "relative_tolerance": 1e-06,
   "scope": {
@@ -46,9 +68,9 @@
     ]
   },
   "source_snapshot_ref": {
-    "identity_digest": "sha256:f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
-    "manifest_digest": "sha256:38e71242c023d7ace6a272a76f4f26c9b9ce1eee2da1a0d89dee9d1cb99784b7",
-    "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624"
+    "identity_digest": "sha256:b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842",
+    "manifest_digest": "sha256:7d2ab20c3ba618059d8a5c2b00fbae1b34cd7a33a8b2886c2aa129a92f2daaed",
+    "snapshot_id": "snapshot-b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842"
   },
   "status": "PASS"
 }

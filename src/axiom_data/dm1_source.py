@@ -191,10 +191,16 @@ def _raw_tables(
     data_root: Path,
     domain: str,
     raw_batches: Sequence[RawBatch],
+    symbols: set[str],
+    start: str,
+    end: str,
 ) -> tuple[dict[str, list[tuple[dict[str, Any], RawBatch]]], str]:
     profile = load_dm1_source_profile()
     profile_digest = dm1_source_profile_digest(profile)
     grouped: dict[str, list[tuple[dict[str, Any], RawBatch]]] = {}
+    covered: dict[str, set[str]] = {
+        name: set() for name in _EXPECTED_ENDPOINTS[domain]
+    }
     observed: list[str] = []
     for raw in raw_batches:
         if raw.manifest.get("schema_version") != "raw_batch.v2":
@@ -211,6 +217,36 @@ def _raw_tables(
             or raw.manifest.get("source_profile_digest") != profile_digest
         ):
             raise ArtifactError("D-M1 RawBatch source profile binding mismatch")
+        if raw.manifest.get("collector_code_ref") != (
+            f"axiom-data.{TushareDm1Collector.implementation_revision}"
+        ):
+            raise ArtifactError("D-M1 RawBatch collector revision mismatch")
+        if request.get("fields") != definition["fields"]:
+            raise ArtifactError("D-M1 RawBatch request fields differ from SourceProfile")
+        summary = raw.manifest.get("summary")
+        if not isinstance(summary, dict) or (
+            summary.get("response_fields") != definition["fields"]
+            or summary.get("represented_session_field")
+            != definition["represented_session_field"]
+        ):
+            raise ArtifactError("D-M1 RawBatch response schema differs from SourceProfile")
+        params = request.get("params")
+        if not isinstance(params, dict):
+            raise ArtifactError("D-M1 RawBatch request params are invalid")
+        request_symbols = _request_symbols(raw)
+        if not request_symbols <= symbols:
+            raise ArtifactError("D-M1 RawBatch symbol scope exceeds the build scope")
+        covered[endpoint].update(request_symbols)
+        if endpoint == "dividend":
+            if set(params) != {"ts_code"}:
+                raise ArtifactError("dividend request must use its security-only scope")
+        else:
+            if set(params) != {"ts_code", "start_date", "end_date"}:
+                raise ArtifactError("D-M1 session request fields are invalid")
+            request_start = _source_date(params.get("start_date"))
+            request_end = _source_date(params.get("end_date"))
+            if request_start != start or request_end != end:
+                raise ArtifactError("D-M1 RawBatch date scope differs from build scope")
         try:
             rows = json.loads(raw.payload)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -218,6 +254,22 @@ def _raw_tables(
         if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
             raise ArtifactError("D-M1 RawBatch payload must contain row objects")
         for row in rows:
+            if set(row) != set(definition["fields"]):
+                raise ArtifactError("D-M1 RawBatch payload fields differ from SourceProfile")
+            if _source_symbol(row.get("ts_code")) not in request_symbols:
+                raise ArtifactError("D-M1 RawBatch payload security is outside its request")
+            if endpoint == "dividend":
+                if not isinstance(row.get("div_proc"), str) or not row["div_proc"]:
+                    raise ArtifactError("dividend payload has no action-state observation")
+            else:
+                represented = _source_date(
+                    row.get(definition["represented_session_field"])
+                )
+                assert request_start is not None and request_end is not None
+                if not request_start <= represented <= request_end:
+                    raise ArtifactError(
+                        "D-M1 RawBatch payload session is outside its request"
+                    )
             grouped.setdefault(endpoint, []).append((row, raw))
         observed.append(raw.manifest["retrieved_at"])
     if set(grouped) != _EXPECTED_ENDPOINTS[domain]:
@@ -230,6 +282,9 @@ def _raw_tables(
             raise ArtifactError(f"{domain} is missing source endpoints {sorted(missing)!r}")
         for endpoint in requested:
             grouped.setdefault(endpoint, [])
+    for endpoint, values in covered.items():
+        if values != symbols:
+            raise ArtifactError(f"{endpoint} requests do not cover every scoped symbol")
     if not observed:
         raise ArtifactError("D-M1 builder received no RawBatch observations")
     return grouped, max(observed)
@@ -298,27 +353,6 @@ class TushareDm1Builder(MarketDomainBuilder):
             raise ArtifactError("D-M1 session scope is reversed")
         return symbols, start_date, end_date
 
-    def _validate_raw_request_scope(
-        self, raw_batches: Sequence[RawBatch], symbols: set[str], start: str, end: str
-    ) -> None:
-        covered: dict[str, set[str]] = {name: set() for name in _EXPECTED_ENDPOINTS[self.domain]}
-        for raw in raw_batches:
-            request = raw.manifest["request"]
-            endpoint = request["endpoint"]
-            request_symbols = _request_symbols(raw)
-            if not request_symbols <= symbols:
-                raise ArtifactError("D-M1 RawBatch symbol scope exceeds the build scope")
-            covered[endpoint].update(request_symbols)
-            params = request["params"]
-            if endpoint != "dividend":
-                request_start = _source_date(params.get("start_date"))
-                request_end = _source_date(params.get("end_date"))
-                if request_start != start or request_end != end:
-                    raise ArtifactError("D-M1 RawBatch date scope differs from build scope")
-        for endpoint, values in covered.items():
-            if values != symbols:
-                raise ArtifactError(f"{endpoint} requests do not cover every scoped symbol")
-
     def _build_rows(
         self,
         contract: Mapping[str, Any],
@@ -326,8 +360,9 @@ class TushareDm1Builder(MarketDomainBuilder):
         raw_batches: Sequence[RawBatch],
     ) -> list[dict[str, Any]]:
         symbols, start, end = self._scope()
-        tables, observed_at = _raw_tables(self.layout.root, self.domain, raw_batches)
-        self._validate_raw_request_scope(raw_batches, set(symbols), start, end)
+        tables, observed_at = _raw_tables(
+            self.layout.root, self.domain, raw_batches, set(symbols), start, end
+        )
         if self.domain == "security_status":
             rows = self._status_rows(tables, symbols, start, end, observed_at)
         elif self.domain == "price_limits":

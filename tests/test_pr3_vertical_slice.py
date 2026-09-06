@@ -478,7 +478,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
             )
             count = rebuild_catalog(root_b)
         self.assertEqual(rebuilt, original)
-        self.assertEqual(count, sum(map(len, ids.values())) + 4)
+        self.assertEqual(count, sum(map(len, ids.values())) + 5)
         self.assertEqual(
             SnapshotReader(root_b, rebuilt["snapshot"]).commits["market_daily"].rows,
             SnapshotReader(self.root, original["snapshot"]).commits["market_daily"].rows,

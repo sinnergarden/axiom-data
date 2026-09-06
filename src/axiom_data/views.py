@@ -30,11 +30,18 @@ from axiom_data.artifacts import (
     validate_domain_commit_closure,
 )
 from axiom_data.consumption import SnapshotReader, _session, _symbols
+from axiom_data.consumption import _ordered_row
+from axiom_data.domains import MarketContractError
+from axiom_data.domains.dm1 import (
+    validate_strict_decision_time,
+    weakest_pit_qualification,
+)
 
 
-_ADJUSTED_REVISION = "anchor-bound-adjusted-price.v1"
-_REPLAY_REVISION = "market-replay-facts.v1"
+_ADJUSTED_REVISION = "anchor-bound-adjusted-price.v2"
+_REPLAY_REVISION = "market-replay-facts.v2"
 _ADJUSTED_FIELDS = ("open", "high", "low", "close")
+_PIT_STRENGTH = {"unknown": 0, "best_effort": 1, "observed": 2, "verified": 3}
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +113,22 @@ def build_adjusted_price_view(
     if any(value is None for value in anchors.values()):
         missing = [symbol for symbol, value in anchors.items() if value is None]
         raise ArtifactError(f"adjusted-price anchor factor is unavailable for {missing!r}")
+    consumed_factor_keys = {
+        (anchor, symbol) for symbol in selected
+    } | {
+        (row["session"], row["symbol"])
+        for row in market
+        if (row["session"], row["symbol"]) in factors
+    }
+    consumed_factors = [factors[key] for key in sorted(consumed_factor_keys)]
+    try:
+        qualification = weakest_pit_qualification(consumed_factors)
+        if pit_policy == "strict_decision_time":
+            qualification = validate_strict_decision_time(consumed_factors, cutoff)
+    except MarketContractError as exc:
+        raise ArtifactError(
+            f"adjusted-price PIT qualification is insufficient: {exc}"
+        ) from exc
     rows: list[dict[str, Any]] = []
     for source in market:
         key = (source["session"], source["symbol"])
@@ -164,6 +187,7 @@ def build_adjusted_price_view(
         "price_basis": "anchor_adjusted",
         "anchor_session": anchor,
         "pit_policy": pit_policy,
+        "pit_qualification": qualification,
         "decision_cutoff": cutoff,
         "formula": contract["formula"],
         "output": {
@@ -175,6 +199,7 @@ def build_adjusted_price_view(
             "status": "PASS",
             "anchor_factors_present": True,
             "future_anchor_blocked": pit_policy != "strict_decision_time" or anchor <= cutoff,
+            "availability_qualification": qualification,
         },
     }
     identity_digest = _identity_digest(manifest, "view_id")
@@ -215,11 +240,14 @@ def load_adjusted_price_view(data_root: str | Path, view_id: str) -> DerivedView
         "identity_digest": snapshot.manifest["identity_digest"],
     }:
         raise ArtifactError("adjusted-price Snapshot ref mismatch")
+    commits = {}
     for domain in ("market_daily", "adjustment_factors"):
         expected = _snapshot_domain_ref(snapshot, domain)
         if manifest.get("domain_refs", {}).get(domain) != expected:
             raise ArtifactError("adjusted-price domain ref mismatch")
-        validate_domain_commit_closure(layout.root, domain, expected["domain_commit_id"])
+        commits[domain] = validate_domain_commit_closure(
+            layout.root, domain, expected["domain_commit_id"]
+        )
     contract_ref = manifest.get("derived_contract")
     output = manifest.get("output")
     if not isinstance(contract_ref, dict) or not isinstance(output, dict):
@@ -262,11 +290,40 @@ def load_adjusted_price_view(data_root: str | Path, view_id: str) -> DerivedView
     end = _session(scope.get("end_session"), "adjusted end")
     anchor = _session(manifest.get("anchor_session"), "adjusted anchor")
     cutoff = _session(manifest.get("decision_cutoff"), "adjusted cutoff")
-    if not start <= anchor <= end or (
-        manifest.get("pit_policy") == "strict_decision_time" and anchor > cutoff
-    ):
+    policy = manifest.get("pit_policy")
+    if not start <= anchor <= end or policy not in {
+        "strict_decision_time",
+        "research_non_pit",
+    } or (policy == "strict_decision_time" and anchor > cutoff):
         raise ArtifactError("adjusted-price anchor policy is invalid")
-    if manifest.get("validation_summary", {}).get("status") != "PASS":
+    selected = set(_symbols(scope["symbols"]))
+    factor_rows = {
+        (row["session"], row["symbol"]): row
+        for row in commits["adjustment_factors"].rows
+        if row["symbol"] in selected and start <= row["session"] <= end
+    }
+    consumed_keys = {(anchor, symbol) for symbol in selected} | {
+        (row["session"], row["symbol"])
+        for row in commits["market_daily"].rows
+        if row["symbol"] in selected
+        and start <= row["session"] <= end
+        and (row["session"], row["symbol"]) in factor_rows
+    }
+    consumed_factors = [factor_rows[key] for key in sorted(consumed_keys)]
+    try:
+        qualification = weakest_pit_qualification(consumed_factors)
+        if policy == "strict_decision_time":
+            qualification = validate_strict_decision_time(consumed_factors, cutoff)
+    except (KeyError, MarketContractError) as exc:
+        raise ArtifactError("adjusted-price PIT evidence is invalid") from exc
+    if manifest.get("pit_qualification") != qualification:
+        raise ArtifactError("adjusted-price PIT qualification mismatch")
+    if manifest.get("validation_summary") != {
+        "status": "PASS",
+        "anchor_factors_present": True,
+        "future_anchor_blocked": policy != "strict_decision_time" or anchor <= cutoff,
+        "availability_qualification": qualification,
+    }:
         raise ArtifactError("adjusted-price validation did not pass")
     return DerivedView(DerivedViewRef("adjusted_price", view_id, manifest_digest), manifest, tuple(rows))
 
@@ -299,8 +356,8 @@ class FactView:
         end_session: str | None = None,
         fields: Sequence[str] | None = None,
         price_basis: str = "canonical",
-        pit_policy: str = "best_effort",
-        cutoff_policy: str = "snapshot_bound",
+        pit_policy: str = "actual",
+        cutoff_policy: str | None = None,
     ) -> dict[str, Any]:
         if domain == "adjusted_price":
             if self.adjusted is None:
@@ -326,20 +383,38 @@ class FactView:
             )
             derived_refs = [dict(self.adjusted.manifest["domain_refs"], view_id=self.adjusted.ref.view_id)]
             anchor = self.adjusted.manifest["anchor_session"]
+            actual_policy = self.adjusted.manifest["pit_policy"]
+            qualification = self.adjusted.manifest["pit_qualification"]
+            actual_cutoff = f"decision_cutoff={self.adjusted.manifest['decision_cutoff']}"
             response_fields = selected_fields
         else:
             if price_basis not in {"canonical", "unadjusted"}:
                 raise ArtifactError("canonical fact domain does not support this price basis")
-            values = self.reader.facts(
+            full_values = self.reader.facts(
                 domain,
                 symbols=symbols,
                 start_session=start_session,
                 end_session=end_session,
-                fields=fields,
             )
+            response_fields = tuple(fields or self.reader.schema(domain))
+            values = tuple(_ordered_row(row, response_fields) for row in full_values)
             derived_refs = []
             anchor = None
-            response_fields = tuple(fields or self.reader.schema(domain))
+            qualification = (
+                weakest_pit_qualification(full_values)
+                if full_values and "pit_qualification" in full_values[0]
+                else "unknown"
+            )
+            actual_policy = qualification
+            actual_cutoff = "snapshot_bound"
+        if pit_policy != "actual":
+            if pit_policy in _PIT_STRENGTH:
+                if _PIT_STRENGTH[qualification] < _PIT_STRENGTH[pit_policy]:
+                    raise ArtifactError("FactView requested PIT qualification is unavailable")
+            elif pit_policy != actual_policy:
+                raise ArtifactError("FactView PIT policy differs from its underlying facts")
+        if cutoff_policy is not None and cutoff_policy != actual_cutoff:
+            raise ArtifactError("FactView cutoff policy differs from its underlying facts")
         commit = self.reader.commits.get(domain)
         source_quality = [] if commit is None else [{
             "domain_commit_id": commit.ref.commit_id,
@@ -359,8 +434,9 @@ class FactView:
             "scope": {"symbols": list(symbols) if symbols is not None else None, "start_session": start_session, "end_session": end_session},
             "price_basis": price_basis,
             "anchor": anchor,
-            "pit_policy": pit_policy,
-            "cutoff_policy": cutoff_policy,
+            "pit_policy": actual_policy,
+            "pit_qualification": qualification,
+            "cutoff_policy": actual_cutoff,
             "source_quality_refs": source_quality,
             "rows": values,
         }
@@ -391,8 +467,12 @@ def build_market_replay_view(
     status = {(row["session"], row["symbol"]): row for row in reader.facts("security_status", symbols=selected, start_session=start, end_session=end)}
     limits = {(row["session"], row["symbol"]): row for row in reader.facts("price_limits", symbols=selected, start_session=start, end_session=end)}
     actions: dict[tuple[str, str], list[str]] = {}
-    for row in reader.facts("corporate_actions", symbols=selected, start_session=start, end_session=end):
+    action_rows = reader.facts("corporate_actions", symbols=selected, start_session=start, end_session=end)
+    for row in action_rows:
         actions.setdefault((row["effective_date"], row["symbol"]), []).append(row["action_id"])
+    replay_qualification = weakest_pit_qualification(
+        [*status.values(), *limits.values(), *action_rows]
+    )
     calendars = reader.trading_calendar(start_session=start, end_session=end)
     rows = []
     for cal in calendars:
@@ -441,6 +521,12 @@ def build_market_replay_view(
         "domain_refs": {domain: _snapshot_domain_ref(reader.snapshot, domain) for domain in required},
         "scope": {"symbols": list(selected), "start_session": start, "end_session": end, "interval": "closed"},
         "price_basis": "unadjusted",
+        "temporal_policy": {
+            "mode": "post_session_replay",
+            "replay_cutoff_session": end,
+            "pit_policy": "research_non_pit",
+            "pit_qualification": replay_qualification,
+        },
         "builder_ref": builder_ref,
         "unsupported_events": ["rights_issue", "intraday_suspension", "split", "consolidation"],
         "excluded_capabilities": ["execution", "cash", "positions", "corporate_action_accounting"],
@@ -500,6 +586,39 @@ def load_market_replay_view(data_root: str | Path, view_id: str) -> DerivedView:
         raise ArtifactError("MarketReplayView contains undeclared content")
     if manifest.get("price_basis") != "unadjusted" or manifest.get("validation_summary", {}).get("status") != "PASS":
         raise ArtifactError("MarketReplayView semantic validation failed")
+    scope = manifest.get("scope")
+    policy = manifest.get("temporal_policy")
+    if (
+        not isinstance(scope, dict)
+        or not isinstance(policy, dict)
+        or policy.get("mode") != "post_session_replay"
+        or policy.get("replay_cutoff_session") != scope.get("end_session")
+        or policy.get("pit_policy") != "research_non_pit"
+    ):
+        raise ArtifactError("MarketReplayView temporal policy is invalid")
+    reader = SnapshotReader(layout.root, snapshot.ref.snapshot_id)
+    qualification_rows = [
+        *reader.facts(
+            "security_status",
+            symbols=scope.get("symbols"),
+            start_session=scope.get("start_session"),
+            end_session=scope.get("end_session"),
+        ),
+        *reader.facts(
+            "price_limits",
+            symbols=scope.get("symbols"),
+            start_session=scope.get("start_session"),
+            end_session=scope.get("end_session"),
+        ),
+        *reader.facts(
+            "corporate_actions",
+            symbols=scope.get("symbols"),
+            start_session=scope.get("start_session"),
+            end_session=scope.get("end_session"),
+        ),
+    ]
+    if policy.get("pit_qualification") != weakest_pit_qualification(qualification_rows):
+        raise ArtifactError("MarketReplayView PIT qualification mismatch")
     return DerivedView(DerivedViewRef("market_replay", view_id, manifest_digest), manifest, tuple(rows))
 
 

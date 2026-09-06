@@ -2366,6 +2366,208 @@
     }
   ],
   "qsys_role": "frozen-forensic-reference-only",
+  "raw_batch_refs": [
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:fb865e8a633fe075e50ecf875f1d63797e482eb9eebccd080f3e6f81baefa64a",
+      "payload_digest": "sha256:4616c8d28f9858202f5f3318cb378a6e4ef8a47bae76acda7c5b8f5d8880175d",
+      "raw_batch_id": "tushare-daily-acf9709fae50c8484f8d5c5660a93b664ba379acd0ce29243cf30569bd19d0f5",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:9f43edfae9bd29c1ca9c08f99c351443288ba727b8893b2530553f9bc5434928",
+      "payload_digest": "sha256:48916ec1db8a0cbc1637c9e0bf6fe9f01bdcfa4aa6c33524dceb314d8c01e26f",
+      "raw_batch_id": "tushare-adj_factor-4f0b26011a54d17a5f65cfd6f4b04991fa2052e3a4472b6ccc3536a7520e034b",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.adj_factor.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:ce8b2f08fa4eb423de927f49c78c0cac7a93c39dc2fc04484484a3c7b4097541",
+      "payload_digest": "sha256:ef507bf6f17e289fd90e9e72c525904f750d8665221deadf452ddb288023fff8",
+      "raw_batch_id": "tushare-daily_basic-85513edabccd5f65d41924786a9b591207d1a5ee10eab24aa659913db4a31ae4",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:b6d39f054b825a465e247860675021a1477f5ff7b08c3a8b12a780d2f833d249",
+      "payload_digest": "sha256:682a67d86c00a63272c57cc87866e065ca45bff7e6ebff62bfd39243a4886d48",
+      "raw_batch_id": "tushare-daily_basic-e926221d00100c0f745512489556d3320318a9d267527b688a906c885ea5f007",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:551248c7dd76381906c9ea5cef60cd5306d4b436b48155caa1809a7a659fbc9d",
+      "payload_digest": "sha256:50ec9b4f24ab8dfdf111f3e6f33ea5f288dfd04cc60d99d397315cda24c819e1",
+      "raw_batch_id": "tushare-daily_basic-ad95c2dc90da0b9e87f2efd54c4b06dd84e2036351702fec31cde7cb7150dc98",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:f83b2783d8dd9810977424da77c3f433bdb5dde4803a9511ea7ede77c4abf33a",
+      "payload_digest": "sha256:77784aca87cf4b9970cb59a3c180f248ed8adf058984dccf2cd6555a8178cffd",
+      "raw_batch_id": "tushare-daily_basic-39b1eb8cbc7c2f83963c8167338b5178c85a39dff846af53c6a292b4e9a95b1a",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:887fa2013f7f60768eaa09a8c64a00268d879bdd4d731b69ca6ed3ddf0670640",
+      "payload_digest": "sha256:db47cec4b4ee805f664dc4afec55653c5fbe2f44c1c89be42c5afca80d6a409a",
+      "raw_batch_id": "tushare-daily_basic-929b76b4b5ce52ce8672231c464594f53a7ce47050b3fed5f9cac15845bed057",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:fc33955eb1a67d51fe876bbc89c407a9f7b1e9ac7d30d6571e459e28cb886a7f",
+      "payload_digest": "sha256:edcf4fc76ce567699541e4d3ff0d95795b87e183ebc4ba6f822df2df44c76dd4",
+      "raw_batch_id": "tushare-daily_basic-022296f265bd1c83841f21728658325e5d494f02cdb6e7b54a34fa59d1d125a2",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.daily_basic.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:7634a092a7bccbbffd2475a12af307c8d73aaefc4b86ac00b42fc99c09a9d610",
+      "payload_digest": "sha256:d0d571b6ef4a7d3d61bae71b6e07c968ee2d658cf4afcd54d71d108607c53f21",
+      "raw_batch_id": "tushare-stk_limit-dfe6b23138cf0396fb2905c224529d667b2878872cc77700024dfe47a92c8b3d",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:97ff45bfccbfc098b9050c672eb4c2d85471565bf54691a32f5f8732a672068e",
+      "payload_digest": "sha256:2b9f61473d35bbc7b6939c62700bead6ca268d92b9448c2d9e5cb93742249892",
+      "raw_batch_id": "tushare-stk_limit-a03127aba700d14ec27796b48ab4645bff50ad82bc11705b9b2234b29b7131aa",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:35885ad81e88ad6c28553b2fdb1d6164c02cc1e7da60e37d4b7c16202bfda7be",
+      "payload_digest": "sha256:4344c103296d5c4a688d955593211d68e15404327eced25563db27e069703dec",
+      "raw_batch_id": "tushare-stk_limit-0f3acb45b22eb6ce6081f0d46ab3bd517faa091d6ff863e475de9fff2335b66f",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:3d6770abf39554c0a653e32b589d321d5526eb08769388fb2d90373e2665dd4e",
+      "payload_digest": "sha256:b1a33b7923089134a04f3195847d2f0d554b72240afaea42af7978f29637d3a1",
+      "raw_batch_id": "tushare-stk_limit-1c97ac1b3feaec7309874ccbbd6a05ca1614da972b963b4c783a277080add07e",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:4d74c168ac1b5a9a4124319ca7a8d0fce5a798ccf38a972277da95626a0755bc",
+      "payload_digest": "sha256:944eb93ed2d33ee4e83cd30cdd1f266bb1aa15cc04e8ee51e9d517942d6f706c",
+      "raw_batch_id": "tushare-stk_limit-3ed16700a88c4bbb07d93172afb5f3a575875e6c2c0807aa0c0daf5ab3d8c3c0",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:13a55857e53e8643a520e9a533622ecbe321c4f0bc61028cdf4a60b92c49a479",
+      "payload_digest": "sha256:8fb1dab4ccc0ab2ece329ed3fbcd3f996fd4f2aab44a01db2dff9c47688f40cc",
+      "raw_batch_id": "tushare-stk_limit-3680302900acecaf32587a31018f0c843683af5bbb0f6816dc53512b611a53cb",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.stk_limit.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:1f60090dc067e82fdb9ca47bc1185ea9d91e2c149c0d3e630b1eccfaa149bce7",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-af019d673c285b61e95a82dad17d52aafd6d4a1f521d8c4c3aee26fd0443ec8a",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:d57845a48e5e1d85b795bd23fa818486553838ed34df3831eaafeb725984309c",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-ec3e1c769b31ae2a7e130574bd1905ba6e93d4750dbc8fbfb5d477058145f5fe",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:a455ed0b284e3f0c5a6be7a6675c5843e33c0204fef4de611b731c509efb202c",
+      "payload_digest": "sha256:5525382264b09ba9f2e529e9e974bfd6b96ba99e564c665d664688dd220c3273",
+      "raw_batch_id": "tushare-suspend_d-5283290707216c71ded751d717caf44c1ad06ffbe8032c25237e6938ac8a937e",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:8874effefe245cff9bfdf8228817467bc9d014204092e2e3fc9156830ab77ab9",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-932f570a84ebad011915d1e94733b09d61afa6ee6294e74eb391d376f1e524a0",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:d3d3353da8c4dca5d09a21198001f7a7e1c165f395f52b296c219a7e36a2ced3",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-08ee0b5e04cfa68be24d2018c1a22aa4d123f6cd7bbf00058c18f3acafa4efcd",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    },
+    {
+      "domain": "market_daily",
+      "manifest_digest": "sha256:889bd1767f58323f164d3634564f0f0096a78d2efdc9891eeac309b3173ef54a",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-suspend_d-407e22538e880e54e6db9ada8859f1464ce366ea02eeed3e091d17015aeecad9",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+      "source_profile_ref": "tushare.suspend_d.v1",
+      "source_profile_version": "tushare_phase1.v1"
+    }
+  ],
   "relative_tolerance": 1e-09,
   "scope": {
     "end_session": "2025-06-13",
@@ -2395,7 +2597,12 @@
       "301581.SZ"
     ]
   },
-  "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
+  "snapshot_id": "snapshot-b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842",
+  "snapshot_ref": {
+    "identity_digest": "sha256:b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842",
+    "manifest_digest": "sha256:7d2ab20c3ba618059d8a5c2b00fbae1b34cd7a33a8b2886c2aa129a92f2daaed",
+    "snapshot_id": "snapshot-b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842"
+  },
   "source_expectation_path": "independent-frozen-raw-profile-checker.v1",
   "source_pit_classification": "current-observed-best-effort",
   "status": "PASS"

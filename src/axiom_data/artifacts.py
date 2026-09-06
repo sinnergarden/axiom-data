@@ -33,6 +33,7 @@ from axiom_data.domains import (
     validate_dm1_snapshot_rows,
 )
 from axiom_data.domains.dm1 import DOMAIN_VALIDATORS as DM1_DOMAIN_VALIDATORS
+from axiom_data.domains.dm1 import DM1_REFERENCE_DOMAINS
 from axiom_data.layout import DataRootLayout
 
 
@@ -845,6 +846,16 @@ class MarketDomainBuilder:
             parent.rows if parent is not None else (),
             raw_batches,
         )
+        if self.domain in DM1_REFERENCE_DOMAINS:
+            raw_ids = {raw.ref.raw_batch_id for raw in raw_batches}
+            if any(
+                row.get("pit_qualification") == "verified"
+                and row.get("source_ref") not in raw_ids
+                for row in rows
+            ):
+                raise ArtifactError(
+                    "verified PIT evidence ref is outside the immutable RawBatch closure"
+                )
         rows_content = _json_bytes(rows)
         logical_digest = _digest(rows_content)
         builder_config_digest = _digest(_json_bytes(self.builder_config))
@@ -1039,6 +1050,15 @@ def _validate_domain_commit_closure(
             raw_ids.add(raw.ref.raw_batch_id)
         if len(raw_ids) != len(raw_refs):
             raise ArtifactError("DomainCommit raw refs must not contain duplicates")
+        if domain in DM1_REFERENCE_DOMAINS:
+            for row in commit.rows:
+                if (
+                    row.get("pit_qualification") == "verified"
+                    and row.get("source_ref") not in raw_ids
+                ):
+                    raise ArtifactError(
+                        "verified PIT evidence ref is outside the immutable RawBatch closure"
+                    )
 
         if commit.manifest.get("ordered_patch_refs") != []:
             raise ArtifactError("Phase 1 PR2 DomainCommit patch refs must be empty")
@@ -1294,6 +1314,9 @@ def _artifact_directories(root: Path, directory: Path) -> tuple[Path, ...]:
 
 
 def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
+    from axiom_data.consumption import load_qlib_view
+    from axiom_data.views import load_adjusted_price_view, load_market_replay_view
+
     entries: list[CatalogEntry] = []
     closure_cache: dict[tuple[str, str], DomainCommit] = {}
     for artifact_dir in _artifact_directories(layout.root, layout.raw_batches):
@@ -1338,6 +1361,40 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
                 None,
                 (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(),
                 snapshot.ref.manifest_digest,
+            )
+        )
+    for name, artifact_type, loader in (
+        ("adjusted_price", "adjusted_price_view", load_adjusted_price_view),
+        ("market_replay", "market_replay_view", load_market_replay_view),
+    ):
+        directory = layout.derived_commits(name)
+        for artifact_dir in _artifact_directories(layout.root, directory):
+            view = loader(layout.root, artifact_dir.name)
+            version = (
+                view.manifest["derived_contract"]["contract_version"]
+                if name == "adjusted_price"
+                else view.manifest["schema_version"]
+            )
+            entries.append(
+                CatalogEntry(
+                    artifact_type,
+                    view.ref.view_id,
+                    name,
+                    version,
+                    (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(),
+                    view.ref.manifest_digest,
+                )
+            )
+    for artifact_dir in _artifact_directories(layout.root, layout.qlib_exports):
+        view = load_qlib_view(layout.root, artifact_dir.name)
+        entries.append(
+            CatalogEntry(
+                "qlib_view",
+                view.ref.view_id,
+                "qlib",
+                view.manifest["schema_version"],
+                (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(),
+                view.ref.manifest_digest,
             )
         )
     return entries

@@ -1,12 +1,286 @@
 {
   "checks": {
+    "benchmark_passthrough": true,
     "capital_x10000": true,
+    "corporate_action_mapping": true,
     "factor_passthrough": true,
     "price_limit_passthrough": true,
     "status_evidence": true
   },
   "mismatch_count": 0,
   "mismatches": [],
+  "raw_batch_refs": [
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:075969bae93e10e5cacea1d79d9c71db36e300857527953ca1b10694334ece85",
+      "payload_digest": "sha256:738d4f3934614da0e99598afccede4c03f807c14b0f1b72c42747164ae2d1433",
+      "raw_batch_id": "tushare-security_status-daily-d40398bac36d4a2c586ffc8a28fedd3fb70708f617434735501adfa2bfaae9d3",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.daily.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:a72a2f0e29bcb5089bc885be10c3bb939bd44879e5e85692098b9124bb373d4c",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-38bba932c4f652916ec4bc519d47571cf71e1f62beff6efdab4762b54dbc0595",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:a1bdba2dfd681593e4dd16541ba562207fdb3a2dcd7d19376e904e4e96785742",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-fb1bdb9d1e76a3ee45f51bd2f58195d3129dabf4801c7e24291a8f308809892c",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:1f6213a4d27435cff7390a951bfa6fa24e3efb1b2852aa28095a53a52182dce2",
+      "payload_digest": "sha256:5525382264b09ba9f2e529e9e974bfd6b96ba99e564c665d664688dd220c3273",
+      "raw_batch_id": "tushare-security_status-suspend_d-a1991427253a1b3b6f6f68723271f2e029fc1f77bd50d7f0b1e0d7bb075dd523",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:942957c52ee79669f29ce8c7c8a57fcb2c72e5a2cf72f22f8c70c0e82f055e5a",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-091520fd4459f88ec6c22bfb9681a909ff0788ab6f72e0c81ce2d340e7dc612a",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:ae2c6fc1cb16c61bf63c3c560a1384a428ce8f3ee1bbc176de1964520eaf9b69",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-7952fafbd67d094572bcfe8d31dac54d5748df82d014c96a5609afd80c606434",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_status",
+      "manifest_digest": "sha256:f087a218e64838a543503eed445b1ec6b277638448f14121dcbfa1bdef57bcdb",
+      "payload_digest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "raw_batch_id": "tushare-security_status-suspend_d-ec57f8427a6734c119b417e0b914d30001ab2c658433989cbfa85a726994418f",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.suspend_d.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:833b1c36c9103be89053b5d70760bb77f28a82e45c04f45d4ef513d5d3976aff",
+      "payload_digest": "sha256:d0d571b6ef4a7d3d61bae71b6e07c968ee2d658cf4afcd54d71d108607c53f21",
+      "raw_batch_id": "tushare-price_limits-stk_limit-736ac10db18641356d277f7efe6761e4e43f7850783de2591924e792651b99cf",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:3a722bf8d15a791e012830254c71b5956c1feb92414f043cca4b081a7c237fb9",
+      "payload_digest": "sha256:2b9f61473d35bbc7b6939c62700bead6ca268d92b9448c2d9e5cb93742249892",
+      "raw_batch_id": "tushare-price_limits-stk_limit-4c87de060a480d362ab88f6ecf63348974f846d9e7613aa86cd5ca4af77a4d35",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:181da781bbc766dfe1ffa1235ff45b0e2f6e42bf7fb284ae7bb82c5be7fc3244",
+      "payload_digest": "sha256:4344c103296d5c4a688d955593211d68e15404327eced25563db27e069703dec",
+      "raw_batch_id": "tushare-price_limits-stk_limit-840eed5840ccdb069f659dc472fd072e7bec70bdd9d10145fce5d1238df07acc",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:89a609e876568fc45b3a02302cfd85cdbd4240f2da470b707128b505521d53da",
+      "payload_digest": "sha256:b1a33b7923089134a04f3195847d2f0d554b72240afaea42af7978f29637d3a1",
+      "raw_batch_id": "tushare-price_limits-stk_limit-c41169f7fb63cc701c715cd5eb77139fcf74ba34ee80751e9fd555a1ae54074b",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:6ddd31bc64f592219a4fcf60c19ad7dd6836b865a1d6aa46e81e5df820f2ca79",
+      "payload_digest": "sha256:944eb93ed2d33ee4e83cd30cdd1f266bb1aa15cc04e8ee51e9d517942d6f706c",
+      "raw_batch_id": "tushare-price_limits-stk_limit-131d46b5e0ae9ae50f83479698888a9b43517b952079a48729a66c1102a9f872",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "price_limits",
+      "manifest_digest": "sha256:232bfa105fefd0ae8b0a3160924c01a6b703c6dce3e8c3a2cdbc61fdaa386f0a",
+      "payload_digest": "sha256:8fb1dab4ccc0ab2ece329ed3fbcd3f996fd4f2aab44a01db2dff9c47688f40cc",
+      "raw_batch_id": "tushare-price_limits-stk_limit-4d30e942de68777aae2f0f649318be7b2f9fcc2551a1529d2eaaf0ca091d53e4",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.stk_limit.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:cc37eadaa1cad8f70eec8462f18952eabf492a45e95cb0f17af36e0c95f5d72f",
+      "payload_digest": "sha256:d25199a31bfee0d5b16b957bead997792c59fbb69b903af3b42500f3401f1ced",
+      "raw_batch_id": "tushare-corporate_actions-dividend-41df31ba8b9bc14657305f1002317f3613139e2347a928cdc17f9891dc2bb64d",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:1d9c4b8f219ee20bc9795ce2f8fa527e3cace470a12318201a35cddeffb87492",
+      "payload_digest": "sha256:7f4d3a2bfcd60c99dd68f64809277aa77dc7882e5cd4cb215da1d41973b9fbd8",
+      "raw_batch_id": "tushare-corporate_actions-dividend-2434313a50d6d06fc1c6733feb68030af72486c5bd27243b6d66e573a5b32855",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:80d8435271e9d5df60586af90c90e7a69587d2b67a49adbac76f4c26bfac6f1f",
+      "payload_digest": "sha256:de5c5aee9cfffe000ddcf63bebce981f2dd75642fc689b854b22c3d31b2eb048",
+      "raw_batch_id": "tushare-corporate_actions-dividend-70cdba6a51986e9047cc22b5792357be0af74efcaff8d3ccd53fe1659aa15613",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:bf7ee659163b59aa7ff4949b226e595fc3bf0c19a815a4f7837f340fa87820de",
+      "payload_digest": "sha256:9144876fc7a268672ecc824f9b2b96ec53aa2f3dead4bc05d0ff844a343a0720",
+      "raw_batch_id": "tushare-corporate_actions-dividend-80f840f4f827a02081201a156773e507e8e39503e3c53cacdc63032c16e33461",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:8a5b96368aa28787d53adf2dc13fdd5885d3f8ea84b1cb945394985941e1ade7",
+      "payload_digest": "sha256:2f1fd3c16ab3e48a0255549a839676f01778d6123739fb3d429c7dc1285a18ab",
+      "raw_batch_id": "tushare-corporate_actions-dividend-ef589b1d25cb47dd1e4553b0e3d2f4f22c95ef105eaa5470a397f17a06daeefa",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "corporate_actions",
+      "manifest_digest": "sha256:82b2181acd7a9a519ce17c98749f9d5cd81800cacfa0aaca0addf56d729b632f",
+      "payload_digest": "sha256:1e19853fea511e5f7ced277127b228ac1964d550fb3a0c44805f33f260c780ad",
+      "raw_batch_id": "tushare-corporate_actions-dividend-21685f8670f2d05b574e0146d9fbe79fa31d4bf750df6dfcb449a517fdba1a49",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.dividend.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "adjustment_factors",
+      "manifest_digest": "sha256:94aae4a241d43279b6463ac2b3e18312d5b6d683e39aef94301093f3f39af946",
+      "payload_digest": "sha256:48916ec1db8a0cbc1637c9e0bf6fe9f01bdcfa4aa6c33524dceb314d8c01e26f",
+      "raw_batch_id": "tushare-adjustment_factors-adj_factor-85d7ac9d2155e4ba2bca861a2a2c16552afc9bdaa7d1d3d7f4420f15739188a5",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.adj_factor.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "benchmark_daily",
+      "manifest_digest": "sha256:28687fcdad4e4a7a60b0936a34ca80d66c6492c5291cefc4b07a767cd1db26dd",
+      "payload_digest": "sha256:c9c4d43ae3ed81892c38a8a8631f2051e1afac02eb99b23fefc291e3096cca70",
+      "raw_batch_id": "tushare-benchmark_daily-index_daily-a2c730c62bac3ff79de5e230d98ba93013422dc72b8ec5d3c14f47987bc4a803",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.index_daily.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:8350e3506b667f4e8730af38408dd81858a512bb0c79a39b8845bd255ef0ce02",
+      "payload_digest": "sha256:41471ed45e87d6110cb983336621f9b25745e59f72818b66afe0a52430763156",
+      "raw_batch_id": "tushare-security_capital-daily_basic-521ffafec3dcc33b54a71c0260d6056cab09ce1485785eb0d9b5b1dc77f52339",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:3e8fc4b847956f01fa6846aedb9a2c1ed3c3e6e4a45ebda13950b5f6b1b944e1",
+      "payload_digest": "sha256:b360f29957bca638c5731afe85b76910356046ec66798d89c2d6866a0831988f",
+      "raw_batch_id": "tushare-security_capital-daily_basic-90a7e9ed270842cda48e0c51540e29201c34a1a2da783450b503c2b19fa259d7",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:e3d68399679aaf3ddf7fc610cba59d5e44f26ff781a071551ea24a60a5233b16",
+      "payload_digest": "sha256:3cdcf50cbfd53fb65778bed949f61aeaa142103408d2a49bc979a722aa33ba0a",
+      "raw_batch_id": "tushare-security_capital-daily_basic-491d29a5a2bd0d2e3b63f23f9586ac6a384246abbabf576009b7156d9d43320f",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:71be6f4856bceb5f0f72cecb8cd149d753d04b19262f415ec8f40bda034916fa",
+      "payload_digest": "sha256:08b47ae66d2fc0af9123206312057f850cf762d199461c9f2df197cf022dc697",
+      "raw_batch_id": "tushare-security_capital-daily_basic-79a7ddf2e7cb615f06ef7bf7fe3c1547c572166bd4d652685c5ce9665700c2b7",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:b5b43160ac3795b6d7587e80b236f74c684eb59625290ce226578f5c63a8aa7c",
+      "payload_digest": "sha256:2d8d084575b22f953a86cd5c8f6557456f7188bd90b1f69b40cce4079b5501fb",
+      "raw_batch_id": "tushare-security_capital-daily_basic-5f2ca31c7409b76f5b01cae591a74d0cf8f9efeb739753131e9bba51ae4cf3e6",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    },
+    {
+      "domain": "security_capital",
+      "manifest_digest": "sha256:16fd6ad5371e89c5ccd914babbc8becc8834669e66e3d8a267b67165c1de3256",
+      "payload_digest": "sha256:c9017dbf9b2949da16ae18ffbd05061fb483c3646a3d65ae0dd2561b97e83fc9",
+      "raw_batch_id": "tushare-security_capital-daily_basic-6cecf79cde917ed3da65b4fe5ce746cb9b80b0dc17c41a48f2584531a7390e18",
+      "schema_version": "raw_batch.v2",
+      "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+      "source_profile_ref": "tushare.daily_basic.capital.dm1.v1",
+      "source_profile_version": "tushare_dm1.v1"
+    }
+  ],
   "scope": {
     "end_session": "2025-09-05",
     "start_session": "2025-06-01",
@@ -19,7 +293,7 @@
       "301581.SZ"
     ]
   },
-  "snapshot_id": "snapshot-f4b2b5b3686c6e5ebc71bdead88249a59cdf02dfaef467cec6de0a546aca5624",
-  "source_profile_digest": "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867",
+  "snapshot_id": "snapshot-b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842",
+  "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
   "status": "PASS"
 }

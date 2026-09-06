@@ -31,6 +31,8 @@ from axiom_data import (
     load_market_replay_view,
     load_raw_batch,
     load_snapshot,
+    list_catalog,
+    lookup_catalog,
     rebuild_catalog,
     reconcile_dm1_raw_mapping,
     validate_domain_commit_closure,
@@ -170,9 +172,44 @@ def collect_all(root: Path) -> dict[str, list[str]]:
         ("security_capital", "daily_basic"),
     ):
         ids[domain] = [collector.collect(domain, endpoint, {"ts_code": code_scope, "start_date": compact_start, "end_date": compact_end}, retrieved_at=FIXED_TIME).raw_batch_id]
-    ids["corporate_actions"] = [collector.collect("corporate_actions", "dividend", {"ts_code": code_scope, "div_proc": "实施"}, retrieved_at=FIXED_TIME).raw_batch_id]
+    ids["corporate_actions"] = [collector.collect("corporate_actions", "dividend", {"ts_code": code_scope}, retrieved_at=FIXED_TIME).raw_batch_id]
     ids["benchmark_daily"] = [collector.collect("benchmark_daily", "index_daily", {"ts_code": BENCHMARKS[0], "start_date": compact_start, "end_date": compact_end}, retrieved_at=FIXED_TIME).raw_batch_id]
     return ids
+
+
+def write_dm1_variant(
+    root: Path,
+    raw_id: str,
+    domain: str,
+    endpoint: str,
+    params: dict[str, object],
+    rows: list[dict[str, object]],
+    *,
+    fields: list[str] | None = None,
+    collector: str = "axiom-data.tushare-dm1-collector.v1",
+) -> str:
+    profile = load_dm1_source_profile()
+    definition = profile["endpoints"][endpoint]
+    response_fields = list(definition["fields"])
+    request_fields = list(fields if fields is not None else response_fields)
+    write_raw_batch(
+        root,
+        raw_id,
+        domain=domain,
+        source_profile=definition["source_profile_ref"],
+        source_profile_version=profile["profile_version"],
+        source_profile_digest=dm1_source_profile_digest(profile),
+        request={"endpoint": endpoint, "params": params, "fields": request_fields},
+        retrieved_at=FIXED_TIME,
+        payload=_json_bytes(rows),
+        collector_code=collector,
+        summary={
+            "rows": len(rows),
+            "response_fields": response_fields,
+            "represented_session_field": definition["represented_session_field"],
+        },
+    )
+    return raw_id
 
 
 def build_all(root: Path, ids: dict[str, list[str]]) -> dict[str, str]:
@@ -199,9 +236,9 @@ def build_all(root: Path, ids: dict[str, list[str]]) -> dict[str, str]:
         ref = BuildApplication(domain, TushareDm1Builder(root, domain, dependency_commit_ids=dependency_map[domain], builder_config=config, created_at=FIXED_TIME)).build(None, ids[domain], [], f"{domain}.v1")
         commits[domain] = ref.commit_id
     snapshot = create_snapshot(root, commits, created_at=FIXED_TIME)
-    adjusted = build_adjusted_price_view(root, snapshot.snapshot_id, symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, anchor_session=END, pit_policy="strict_decision_time", decision_cutoff=END, created_at=FIXED_TIME)
+    adjusted = build_adjusted_price_view(root, snapshot.snapshot_id, symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, anchor_session=END, pit_policy="research_non_pit", decision_cutoff=END, created_at=FIXED_TIME)
     replay = build_market_replay_view(root, snapshot.snapshot_id, symbols=SYMBOLS, start_session=START, end_session=END, created_at=FIXED_TIME)
-    qlib = build_qlib_view(root, snapshot.snapshot_id, symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, adjusted_price_view_id=adjusted.view_id, price_basis="anchor_adjusted", pit_policy="strict_decision_time", decision_cutoff=END, created_at=FIXED_TIME)
+    qlib = build_qlib_view(root, snapshot.snapshot_id, symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, adjusted_price_view_id=adjusted.view_id, price_basis="anchor_adjusted", pit_policy="research_non_pit", decision_cutoff=END, created_at=FIXED_TIME)
     return {**commits, "snapshot": snapshot.snapshot_id, "adjusted": adjusted.view_id, "replay": replay.view_id, "qlib": qlib.view_id}
 
 
@@ -237,18 +274,70 @@ class Pr5Dm1Test(unittest.TestCase):
         later = collector.collect("adjustment_factors", "adj_factor", request, retrieved_at="2026-09-06T10:00:01+08:00")
         self.assertNotEqual(later.raw_batch_id, self.ids["adjustment_factors"][0])
 
+    def test_each_dm1_raw_request_is_validated_before_payload_aggregation(self) -> None:
+        artifacts = build_all(self.root, self.ids)
+        dependencies = {
+            name: artifacts[name]
+            for name in ("trading_calendar", "security_master", "market_daily")
+        }
+        params = {
+            "ts_code": SYMBOLS[0],
+            "start_date": START.replace("-", ""),
+            "end_date": END.replace("-", ""),
+        }
+        good = dict(RESPONSES["adj_factor"][0])
+        cases = (
+            ("swapped", [dict(good, ts_code=SYMBOLS[1])], None, "axiom-data.tushare-dm1-collector.v1", "outside its request"),
+            ("symbol", [dict(good, ts_code="999999.SH")], None, "axiom-data.tushare-dm1-collector.v1", "outside its request"),
+            ("date", [dict(good, trade_date="20260106")], None, "axiom-data.tushare-dm1-collector.v1", "outside its request"),
+            ("fields", [good], ["ts_code", "trade_date"], "axiom-data.tushare-dm1-collector.v1", "request fields"),
+            ("collector", [good], None, "axiom-data.wrong-collector.v1", "collector revision"),
+        )
+        for name, rows, fields, collector, error in cases:
+            with self.subTest(name=name):
+                raw_id = write_dm1_variant(
+                    self.root,
+                    f"raw-invalid-{name}",
+                    "adjustment_factors",
+                    "adj_factor",
+                    params,
+                    rows,
+                    fields=fields,
+                    collector=collector,
+                )
+                builder = TushareDm1Builder(
+                    self.root,
+                    "adjustment_factors",
+                    dependency_commit_ids=dependencies,
+                    builder_config={
+                        "symbols": [SYMBOLS[0]],
+                        "start_session": START,
+                        "end_session": END,
+                    },
+                )
+                with self.assertRaisesRegex(ArtifactError, error):
+                    BuildApplication("adjustment_factors", builder).build(
+                        None, [raw_id], [], "adjustment_factors.v1"
+                    )
+
     def test_dm1_contract_and_source_profile_content_is_golden(self) -> None:
         expected = {
             "security_status.v1": "1087b0f2bd9e28a7578da2b4a9a807d0323d7010bc6aca14db79377b515c9e8a",
             "price_limits.v1": "df88b568f1835e5df26dd8534279e67271f1d0d33b6135b22298674b9b939d15",
-            "corporate_actions.v1": "a114e87537228ca12dc977909b4baccba382ddb7c497baec0f619881e62634d0",
+            "corporate_actions.v1": "db00fa9fc152f32faa028022b5cb956bc26c606e28a0d601aae4e508fe976d03",
             "adjustment_factors.v1": "66971791dc0d2b20f0b5d2593ed19001199ec5456b538b32ee5c068ff3927938",
             "benchmark_daily.v1": "c51644aed6b743f86d2d97685eb85b7dd3dcc17dc12bd4d0d74445a3c2538564",
             "security_capital.v1": "6e3d7cdb208e19e7fd6c26761783f59e7c57d9687f82c81fcb5d70aa42acd270",
         }
         for version, digest in expected.items():
             self.assertEqual(hashlib.sha256(_json_bytes(load_contract(version))).hexdigest(), digest)
-        self.assertEqual(dm1_source_profile_digest(), "sha256:37d2e20282ed69d070b98eaee6a9a876135bcfb6e43142a682f9d36a4030a867")
+        adjusted = json.loads((Path(__file__).parents[1] / "src/axiom_data/contracts/adjusted_price.v1.json").read_text())
+        self.assertEqual(hashlib.sha256(_json_bytes(adjusted)).hexdigest(), "571d3bcaf217b981e6423a8ceacb309a1bef15e1c591950582502dc23ff094b5")
+        self.assertEqual(dm1_source_profile_digest(), "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315")
+        self.assertIn(
+            "tushare.dividend.dm1.v1",
+            load_contract("corporate_actions.v1")["semantics"]["support_matrix"],
+        )
 
     def test_intraday_suspension_and_unsupported_action_terms_block_build(self) -> None:
         artifacts = build_all(self.root, self.ids)
@@ -263,7 +352,7 @@ class Pr5Dm1Test(unittest.TestCase):
 
         unsupported = [dict(RESPONSES["dividend"][0], stk_div=0.1, cash_div_tax=0)]
         with patch.dict(RESPONSES, {"dividend": unsupported}):
-            action_raw = TushareDm1Collector(self.root, FixtureClient()).collect("corporate_actions", "dividend", {"ts_code": ",".join(SYMBOLS), "div_proc": "实施"}, retrieved_at="2026-09-06T13:00:00+08:00")
+            action_raw = TushareDm1Collector(self.root, FixtureClient()).collect("corporate_actions", "dividend", {"ts_code": ",".join(SYMBOLS)}, retrieved_at="2026-09-06T13:00:00+08:00")
         with self.assertRaisesRegex(ArtifactError, "unsupported stock terms"):
             BuildApplication("corporate_actions", TushareDm1Builder(self.root, "corporate_actions", dependency_commit_ids={name: artifacts[name] for name in ("trading_calendar", "security_master")}, builder_config={"symbols": list(SYMBOLS), "start_session": START, "end_session": END})).build(None, [action_raw.raw_batch_id], [], "corporate_actions.v1")
 
@@ -297,6 +386,43 @@ class Pr5Dm1Test(unittest.TestCase):
         )
         self.assertEqual(reconciliation["status"], "PASS")
 
+    def test_independent_benchmark_and_action_checkers_catch_builder_bugs(self) -> None:
+        original_benchmark = TushareDm1Builder._benchmark_rows
+        original_actions = TushareDm1Builder._action_rows
+
+        def broken_benchmark(builder, *args):
+            rows = original_benchmark(builder, *args)
+            for row in rows:
+                row["close"] *= 0.01
+            return rows
+
+        def broken_actions(builder, *args):
+            rows = original_actions(builder, *args)
+            for row in rows:
+                if row["cash_per_share"] is not None:
+                    row["cash_per_share"] *= 0.01
+            return rows
+
+        for name, method, replacement, expected_domain in (
+            ("benchmark", "_benchmark_rows", broken_benchmark, "benchmark_daily"),
+            ("actions", "_action_rows", broken_actions, "corporate_actions"),
+        ):
+            with self.subTest(name=name):
+                root = Path(self.temporary.name) / f"mapping-{name}"
+                ids = collect_all(root)
+                with patch.object(TushareDm1Builder, method, replacement):
+                    artifacts = build_all(root, ids)
+                report = reconcile_dm1_raw_mapping(
+                    str(root),
+                    artifacts["snapshot"],
+                    ids,
+                    symbols=SYMBOLS,
+                    start_session=START,
+                    end_session=END,
+                )
+                self.assertEqual(report["status"], "FAIL")
+                self.assertIn(expected_domain, {row["domain"] for row in report["mismatches"]})
+
     def test_adjusted_identity_anchor_guard_factview_and_qlib_equivalence(self) -> None:
         artifacts = build_all(self.root, self.ids)
         adjusted = load_adjusted_price_view(self.root, artifacts["adjusted"])
@@ -304,19 +430,150 @@ class Pr5Dm1Test(unittest.TestCase):
         self.assertEqual(next(row for row in source if row["session"] == START)["close"], 10.5)
         first = next(row for row in adjusted.rows if row["session"] == START)
         self.assertAlmostEqual(first["close"], 10.5 / 1.2)
-        same = build_adjusted_price_view(self.root, artifacts["snapshot"], symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, anchor_session=END, pit_policy="strict_decision_time", decision_cutoff=END, created_at="2026-09-07T00:00:00+08:00")
+        same = build_adjusted_price_view(self.root, artifacts["snapshot"], symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, anchor_session=END, pit_policy="research_non_pit", decision_cutoff=END, created_at="2026-09-07T00:00:00+08:00")
         self.assertEqual(same.view_id, artifacts["adjusted"])
-        end_one = build_adjusted_price_view(self.root, artifacts["snapshot"], symbols=ADJUSTED_SYMBOLS[:1], start_session=START, end_session=END, anchor_session=END, pit_policy="strict_decision_time", decision_cutoff=END, created_at=FIXED_TIME)
-        start_one = build_adjusted_price_view(self.root, artifacts["snapshot"], symbols=ADJUSTED_SYMBOLS[:1], start_session=START, end_session=END, anchor_session=START, pit_policy="strict_decision_time", decision_cutoff=END, created_at=FIXED_TIME)
+        end_one = build_adjusted_price_view(self.root, artifacts["snapshot"], symbols=ADJUSTED_SYMBOLS[:1], start_session=START, end_session=END, anchor_session=END, pit_policy="research_non_pit", decision_cutoff=END, created_at=FIXED_TIME)
+        start_one = build_adjusted_price_view(self.root, artifacts["snapshot"], symbols=ADJUSTED_SYMBOLS[:1], start_session=START, end_session=END, anchor_session=START, pit_policy="research_non_pit", decision_cutoff=END, created_at=FIXED_TIME)
         self.assertNotEqual(start_one.view_id, end_one.view_id)
         with self.assertRaisesRegex(ArtifactError, "future anchor"):
             build_adjusted_price_view(self.root, artifacts["snapshot"], symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, anchor_session=END, pit_policy="strict_decision_time", decision_cutoff=START)
         with self.assertRaisesRegex(ArtifactNotFoundError, "build-required"):
             FactView(self.root, artifacts["snapshot"]).read("adjusted_price", price_basis="anchor_adjusted")
-        fact = FactView(self.root, artifacts["snapshot"], adjusted_price_view_id=artifacts["adjusted"]).read("adjusted_price", symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, price_basis="anchor_adjusted")
+        fact = FactView(self.root, artifacts["snapshot"], adjusted_price_view_id=artifacts["adjusted"]).read("adjusted_price", symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, price_basis="anchor_adjusted", pit_policy="research_non_pit", cutoff_policy=f"decision_cutoff={END}")
         self.assertEqual(fact["anchor"], END)
+        self.assertEqual(fact["pit_qualification"], "best_effort")
         self.assertEqual(compare_direct_and_qlib(self.root, artifacts["snapshot"], artifacts["qlib"])["status"], "PASS")
         self.assertEqual(QlibViewReader(self.root, artifacts["qlib"]).view.manifest["price_basis"], "anchor_adjusted")
+
+    def test_pit_qualification_strict_cutoff_and_view_policy_cannot_be_forged(self) -> None:
+        artifacts = build_all(self.root, self.ids)
+        dependencies = {
+            name: artifacts[name]
+            for name in ("trading_calendar", "security_master", "market_daily")
+        }
+        market = SnapshotReader(self.root, artifacts["snapshot"]).market_daily(
+            ADJUSTED_SYMBOLS, START, END
+        )
+
+        def publish_factor(
+            raw_id: str,
+            qualification: str,
+            basis: str,
+            source_available_at: str | None,
+            first_observed_at: str,
+            *,
+            source_ref: str | None = None,
+        ):
+            rows = [
+                {
+                    "session": row["session"],
+                    "symbol": row["symbol"],
+                    "factor": row["adj_factor"],
+                    "source_available_at": source_available_at,
+                    "first_observed_at": first_observed_at,
+                    "availability_basis": basis,
+                    "pit_qualification": qualification,
+                    "source_ref": source_ref or raw_id,
+                }
+                for row in market
+            ]
+            _write_rows(self.root, raw_id, "adjustment_factors", rows)
+            return BuildApplication(
+                "adjustment_factors",
+                MarketDomainBuilder(
+                    self.root,
+                    "adjustment_factors",
+                    dependency_commit_ids=dependencies,
+                    created_at=FIXED_TIME,
+                ),
+            ).build(None, [raw_id], [], "adjustment_factors.v1")
+
+        with self.assertRaisesRegex(ArtifactError, "violate"):
+            publish_factor(
+                "raw-verified-no-availability",
+                "verified",
+                "revision_specific_public_evidence",
+                None,
+                "2026-01-01T00:00:00+00:00",
+            )
+        with self.assertRaisesRegex(ArtifactError, "outside the immutable RawBatch closure"):
+            publish_factor(
+                "raw-verified-fake-ref",
+                "verified",
+                "revision_specific_public_evidence",
+                "2026-01-01T00:00:00+00:00",
+                "2026-01-01T00:00:00+00:00",
+                source_ref="raw-not-in-this-closure",
+            )
+
+        observed = publish_factor(
+            "raw-observed-after-cutoff",
+            "observed",
+            "first_observation",
+            None,
+            "2026-09-06T00:00:00+00:00",
+        )
+        snapshot_ids = {
+            name: artifacts[name]
+            for name in (
+                "trading_calendar",
+                "security_master",
+                "market_daily",
+                "security_status",
+                "price_limits",
+                "corporate_actions",
+                "adjustment_factors",
+                "benchmark_daily",
+                "security_capital",
+            )
+        }
+        snapshot_ids["adjustment_factors"] = observed.commit_id
+        observed_snapshot = create_snapshot(self.root, snapshot_ids, created_at=FIXED_TIME)
+        with self.assertRaisesRegex(ArtifactError, "first_observed_at is later"):
+            build_adjusted_price_view(
+                self.root,
+                observed_snapshot.snapshot_id,
+                symbols=ADJUSTED_SYMBOLS,
+                start_session=START,
+                end_session=END,
+                anchor_session=END,
+                pit_policy="strict_decision_time",
+                decision_cutoff=END,
+            )
+        with self.assertRaisesRegex(ArtifactError, "best-effort"):
+            build_adjusted_price_view(
+                self.root,
+                artifacts["snapshot"],
+                symbols=ADJUSTED_SYMBOLS,
+                start_session=START,
+                end_session=END,
+                anchor_session=END,
+                pit_policy="strict_decision_time",
+                decision_cutoff=END,
+            )
+        fact_view = FactView(
+            self.root,
+            artifacts["snapshot"],
+            adjusted_price_view_id=artifacts["adjusted"],
+        )
+        with self.assertRaisesRegex(ArtifactError, "qualification is unavailable"):
+            fact_view.read(
+                "adjusted_price",
+                price_basis="anchor_adjusted",
+                pit_policy="verified",
+            )
+        with self.assertRaisesRegex(ArtifactError, "differs from its Derived"):
+            build_qlib_view(
+                self.root,
+                artifacts["snapshot"],
+                symbols=ADJUSTED_SYMBOLS,
+                start_session=START,
+                end_session=END,
+                adjusted_price_view_id=artifacts["adjusted"],
+                price_basis="anchor_adjusted",
+                pit_policy="strict_decision_time",
+                decision_cutoff=END,
+            )
 
     def test_cross_domain_conflict_and_unsupported_action_fail_before_snapshot(self) -> None:
         artifacts = build_all(self.root, self.ids)
@@ -350,6 +607,45 @@ class Pr5Dm1Test(unittest.TestCase):
         with self.assertRaisesRegex(ArtifactError, "digest"):
             load_snapshot(offline, rebuilt["snapshot"])
 
+    def test_catalog_rebuild_loads_and_indexes_all_formal_views(self) -> None:
+        artifacts = build_all(self.root, self.ids)
+        count = rebuild_catalog(self.root)
+        counts: dict[str, int] = {}
+        for entry in list_catalog(self.root):
+            counts[entry.artifact_type] = counts.get(entry.artifact_type, 0) + 1
+        self.assertEqual(counts["adjusted_price_view"], 1)
+        self.assertEqual(counts["market_replay_view"], 1)
+        self.assertEqual(counts["qlib_view"], 1)
+        for artifact_type, identity in (
+            ("adjusted_price_view", artifacts["adjusted"]),
+            ("market_replay_view", artifacts["replay"]),
+            ("qlib_view", artifacts["qlib"]),
+        ):
+            self.assertEqual(
+                lookup_catalog(self.root, artifact_type, identity).artifact_id,
+                identity,
+            )
+        (self.root / "catalog.sqlite").unlink()
+        self.assertEqual(load_adjusted_price_view(self.root, artifacts["adjusted"]).ref.view_id, artifacts["adjusted"])
+        self.assertEqual(load_market_replay_view(self.root, artifacts["replay"]).ref.view_id, artifacts["replay"])
+        self.assertEqual(QlibViewReader(self.root, artifacts["qlib"]).view.ref.view_id, artifacts["qlib"])
+        self.assertEqual(rebuild_catalog(self.root), count)
+
+        corruptions = {
+            "adjusted": Path("derived/adjusted_price/commits") / artifacts["adjusted"] / "rows.json",
+            "replay": Path("derived/market_replay/commits") / artifacts["replay"] / "rows.json",
+        }
+        qlib_manifest = QlibViewReader(self.root, artifacts["qlib"]).view.manifest
+        corruptions["qlib"] = Path("exports/qlib") / artifacts["qlib"] / qlib_manifest["output_files"][-1]["path"]
+        for name, relative in corruptions.items():
+            with self.subTest(name=name):
+                clone = Path(self.temporary.name) / f"catalog-corrupt-{name}"
+                shutil.copytree(self.root, clone)
+                target = clone / relative
+                target.write_bytes(target.read_bytes() + b"broken")
+                with self.assertRaisesRegex(ArtifactError, "digest"):
+                    rebuild_catalog(clone)
+
     def test_committed_evidence_refs_and_pass_results_are_consistent(self) -> None:
         report_dir = Path(__file__).parents[1] / "reports/pr5"
         reports = {
@@ -364,17 +660,31 @@ class Pr5Dm1Test(unittest.TestCase):
             )
         }
         validate_pr5_evidence(*reports.values())
-        tampered = deepcopy(reports["direct_qlib_equivalence"])
-        tampered["qlib_view_ref"]["view_id"] = "qlib-tampered"
-        with self.assertRaisesRegex(ArtifactError, "direct/Qlib"):
-            validate_pr5_evidence(
-                reports["run_manifest"],
-                tampered,
-                reports["dm1_raw_mapping_reconciliation"],
-                reports["qsys_reconciliation"],
-                reports["offline_recovery"],
-                reports["dm1_acceptance_matrix"],
-            )
+        cases = []
+        changed = deepcopy(reports)
+        changed["run_manifest"]["artifact_refs"]["adjusted_price_view"]["view_id"] = "adjusted-price-tampered"
+        cases.append(("adjusted", changed))
+        changed = deepcopy(reports)
+        changed["run_manifest"]["artifact_refs"]["market_replay_view"]["content_digest"] = "sha256:" + "0" * 64
+        cases.append(("replay", changed))
+        changed = deepcopy(reports)
+        changed["direct_qlib_equivalence"]["qlib_view_ref"]["view_id"] = "qlib-tampered"
+        cases.append(("qlib", changed))
+        changed = deepcopy(reports)
+        changed["run_manifest"]["artifact_refs"]["snapshot"]["snapshot_id"] = "snapshot-tampered"
+        cases.append(("snapshot", changed))
+        changed = deepcopy(reports)
+        changed["dm1_acceptance_matrix"]["gates"]["D14"]["checks"]["values_and_nulls"] = False
+        cases.append(("acceptance", changed))
+        changed = deepcopy(reports)
+        changed["offline_recovery"]["rebuilt_refs"]["snapshot"]["snapshot_id"] = "snapshot-tampered"
+        cases.append(("offline", changed))
+        changed = deepcopy(reports)
+        changed["offline_recovery"]["catalog_rebuild"]["exact_view_lookups"]["qlib_view"] = False
+        cases.append(("offline-catalog", changed))
+        for name, changed in cases:
+            with self.subTest(name=name), self.assertRaises(ArtifactError):
+                validate_pr5_evidence(*changed.values())
 
 
 if __name__ == "__main__":

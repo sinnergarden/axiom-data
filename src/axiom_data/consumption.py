@@ -279,8 +279,11 @@ def build_qlib_view(
         if decision_cutoff is None:
             raise ArtifactError("adjusted QlibView requires an explicit decision cutoff")
         cutoff = _session(decision_cutoff, "decision_cutoff")
-        if pit_policy == "strict_decision_time" and adjusted.manifest["anchor_session"] > cutoff:
-            raise ArtifactError("QlibView cannot use a future adjustment anchor")
+        if (
+            pit_policy != adjusted.manifest["pit_policy"]
+            or cutoff != adjusted.manifest["decision_cutoff"]
+        ):
+            raise ArtifactError("QlibView PIT policy/cutoff differs from its Derived view")
     elif adjusted_price_view_id is not None:
         raise ArtifactError("unadjusted QlibView must not carry an adjusted Derived ref")
 
@@ -410,6 +413,7 @@ def build_qlib_view(
                 "price_basis": price_basis,
                 "anchor_session": adjusted.manifest["anchor_session"],
                 "pit_policy": pit_policy,
+                "pit_qualification": adjusted.manifest["pit_qualification"],
                 "decision_cutoff": cutoff,
                 "source_quality_refs": adjusted.manifest["domain_refs"],
             }
@@ -478,17 +482,17 @@ def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
         if (
             manifest.get("price_basis") != "anchor_adjusted"
             or manifest.get("anchor_session") != adjusted.manifest["anchor_session"]
-            or manifest.get("decision_cutoff") is None
-            or manifest.get("pit_policy") not in {"strict_decision_time", "research_non_pit"}
+            or manifest.get("decision_cutoff") != adjusted.manifest["decision_cutoff"]
+            or manifest.get("pit_policy") != adjusted.manifest["pit_policy"]
+            or manifest.get("pit_qualification")
+            != adjusted.manifest["pit_qualification"]
         ):
             raise ArtifactError("adjusted QlibView anchor/PIT metadata is invalid")
         if manifest.get("source_quality_refs") != adjusted.manifest["domain_refs"]:
             raise ArtifactError("adjusted QlibView source/quality refs are invalid")
         if manifest.get("scope") != adjusted.manifest["scope"]:
             raise ArtifactError("adjusted QlibView scope differs from its Derived view")
-        cutoff = _session(manifest["decision_cutoff"], "QlibView decision cutoff")
-        if manifest["pit_policy"] == "strict_decision_time" and manifest["anchor_session"] > cutoff:
-            raise ArtifactError("adjusted QlibView uses a future anchor")
+        _session(manifest["decision_cutoff"], "QlibView decision cutoff")
     fields = manifest.get("fields")
     scope = manifest.get("scope")
     instruments = manifest.get("instrument_storage_scope")
@@ -738,6 +742,25 @@ def compare_direct_and_qlib(
             if derived is not None:
                 for field in _ADJUSTED_PRICE_FIELDS:
                     row[field] = derived[field]
+        adjusted_ref = {
+            "view_id": adjusted.ref.view_id,
+            "manifest_digest": adjusted.ref.manifest_digest,
+            "identity_digest": adjusted.manifest["identity_digest"],
+            "content_digest": adjusted.manifest["output"]["content_digest"],
+            "anchor_session": adjusted.manifest["anchor_session"],
+            "pit_policy": adjusted.manifest["pit_policy"],
+            "pit_qualification": adjusted.manifest["pit_qualification"],
+            "decision_cutoff": adjusted.manifest["decision_cutoff"],
+        }
+        pit_binding = {
+            "pit_policy": adjusted.manifest["pit_policy"],
+            "pit_qualification": adjusted.manifest["pit_qualification"],
+            "decision_cutoff": adjusted.manifest["decision_cutoff"],
+            "anchor_session": adjusted.manifest["anchor_session"],
+        }
+    else:
+        adjusted_ref = None
+        pit_binding = None
     view_rows = {
         (row["session"], row["symbol"]): row for row in view.market_daily()
     }
@@ -790,6 +813,29 @@ def compare_direct_and_qlib(
         "keys": set(direct_rows) == set(view_rows),
         "values_and_nulls": not mismatches,
     }
+    qlib_report_ref = {
+        "view_id": view.view.ref.view_id,
+        "manifest_digest": view.view.ref.manifest_digest,
+        "identity_digest": view.view.manifest["identity_digest"],
+    }
+    if manifest.get("schema_version") == "qlib_view.v2":
+        qlib_report_ref.update(
+            {
+                "content_digest": _digest(
+                    _json_bytes(
+                        [
+                            [entry["path"], entry["content_digest"]]
+                            for entry in view.view.manifest["output_files"]
+                        ]
+                    )
+                ),
+                "anchor_session": manifest["anchor_session"],
+                "pit_policy": manifest["pit_policy"],
+                "pit_qualification": manifest["pit_qualification"],
+                "decision_cutoff": manifest["decision_cutoff"],
+                "derived_view_id": manifest["derived_refs"][0]["view_id"],
+            }
+        )
     return {
         "status": "PASS" if all(checks.values()) else "FAIL",
         "source_snapshot_ref": {
@@ -797,11 +843,9 @@ def compare_direct_and_qlib(
             "manifest_digest": direct.snapshot.ref.manifest_digest,
             "identity_digest": direct.snapshot.manifest["identity_digest"],
         },
-        "qlib_view_ref": {
-            "view_id": view.view.ref.view_id,
-            "manifest_digest": view.view.ref.manifest_digest,
-            "identity_digest": view.view.manifest["identity_digest"],
-        },
+        "qlib_view_ref": qlib_report_ref,
+        "adjusted_price_view_ref": adjusted_ref,
+        "pit_binding": pit_binding,
         "checks": checks,
         "scope": scope,
         "fields": list(fields),

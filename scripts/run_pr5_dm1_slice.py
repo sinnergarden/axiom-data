@@ -7,11 +7,13 @@ import argparse
 import hashlib
 import json
 import shutil
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from axiom_data import (
+    ArtifactError,
     BuildApplication,
     FactView,
     SnapshotReader,
@@ -32,6 +34,8 @@ from axiom_data import (
     load_qlib_view,
     load_raw_batch,
     load_snapshot,
+    list_catalog,
+    lookup_catalog,
     rebuild_catalog,
     reconcile_dm1_raw_mapping,
     reconcile_market,
@@ -109,7 +113,7 @@ def collect(root: Path) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
             dm1_collector.collect("price_limits", "stk_limit", {"ts_code": symbol, "start_date": start, "end_date": end}).raw_batch_id
         )
         dm1["corporate_actions"].append(
-            dm1_collector.collect("corporate_actions", "dividend", {"ts_code": symbol, "div_proc": "实施"}).raw_batch_id
+            dm1_collector.collect("corporate_actions", "dividend", {"ts_code": symbol}).raw_batch_id
         )
         dm1["security_capital"].append(
             dm1_collector.collect("security_capital", "daily_basic", {"ts_code": symbol, "start_date": start, "end_date": end}).raw_batch_id
@@ -191,7 +195,7 @@ def build(
         start_session=START,
         end_session=END,
         anchor_session=ANCHOR,
-        pit_policy="strict_decision_time",
+        pit_policy="research_non_pit",
         decision_cutoff=END,
     )
     replay = build_market_replay_view(
@@ -209,7 +213,7 @@ def build(
         end_session=END,
         adjusted_price_view_id=adjusted.view_id,
         price_basis="anchor_adjusted",
-        pit_policy="strict_decision_time",
+        pit_policy="research_non_pit",
         decision_cutoff=END,
     )
     return {
@@ -223,6 +227,7 @@ def build(
 
 def artifact_refs(root: Path, artifacts: dict[str, str]) -> dict[str, Any]:
     commits = {}
+    raw_batches = []
     for domain in (*BASE_DOMAINS, *REFERENCE_DOMAINS):
         commit = validate_domain_commit_closure(root, domain, artifacts[domain])
         commits[domain] = {
@@ -233,16 +238,50 @@ def artifact_refs(root: Path, artifacts: dict[str, str]) -> dict[str, Any]:
             "logical_content_digest": commit.manifest["logical_content_digest"],
             "rows": len(commit.rows),
         }
+        raw_batches.extend(
+            {"domain": domain, **raw_ref}
+            for raw_ref in commit.manifest["ordered_raw_batch_refs"]
+        )
     snapshot = load_snapshot(root, artifacts["snapshot"])
     adjusted = load_adjusted_price_view(root, artifacts["adjusted_price_view"])
     replay = load_market_replay_view(root, artifacts["market_replay_view"])
     qlib = load_qlib_view(root, artifacts["qlib_view"])
+    qlib_content = [
+        [entry["path"], entry["content_digest"]]
+        for entry in qlib.manifest["output_files"]
+    ]
     return {
+        "raw_batches": raw_batches,
         "domain_commits": commits,
         "snapshot": {"snapshot_id": snapshot.ref.snapshot_id, "manifest_digest": snapshot.ref.manifest_digest, "identity_digest": snapshot.manifest["identity_digest"]},
-        "adjusted_price_view": {"view_id": adjusted.ref.view_id, "manifest_digest": adjusted.ref.manifest_digest, "identity_digest": adjusted.manifest["identity_digest"], "anchor_session": adjusted.manifest["anchor_session"]},
-        "market_replay_view": {"view_id": replay.ref.view_id, "manifest_digest": replay.ref.manifest_digest, "identity_digest": replay.manifest["identity_digest"]},
-        "qlib_view": {"view_id": qlib.ref.view_id, "manifest_digest": qlib.ref.manifest_digest, "identity_digest": qlib.manifest["identity_digest"], "anchor_session": qlib.manifest["anchor_session"]},
+        "adjusted_price_view": {
+            "view_id": adjusted.ref.view_id,
+            "manifest_digest": adjusted.ref.manifest_digest,
+            "identity_digest": adjusted.manifest["identity_digest"],
+            "content_digest": adjusted.manifest["output"]["content_digest"],
+            "anchor_session": adjusted.manifest["anchor_session"],
+            "pit_policy": adjusted.manifest["pit_policy"],
+            "pit_qualification": adjusted.manifest["pit_qualification"],
+            "decision_cutoff": adjusted.manifest["decision_cutoff"],
+        },
+        "market_replay_view": {
+            "view_id": replay.ref.view_id,
+            "manifest_digest": replay.ref.manifest_digest,
+            "identity_digest": replay.manifest["identity_digest"],
+            "content_digest": replay.manifest["output"]["content_digest"],
+            "temporal_policy": replay.manifest["temporal_policy"],
+        },
+        "qlib_view": {
+            "view_id": qlib.ref.view_id,
+            "manifest_digest": qlib.ref.manifest_digest,
+            "identity_digest": qlib.manifest["identity_digest"],
+            "content_digest": f"sha256:{hashlib.sha256(json.dumps(qlib_content, sort_keys=True, separators=(',', ':')).encode()).hexdigest()}",
+            "anchor_session": qlib.manifest["anchor_session"],
+            "pit_policy": qlib.manifest["pit_policy"],
+            "pit_qualification": qlib.manifest["pit_qualification"],
+            "decision_cutoff": qlib.manifest["decision_cutoff"],
+            "derived_view_id": qlib.manifest["derived_refs"][0]["view_id"],
+        },
     }
 
 
@@ -325,6 +364,7 @@ def main() -> None:
     base_raw, dm1_raw = collect(args.data_root)
     artifacts = build(args.data_root, base_raw, dm1_raw)
     source_catalog = rebuild_catalog(args.data_root)
+    source_catalog_types = Counter(entry.artifact_type for entry in list_catalog(args.data_root))
     refs = artifact_refs(args.data_root, artifacts)
     raw = raw_refs(args.data_root, {**base_raw, **dm1_raw})
     if any(item["schema_version"] != "raw_batch.v2" for item in raw):
@@ -335,14 +375,47 @@ def main() -> None:
     source_market = independent_tushare_market_expectations(args.data_root, base_raw["market_daily"], symbols=SYMBOLS, start_session=RECON_START, end_session=RECON_END)
     qsys_market = load_frozen_qsys_market(args.qsys_parquet, symbols=SYMBOLS, start_session=RECON_START, end_session=RECON_END)
     qsys_recon = reconcile_market(args.data_root, artifacts["snapshot"], source_rows=source_market, qsys_rows=qsys_market, symbols=SYMBOLS, start_session=RECON_START, end_session=RECON_END)
+    qsys_recon["snapshot_ref"] = refs["snapshot"]
+    qsys_recon["raw_batch_refs"] = [
+        ref for ref in refs["raw_batches"] if ref["domain"] == "market_daily"
+    ]
 
-    fact = FactView(args.data_root, artifacts["snapshot"], adjusted_price_view_id=artifacts["adjusted_price_view"]).read("adjusted_price", symbols=SYMBOLS, start_session=START, end_session=END, price_basis="anchor_adjusted", pit_policy="strict_decision_time", cutoff_policy=f"decision_cutoff={END}")
+    fact = FactView(args.data_root, artifacts["snapshot"], adjusted_price_view_id=artifacts["adjusted_price_view"]).read("adjusted_price", symbols=SYMBOLS, start_session=START, end_session=END, price_basis="anchor_adjusted", pit_policy="research_non_pit", cutoff_policy=f"decision_cutoff={END}")
     replay = load_market_replay_view(args.data_root, artifacts["market_replay_view"])
+    strict_blocked = False
+    try:
+        build_adjusted_price_view(
+            args.data_root,
+            artifacts["snapshot"],
+            symbols=SYMBOLS,
+            start_session=START,
+            end_session=END,
+            anchor_session=ANCHOR,
+            pit_policy="strict_decision_time",
+            decision_cutoff=END,
+        )
+    except ArtifactError:
+        strict_blocked = True
 
     shutil.copytree(args.data_root / "raw/batches", args.offline_root / "raw/batches")
     offline_start = {name: (args.offline_root / name).exists() for name in ("canonical", "derived", "snapshots", "exports", "catalog.sqlite")}
     offline_artifacts = build(args.offline_root, base_raw, dm1_raw)
     offline_catalog = rebuild_catalog(args.offline_root)
+    offline_catalog_types = Counter(entry.artifact_type for entry in list_catalog(args.offline_root))
+    offline_view_lookups = {
+        artifact_type: lookup_catalog(args.offline_root, artifact_type, offline_artifacts[key]).artifact_id
+        == offline_artifacts[key]
+        for artifact_type, key in (
+            ("adjusted_price_view", "adjusted_price_view"),
+            ("market_replay_view", "market_replay_view"),
+            ("qlib_view", "qlib_view"),
+        )
+    }
+    offline_catalog_ok = (
+        sum(offline_catalog_types.values()) == offline_catalog
+        and all(offline_view_lookups.values())
+        and all(offline_catalog_types[name] == 1 for name in offline_view_lookups)
+    )
     offline_refs = artifact_refs(args.offline_root, offline_artifacts)
     offline_direct = compare_direct_and_qlib(args.offline_root, offline_artifacts["snapshot"], offline_artifacts["qlib_view"])
     identity_equal = artifacts == offline_artifacts and all(
@@ -360,7 +433,12 @@ def main() -> None:
     )
     logical_checks = list(logical_equal)
     recovery = {
-        "status": "PASS" if identity_equal and all(logical_checks) and offline_direct["status"] == "PASS" else "FAIL",
+        "status": "PASS"
+        if identity_equal
+        and all(logical_checks)
+        and offline_direct["status"] == "PASS"
+        and offline_catalog_ok
+        else "FAIL",
         "network_calls": 0,
         "starting_state": offline_start,
         "source_artifacts": artifacts,
@@ -369,24 +447,61 @@ def main() -> None:
         "rebuilt_refs": offline_refs,
         "identity_equality": identity_equal,
         "domain_logical_equality": dict(zip((*BASE_DOMAINS, *REFERENCE_DOMAINS), logical_checks)),
-        "catalog_rebuild": {"status": "PASS", "entries": offline_catalog},
+        "catalog_rebuild": {
+            "status": "PASS" if offline_catalog_ok else "FAIL",
+            "entries": offline_catalog,
+            "artifact_type_counts": dict(sorted(offline_catalog_types.items())),
+            "exact_view_lookups": offline_view_lookups,
+        },
         "direct_qlib_equivalence": offline_direct,
         "anchor_semantics_equal": refs["adjusted_price_view"]["anchor_session"] == offline_refs["adjusted_price_view"]["anchor_session"] == ANCHOR,
+        "pit_binding_equal": all(
+            refs["adjusted_price_view"][name]
+            == offline_refs["adjusted_price_view"][name]
+            for name in ("pit_policy", "pit_qualification", "decision_cutoff")
+        ),
     }
 
     cases = real_cases(args.data_root, artifacts)
+    reference_rows = [
+        row
+        for domain in REFERENCE_DOMAINS
+        for row in SnapshotReader(args.data_root, artifacts["snapshot"]).commits[domain].rows
+    ]
+    view_lookups = {
+        "adjusted_price_view": lookup_catalog(
+            args.data_root, "adjusted_price_view", artifacts["adjusted_price_view"]
+        ).artifact_id == artifacts["adjusted_price_view"],
+        "market_replay_view": lookup_catalog(
+            args.data_root, "market_replay_view", artifacts["market_replay_view"]
+        ).artifact_id == artifacts["market_replay_view"],
+        "qlib_view": lookup_catalog(
+            args.data_root, "qlib_view", artifacts["qlib_view"]
+        ).artifact_id == artifacts["qlib_view"],
+    }
+
+    def gate(checks: dict[str, bool], required_refs: list[str]) -> dict[str, Any]:
+        failures = [name for name, result in checks.items() if result is not True]
+        return {
+            "status": "PASS" if not failures else "FAIL",
+            "checks": checks,
+            "required_refs": required_refs,
+            "mismatch_count": len(failures),
+            "mismatches": failures,
+        }
+
     acceptance = {
-        "D01": {"status": "PASS", "evidence": "tests.test_pr5_dm1 old/new data_snapshot.v1/v2 coexist"},
-        "D02": {"status": "PASS" if identity_equal else "FAIL", "evidence": "offline_recovery identity + logical equality"},
-        "D03": {"status": "PASS", "evidence": "RawBatch v2 identity binds request/retrieved_at/payload and immutable publisher rejects collision"},
-        "D04": {"status": "PASS" if dm1_recon["status"] == "PASS" else "FAIL", "evidence": "independent raw factor/limit/capital x10000 checks plus PR3 market mapping checker"},
-        "D05": {"status": "PASS", "evidence": "BuildApplication exact registered contract and parent lineage tests"},
-        "D10": {"status": "PASS", "evidence": "cross-domain conflict test leaves snapshots unchanged and retains raw"},
-        "D11": {"status": recovery["status"], "evidence": "clean raw-only no-network root and catalog rebuild"},
-        "D12": {"status": "PASS", "evidence": "committed rows digest corruption rejection test"},
-        "D13": {"status": "PASS" if all(row["pit_qualification"] != "verified" for domain in REFERENCE_DOMAINS for row in SnapshotReader(args.data_root, artifacts["snapshot"]).commits[domain].rows) else "FAIL", "evidence": "terminal history remains best_effort/unknown, never promoted to verified"},
-        "D14": {"status": direct_qlib["status"], "evidence": "adjusted direct/Qlib keys/calendar/missing/value comparison"},
-        "D15": {"status": "PASS" if cases["confirmed_suspensions"] else "FAIL", "evidence": "formal status domain + synthetic lifecycle/gap counterexamples"},
+        "D01": gate({"snapshot_v2_loads": load_snapshot(args.data_root, artifacts["snapshot"]).manifest["schema_version"] == "data_snapshot.v2"}, ["snapshot"]),
+        "D02": gate({"identity_equality": identity_equal, "logical_equality": all(logical_checks), "pit_binding_equal": recovery["pit_binding_equal"]}, ["raw_batches", "domain_commits", "snapshot", "adjusted_price_view", "market_replay_view", "qlib_view"]),
+        "D03": gate({"all_raw_v2": all(item["schema_version"] == "raw_batch.v2" for item in raw), "raw_ids_unique": len(raw) == len({item["raw_batch_id"] for item in raw})}, ["raw_batches"]),
+        "D04": gate(dict(dm1_recon["checks"]), ["raw_batches", "domain_commits", "snapshot"]),
+        "D05": gate({"all_contract_refs_present": all(ref["contract_digest"].startswith("sha256:") for ref in refs["domain_commits"].values())}, ["domain_commits"]),
+        "D10": gate({"snapshot_cross_domain_validation": load_snapshot(args.data_root, artifacts["snapshot"]).manifest["validation_summary"]["cross_domain"] == "PASS"}, ["domain_commits", "snapshot"]),
+        "D11": gate({"offline_recovery": recovery["status"] == "PASS", "catalog_views_exact": all(view_lookups.values())}, ["raw_batches", "domain_commits", "snapshot", "adjusted_price_view", "market_replay_view", "qlib_view"]),
+        "D12": gate({"catalog_loader_validation": sum(source_catalog_types.values()) == source_catalog, "all_formal_views_indexed": all(view_lookups.values())}, ["snapshot", "adjusted_price_view", "market_replay_view", "qlib_view"]),
+        "D13": gate({"terminal_history_not_verified": all(row["pit_qualification"] != "verified" for row in reference_rows), "adjusted_is_best_effort": refs["adjusted_price_view"]["pit_qualification"] == "best_effort", "false_strict_blocked": strict_blocked}, ["raw_batches", "domain_commits", "snapshot", "adjusted_price_view"]),
+        "D14": gate(dict(direct_qlib["checks"]), ["snapshot", "adjusted_price_view", "qlib_view"]),
+        "D15": gate({"real_suspension_present": bool(cases["confirmed_suspensions"]), "replay_is_post_session": replay.manifest["temporal_policy"]["mode"] == "post_session_replay"}, ["domain_commits", "snapshot", "market_replay_view"]),
     }
     status = "PASS" if all(item["status"] == "PASS" for item in acceptance.values()) and dm1_recon["status"] == qsys_recon["status"] == direct_qlib["status"] == recovery["status"] == "PASS" else "FAIL"
     repository = Path(__file__).resolve().parents[1]
@@ -396,6 +511,10 @@ def main() -> None:
         "src/axiom_data/domains/dm1.py",
         "src/axiom_data/views.py",
         "src/axiom_data/consumption.py",
+        "src/axiom_data/evidence.py",
+        "src/axiom_data/dm1_reconciliation.py",
+        "src/axiom_data/contracts/corporate_actions.v1.json",
+        "src/axiom_data/contracts/adjusted_price.v1.json",
         "scripts/run_pr5_dm1_slice.py",
     )
     scope_manifest = repository / "src/axiom_data/scope/pr5_d_m1_scope.v1.json"
@@ -426,13 +545,13 @@ def main() -> None:
         "raw_batches": raw,
         "artifacts": artifacts,
         "artifact_refs": refs,
-        "catalog_rebuild": {"status": "PASS", "entries": source_catalog},
-        "fact_view": {"snapshot_ref": fact["snapshot_ref"], "derived_refs": fact["derived_refs"], "price_basis": fact["price_basis"], "anchor": fact["anchor"], "rows": len(fact["rows"])},
-        "market_replay_view": {"view_id": replay.ref.view_id, "rows": len(replay.rows), "unsupported_events": replay.manifest["unsupported_events"]},
+        "catalog_rebuild": {"status": "PASS", "entries": source_catalog, "artifact_type_counts": dict(sorted(source_catalog_types.items())), "exact_view_lookups": view_lookups},
+        "fact_view": {"snapshot_ref": fact["snapshot_ref"], "derived_refs": fact["derived_refs"], "price_basis": fact["price_basis"], "anchor": fact["anchor"], "pit_policy": fact["pit_policy"], "pit_qualification": fact["pit_qualification"], "cutoff_policy": fact["cutoff_policy"], "rows": len(fact["rows"])},
+        "market_replay_view": {"view_id": replay.ref.view_id, "rows": len(replay.rows), "temporal_policy": replay.manifest["temporal_policy"], "unsupported_events": replay.manifest["unsupported_events"]},
         "real_cases": cases,
         "reports": ["direct_qlib_equivalence.json", "dm1_raw_mapping_reconciliation.json", "qsys_reconciliation.json", "offline_recovery.json", "dm1_acceptance_matrix.json"],
     }
-    acceptance_report = {"status": "PASS" if all(item["status"] == "PASS" for item in acceptance.values()) else "FAIL", "gates": acceptance}
+    acceptance_report = {"status": "PASS" if all(item["status"] == "PASS" for item in acceptance.values()) else "FAIL", "artifact_refs": refs, "gates": acceptance}
     validate_pr5_evidence(
         run_manifest,
         direct_qlib,

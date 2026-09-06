@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 from collections.abc import Mapping, Sequence
 from datetime import date
@@ -32,6 +33,13 @@ def _number(value: object) -> float | None:
     if not math.isfinite(number):
         raise ArtifactError("independent D-M1 numeric value is not finite")
     return number
+
+
+def _identity(value: object) -> str:
+    content = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()
+    return hashlib.sha256(content).hexdigest()
 
 
 def _rows(data_root: str, raw_ids: Sequence[str], domain: str) -> list[dict[str, Any]]:
@@ -79,6 +87,21 @@ def reconcile_dm1_raw_mapping(
     status = {
         (row["session"], row["symbol"]): row
         for row in reader.facts("security_status", symbols=symbols, start_session=start_session, end_session=end_session)
+    }
+    benchmarks = {
+        (row["session"], row["benchmark"]): row
+        for row in reader.facts(
+            "benchmark_daily", start_session=start_session, end_session=end_session
+        )
+    }
+    actions = {
+        (row["symbol"], row["action_id"], row["action_version"]): row
+        for row in reader.facts(
+            "corporate_actions",
+            symbols=symbols,
+            start_session=start_session,
+            end_session=end_session,
+        )
     }
     mismatches: list[dict[str, Any]] = []
 
@@ -133,16 +156,79 @@ def reconcile_dm1_raw_mapping(
     if daily_keys & suspend_keys:
         mismatches.append({"domain": "security_status", "key": None, "field": "source_conflict", "expected": "disjoint", "actual": "overlap"})
 
+    for source in _rows(data_root, raw_ids["benchmark_daily"], "benchmark_daily"):
+        key = (_date(source.get("trade_date")), source.get("ts_code"))
+        if start_session <= key[0] <= end_session:
+            expected = _number(source.get("close"))
+            actual = benchmarks.get(key, {}).get("close")
+            if actual != expected:
+                mismatches.append({"domain": "benchmark_daily", "key": list(key), "field": "close", "expected": expected, "actual": actual})
+
+    for source in _rows(data_root, raw_ids["corporate_actions"], "corporate_actions"):
+        symbol = source.get("ts_code")
+        if symbol not in selected or source.get("div_proc") != "实施":
+            continue
+        effective = _date(source.get("ex_date"))
+        if not start_session <= effective <= end_session:
+            continue
+        terms = {
+            "cash_dividend": ("cash_per_share", _number(source.get("cash_div_tax"))),
+            "stock_dividend": ("stock_ratio", _number(source.get("stk_bo_rate"))),
+            "capital_transfer": ("transfer_ratio", _number(source.get("stk_co_rate"))),
+        }
+        natural = [symbol, source.get("end_date"), source.get("ann_date"), source.get("div_proc")]
+        for action_type, (term, value) in terms.items():
+            if value in (None, 0, 0.0):
+                continue
+            key = (
+                symbol,
+                f"ca-{_identity([natural, action_type])}",
+                f"obs-{_identity(source)}",
+            )
+            actual_row = actions.get(key)
+            expected = {
+                "action_type": action_type,
+                "announcement_date": _date(source["ann_date"]) if source.get("ann_date") else None,
+                "record_date": _date(source["record_date"]) if source.get("record_date") else None,
+                "effective_date": effective,
+                "ex_date": effective,
+                "payment_date": _date(source["pay_date"]) if source.get("pay_date") else None,
+                "share_available_date": _date(source["div_listdate"]) if source.get("div_listdate") else None,
+                term: value,
+            }
+            actual = None if actual_row is None else {
+                name: actual_row.get(name) for name in expected
+            }
+            if actual != expected:
+                mismatches.append({"domain": "corporate_actions", "key": list(key), "field": "mapping", "expected": expected, "actual": actual})
+
     checks = {
         "factor_passthrough": not any(row["domain"] == "adjustment_factors" for row in mismatches),
         "price_limit_passthrough": not any(row["domain"] == "price_limits" for row in mismatches),
         "capital_x10000": not any(row["domain"] == "security_capital" for row in mismatches),
         "status_evidence": not any(row["domain"] == "security_status" for row in mismatches),
+        "benchmark_passthrough": not any(row["domain"] == "benchmark_daily" for row in mismatches),
+        "corporate_action_mapping": not any(row["domain"] == "corporate_actions" for row in mismatches),
     }
+    raw_refs = []
+    for domain, identities in raw_ids.items():
+        for raw_id in identities:
+            raw = load_raw_batch(data_root, raw_id)
+            raw_refs.append({
+                "domain": domain,
+                "raw_batch_id": raw.ref.raw_batch_id,
+                "manifest_digest": raw.ref.manifest_digest,
+                "payload_digest": raw.manifest["payload_files"][0]["content_digest"],
+                "schema_version": raw.manifest["schema_version"],
+                "source_profile_ref": raw.manifest["source_profile_ref"],
+                "source_profile_version": raw.manifest["source_profile_version"],
+                "source_profile_digest": raw.manifest["source_profile_digest"],
+            })
     return {
         "status": "PASS" if all(checks.values()) and not mismatches else "FAIL",
         "snapshot_id": snapshot_id,
         "source_profile_digest": dm1_source_profile_digest(),
+        "raw_batch_refs": raw_refs,
         "scope": {"symbols": list(symbols), "start_session": start_session, "end_session": end_session},
         "checks": checks,
         "mismatch_count": len(mismatches),
