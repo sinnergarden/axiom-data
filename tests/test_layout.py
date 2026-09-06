@@ -31,7 +31,7 @@ class DataRootLayoutTest(unittest.TestCase):
         with self.assertRaises(LayoutError):
             DataRootLayout(Path("relative"))
         with self.assertRaises(LayoutError):
-            DataRootLayout(Path("/var/lib/axiom-data")).domain_commits("../market")
+            DataRootLayout(Path("/home/liuming/workspace/axiom/data")).domain_commits("../market")
 
 
 if __name__ == "__main__":

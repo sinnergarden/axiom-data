@@ -36,8 +36,8 @@ the Tushare credential from `TUSHARE_TOKEN` or Tushare's existing local secure
 configuration; no credential is stored in this repository.
 
 The full real closure named in the run report is retained under the external
-read-only `/var/lib/axiom-data/forensic/` area. It is validation evidence only;
-no production `current` pointer is created or changed.
+read-only `/home/liuming/workspace/axiom/data/forensic/` area. It is validation
+evidence only; no production `current` pointer is created or changed.
 
 The reviewed run is reproducible with `scripts/run_pr3_market_slice.py`; it
 requires two nonexistent temporary data-root paths, the frozen Qsys parquet
@@ -50,7 +50,7 @@ before rebuilding every downstream artifact offline.
 The logical layout is:
 
 ```text
-/var/lib/axiom-data/
+/home/liuming/workspace/axiom/data/
   raw/batches/
   raw/objects/
   canonical/<domain>/commits/

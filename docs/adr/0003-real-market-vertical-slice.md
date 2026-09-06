@@ -123,14 +123,14 @@ or its normalization/join helpers. A regression test injects a production
 failure. No contract/build bug or source drift was observed in the real run.
 
 The current complete real closure is retained at
-`/var/lib/axiom-data/forensic/pr3-market-slice-20260905-schema-v2-rerun`.
+`/home/liuming/workspace/axiom/data/forensic/pr3-market-slice-20260905-schema-v2-rerun`.
 All 46 RawBatches use `raw_batch.v2`. It contains Snapshot
 `snapshot-f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca`
 and QlibView
 `qlib-b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a`;
 it is forensic validation evidence, not a production current selection. The
 older closure at
-`/var/lib/axiom-data/forensic/pr3-market-slice-20260905-blocker-fix-v2` is
+`/home/liuming/workspace/axiom/data/forensic/pr3-market-slice-20260905-blocker-fix-v2` is
 retained unchanged as superseded historical evidence.
 
 The direct/Qlib and offline rebuild reports carry the exact Snapshot and

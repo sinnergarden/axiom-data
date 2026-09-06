@@ -12,7 +12,7 @@ The current branch is Phase 1 PR1 only. It may define:
 
 - the repository and Python package skeleton;
 - the `market.v1` contract;
-- the `/var/lib/axiom-data` logical layout;
+- the `/home/liuming/workspace/axiom/data` logical layout;
 - the public domain-build port.
 
 It must not collect supplier data, write RawBatch or DomainCommit artifacts,

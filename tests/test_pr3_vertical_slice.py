@@ -846,12 +846,12 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         )
         self.assertEqual(
             run["frozen_real_closure"]["path"],
-            "/var/lib/axiom-data/forensic/"
+            "/home/liuming/workspace/axiom/data/forensic/"
             "pr3-market-slice-20260905-schema-v2-rerun",
         )
         self.assertEqual(
             run["superseded_forensic_closure"]["path"],
-            "/var/lib/axiom-data/forensic/"
+            "/home/liuming/workspace/axiom/data/forensic/"
             "pr3-market-slice-20260905-blocker-fix-v2",
         )
         self.assertEqual(

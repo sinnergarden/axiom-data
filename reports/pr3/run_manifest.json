@@ -376,7 +376,7 @@
     "suspend_d"
   ],
   "frozen_real_closure": {
-    "path": "/var/lib/axiom-data/forensic/pr3-market-slice-20260905-schema-v2-rerun",
+    "path": "/home/liuming/workspace/axiom/data/forensic/pr3-market-slice-20260905-schema-v2-rerun",
     "qlib_view_id": "qlib-b27b13d227506d243744dc0327f889547455264b014677b3d3e93068a28a5a9a",
     "role": "immutable-validation-forensic-closure; not production current",
     "snapshot_id": "snapshot-f0efeb0417a604531fb1dc061e00512401a6da6c9df4c4d25cb356c49b97b5ca"
@@ -1598,7 +1598,7 @@
     "profile_version": "tushare_phase1.v1"
   },
   "superseded_forensic_closure": {
-    "path": "/var/lib/axiom-data/forensic/pr3-market-slice-20260905-blocker-fix-v2",
+    "path": "/home/liuming/workspace/axiom/data/forensic/pr3-market-slice-20260905-blocker-fix-v2",
     "reason": "pre-schema-bound RawBatch envelope evidence; retained read-only",
     "status": "superseded"
   }

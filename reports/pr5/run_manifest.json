@@ -774,7 +774,7 @@
     },
     "old_snapshot_manifest_digest_before_new": "sha256:f38cab0112cb234246866b5d15ef838671f41bd13866db6c4a49dabbb77abdc6",
     "schema_version": "axiom_data.pr5_d01_snapshot_coexistence.v1",
-    "validation_root": "/var/lib/axiom-data/forensic/pr5-d01-snapshot-coexistence-b1303edb"
+    "validation_root": "/home/liuming/workspace/axiom/data/forensic/pr5-d01-snapshot-coexistence-b1303edb"
   },
   "fact_view": {
     "anchor": "2025-09-05",
@@ -810,7 +810,7 @@
     }
   },
   "forensic_closure": {
-    "path": "/var/lib/axiom-data/forensic/pr5-dm1-market-reference-20260906-b1b6-r4",
+    "path": "/home/liuming/workspace/axiom/data/forensic/pr5-dm1-market-reference-20260906-b1b6-r4",
     "role": "immutable validation evidence; not production current"
   },
   "generated_at": "2026-09-06T13:09:46.361200+00:00",

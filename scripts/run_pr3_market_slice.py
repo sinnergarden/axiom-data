@@ -61,7 +61,8 @@ RECON_SYMBOLS = ("600000.SH", "600036.SH", "000001.SZ", "000333.SZ")
 RECON_START = "2025-06-10"
 RECON_END = "2025-06-13"
 SUPERSEDED_FORENSIC_ROOT = (
-    "/var/lib/axiom-data/forensic/pr3-market-slice-20260905-blocker-fix-v2"
+    "/home/liuming/workspace/axiom/data/forensic/"
+    "pr3-market-slice-20260905-blocker-fix-v2"
 )
 
 

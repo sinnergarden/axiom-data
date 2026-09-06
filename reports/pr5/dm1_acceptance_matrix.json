@@ -733,7 +733,7 @@
         },
         "old_snapshot_manifest_digest_before_new": "sha256:f38cab0112cb234246866b5d15ef838671f41bd13866db6c4a49dabbb77abdc6",
         "schema_version": "axiom_data.pr5_d01_snapshot_coexistence.v1",
-        "validation_root": "/var/lib/axiom-data/forensic/pr5-d01-snapshot-coexistence-b1303edb"
+        "validation_root": "/home/liuming/workspace/axiom/data/forensic/pr5-d01-snapshot-coexistence-b1303edb"
       },
       "mismatch_count": 0,
       "mismatches": [],
