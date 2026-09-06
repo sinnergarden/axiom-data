@@ -40,6 +40,7 @@ from axiom_data import (
     write_raw_batch,
 )
 from axiom_data.contracts import load_contract
+from axiom_data.evidence import validate_d01_snapshot_coexistence
 
 
 FIXED_TIME = "2026-09-06T10:00:00+08:00"
@@ -600,6 +601,129 @@ class Pr5Dm1Test(unittest.TestCase):
                 decision_cutoff=END,
             )
 
+    def test_observed_source_ref_must_be_in_transitive_raw_lineage(self) -> None:
+        artifacts = build_all(self.root, self.ids)
+        dependencies = {
+            name: artifacts[name]
+            for name in ("trading_calendar", "security_master", "market_daily")
+        }
+        market = SnapshotReader(self.root, artifacts["snapshot"]).market_daily(
+            ADJUSTED_SYMBOLS, START, END
+        )
+        parent_market = next(
+            row
+            for row in market
+            if row["symbol"] == SYMBOLS[0] and row["session"] == START
+        )
+        child_market = next(
+            row
+            for row in market
+            if row["symbol"] == SYMBOLS[1] and row["session"] == END
+        )
+        grandchild_market = next(
+            row
+            for row in market
+            if row["symbol"] == SYMBOLS[0] and row["session"] == END
+        )
+
+        def observed_row(market_row: dict[str, object], source_ref: str) -> dict[str, object]:
+            return {
+                "session": market_row["session"],
+                "symbol": market_row["symbol"],
+                "factor": market_row["adj_factor"],
+                "source_available_at": None,
+                "first_observed_at": FIXED_TIME,
+                "availability_basis": "first_observation",
+                "pit_qualification": "observed",
+                "source_ref": source_ref,
+            }
+
+        def publish(raw_id: str, row: dict[str, object], parent: str | None = None):
+            _write_rows(self.root, raw_id, "adjustment_factors", [row])
+            return BuildApplication(
+                "adjustment_factors",
+                MarketDomainBuilder(
+                    self.root,
+                    "adjustment_factors",
+                    dependency_commit_ids=dependencies,
+                    created_at=FIXED_TIME,
+                ),
+            ).build(parent, [raw_id], [], "adjustment_factors.v1")
+
+        parent_raw = "raw-observed-parent-lineage"
+        parent = publish(parent_raw, observed_row(parent_market, parent_raw))
+        child_raw = "raw-observed-child-lineage"
+        child = publish(child_raw, observed_row(child_market, parent_raw), parent.commit_id)
+        self.assertEqual(
+            validate_domain_commit_closure(
+                self.root, "adjustment_factors", child.commit_id
+            ).ref,
+            child,
+        )
+        grandchild_raw = "raw-observed-grandchild-lineage"
+        grandchild = publish(
+            grandchild_raw,
+            observed_row(grandchild_market, parent_raw),
+            child.commit_id,
+        )
+        self.assertEqual(
+            validate_domain_commit_closure(
+                self.root, "adjustment_factors", grandchild.commit_id
+            ).ref,
+            grandchild,
+        )
+
+        unrelated_raw = "raw-observed-unrelated-lineage"
+        unrelated = publish(
+            unrelated_raw, observed_row(child_market, unrelated_raw)
+        )
+        self.assertTrue(unrelated.commit_id.startswith("adjustment_factors-"))
+
+        commits = self.root / "canonical/adjustment_factors/commits"
+        before = set(commits.iterdir())
+        direct_raw = "raw-observed-direct-external"
+        with self.assertRaisesRegex(ArtifactError, "transitive RawBatch closure"):
+            publish(direct_raw, observed_row(parent_market, unrelated_raw))
+        self.assertEqual(before, set(commits.iterdir()))
+
+        child_external_raw = "raw-observed-child-external"
+        with self.assertRaisesRegex(ArtifactError, "transitive RawBatch closure"):
+            publish(
+                child_external_raw,
+                observed_row(child_market, unrelated_raw),
+                parent.commit_id,
+            )
+        self.assertEqual(before, set(commits.iterdir()))
+
+        injected_raw = "raw-observed-injected-external"
+        with patch("axiom_data.artifacts._validate_dm1_observation_refs"):
+            injected = publish(
+                injected_raw, observed_row(parent_market, unrelated_raw)
+            )
+        with self.assertRaisesRegex(ArtifactError, "transitive RawBatch closure"):
+            validate_domain_commit_closure(
+                self.root, "adjustment_factors", injected.commit_id
+            )
+        snapshot_ids = {
+            name: artifacts[name]
+            for name in (
+                "trading_calendar",
+                "security_master",
+                "market_daily",
+                "security_status",
+                "price_limits",
+                "corporate_actions",
+                "adjustment_factors",
+                "benchmark_daily",
+                "security_capital",
+            )
+        }
+        snapshot_ids["adjustment_factors"] = injected.commit_id
+        before_snapshots = set((self.root / "snapshots").iterdir())
+        with self.assertRaisesRegex(ArtifactError, "transitive RawBatch closure"):
+            create_snapshot(self.root, snapshot_ids, created_at=FIXED_TIME)
+        self.assertEqual(before_snapshots, set((self.root / "snapshots").iterdir()))
+
     def test_cross_domain_conflict_and_unsupported_action_fail_before_snapshot(self) -> None:
         artifacts = build_all(self.root, self.ids)
         # A separately valid but conflicting formal factor cannot compose into D-M1.
@@ -631,6 +755,66 @@ class Pr5Dm1Test(unittest.TestCase):
         path.write_bytes(path.read_bytes() + b"\n")
         with self.assertRaisesRegex(ArtifactError, "digest"):
             load_snapshot(offline, rebuilt["snapshot"])
+
+    def test_d01_requires_two_explicit_loadable_immutable_snapshots(self) -> None:
+        artifacts = build_all(self.root, self.ids)
+        old_ref = create_snapshot(
+            self.root,
+            {
+                name: artifacts[name]
+                for name in ("trading_calendar", "security_master", "market_daily")
+            },
+            created_at=FIXED_TIME,
+        )
+        old = load_snapshot(self.root, old_ref.snapshot_id)
+        new = load_snapshot(self.root, artifacts["snapshot"])
+
+        def ref(snapshot) -> dict[str, str]:
+            return {
+                "snapshot_id": snapshot.ref.snapshot_id,
+                "manifest_digest": snapshot.ref.manifest_digest,
+                "identity_digest": snapshot.manifest["identity_digest"],
+            }
+
+        evidence = {
+            "schema_version": "axiom_data.pr5_d01_snapshot_coexistence.v1",
+            "validation_root": str(self.root),
+            "old_snapshot": ref(old),
+            "new_snapshot": ref(new),
+            "old_snapshot_manifest_digest_before_new": old.ref.manifest_digest,
+            "old_domain_refs": old.manifest["domain_refs"],
+            "new_domain_refs": new.manifest["domain_refs"],
+        }
+        self.assertTrue(validate_d01_snapshot_coexistence(evidence))
+
+        only_new_root = Path(self.temporary.name) / "d01-only-new"
+        shutil.copytree(self.root, only_new_root)
+        shutil.rmtree(only_new_root / "snapshots" / old.ref.snapshot_id)
+        only_new = deepcopy(evidence)
+        only_new["validation_root"] = str(only_new_root)
+        with self.assertRaises(ArtifactError):
+            validate_d01_snapshot_coexistence(only_new)
+
+        for name in ("old_snapshot", "new_snapshot"):
+            with self.subTest(missing=name):
+                missing = deepcopy(evidence)
+                missing[name]["snapshot_id"] = "snapshot-" + "0" * 64
+                with self.assertRaises(ArtifactError):
+                    validate_d01_snapshot_coexistence(missing)
+
+        same = deepcopy(evidence)
+        same["old_snapshot"] = same["new_snapshot"]
+        with self.assertRaisesRegex(ArtifactError, "identities must differ"):
+            validate_d01_snapshot_coexistence(same)
+
+        corrupt_root = Path(self.temporary.name) / "d01-corrupt-old"
+        shutil.copytree(self.root, corrupt_root)
+        old_manifest = corrupt_root / "snapshots" / old.ref.snapshot_id / "manifest.json"
+        old_manifest.write_bytes(old_manifest.read_bytes() + b"corrupt")
+        corrupt = deepcopy(evidence)
+        corrupt["validation_root"] = str(corrupt_root)
+        with self.assertRaisesRegex(ArtifactError, "digest"):
+            validate_d01_snapshot_coexistence(corrupt)
 
     def test_catalog_rebuild_loads_and_indexes_all_formal_views(self) -> None:
         artifacts = build_all(self.root, self.ids)
@@ -719,9 +903,39 @@ class Pr5Dm1Test(unittest.TestCase):
         changed = deepcopy(reports)
         changed["offline_recovery"]["rebuilt_refs"]["snapshot"]["snapshot_id"] = "snapshot-tampered"
         gate_cases.append(("rebuilt-ref", changed))
+        changed = deepcopy(reports)
+        del changed["run_manifest"]["d01_snapshot_coexistence"]["old_snapshot"]
+        del changed["dm1_acceptance_matrix"]["gates"]["D01"]["evidence"]["old_snapshot"]
+        gate_cases.append(("d01-only-new", changed))
+        changed = deepcopy(reports)
+        for evidence in (
+            changed["run_manifest"]["d01_snapshot_coexistence"],
+            changed["dm1_acceptance_matrix"]["gates"]["D01"]["evidence"],
+        ):
+            evidence["old_snapshot"] = deepcopy(evidence["new_snapshot"])
+        gate_cases.append(("d01-same-snapshot", changed))
         for name, changed in gate_cases:
             with self.subTest(name=name), self.assertRaises(ArtifactError):
                 validate_pr5_evidence(data_root, *changed.values())
+
+        d01_corrupt_root = Path(self.temporary.name) / "corrupt-d01-root"
+        d01 = reports["run_manifest"]["d01_snapshot_coexistence"]
+        shutil.copytree(Path(d01["validation_root"]), d01_corrupt_root)
+        changed = deepcopy(reports)
+        for evidence in (
+            changed["run_manifest"]["d01_snapshot_coexistence"],
+            changed["dm1_acceptance_matrix"]["gates"]["D01"]["evidence"],
+        ):
+            evidence["validation_root"] = str(d01_corrupt_root)
+        old_manifest = (
+            d01_corrupt_root
+            / "snapshots"
+            / d01["old_snapshot"]["snapshot_id"]
+            / "manifest.json"
+        )
+        old_manifest.write_bytes(old_manifest.read_bytes() + b"corrupt")
+        with self.assertRaisesRegex(ArtifactError, "digest"):
+            validate_pr5_evidence(data_root, *changed.values())
 
         corrupt_root = Path(self.temporary.name) / "corrupt-evidence-root"
         shutil.copytree(data_root, corrupt_root)

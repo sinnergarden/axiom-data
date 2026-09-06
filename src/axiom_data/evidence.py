@@ -39,7 +39,7 @@ _RAW_REF_FIELDS = (
     "source_profile_digest",
 )
 _GATE_SCHEMA = {
-    "D01": ({"immutable_snapshot_coexists"}, ("snapshot",)),
+    "D01": ({"immutable_snapshot_coexists"}, ("old_snapshot", "new_snapshot")),
     "D02": (
         {"identity_equality", "logical_equality", "pit_binding_equal"},
         _REF_NAMES,
@@ -78,6 +78,16 @@ _GATE_SCHEMA = {
         {"real_suspension_present", "replay_is_post_session"},
         ("domain_commits", "snapshot", "market_replay_view"),
     ),
+}
+
+_D01_EVIDENCE_FIELDS = {
+    "schema_version",
+    "validation_root",
+    "old_snapshot",
+    "new_snapshot",
+    "old_snapshot_manifest_digest_before_new",
+    "old_domain_refs",
+    "new_domain_refs",
 }
 
 
@@ -258,6 +268,61 @@ def _pass_report(report: Mapping[str, Any], name: str) -> None:
         or report.get("mismatches") != []
     ):
         raise ArtifactError(f"PR5 {name} PASS is inconsistent")
+
+
+def validate_d01_snapshot_coexistence(value: object) -> bool:
+    evidence = _mapping(value, "D01 snapshot coexistence evidence")
+    if (
+        set(evidence) != _D01_EVIDENCE_FIELDS
+        or evidence.get("schema_version")
+        != "axiom_data.pr5_d01_snapshot_coexistence.v1"
+        or not isinstance(evidence.get("validation_root"), str)
+    ):
+        raise ArtifactError("PR5 D01 snapshot coexistence evidence is incomplete")
+
+    root = Path(evidence["validation_root"])
+    claims = {
+        name: _mapping(evidence.get(name), f"D01 {name} ref")
+        for name in ("old_snapshot", "new_snapshot")
+    }
+    if claims["old_snapshot"].get("snapshot_id") == claims["new_snapshot"].get(
+        "snapshot_id"
+    ):
+        raise ArtifactError("PR5 D01 old/new Snapshot identities must differ")
+
+    snapshots = {
+        name: load_snapshot(root, claim.get("snapshot_id"))  # type: ignore[arg-type]
+        for name, claim in claims.items()
+    }
+    actual_refs = {
+        name: {
+            "snapshot_id": snapshot.ref.snapshot_id,
+            "manifest_digest": snapshot.ref.manifest_digest,
+            "identity_digest": snapshot.manifest["identity_digest"],
+        }
+        for name, snapshot in snapshots.items()
+    }
+    if any(dict(claims[name]) != actual_refs[name] for name in snapshots):
+        raise ArtifactError("PR5 D01 Snapshot ref differs from its loaded artifact")
+    for name in snapshots:
+        _digest(actual_refs[name]["manifest_digest"], f"D01 {name} manifest")
+        _digest(actual_refs[name]["identity_digest"], f"D01 {name} identity")
+
+    old_domain_refs = _mapping(evidence.get("old_domain_refs"), "D01 old domain refs")
+    new_domain_refs = _mapping(evidence.get("new_domain_refs"), "D01 new domain refs")
+    if (
+        dict(old_domain_refs) != snapshots["old_snapshot"].manifest["domain_refs"]
+        or dict(new_domain_refs)
+        != snapshots["new_snapshot"].manifest["domain_refs"]
+        or dict(old_domain_refs) == dict(new_domain_refs)
+    ):
+        raise ArtifactError("PR5 D01 Snapshot domain refs are inconsistent")
+    if (
+        evidence.get("old_snapshot_manifest_digest_before_new")
+        != actual_refs["old_snapshot"]["manifest_digest"]
+    ):
+        raise ArtifactError("PR5 D01 old Snapshot changed after new publication")
+    return True
 
 
 def validate_pr5_evidence(
@@ -451,6 +516,16 @@ def validate_pr5_evidence(
     acceptance_refs = _mapping(acceptance_matrix.get("artifact_refs"), "acceptance refs")
     if set(gates) != set(_GATE_SCHEMA) or dict(acceptance_refs) != actual_refs:
         raise ArtifactError("PR5 acceptance refs/gates are incomplete")
+    d01_gate = _mapping(gates["D01"], "acceptance gate D01")
+    run_d01 = _mapping(
+        run.get("d01_snapshot_coexistence"), "run D01 snapshot coexistence"
+    )
+    gate_d01 = _mapping(
+        d01_gate.get("evidence"), "acceptance D01 snapshot coexistence"
+    )
+    if dict(run_d01) != dict(gate_d01):
+        raise ArtifactError("PR5 D01 evidence differs between run and acceptance reports")
+    d01_coexists = validate_d01_snapshot_coexistence(run_d01)
 
     adjusted = loaded["adjusted_price_view"]
     replay = loaded["market_replay_view"]
@@ -467,7 +542,7 @@ def validate_pr5_evidence(
         for row in loaded["domain_commits"][domain].rows
     ]
     actual_checks = {
-        "D01": {"immutable_snapshot_coexists": snapshot.manifest["schema_version"] == "data_snapshot.v2"},
+        "D01": {"immutable_snapshot_coexists": d01_coexists},
         "D02": {
             "identity_equality": offline_recovery.get("identity_equality") is True,
             "logical_equality": bool(logical) and all(value is True for value in logical.values()),
@@ -529,4 +604,4 @@ def validate_pr5_evidence(
         raise ArtifactError("PR5 terminal PASS is inconsistent")
 
 
-__all__ = ["validate_pr5_evidence"]
+__all__ = ["validate_d01_snapshot_coexistence", "validate_pr5_evidence"]

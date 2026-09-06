@@ -39,8 +39,10 @@ implies verified PIT availability.  A typed SourceEvidence artifact is not
 implemented in PR5, so D-M1 canonical
 builders reject every `verified` row with `VERIFIED_EVIDENCE_UNAVAILABLE`.
 A row with only first-observation evidence is `observed`; its source ref must
-resolve to a same-domain RawBatch and cannot claim observation before that
-RawBatch was retrieved.
+resolve to a same-domain RawBatch in the publishing DomainCommit's transitive
+parent RawBatch closure and cannot claim observation before that RawBatch was
+retrieved.  Publication and closure loading enforce the same membership rule;
+RawBatch order in each manifest remains unchanged.
 
 Each RawBatch is validated before endpoint payloads are aggregated.  The
 validator binds endpoint/profile and collector revisions, exact requested
@@ -103,6 +105,11 @@ reported RawBatch, DomainCommit, Snapshot, adjusted-price view,
 MarketReplayView, and QlibView through the formal loaders before comparing
 reports.  Its D01-D15 checks and required refs are a fixed PR5 map; report
 `PASS` values are summaries derived from those loaded objects, not authority.
+D01 separately binds an explicit validation root plus old/new Snapshot refs,
+manifest digests, and domain refs.  Both Snapshots are loaded by identity and
+closure-validated; the old manifest digest recorded before publishing the new
+Snapshot must still match.  The verifier never discovers a substitute Snapshot
+by scanning a directory.
 
 ## Exclusions
 

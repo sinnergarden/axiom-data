@@ -42,6 +42,7 @@ from axiom_data import (
     validate_domain_commit_closure,
     validate_pr5_evidence,
 )
+from axiom_data.evidence import validate_d01_snapshot_coexistence
 
 
 SYMBOLS = (
@@ -358,9 +359,12 @@ def main() -> None:
     parser.add_argument("--offline-root", type=Path, required=True)
     parser.add_argument("--qsys-parquet", type=Path, required=True)
     parser.add_argument("--report-dir", type=Path, required=True)
+    parser.add_argument("--d01-evidence", type=Path, required=True)
     args = parser.parse_args()
     if args.data_root.exists() or args.offline_root.exists():
         raise SystemExit("data roots must not exist")
+    d01_evidence = json.loads(args.d01_evidence.read_text(encoding="utf-8"))
+    d01_coexists = validate_d01_snapshot_coexistence(d01_evidence)
     base_raw, dm1_raw = collect(args.data_root)
     artifacts = build(args.data_root, base_raw, dm1_raw)
     source_catalog = rebuild_catalog(args.data_root)
@@ -491,7 +495,10 @@ def main() -> None:
         }
 
     acceptance = {
-        "D01": gate({"immutable_snapshot_coexists": load_snapshot(args.data_root, artifacts["snapshot"]).manifest["schema_version"] == "data_snapshot.v2"}, ["snapshot"]),
+        "D01": gate(
+            {"immutable_snapshot_coexists": d01_coexists},
+            ["old_snapshot", "new_snapshot"],
+        ),
         "D02": gate({"identity_equality": identity_equal, "logical_equality": all(logical_checks), "pit_binding_equal": recovery["pit_binding_equal"]}, ["raw_batches", "domain_commits", "snapshot", "adjusted_price_view", "market_replay_view", "qlib_view"]),
         "D03": gate({"all_raw_v2": all(item["schema_version"] == "raw_batch.v2" for item in raw), "raw_ids_unique": len(raw) == len({item["raw_batch_id"] for item in raw})}, ["raw_batches"]),
         "D04": gate(dict(dm1_recon["checks"]), ["raw_batches", "domain_commits", "snapshot"]),
@@ -515,6 +522,7 @@ def main() -> None:
         "src/axiom_data/dm1_reconciliation.py",
         "src/axiom_data/contracts/corporate_actions.v1.json",
         "src/axiom_data/contracts/adjusted_price.v1.json",
+        "scripts/build_pr5_d01_evidence.py",
         "scripts/run_pr5_dm1_slice.py",
     )
     scope_manifest = repository / "src/axiom_data/scope/pr5_d_m1_scope.v1.json"
@@ -548,9 +556,11 @@ def main() -> None:
         "catalog_rebuild": {"status": "PASS", "entries": source_catalog, "artifact_type_counts": dict(sorted(source_catalog_types.items())), "exact_view_lookups": view_lookups},
         "fact_view": {"snapshot_ref": fact["snapshot_ref"], "derived_refs": fact["derived_refs"], "price_basis": fact["price_basis"], "anchor": fact["anchor"], "pit_policy": fact["pit_policy"], "pit_qualification": fact["pit_qualification"], "cutoff_policy": fact["cutoff_policy"], "rows": len(fact["rows"])},
         "market_replay_view": {"view_id": replay.ref.view_id, "rows": len(replay.rows), "temporal_policy": replay.manifest["temporal_policy"], "unsupported_events": replay.manifest["unsupported_events"]},
+        "d01_snapshot_coexistence": d01_evidence,
         "real_cases": cases,
         "reports": ["direct_qlib_equivalence.json", "dm1_raw_mapping_reconciliation.json", "qsys_reconciliation.json", "offline_recovery.json", "dm1_acceptance_matrix.json"],
     }
+    acceptance["D01"]["evidence"] = d01_evidence
     acceptance_report = {"status": "PASS" if all(item["status"] == "PASS" for item in acceptance.values()) else "FAIL", "artifact_refs": refs, "gates": acceptance}
     validate_pr5_evidence(
         args.data_root,

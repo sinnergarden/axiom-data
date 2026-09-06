@@ -615,9 +615,12 @@ def _validate_domain_rows(domain: str, rows: object) -> None:
 
 
 def _validate_dm1_observation_refs(
-    root: Path, domain: str, rows: Sequence[Mapping[str, Any]]
+    root: Path,
+    domain: str,
+    rows: Sequence[Mapping[str, Any]],
+    transitive_raw_batch_ids: frozenset[str] | set[str],
 ) -> None:
-    """Resolve observed provenance to an actual same-domain RawBatch observation."""
+    """Resolve observed provenance within this DomainCommit's RawBatch lineage."""
 
     for row in rows:
         if row.get("pit_qualification") != "observed":
@@ -631,6 +634,11 @@ def _validate_dm1_observation_refs(
             ) from exc
         if raw.manifest.get("domain") != domain:
             raise ArtifactError("observed PIT RawBatch belongs to another domain")
+        if raw.ref.raw_batch_id not in transitive_raw_batch_ids:
+            raise ArtifactError(
+                "observed PIT source_ref is outside the DomainCommit transitive "
+                "RawBatch closure"
+            )
         observed_at = datetime.fromisoformat(
             str(row["first_observed_at"]).replace("Z", "+00:00")
         )
@@ -839,8 +847,9 @@ class MarketDomainBuilder:
                 raise ArtifactError(f"RawBatch {raw.ref.raw_batch_id!r} is not successful")
 
         parent = None
+        parent_raw_batch_ids: frozenset[str] = frozenset()
         if request.parent_commit is not None:
-            parent = validate_domain_commit_closure(
+            parent, parent_raw_batch_ids = _validated_domain_commit_with_raw_closure(
                 self.layout.root, self.domain, request.parent_commit
             )
             if (
@@ -876,7 +885,13 @@ class MarketDomainBuilder:
             raw_batches,
         )
         if self.domain in DM1_REFERENCE_DOMAINS:
-            _validate_dm1_observation_refs(self.layout.root, self.domain, rows)
+            _validate_dm1_observation_refs(
+                self.layout.root,
+                self.domain,
+                rows,
+                parent_raw_batch_ids
+                | frozenset(raw.ref.raw_batch_id for raw in raw_batches),
+            )
         rows_content = _json_bytes(rows)
         logical_digest = _digest(rows_content)
         builder_config_digest = _digest(_json_bytes(self.builder_config))
@@ -1046,6 +1061,7 @@ def _validate_domain_commit_closure(
     domain_commit_id: str,
     active: set[tuple[str, str]],
     cache: dict[tuple[str, str], DomainCommit],
+    raw_closure_cache: dict[tuple[str, str], frozenset[str]],
 ) -> DomainCommit:
     key = (domain, domain_commit_id)
     if key in cache:
@@ -1071,8 +1087,7 @@ def _validate_domain_commit_closure(
             raw_ids.add(raw.ref.raw_batch_id)
         if len(raw_ids) != len(raw_refs):
             raise ArtifactError("DomainCommit raw refs must not contain duplicates")
-        if domain in DM1_REFERENCE_DOMAINS:
-            _validate_dm1_observation_refs(root, domain, commit.rows)
+        transitive_raw_batch_ids = set(raw_ids)
 
         if commit.manifest.get("ordered_patch_refs") != []:
             raise ArtifactError("Phase 1 PR2 DomainCommit patch refs must be empty")
@@ -1091,6 +1106,7 @@ def _validate_domain_commit_closure(
                 parent_ref["domain_commit_id"],
                 active,
                 cache,
+                raw_closure_cache,
             )
             if _commit_ref(parent) != parent_ref:
                 raise ArtifactError("DomainCommit parent ref does not match its artifact")
@@ -1100,6 +1116,17 @@ def _validate_domain_commit_closure(
                 != commit.manifest["contract_digest"]
             ):
                 raise ArtifactError("DomainCommit parent has a different contract lineage")
+            transitive_raw_batch_ids.update(
+                raw_closure_cache[(domain, parent.ref.commit_id)]
+            )
+
+        if domain in DM1_REFERENCE_DOMAINS:
+            _validate_dm1_observation_refs(
+                root,
+                domain,
+                commit.rows,
+                transitive_raw_batch_ids,
+            )
 
         dependency_refs = commit.manifest.get("dependency_commit_refs")
         required = set(_DOMAIN_DEPENDENCIES[domain])
@@ -1119,6 +1146,7 @@ def _validate_domain_commit_closure(
                     dependency_ref["domain_commit_id"],
                     active,
                     cache,
+                    raw_closure_cache,
                 )
                 if _commit_ref(dependency) != dependency_ref:
                     raise ArtifactError(
@@ -1136,8 +1164,28 @@ def _validate_domain_commit_closure(
     finally:
         active.remove(key)
 
+    raw_closure_cache[key] = frozenset(transitive_raw_batch_ids)
     cache[key] = commit
     return commit
+
+
+def _validated_domain_commit_with_raw_closure(
+    data_root: str | Path,
+    domain: str,
+    domain_commit_id: str,
+) -> tuple[DomainCommit, frozenset[str]]:
+    layout = _layout(data_root)
+    domain_commit_id = _identity("domain_commit_id", domain_commit_id)
+    raw_closure_cache: dict[tuple[str, str], frozenset[str]] = {}
+    commit = _validate_domain_commit_closure(
+        layout.root,
+        domain,
+        domain_commit_id,
+        set(),
+        {},
+        raw_closure_cache,
+    )
+    return commit, raw_closure_cache[(domain, domain_commit_id)]
 
 
 def validate_domain_commit_closure(
@@ -1147,15 +1195,9 @@ def validate_domain_commit_closure(
 ) -> DomainCommit:
     """Validate one commit and every immutable parent/raw/dependency reference."""
 
-    layout = _layout(data_root)
-    domain_commit_id = _identity("domain_commit_id", domain_commit_id)
-    return _validate_domain_commit_closure(
-        layout.root,
-        domain,
-        domain_commit_id,
-        set(),
-        {},
-    )
+    return _validated_domain_commit_with_raw_closure(
+        data_root, domain, domain_commit_id
+    )[0]
 
 
 def _checked_snapshot_commits(
@@ -1170,6 +1212,7 @@ def _checked_snapshot_commits(
     else:
         raise ArtifactError("DataSnapshot requires exactly the legacy or D-M1 domain set")
     cache: dict[tuple[str, str], DomainCommit] = {}
+    raw_closure_cache: dict[tuple[str, str], frozenset[str]] = {}
     commits = {
         domain: _validate_domain_commit_closure(
             data_root,
@@ -1177,6 +1220,7 @@ def _checked_snapshot_commits(
             _identity("domain_commit_id", domain_commit_ids[domain]),
             set(),
             cache,
+            raw_closure_cache,
         )
         for domain in ordered_domains
     }
@@ -1333,6 +1377,7 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
 
     entries: list[CatalogEntry] = []
     closure_cache: dict[tuple[str, str], DomainCommit] = {}
+    raw_closure_cache: dict[tuple[str, str], frozenset[str]] = {}
     for artifact_dir in _artifact_directories(layout.root, layout.raw_batches):
         raw = load_raw_batch(layout.root, artifact_dir.name)
         entries.append(
@@ -1354,6 +1399,7 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
                 artifact_dir.name,
                 set(),
                 closure_cache,
+                raw_closure_cache,
             )
             entries.append(
                 CatalogEntry(
