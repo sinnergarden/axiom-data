@@ -79,3 +79,35 @@ class Pr6IntegrationTest(unittest.TestCase):
             self.assertEqual(direct[-1]['financial.single_quarter_revenue'],100)
             # Available income/cost do not silently replace a missing supplier margin.
             self.assertIsNone(direct[-1]['indicator.gross_margin'])
+
+    def test_snapshots_keep_historical_financial_prefix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);baseline=build_all(root,collect_all(root));commits={d:baseline[d] for d in DM1_SNAPSHOT_DOMAINS}
+            # Explicit empty source observations permit a financial-only Snapshot.
+            requests={'universe_membership':('index_weight',{'index_code':'000906.SH','start_date':'20260105','end_date':'20260105'}),
+                'industry_membership':('bak_basic',{'ts_code':'600000.SH','trade_date':'20260105'}),
+                'valuation_daily':('daily_basic',{'ts_code':'600000.SH','trade_date':'20260105'})}
+            for domain,(endpoint,params) in requests.items():
+                ref=Pr6Collector(root,Client([])).collect(endpoint,params,retrieved_at='2026-01-06T00:00:00Z',membership_complete=domain=='universe_membership')
+                version=domain+('.v3' if domain=='universe_membership' else '.v2')
+                builder=Pr6Builder(root,domain,builder_config={'membership_end_exclusive':'2026-01-06'} if domain=='universe_membership' else {},dependency_commit_ids={d:commits[d] for d in _DOMAIN_DEPENDENCIES[domain]})
+                commits[domain]=BuildApplication(domain,builder).build(None,[ref.raw_batch_id],[],version).commit_id
+            def raw(period,value,observed):
+                return Pr6Collector(root,Client([{'ts_code':'600000.SH','ann_date':'20250401','f_ann_date':'20250401',
+                    'end_date':period,'report_type':'1','update_flag':'1','revenue':value,'oper_cost':value/2,'n_income':value/10}])).collect(
+                    'income',{'ts_code':'600000.SH','period':period},retrieved_at=observed).raw_batch_id
+            app=BuildApplication('financial_events',Pr6Builder(root,'financial_events',dependency_commit_ids={'security_master':commits['security_master']}))
+            first=app.build(None,[raw(p,v,'2025-05-01T00:00:00Z') for p,v in [('20240331',100),('20240930',600),('20241231',1000)]],[],'financial_events.v2')
+            commits['financial_events']=first.commit_id;old=create_snapshot(root,commits)
+            late=raw('20240630',300,'2025-07-01T00:00:00Z')
+            commits['financial_events']=app.build(first.commit_id,[late],[],'financial_events.v2').commit_id
+            new=create_snapshot(root,commits)
+            envelope=SnapshotReader(root,new.snapshot_id).membership_facts('000906.SH','2026-01-05',knowledge_cutoff='2026-02-01T00:00:00Z',pit_policy='operational_pit_v1')
+            self.assertEqual(envelope['rows'],());self.assertEqual(envelope['group_observation']['member_count'],0)
+            args={'pit_policy':'operational_pit_v1','knowledge_cutoff':'2025-06-01T00:00:00Z','symbols':['600000.SH']}
+            before=SnapshotReader(root,old.snapshot_id).financial_derived(**args)
+            reader=SnapshotReader(root,new.snapshot_id);after=reader.financial_derived(**args)
+            self.assertNotEqual(old.snapshot_id,new.snapshot_id);self.assertEqual(before,after)
+            ttm=lambda values:next(v for v in values if v['field']=='ttm_revenue' and v['report_period']=='2024-12-31')
+            self.assertEqual(ttm(before)['missing_reason'],'missing_quarter')
+            self.assertEqual(ttm(reader.financial_derived(**dict(args,knowledge_cutoff='2025-08-01T00:00:00Z')))['value'],1000)

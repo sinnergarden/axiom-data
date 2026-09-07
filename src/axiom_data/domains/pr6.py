@@ -72,7 +72,7 @@ def validate_rows(domain, rows):
             if domain=='industry_membership':
                 _text('industry_id',row['industry_id'])
     _validate_keys(domain,frozen,version)
-    if 'membership' in domain:
+    if 'membership' in domain and not any('group_state_ref' in o for r in frozen for o in r.get('observations',[])):
         from axiom_data.pit import select_revisions
         for cutoff in sorted({o['observed_at'] for r in frozen for o in r.get('observations',[{'observed_at':r['first_observed_at']}])}):
             selected=select_revisions(frozen,policy='operational_pit_v1',knowledge_cutoff=cutoff)
@@ -86,3 +86,18 @@ def validate_rows(domain, rows):
 
 
 DOMAIN_VALIDATORS = {domain: (lambda rows, domain=domain: validate_rows(domain,rows)) for domain in PR6_DOMAINS}
+
+
+def validate_group_states(rows, states):
+    """Validate complete group states, including zero-member intervals."""
+    from axiom_data.pit import select_revisions
+    for state in states:
+        if state['state_id']!=fingerprint({k:v for k,v in state.items() if k!='state_id'}):
+            raise MarketContractError('universe group state identity mismatch')
+        selected=select_revisions(rows,group_states=[state],policy='operational_pit_v1',knowledge_cutoff=state['first_observed_at'])
+        for interval in state['intervals']:
+            actual=sorted(r['symbol'] for r in selected if r['effective_from']<=interval['effective_from']
+                and (r['effective_to'] is None or interval['effective_from']<r['effective_to']))
+            if (actual!=interval['members'] or len(actual)!=interval['member_count']
+                or fingerprint(actual)!=interval['member_set_digest']):
+                raise MarketContractError('group state member set closure mismatch')

@@ -1,4 +1,4 @@
-"""Revision selection and stable financial arithmetic, without I/O or implicit clocks."""
+"""Frozen published PR6 v1 PIT semantics; only for versioned artifact validation."""
 
 from __future__ import annotations
 
@@ -52,14 +52,10 @@ def usable_from(row: Mapping[str, Any], policy: str) -> str | None:
 
 
 def select_revisions(rows: Sequence[Mapping[str, Any]], *, policy: str,
-                     knowledge_cutoff: str, group_states=None) -> tuple[dict[str, Any], ...]:
-    if group_states is not None:
-        return _group_members(rows,group_states,policy,knowledge_cutoff)
+                     knowledge_cutoff: str) -> tuple[dict[str, Any], ...]:
     cutoff = instant(knowledge_cutoff)
     if policy not in POLICIES:
         raise MarketContractError('unsupported PIT policy')
-    if rows and 'observations' in rows[0]:
-        return _select_observations(rows, policy, knowledge_cutoff)
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for original in rows:
         usable = usable_from(original, policy)
@@ -77,81 +73,9 @@ def select_revisions(rows: Sequence[Mapping[str, Any]], *, policy: str,
     return tuple(selected)
 
 
-def _select_observations(rows, policy, knowledge_cutoff):
-    if any('group_state_ref' in o for r in rows for o in r['observations']):
-        raise MarketContractError('universe group_states required; member rows alone are incomplete')
-    cutoff = instant(knowledge_cutoff)
-    groups = defaultdict(list)
-    universe = any(o.get('state_id') for r in rows for o in r['observations'])
-    for row in rows:
-        for observation in row['observations']:
-            candidate = dict(row, first_observed_at=observation['observed_at'],
-                             vendor_available_at=observation['vendor_available_at'])
-            usable = usable_from(candidate, policy)
-            # A reconstructed universe state is a best-effort terminal history;
-            # effective bounds, never observation freshness, constrain membership.
-            if universe and policy == 'best_effort_vendor_v1':
-                usable = min(o['vendor_available_at'] for r in rows for o in r['observations']
-                             if o['state_id']==observation['state_id'])
-            if usable is None or instant(usable)>cutoff: continue
-            group = row['group_id'] if universe else row['logical_event_key']
-            order = ((instant(observation['observed_at']),) if universe else
-                     (instant(usable),instant(observation['observed_at'])))
-            selected = dict({k:v for k,v in row.items() if k!='observations'}, usable_from=usable, observation_ref=observation,
-                            source_ref=observation['source_ref'])
-            groups[group].append((order, selected))
-    result=[]
-    for key, candidates in sorted(groups.items()):
-        newest=max(order for order,_ in candidates)
-        winners=[r for order,r in candidates if order==newest]
-        if universe:
-            if len({r['observation_ref']['state_id'] for r in winners})!=1:
-                raise MarketContractError('ambiguous simultaneous membership states')
-            result.extend(winners)
-        else:
-            if len({r['revision_id'] for r in winners})!=1:
-                raise MarketContractError(f'ambiguous simultaneous revisions: {key}')
-            result.append(min(winners,key=lambda r:r['observation_ref']['observation_id']))
-    return tuple(sorted(result,key=lambda r:(r['logical_event_key'],r['revision_id'])))
-
-
-def select_group_states(states, *, policy, knowledge_cutoff):
-    if policy not in POLICIES:raise MarketContractError('unsupported PIT policy')
-    cutoff=instant(knowledge_cutoff);groups=defaultdict(list)
-    for state in states:
-        usable=usable_from(state,policy)
-        if usable is not None and instant(usable)<=cutoff:
-            groups[state['universe_id']].append(dict(state,usable_from=usable))
-    selected=[]
-    for group,versions in sorted(groups.items()):
-        newest=max(instant(s['first_observed_at']) for s in versions)
-        winners=[s for s in versions if instant(s['first_observed_at'])==newest]
-        if len({s['state_id'] for s in winners})!=1:
-            raise MarketContractError('ambiguous simultaneous universe group states')
-        selected.append(winners[0])
-    return tuple(selected)
-
-
-def _group_members(rows,states,policy,cutoff):
-    selected=[]
-    for state in select_group_states(states,policy=policy,knowledge_cutoff=cutoff):
-        found=[]
-        for row in rows:
-            if row['group_id']!=state['universe_id']:continue
-            for observation in row['observations']:
-                if observation['state_id']==state['state_id']:
-                    found.append(dict({k:v for k,v in row.items() if k!='observations'},
-                        observation_ref=observation,usable_from=state['usable_from'],
-                        source_ref=observation['source_ref']))
-        if sorted(r['revision_id'] for r in found)!=state['member_revision_refs']:
-            raise MarketContractError('universe state member closure mismatch')
-        selected.extend(found)
-    return tuple(sorted(selected,key=lambda row:(row['logical_event_key'],row['revision_id'])))
-
-
 def members(rows: Sequence[Mapping[str, Any]], *, target_session: str,
-            knowledge_cutoff: str, policy: str, group_id: str, group_states=None) -> tuple[dict[str, Any], ...]:
-    selected = select_revisions(rows, policy=policy, knowledge_cutoff=knowledge_cutoff, group_states=group_states)
+            knowledge_cutoff: str, policy: str, group_id: str) -> tuple[dict[str, Any], ...]:
+    selected = select_revisions(rows, policy=policy, knowledge_cutoff=knowledge_cutoff)
     active = [r for r in selected if r['group_id'] == group_id
               and r['effective_from'] <= target_session
               and (r['effective_to'] is None or target_session < r['effective_to'])]
@@ -163,10 +87,10 @@ def members(rows: Sequence[Mapping[str, Any]], *, target_session: str,
 
 def historical_union(rows: Sequence[Mapping[str, Any]], *, group_id: str,
                      start_session: str, end_session: str, lookback_start: str,
-                     knowledge_cutoff: str, policy: str, group_states=None) -> tuple[str, ...]:
+                     knowledge_cutoff: str, policy: str) -> tuple[str, ...]:
     if not lookback_start <= start_session <= end_session:
         raise MarketContractError('invalid historical read interval')
-    selected = select_revisions(rows, policy=policy, knowledge_cutoff=knowledge_cutoff, group_states=group_states)
+    selected = select_revisions(rows, policy=policy, knowledge_cutoff=knowledge_cutoff)
     return tuple(sorted({r['symbol'] for r in selected if r['group_id'] == group_id
                          and r['effective_from'] <= end_session
                          and (r['effective_to'] is None or r['effective_to'] > lookback_start)}))
@@ -213,13 +137,13 @@ def financial_derived(rows: Sequence[Mapping[str, Any]], *, policy: str,
                 elif q % 4:
                     previous = series.get(q - 1)
                     if previous is None:
-                        reason = 'missing_quarter'
+                        reason = 'missing_previous_cumulative_quarter'
                     else:
                         components.append(previous)
                         prior_value = _value(previous, field)
                         value = value - prior_value if value is not None and prior_value is not None else None
                 if value is None and reason is None:
-                    reason = 'source_value_missing'
+                    reason = 'missing_source_field'
                 if reason:
                     value = None
                 derived = _derived_row(symbol, current['report_period'], report_type,
@@ -232,22 +156,18 @@ def financial_derived(rows: Sequence[Mapping[str, Any]], *, policy: str,
             for field in ('revenue', 'net_income'):
                 parts = [quarters.get((i, field)) for i in range(q - 3, q + 1)]
                 reason = None
-                if report_type != '1':
-                    reason = 'incompatible_report_type'
-                elif any(p is None for p in parts):
+                if any(p is None for p in parts):
                     reason = 'missing_quarter'
                 elif any(p['value'] is None for p in parts):
-                    reason = next((p['missing_reason'] for p in parts if p['missing_reason']), 'invalid_component')
+                    reason = 'invalid_component_quarter'
                 value = None if reason else sum(p['value'] for p in parts)
                 components = [p for p in parts if p is not None]
                 ttm = _derived_row(symbol, current['report_period'], report_type,
                                    'ttm_' + field, value, reason, components,
                                    policy, knowledge_cutoff)
-                ttm['expected_quarters'] = [str(i//4)+'-'+('03-31','06-30','09-30','12-31')[i%4] for i in range(q-3,q+1)]
                 ttm['quarter_components'] = [
                     {'report_period': p['report_period'], 'derived_id': p['derived_id'],
                      'component_revisions': p['component_revisions'], 'value': p['value'],
-                     'missing_reason':p['missing_reason'],
                      'usable_from': p['usable_from']} for p in components]
                 ttm['derived_id'] = fingerprint({k:v for k,v in ttm.items() if k != 'derived_id'})
                 result.append(ttm)
@@ -262,7 +182,6 @@ def _derived_row(symbol: str, period: str, report_type: str, field: str,
         refs.extend(row.get('component_revisions', [{
             'logical_event_key': row.get('logical_event_key'),
             'revision_id': row.get('revision_id'), 'source_ref': row.get('source_ref'),
-            'observation_ref': row.get('observation_ref'),
             'report_period': row['report_period'], 'usable_from': row['usable_from']}]))
     refs = sorted({fingerprint(r): r for r in refs}.values(), key=fingerprint)
     usable = max((r['usable_from'] for r in components), key=instant, default=None)
@@ -270,9 +189,6 @@ def _derived_row(symbol: str, period: str, report_type: str, field: str,
               'field': field, 'value': value, 'missing_reason': reason,
               'usable_from': usable, 'component_revisions': refs,
               'pit_policy': policy, 'knowledge_cutoff': instant(cutoff).isoformat(),
-              'contract_version': 'financial_stable.v2', 'unit': 'CNY',
-              'validity': 'missing' if value is None else 'valid',
-              'quality_state': 'BLOCKED' if reason else 'PASS',
-              'pit_qualification': 'best_effort' if any(r.get('pit_qualification')=='best_effort' for r in components) else 'observed'}
+              'contract_version': 'financial_stable.v1', 'unit': 'CNY'}
     output['derived_id'] = fingerprint(output)
     return output

@@ -8,7 +8,7 @@ acceptance. Market value and security-capital facts retain their PR5 owners.
 
 ## Canonical representation
 
-Four v2 contracts extend the existing DomainCommit publisher and Snapshot v3:
+Financial, valuation and industry v2 contracts plus universe v3 extend the existing DomainCommit publisher and Snapshot v3:
 `universe_membership`, `industry_membership`, `financial_events`, and
 `valuation_daily`. Snapshot v1/v2 and PR1–PR5 contracts remain unchanged.
 
@@ -49,7 +49,14 @@ all input raw refs, state identity and coverage bounds. The selector chooses one
 complete state, so old interval versions cannot overlap the child state.
 Incremental replay preserves the prior state until the later observation is usable.
 An explicitly open interval is allowed; it does not certify unlimited query coverage.
-An entirely empty history cannot certify coverage and fails closed. Overlaps at an operational knowledge cutoff
+Universe v3 stores group observations in the identity-bound DomainCommit
+`group_states` list, independently of member rows. A state binds universe ID,
+observation/state identity, first observation, qualification, raw refs, coverage,
+intervals, member counts/set digests and member revision refs. An explicitly
+complete empty observation has count 0 and the digest of `[]`, with no member row.
+Raw empty responses without `membership_complete=true` are source gaps and reject.
+Selection chooses a group state first, then its member revisions. Member rows alone
+are insufficient for v3 selection and fail closed; no security sentinel is used. Overlaps at an operational knowledge cutoff
 fail the canonical contract. Enter/exit/reenter produces separate spans.
 
 The bounded index adapter uses historical `index_weight` snapshot dates. It does
@@ -155,14 +162,24 @@ FactView subset reads repeat admission against the materialized scope.
 value, unit, validity, missing_reason, qualification, usable_at, policy/cutoff,
 source/revision/observation/derived refs, component refs and quality_state.
 TTM adds expected quarters and quarter components; missing reasons distinguish
-missing_quarter, source_value_missing, incompatible_report_type,
-PIT_component_not_visible and invalid_component. Industry metadata binds its
+missing_quarter, source_value_missing, incompatible_report_type and invalid_component.
+Component existence and missingness are derived only from the selected world at the
+policy/cutoff. A later Q2 observation cannot change a historical missing_quarter
+into a statement about future existence. Financial available-scope metadata uses
+that same selected world. Current diagnostic knowledge is not included in historical
+TTM logical provenance. Snapshot-bound View identity may change while the historical
+logical results, visible revisions and source provenance remain identical. Industry metadata binds its
 classification system and a versioned code-to-identity mapping in the same View.
 Universe facts carry universe IDs, domain version and policy;
 `SnapshotReader.membership_facts` supplies the complete query envelope even for an
 empty cohort. `QlibViewReader.fact_metadata` exposes the same typed facts and mapping.
-Removing the mapping invalidates the View. Archived v1 PR6 Views are not admitted
-as v2 formal Views; their original frozen code and bytes remain in the prior run.
+Removing the mapping invalidates the View. PR6 View loaders dispatch explicitly on pr6_fact_view.v1/v2. V1 uses repository-
+packaged original projection, PIT arithmetic, Reader filters, manifest and file
+validation semantics; it does not inherit v2 coverage/metadata requirements.
+Artifact-supplied code is never executed. V2 retains its full admission and typed
+metadata requirements. Both versions verify their original identity and digests;
+no published manifest is upgraded or rewritten. Existing adjusted-price/replay v1
+and Qlib v1/v2 loaders remain supported.
 
 The View binds snapshot/domain refs, scope, policy, a cutoff capped at each session
 end, field mapping, industry encoding and frozen implementation bytes. Its loader

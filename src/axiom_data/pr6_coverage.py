@@ -17,6 +17,21 @@ def require_range(start,end,available_start,available_end):
 
 def membership_coverage(reader,domain,group,start,end,policy,cutoff,symbols=None):
     rows=reader.commits[domain].rows
+    group_states=reader.commits[domain].manifest.get('group_states')
+    if group_states is not None:
+        from axiom_data.pit import select_group_states
+        known=[state for state in group_states if state['universe_id']==group]
+        if not known:raise ArtifactError('UNKNOWN_UNIVERSE')
+        selected=select_group_states(known,policy=policy,knowledge_cutoff=cutoff)
+        if not selected:raise ArtifactError('INSUFFICIENT_SCOPE: group observation not visible')
+        state=selected[0]
+        if start<state['coverage_from'] or end>=state['coverage_to']:
+            raise ArtifactError('INSUFFICIENT_SCOPE: universe dates')
+        available=reader.commits[domain].manifest['builder_config'].get('symbols') or [r['symbol'] for r in reader.security_master()]
+        if symbols is not None and not set(symbols)<=set(available):
+            raise ArtifactError('INSUFFICIENT_SCOPE: universe symbols')
+        return {'group_id':group,'symbols':sorted(available),'start_session':state['coverage_from'],
+                'end_exclusive':state['coverage_to'],'state_id':state['state_id']}
     matching=[r for r in rows if r['group_id']==group]
     if not matching:
         raise ArtifactError('UNKNOWN_UNIVERSE' if domain=='universe_membership' else 'UNKNOWN_CLASSIFICATION')
@@ -67,7 +82,7 @@ def admit_view(reader,scope,policy,cutoff):
     available={(r['symbol'],r['session']) for r in valuation}
     if any((s,d) not in available for s in symbols for d in sessions):
         raise ArtifactError('INSUFFICIENT_SCOPE: valuation date/security gap')
-    financial=reader.commits['financial_events'].rows
+    financial=select_revisions(reader.commits['financial_events'].rows,policy=policy,knowledge_cutoff=cutoff)
     if any(not any(r['symbol']==s and r['endpoint']==e for r in financial)
            for s in symbols for e in {e for e,_ in FIELD_MAP.values()}):
         raise ArtifactError('INSUFFICIENT_SCOPE: financial endpoint/security gap')

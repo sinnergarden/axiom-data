@@ -1,0 +1,10 @@
+test_empty_group_isolation_reentry_rebuild_and_source_gap (test_pr6_final_probes.FinalProbes.test_empty_group_isolation_reentry_rebuild_and_source_gap) ... ok
+test_future_visibility (test_pr6_final_probes.FinalProbes.test_future_visibility) ... ok
+test_prefix_stability (test_pr6_final_probes.FinalProbes.test_prefix_stability) ... ok
+test_real_old_view (test_pr6_final_probes.FinalProbes.test_real_old_view) ... ok
+test_universe_empty_state (test_pr6_final_probes.FinalProbes.test_universe_empty_state) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 8.395s
+
+OK

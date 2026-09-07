@@ -66,7 +66,7 @@ def build(target,plan):
     for domain in PR6_DOMAINS:
         config={'membership_end_exclusive':'2025-07-01','symbols':plan['membership_symbols']} if domain=='universe_membership' else {}
         builder=Pr6Builder(target,domain,builder_config=config,dependency_commit_ids={d:commits[d] for d in _DOMAIN_DEPENDENCIES[domain]})
-        commits[domain]=BuildApplication(domain,builder).build(None,plan['pr6_raw'][domain],[],domain+'.v2').commit_id
+        commits[domain]=BuildApplication(domain,builder).build(None,plan['pr6_raw'][domain],[],domain+('.v3' if domain=='universe_membership' else '.v2')).commit_id
     snapshot=create_snapshot(target,commits)
     return {'snapshot_id':snapshot.snapshot_id,'domain_commit_ids':commits}
 

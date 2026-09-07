@@ -66,3 +66,20 @@ All four correction stages completed. The 100-test suite passed in 65.769 second
 New source/recovery roots under `pr6-review-20260908-r1` passed all six gates;
 repo implementation bytes match the frozen code bundle. The 13-item correction
 report is `reports/pr6-review/DELIVERY.md`. Remote verification follows commit.
+
+## Three-blocker correction (2026-09-08)
+
+DoD/stages: (1) commit runnable probes before implementation and record failures;
+(2) repair group-state empty membership, world-at-cutoff derivation, and explicit
+v1/v2 loaders; (3) validate empty/isolation/re-entry/source-gap/raw-only recovery,
+old/new Snapshot logical prefix and future visibility, actual published v1/v2 and
+malformed artifacts; (4) independently validate real slice/new-root recovery,
+full suite, immutable artifact bytes, frozen implementation, commit and remote.
+Final deliverable: 10-item report plus corrective commit on the existing branch.
+PR7 remains deferred; no merge.
+
+Terminal validation: frozen implementation matches repo bytes; 107/107 tests PASS
+(93.196 seconds), all six actual-root gates PASS. Original v1, prior v2 and new
+View payloads match stored logical rows and identities. Final roots are
+`pr6-empty-prefix-compat-20260908-r4/source` and `/recovery`; the corresponding
+report is `reports/pr6-empty-prefix-compat/DELIVERY.md`.

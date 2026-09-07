@@ -73,7 +73,7 @@ def validate_payload(endpoint, params, records):
 class Pr6Collector(TushareCollector):
     implementation_revision='tushare-pr6-collector.v1'
 
-    def collect(self, endpoint, params, *, retrieved_at=None):
+    def collect(self, endpoint, params, *, retrieved_at=None, membership_complete=False):
         definition=load_pr6_source_profile()['endpoints'].get(endpoint)
         if definition is None:
             raise ArtifactError('unsupported PR6 endpoint')
@@ -83,12 +83,14 @@ class Pr6Collector(TushareCollector):
         observed=_retrieved_at(retrieved_at)
         request={'endpoint':endpoint,'params':params,'fields':definition['fields']}
         payload=_json_bytes(records)
-        identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest()})
+        identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(),
+                              'membership_complete':membership_complete})
         return write_raw_batch(self.data_root,'pr6-'+identity,domain=definition['domain'],
             source_profile='tushare.pr6.'+endpoint,source_profile_version='tushare_pr6.v1',
             source_profile_digest=profile_digest(),request=request,retrieved_at=observed,
             payload=payload,collector_code=self.implementation_revision,
-            summary={'rows':len(records),'historical_availability':'best_effort'})
+            summary={'rows':len(records),'historical_availability':'best_effort',
+                     'membership_complete':membership_complete})
 
 
 class Pr6Builder(MarketDomainBuilder):
@@ -186,7 +188,9 @@ class Pr6Builder(MarketDomainBuilder):
         return [by_key[k] for k in sorted(by_key)]
 
     def _build_rows(self, contract, parent_rows, raw_batches):
-        if not contract['contract_version'].endswith('.v2'):
+        group_mode=contract['contract_version']=='universe_membership.v3'
+        self.group_states=[]
+        if not group_mode and not contract['contract_version'].endswith('.v2'):
             return self._legacy_rows(contract, parent_rows, raw_batches)
         # Parent is immutable; replay only its explicit raw lineage plus new inputs.
         from axiom_data.artifacts import load_raw_batch
@@ -195,6 +199,8 @@ class Pr6Builder(MarketDomainBuilder):
                     if o.get('boundary_source_ref'))
         refs.update(ref for r in parent_rows for o in r['observations']
                     for ref in o.get('state_raw_refs', []))
+        if group_mode:
+            refs.update(ref for state in getattr(self,'parent_group_states',[]) for ref in state['raw_refs'])
         raws = {r.ref.raw_batch_id:r for r in raw_batches}
         for ref in sorted(refs - raws.keys()):
             raws[ref] = load_raw_batch(self.layout.root, ref)
@@ -207,6 +213,8 @@ class Pr6Builder(MarketDomainBuilder):
                 previous = dict(row, observations=[]); content[key] = previous
             elif instant(row['first_observed_at']) < instant(previous['first_observed_at']):
                 history = previous['observations'];previous.update(row);previous['observations']=history
+            if group_mode:
+                observation['group_state_ref']=observation['state_id']
             observation['observation_id'] = fingerprint(observation)
             if observation not in previous['observations']:
                 previous['observations'].append(observation)
@@ -237,6 +245,8 @@ class Pr6Builder(MarketDomainBuilder):
                     grouped=defaultdict(list)
                     for row in records:grouped[(row['index_code'],row['trade_date'])].append(row)
                     if not records:
+                        if group_mode and profile['summary'].get('membership_complete') is not True:
+                            raise ArtifactError('SOURCE_GAP: empty response lacks complete membership assertion')
                         if params['start_date']!=params['end_date']:
                             raise ArtifactError('empty ranged snapshot has no effective identity')
                         grouped[(params['index_code'],params['start_date'])]=[]
@@ -269,18 +279,45 @@ class Pr6Builder(MarketDomainBuilder):
                                 vendor_available_at=source_date(day)+'T23:59:59+08:00')
                             if boundary:row['first_observed_at']=max(row['first_observed_at'],boundary.manifest['retrieved_at'],key=instant)
                             row['revision_id']=fingerprint(economic_content(row));state_rows.append(row)
-                if not state_rows:
+                if not state_rows and not group_mode:
                     raise ArtifactError('INSUFFICIENT_SCOPE: empty interval state has no canonical history')
                 state_id=fingerprint({'raw_refs':sorted(r.ref.raw_batch_id for r in history),
                                       'observed_at':observed})
+                states={}
+                if group_mode:
+                    for group in sorted({k[0] for k in snapshots}):
+                        group_raws=[raw for raw in history if raw.manifest['request']['params']['index_code']==group]
+                        last=max(group_raws,key=lambda raw:(instant(raw.manifest['retrieved_at']),raw.ref.raw_batch_id))
+                        dates=sorted(k[1] for k in snapshots if k[0]==group)
+                        intervals=[]
+                        for i,day in enumerate(dates):
+                            raw,records=snapshots[(group,day)]
+                            symbols=sorted({x['con_code'] for x in records if not self.builder_config.get('symbols') or x['con_code'] in self.builder_config['symbols']})
+                            intervals.append({'effective_from':source_date(day),
+                                'effective_to':source_date(dates[i+1]) if i+1<len(dates) else self.builder_config['membership_end_exclusive'],
+                                'member_count':len(symbols),'member_set_digest':fingerprint(symbols),
+                                'members':symbols,'source_ref':raw.ref.raw_batch_id})
+                        state={'universe_id':group,'first_observed_at':last.manifest['retrieved_at'],
+                            'source_available_at':None,'pit_qualification':'best_effort',
+                            'vendor_available_at':source_date(dates[0])+'T23:59:59+08:00',
+                            'source_ref':last.ref.raw_batch_id,'raw_refs':sorted(raw.ref.raw_batch_id for raw in group_raws),
+                            'coverage_from':source_date(dates[0]),
+                            'coverage_to':self.builder_config['membership_end_exclusive'] or (date.fromisoformat(source_date(dates[-1]))+timedelta(days=1)).isoformat(),
+                            'member_count':intervals[-1]['member_count'],
+                            'member_set_digest':intervals[-1]['member_set_digest'],
+                            'intervals':intervals,
+                            'member_revision_refs':sorted(r['revision_id'] for r in state_rows if r['group_id']==group)}
+                        state['state_id']=fingerprint(state);states[group]=state
+                        if state not in self.group_states:self.group_states.append(state)
                 for row in state_rows:
-                    retain(row, {'observed_at':observed,'source_ref':row['source_ref'],
+                    group_state=states.get(row['group_id'])
+                    retain(row, {'observed_at':group_state['first_observed_at'] if group_state else observed,'source_ref':row['source_ref'],
                         'boundary_source_ref':row['boundary_source_ref'],
                         'revision_id':row['revision_id'],'vendor_available_at':row['vendor_available_at'],
-                        'state_id':state_id,
+                        'state_id':group_state['state_id'] if group_state else state_id,
                         'coverage_from':min(source_date(k[1]) for k in snapshots if k[0]==row['group_id']),
                         'coverage_to':self.builder_config['membership_end_exclusive'] or (date.fromisoformat(max(source_date(k[1]) for k in snapshots if k[0]==row['group_id']))+timedelta(days=1)).isoformat(),
-                        'state_raw_refs':sorted(r.ref.raw_batch_id for r in history)})
+                        'state_raw_refs':group_state['raw_refs'] if group_state else sorted(r.ref.raw_batch_id for r in history)})
         for row in content.values():
             row['observations'].sort(key=lambda o:(instant(o['observed_at']),o['observation_id']))
         return [content[k] for k in sorted(content)]

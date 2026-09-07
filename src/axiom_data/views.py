@@ -374,6 +374,19 @@ class FactView:
                 raise ArtifactError("PR6 FactView policy differs from materialization")
             if cutoff_policy is not None and cutoff_policy != manifest["cutoff_policy"]:
                 raise ArtifactError("PR6 FactView cutoff differs from materialization")
+            if manifest['schema_version']=='pr6_fact_view.v1':
+                selected=set(symbols) if symbols is not None else None
+                selected_fields=tuple(fields or manifest['fields'])
+                if not selected_fields or set(selected_fields)-set(manifest['fields']):
+                    raise ArtifactError('invalid v1 FactView fields')
+                return {'snapshot_ref':manifest['snapshot_ref'],'view_id':self.pr6.ref.view_id,
+                    'rows':tuple({'symbol':r['symbol'],'session':r['session'],**{f:r['values'][f] for f in selected_fields}}
+                        for r in self.pr6.rows if (selected is None or r['symbol'] in selected)
+                        and (start_session is None or r['session']>=start_session)
+                        and (end_session is None or r['session']<=end_session)),
+                    'fields':selected_fields,'pit_policy':manifest['pit_policy'],
+                    'cutoff_policy':manifest['cutoff_policy'],'knowledge_cutoff':manifest['knowledge_cutoff'],
+                    'pit_qualification':manifest['pit_qualification'],'domain_refs':manifest['domain_refs']}
             from axiom_data.pr6_coverage import admit_materialized
             selected = set(symbols) if symbols is not None else set(manifest['validated_scope']['symbols'])
             selected_fields = tuple(fields) if fields is not None else tuple(manifest["fields"])

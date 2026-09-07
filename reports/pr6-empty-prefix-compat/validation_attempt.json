@@ -1,0 +1,16 @@
+{
+  "run_id": "pr6-empty-prefix-compat-20260908-r4",
+  "stage": "terminal_validation",
+  "code_bundle": "/home/liuming/workspace/axiom/data/forensic/pr6-empty-prefix-compat-20260908-r4/code-bundles/c4c291ef16ccb58b072d262f3210da9b2635114a6ccb56c6df363787ee5ced84",
+  "source_root": "/home/liuming/workspace/axiom/data/forensic/pr6-empty-prefix-compat-20260908-r4/source",
+  "recovery_root": "/home/liuming/workspace/axiom/data/forensic/pr6-empty-prefix-compat-20260908-r4/recovery",
+  "log": "/home/liuming/workspace/axiom/data/forensic/pr6-empty-prefix-compat-20260908-r4/validation.log",
+  "validator": "axiom_data.evidence.validate_pr6_evidence",
+  "implementation_bytes_match": true,
+  "tests": {
+    "passed": 107,
+    "total": 107,
+    "seconds": 93.196,
+    "execution": "frozen code bundle"
+  }
+}

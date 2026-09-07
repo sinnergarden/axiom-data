@@ -1,0 +1,286 @@
+{
+  "baseline_snapshot": "snapshot-b1303edb81a3e7b48f38909ebd52ae4e5512030679a3eadfb8ace7c9c91de842",
+  "baseline_domains": {
+    "trading_calendar": {
+      "raw_batch_ids": [
+        "tushare-trade_cal-a04594c8a38858bc5d28f314ebbb4455514c75d144afc740cd889551b63d6abd",
+        "tushare-trade_cal-f0846fe4370b5ec5c5efe8a40a53a41ba8f13803830cef092624a7390c4f8c80"
+      ],
+      "config": {
+        "end_session": "2025-09-05",
+        "pit_classification": "current-observed-best-effort",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_version": "tushare_phase1.v1",
+        "start_session": "2025-06-01",
+        "symbols": [
+          "600000.SH",
+          "600036.SH",
+          "688981.SH",
+          "603072.SH",
+          "000001.SZ",
+          "301581.SZ"
+        ]
+      }
+    },
+    "security_master": {
+      "raw_batch_ids": [
+        "tushare-stock_basic-4d8efca385e8e800a90b078c193ee830b0e5f4fb62dc87138ef8b9be106c1ee8"
+      ],
+      "config": {
+        "end_session": "2025-09-05",
+        "pit_classification": "current-observed-best-effort",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_version": "tushare_phase1.v1",
+        "start_session": "2025-06-01",
+        "symbols": [
+          "000001.SZ",
+          "000062.SZ",
+          "000401.SZ",
+          "301581.SZ",
+          "600000.SH",
+          "600036.SH",
+          "603072.SH",
+          "688981.SH"
+        ]
+      }
+    },
+    "market_daily": {
+      "raw_batch_ids": [
+        "tushare-daily-acf9709fae50c8484f8d5c5660a93b664ba379acd0ce29243cf30569bd19d0f5",
+        "tushare-adj_factor-4f0b26011a54d17a5f65cfd6f4b04991fa2052e3a4472b6ccc3536a7520e034b",
+        "tushare-daily_basic-85513edabccd5f65d41924786a9b591207d1a5ee10eab24aa659913db4a31ae4",
+        "tushare-daily_basic-e926221d00100c0f745512489556d3320318a9d267527b688a906c885ea5f007",
+        "tushare-daily_basic-ad95c2dc90da0b9e87f2efd54c4b06dd84e2036351702fec31cde7cb7150dc98",
+        "tushare-daily_basic-39b1eb8cbc7c2f83963c8167338b5178c85a39dff846af53c6a292b4e9a95b1a",
+        "tushare-daily_basic-929b76b4b5ce52ce8672231c464594f53a7ce47050b3fed5f9cac15845bed057",
+        "tushare-daily_basic-022296f265bd1c83841f21728658325e5d494f02cdb6e7b54a34fa59d1d125a2",
+        "tushare-stk_limit-dfe6b23138cf0396fb2905c224529d667b2878872cc77700024dfe47a92c8b3d",
+        "tushare-stk_limit-a03127aba700d14ec27796b48ab4645bff50ad82bc11705b9b2234b29b7131aa",
+        "tushare-stk_limit-0f3acb45b22eb6ce6081f0d46ab3bd517faa091d6ff863e475de9fff2335b66f",
+        "tushare-stk_limit-1c97ac1b3feaec7309874ccbbd6a05ca1614da972b963b4c783a277080add07e",
+        "tushare-stk_limit-3ed16700a88c4bbb07d93172afb5f3a575875e6c2c0807aa0c0daf5ab3d8c3c0",
+        "tushare-stk_limit-3680302900acecaf32587a31018f0c843683af5bbb0f6816dc53512b611a53cb",
+        "tushare-suspend_d-af019d673c285b61e95a82dad17d52aafd6d4a1f521d8c4c3aee26fd0443ec8a",
+        "tushare-suspend_d-ec3e1c769b31ae2a7e130574bd1905ba6e93d4750dbc8fbfb5d477058145f5fe",
+        "tushare-suspend_d-5283290707216c71ded751d717caf44c1ad06ffbe8032c25237e6938ac8a937e",
+        "tushare-suspend_d-932f570a84ebad011915d1e94733b09d61afa6ee6294e74eb391d376f1e524a0",
+        "tushare-suspend_d-08ee0b5e04cfa68be24d2018c1a22aa4d123f6cd7bbf00058c18f3acafa4efcd",
+        "tushare-suspend_d-407e22538e880e54e6db9ada8859f1464ce366ea02eeed3e091d17015aeecad9"
+      ],
+      "config": {
+        "end_session": "2025-09-05",
+        "pit_classification": "current-observed-best-effort",
+        "source_profile_digest": "sha256:49ad28b6c158b8f94ce8012cbb97742e52c956ba6099651e057cf9d0c2a865d5",
+        "source_profile_version": "tushare_phase1.v1",
+        "start_session": "2025-06-01",
+        "symbols": [
+          "600000.SH",
+          "600036.SH",
+          "688981.SH",
+          "603072.SH",
+          "000001.SZ",
+          "301581.SZ"
+        ]
+      }
+    },
+    "security_status": {
+      "raw_batch_ids": [
+        "tushare-security_status-daily-d40398bac36d4a2c586ffc8a28fedd3fb70708f617434735501adfa2bfaae9d3",
+        "tushare-security_status-suspend_d-38bba932c4f652916ec4bc519d47571cf71e1f62beff6efdab4762b54dbc0595",
+        "tushare-security_status-suspend_d-fb1bdb9d1e76a3ee45f51bd2f58195d3129dabf4801c7e24291a8f308809892c",
+        "tushare-security_status-suspend_d-a1991427253a1b3b6f6f68723271f2e029fc1f77bd50d7f0b1e0d7bb075dd523",
+        "tushare-security_status-suspend_d-091520fd4459f88ec6c22bfb9681a909ff0788ab6f72e0c81ce2d340e7dc612a",
+        "tushare-security_status-suspend_d-7952fafbd67d094572bcfe8d31dac54d5748df82d014c96a5609afd80c606434",
+        "tushare-security_status-suspend_d-ec57f8427a6734c119b417e0b914d30001ab2c658433989cbfa85a726994418f"
+      ],
+      "config": {
+        "end_session": "2025-09-05",
+        "pit_qualification": "best_effort",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_version": "tushare_dm1.v1",
+        "start_session": "2025-06-01",
+        "symbols": [
+          "600000.SH",
+          "600036.SH",
+          "688981.SH",
+          "603072.SH",
+          "000001.SZ",
+          "301581.SZ"
+        ]
+      }
+    },
+    "price_limits": {
+      "raw_batch_ids": [
+        "tushare-price_limits-stk_limit-736ac10db18641356d277f7efe6761e4e43f7850783de2591924e792651b99cf",
+        "tushare-price_limits-stk_limit-4c87de060a480d362ab88f6ecf63348974f846d9e7613aa86cd5ca4af77a4d35",
+        "tushare-price_limits-stk_limit-840eed5840ccdb069f659dc472fd072e7bec70bdd9d10145fce5d1238df07acc",
+        "tushare-price_limits-stk_limit-c41169f7fb63cc701c715cd5eb77139fcf74ba34ee80751e9fd555a1ae54074b",
+        "tushare-price_limits-stk_limit-131d46b5e0ae9ae50f83479698888a9b43517b952079a48729a66c1102a9f872",
+        "tushare-price_limits-stk_limit-4d30e942de68777aae2f0f649318be7b2f9fcc2551a1529d2eaaf0ca091d53e4"
+      ],
+      "config": {
+        "end_session": "2025-09-05",
+        "pit_qualification": "best_effort",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_version": "tushare_dm1.v1",
+        "start_session": "2025-06-01",
+        "symbols": [
+          "600000.SH",
+          "600036.SH",
+          "688981.SH",
+          "603072.SH",
+          "000001.SZ",
+          "301581.SZ"
+        ]
+      }
+    },
+    "corporate_actions": {
+      "raw_batch_ids": [
+        "tushare-corporate_actions-dividend-41df31ba8b9bc14657305f1002317f3613139e2347a928cdc17f9891dc2bb64d",
+        "tushare-corporate_actions-dividend-2434313a50d6d06fc1c6733feb68030af72486c5bd27243b6d66e573a5b32855",
+        "tushare-corporate_actions-dividend-70cdba6a51986e9047cc22b5792357be0af74efcaff8d3ccd53fe1659aa15613",
+        "tushare-corporate_actions-dividend-80f840f4f827a02081201a156773e507e8e39503e3c53cacdc63032c16e33461",
+        "tushare-corporate_actions-dividend-ef589b1d25cb47dd1e4553b0e3d2f4f22c95ef105eaa5470a397f17a06daeefa",
+        "tushare-corporate_actions-dividend-21685f8670f2d05b574e0146d9fbe79fa31d4bf750df6dfcb449a517fdba1a49"
+      ],
+      "config": {
+        "end_session": "2025-09-05",
+        "pit_qualification": "best_effort",
+        "promoted_div_proc": [
+          "\u5b9e\u65bd"
+        ],
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_version": "tushare_dm1.v1",
+        "start_session": "2025-06-01",
+        "symbols": [
+          "600000.SH",
+          "600036.SH",
+          "688981.SH",
+          "603072.SH",
+          "000001.SZ",
+          "301581.SZ"
+        ]
+      }
+    },
+    "adjustment_factors": {
+      "raw_batch_ids": [
+        "tushare-adjustment_factors-adj_factor-85d7ac9d2155e4ba2bca861a2a2c16552afc9bdaa7d1d3d7f4420f15739188a5"
+      ],
+      "config": {
+        "end_session": "2025-09-05",
+        "pit_qualification": "best_effort",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_version": "tushare_dm1.v1",
+        "start_session": "2025-06-01",
+        "symbols": [
+          "600000.SH",
+          "600036.SH",
+          "688981.SH",
+          "603072.SH",
+          "000001.SZ",
+          "301581.SZ"
+        ]
+      }
+    },
+    "benchmark_daily": {
+      "raw_batch_ids": [
+        "tushare-benchmark_daily-index_daily-a2c730c62bac3ff79de5e230d98ba93013422dc72b8ec5d3c14f47987bc4a803"
+      ],
+      "config": {
+        "end_session": "2025-09-05",
+        "pit_qualification": "best_effort",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_version": "tushare_dm1.v1",
+        "start_session": "2025-06-01",
+        "symbols": [
+          "000300.SH"
+        ]
+      }
+    },
+    "security_capital": {
+      "raw_batch_ids": [
+        "tushare-security_capital-daily_basic-521ffafec3dcc33b54a71c0260d6056cab09ce1485785eb0d9b5b1dc77f52339",
+        "tushare-security_capital-daily_basic-90a7e9ed270842cda48e0c51540e29201c34a1a2da783450b503c2b19fa259d7",
+        "tushare-security_capital-daily_basic-491d29a5a2bd0d2e3b63f23f9586ac6a384246abbabf576009b7156d9d43320f",
+        "tushare-security_capital-daily_basic-79a7ddf2e7cb615f06ef7bf7fe3c1547c572166bd4d652685c5ce9665700c2b7",
+        "tushare-security_capital-daily_basic-5f2ca31c7409b76f5b01cae591a74d0cf8f9efeb739753131e9bba51ae4cf3e6",
+        "tushare-security_capital-daily_basic-6cecf79cde917ed3da65b4fe5ce746cb9b80b0dc17c41a48f2584531a7390e18"
+      ],
+      "config": {
+        "end_session": "2025-09-05",
+        "pit_qualification": "best_effort",
+        "source_profile_digest": "sha256:07680d2cdb037ecdadd3ed3eaa714abe5d98b00f3ece924e190f489b7ee64315",
+        "source_profile_version": "tushare_dm1.v1",
+        "start_session": "2025-06-01",
+        "symbols": [
+          "600000.SH",
+          "600036.SH",
+          "688981.SH",
+          "603072.SH",
+          "000001.SZ",
+          "301581.SZ"
+        ]
+      }
+    }
+  },
+  "pr6_raw": {
+    "universe_membership": [
+      "pr6-0872bfcb885560326e428c16c850d064da09733d0afdd9ee7ef74c3ec2b0cc35",
+      "pr6-c831b08bb677647d4e07b9710b781adbf07a97445bd84b986fc7c571b9aaa189",
+      "pr6-e355f444397b4b4d63a374198c20b5884f4c5c616ee350654c32c259623cc0e9",
+      "pr6-fa92cb7b69d247fcbd0d8989e1c6cbfc3aab5c2f0140bb7c452b47e9a61971d5"
+    ],
+    "industry_membership": [
+      "pr6-5e38a6f2e286fa4586463016bcc49aecfba5219a74bf2f346b0305eff1836bbd",
+      "pr6-68995bacfd9d22c3dbc2eeadd45876d85974833d67bf2538c7aa5b92200274e2",
+      "pr6-6e8fe636445cd21e1b7732c084ec0b8e7e32ea6ae9b06f1a6be61ae5e5447dff",
+      "pr6-9edca34ec082f2dd565dff28fd5320c9ccdc73d5d6152103ef00632df1e097ee",
+      "pr6-a1ea893c2352918ea5b68fc19c5b7606d718654575efe54368a8e0ab6690046e",
+      "pr6-b7348f29dc292b3db9445e713136100cafa4cabafe400ef0a98b367c1ecd723c",
+      "pr6-df9eec867a5c6e466f0534dfb2dc816293286cbe3765992798496bb1e7769546",
+      "pr6-e8e0858ad01a84f8caf58f13231480dac3dbb3030aa4d8c707207a0859e77360"
+    ],
+    "financial_events": [
+      "pr6-065b1707c9a68e23e2c27f2961ebb475ae99bdcbbfe0cdc18a777dc0aaa3e34a",
+      "pr6-0aade839b061e836e283b6af796e0178617091d6a26c0fb37904540f0578e78b",
+      "pr6-176636be087ebde1efc78bb03d5c4ea86948015772b355ab6095a1811b096d41",
+      "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c",
+      "pr6-314dd736ce4131d552c60bd0e706dc6c0df02a11d29452e5dca3b3f48cad430b",
+      "pr6-323724a183d56a9cf5de7c196fc14921e5d473f5698010ffb5278306a1806922",
+      "pr6-33f34b863584a87e2eab6f9f51e9fa9f6ba2462a904066d78ee76686fa2f2222",
+      "pr6-3540d96ad9f2b728a2b44bbff3ee5e9bc1516e6bab131c9192fea2548eac3166",
+      "pr6-36961e6cd9cdb41a680c31f02219aa2286d85fb60437bf0fea895f908fef7ea8",
+      "pr6-540bf0cee4365036559502bf53d0f8a4c970a47f293257f15412f778268e9894",
+      "pr6-566c3425dac14acbcd906c34742b7ae36a2ebc1c0eac930b8feac20389c11914",
+      "pr6-6f097763d15ae435908f5e16e016e151a9179e2bdacda6f937a3ab2d47f5eda2",
+      "pr6-74bef993e29c4047a15fc6a5b942ce1c30e0d7dc5d481d165a977c35bc6a459b",
+      "pr6-7aa2ddbb984c3e338e6720018c816d7f591a2186cc82a49108c905e8b1b37372",
+      "pr6-80dbbfd36c5f12719dfb4399188a346b6af1d5500c8bb274da0e23d97a6471dc",
+      "pr6-86518602454b2b92a9c084d679390898e973b742376d5f991179b4d586819ea5",
+      "pr6-ad06d2c581560e3ccccd02e5e713951ec58f86c4e2a45356fc9be4248955fa7c",
+      "pr6-c4d855599bbe038c278cf084ad680a87a0e0fd36808e936531111297e771a47f",
+      "pr6-cafc55901d9fb9aa8ae4cc52eb3f4882090d396784c41bd4f9fa4d42527adfcb",
+      "pr6-e16beea94b54873d3c4603b51b666e273a9e35a432ce1e06ecad252c6edcfe2c",
+      "pr6-ec0bd023d3ac8b7509d408ae5b07c98c22d06d83fe5b3872eac1ca837968affe",
+      "pr6-f0253a092451da7c097e8b0512cefd8d8d8f107d6c455765665925ecf09f0e8a",
+      "pr6-f15919ad7bb8d1641d5c8c2d9ebf0d15a476e3b0c59612bb803275c026dd3924",
+      "pr6-f33a6842d8136868861b4a45c6137dc12ac8d15f32c0dfad5464301c392a8506",
+      "pr6-f3784dc16743bd0f3c3d4d110228292eac6c446011c38ea212755346d4bd9243",
+      "pr6-f53552f35159b06120e1d5c59a6540b74298f0a82f818e07b0218ccace24628e"
+    ],
+    "valuation_daily": [
+      "pr6-349ccdb292cc58d270d0a897a4da55cfb74bf2e2f4d82d27482eda0e2b0a7f8d",
+      "pr6-b39e102b8fa22d5ca98286773b4c149c290db890ff41f14a0e66159c43c44ab4"
+    ]
+  },
+  "membership_symbols": [
+    "000001.SZ",
+    "000062.SZ",
+    "000401.SZ",
+    "301581.SZ",
+    "600000.SH",
+    "600036.SH",
+    "603072.SH",
+    "688981.SH"
+  ]
+}

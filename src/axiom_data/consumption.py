@@ -152,7 +152,8 @@ class SnapshotReader:
               symbols: Sequence[str] | None = None) -> tuple[dict[str, Any], ...]:
         from axiom_data.pit import select_revisions
         return select_revisions(self.facts(domain, symbols=symbols),
-                                policy=pit_policy, knowledge_cutoff=knowledge_cutoff)
+                                policy=pit_policy, knowledge_cutoff=knowledge_cutoff,
+                                group_states=self.commits[domain].manifest.get("group_states"))
 
     def financial_derived(self, *, knowledge_cutoff: str, pit_policy: str,
                           symbols: Sequence[str] | None = None) -> tuple[dict[str, Any], ...]:
@@ -167,15 +168,20 @@ class SnapshotReader:
             raise ArtifactError("membership domain required")
         from axiom_data.pr6_coverage import membership_coverage
         membership_coverage(self,domain,group_id,target_session,target_session,pit_policy,knowledge_cutoff,symbols)
-        return members(self.facts(domain, symbols=symbols), group_id=group_id,
+        result = members(self.facts(domain), group_id=group_id,
                        target_session=_session(target_session, "target_session"),
-                       knowledge_cutoff=knowledge_cutoff, policy=pit_policy)
+                       knowledge_cutoff=knowledge_cutoff, policy=pit_policy,
+                       group_states=self.commits[domain].manifest.get("group_states"))
+        return tuple(r for r in result if symbols is None or r["symbol"] in symbols)
 
     def membership_facts(self, group_id, target_session, *, knowledge_cutoff, pit_policy,
                          domain='universe_membership'):
         rows=self.members(group_id,target_session,knowledge_cutoff=knowledge_cutoff,
                           pit_policy=pit_policy,domain=domain)
-        return {'group_id':group_id,'version':self.commits[domain].ref.commit_id,
+        from axiom_data.pit import select_group_states
+        states=self.commits[domain].manifest.get('group_states')
+        group_observation=(next(s for s in select_group_states(states,policy=pit_policy,knowledge_cutoff=knowledge_cutoff) if s['universe_id']==group_id) if states is not None else None)
+        return {'group_id':group_id,'group_observation':group_observation,'version':self.commits[domain].ref.commit_id,
                 'snapshot_id':self.snapshot.ref.snapshot_id,'pit_policy':pit_policy,
                 'knowledge_cutoff':knowledge_cutoff,'target_session':target_session,'rows':rows}
 
@@ -189,7 +195,8 @@ class SnapshotReader:
             start_session=_session(start_session, "start_session"),
             end_session=_session(end_session, "end_session"),
             lookback_start=_session(lookback_start, "lookback_start"),
-            knowledge_cutoff=knowledge_cutoff, policy=pit_policy)
+            knowledge_cutoff=knowledge_cutoff, policy=pit_policy,
+            group_states=self.commits["universe_membership"].manifest.get("group_states"))
 
     def facts(
         self,
@@ -207,7 +214,12 @@ class SnapshotReader:
         from axiom_data.domains import PR6_DOMAINS
         if domain in PR6_DOMAINS:
             from axiom_data.pr6_coverage import require_symbols
-            require_symbols(self.commits[domain].rows,symbols)
+            if domain=='universe_membership' and 'group_states' in self.commits[domain].manifest:
+                available=self.commits[domain].manifest['builder_config'].get('symbols') or [r['symbol'] for r in self.security_master()]
+                if symbols is not None and (not symbols or not set(symbols)<=set(available)):
+                    raise ArtifactError('INSUFFICIENT_SCOPE: universe symbols')
+            else:
+                require_symbols(self.commits[domain].rows,symbols)
             if start_session is not None or end_session is not None:
                 if domain != 'valuation_daily':
                     raise ArtifactError('INSUFFICIENT_SCOPE: use explicit PIT membership/financial Reader')
@@ -699,6 +711,8 @@ class QlibViewReader:
     def fact_metadata(self):
         if self.view.manifest.get('artifact_type') != 'pr6_fact_view':
             raise ArtifactError('PR6 FactView metadata required')
+        if self.view.manifest['schema_version']=='pr6_fact_view.v1':
+            raise ArtifactError('METADATA_NOT_IN_V1_CONTRACT')
         return {'view_id':self.view.ref.view_id,'snapshot_ref':self.view.manifest['snapshot_ref'],
                 'industry_mapping':self.view.manifest['industry_mapping'],
                 'validated_scope':self.view.manifest['validated_scope'],

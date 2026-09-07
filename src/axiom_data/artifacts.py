@@ -896,6 +896,7 @@ class MarketDomainBuilder:
         calendar = loaded_dependencies.get("trading_calendar")
         security = loaded_dependencies.get("security_master")
 
+        self.parent_group_states = parent.manifest.get("group_states", []) if parent else []
         rows = self._build_rows(
             contract,
             parent.rows if parent is not None else (),
@@ -912,6 +913,7 @@ class MarketDomainBuilder:
         if self.domain in PR6_DOMAINS:
             from axiom_data.pr6_source import Pr6Builder
             replay = Pr6Builder(self.layout.root, self.domain, builder_config=self.builder_config)
+            replay.parent_group_states = self.parent_group_states
             if replay._build_rows(contract, parent.rows if parent else (), raw_batches) != rows:
                 raise ArtifactError("PR6 staged rows differ from their source mapping")
         rows_content = _json_bytes(rows)
@@ -948,6 +950,12 @@ class MarketDomainBuilder:
                 "cross_domain": "PASS" if dependencies else "NOT_APPLICABLE",
             },
         }
+        if request.contract_version == 'universe_membership.v3':
+            if self.group_states != replay.group_states:
+                raise ArtifactError('group states differ from raw replay')
+            from axiom_data.domains.pr6 import validate_group_states
+            validate_group_states(rows,self.group_states)
+            manifest['group_states'] = self.group_states
         identity_digest = _identity_digest(manifest, "domain_commit_id")
         commit_id = _derived_identity(self.domain, identity_digest)
         if self.expected_commit_id is not None and self.expected_commit_id != commit_id:
@@ -1156,8 +1164,14 @@ def _validate_domain_commit_closure(
             from axiom_data.pr6_source import Pr6Builder
             previous_rows = parent.rows if parent_ref is not None else ()
             replay = Pr6Builder(root, domain, builder_config=commit.manifest["builder_config"])
+            replay.parent_group_states = parent.manifest.get("group_states", []) if parent_ref is not None else []
             expected_rows = replay._build_rows(commit.contract, previous_rows,
                 [load_raw_batch(root, ref["raw_batch_id"]) for ref in raw_refs])
+            if commit.ref.contract_version == "universe_membership.v3" and commit.manifest.get("group_states") != replay.group_states:
+                raise ArtifactError("universe group states differ from RawBatch mapping")
+            if commit.ref.contract_version == "universe_membership.v3":
+                from axiom_data.domains.pr6 import validate_group_states
+                validate_group_states(commit.rows,commit.manifest["group_states"])
             if expected_rows != list(commit.rows):
                 raise ArtifactError("PR6 canonical rows differ from their RawBatch mapping")
 

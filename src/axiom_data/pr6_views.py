@@ -82,6 +82,16 @@ def project(reader, scope, policy, cutoff):
             for leaf,row in [('universe.membership',membership.get(symbol)),('industry.membership',industry.get(symbol))]:
                 metadata[leaf]=fact_metadata(row,values[leaf],leaf,reader,policy,session_cutoff)
             metadata['universe.membership']['universe_ids']=scope['universe_ids']
+            if 'group_states' in reader.commits['universe_membership'].manifest:
+                from axiom_data.pit import select_group_states
+                states=select_group_states(reader.commits['universe_membership'].manifest['group_states'],policy=policy,knowledge_cutoff=session_cutoff)
+                metadata['universe.membership']['group_observations']=[
+                    {'universe_id':state['universe_id'],'state_id':state['state_id'],
+                     'source_ref':state['source_ref'],'usable_at':state['usable_from'],
+                     'member_count':interval['member_count'],'member_set_digest':interval['member_set_digest']}
+                    for state in states if state['universe_id'] in scope['universe_ids']
+                    for interval in state['intervals'] if interval['effective_from']<=session
+                    and (interval['effective_to'] is None or session<interval['effective_to'])]
             metadata['industry.membership'].update(classification_system=scope['industry_system'],mapping_ref='industry_mapping')
             wide.append({'session':session,'symbol':symbol,'values':values,'provenance':refs,
                          'knowledge_cutoff':session_cutoff,'facts':metadata})
@@ -171,17 +181,22 @@ def load_pr6_fact_view(data_root,view_id):
     view_id=_identity('view_id',view_id)
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
     manifest,digest=_load_manifest(layout.root,target,artifact_type='pr6_fact_view',
-        schema_version='pr6_fact_view.v2',identity_field='view_id',identity=view_id)
+        schema_version=('pr6_fact_view.v1','pr6_fact_view.v2'),identity_field='view_id',identity=view_id)
+    declared=manifest['schema_version']
+    if declared=='pr6_fact_view.v1':
+        from axiom_data.pr6_views_v1 import LegacyReader, project as projection, _manifest as manifest_builder, _files as payload_files
+    else:
+        LegacyReader,projection,manifest_builder,payload_files=SnapshotReader,project,_manifest,_files
     _validate_manifest_identity(manifest,'view_id','pr6-fact',view_id)
-    reader=SnapshotReader(data_root,manifest['snapshot_ref']['snapshot_id'])
-    payload=project(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
+    reader=LegacyReader(data_root,manifest['snapshot_ref']['snapshot_id'])
+    payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):
         raise ArtifactError('invalid frozen code bundle')
-    expected=_manifest(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'],payload,bundle)
+    expected=manifest_builder(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'],payload,bundle)
     if {k:v for k,v in manifest.items() if k not in {'view_id','identity_digest','created_at'}}!=expected:
         raise ArtifactError('PR6 View semantic closure mismatch')
-    for path,content in _files(payload,manifest['scope']['symbols'],bundle).items():
+    for path,content in payload_files(payload,manifest['scope']['symbols'],bundle).items():
         checked=_safe_path(layout.root,target/path,closure=target)
         if checked.read_bytes()!=content:
             raise ArtifactError('PR6 Fact/Qlib file differs from source projection')

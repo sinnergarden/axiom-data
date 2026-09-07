@@ -16,10 +16,15 @@ class CoverageTest(unittest.TestCase):
             'trading_calendar':[{'session':d,'exchange':'SSE','is_open':True} for d in days],
             'universe_membership':[membership],'industry_membership':industry,
             'valuation_daily':[{'symbol':symbol,'session':d} for d in days],
-            'financial_events':[dict(fact('2024-03-31',1),endpoint=e) for e in ('income','balancesheet','cashflow','fina_indicator')]}.items()})
+            'financial_events':[dict(fact('2024-03-31',1),endpoint=e,logical_event_key=e) for e in ('income','balancesheet','cashflow','fina_indicator')]}.items()})
         scope={'symbols':[symbol],'start_session':days[0],'end_session':days[-1],
                'universe_ids':['test'],'industry_system':'test'}
-        self.assertTrue(admit_view(reader,scope,POLICY,CUTOFF))
+        admitted=admit_view(reader,scope,POLICY,CUTOFF)
+        self.assertTrue(admitted)
+        future=dict(fact('2024-06-30',3,observed='2025-07-01T00:00:00Z'),logical_event_key='future-income')
+        reader.commits['financial_events'].rows.append(future)
+        self.assertEqual(admit_view(reader,scope,POLICY,CUTOFF),admitted)
+        reader.commits['financial_events'].rows.pop()
         for domain in ('trading_calendar','valuation_daily','industry_membership'):
             rows=reader.commits[domain].rows
             reader.commits[domain].rows=[rows[0],rows[-1]]
@@ -37,7 +42,7 @@ class CoverageTest(unittest.TestCase):
         self.assertEqual(ttm(rows)['value'],1000)
         self.assertEqual(ttm([r for r in rows if r['report_period']!=periods[1]])['missing_reason'],'missing_quarter')
         rows[1]['first_observed_at']='2025-07-01T00:00:00Z'
-        hidden=ttm(rows);self.assertEqual(hidden['missing_reason'],'PIT_component_not_visible')
+        hidden=ttm(rows);self.assertEqual(hidden['missing_reason'],'missing_quarter')
         self.assertTrue(hidden['component_revisions']);self.assertEqual(hidden['expected_quarters'],periods)
         rows[1]['first_observed_at']='2025-01-01T00:00:00Z';rows[1]['values']['revenue']=None
         self.assertEqual(ttm(rows)['missing_reason'],'source_value_missing')
