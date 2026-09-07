@@ -337,8 +337,15 @@ class FactView:
         snapshot_id: str,
         *,
         adjusted_price_view_id: str | None = None,
+        pr6_fact_view_id: str | None = None,
     ) -> None:
         self.reader = SnapshotReader(data_root, snapshot_id)
+        self.pr6 = None
+        if pr6_fact_view_id is not None:
+            from axiom_data.pr6_views import load_pr6_fact_view
+            self.pr6 = load_pr6_fact_view(data_root, pr6_fact_view_id)
+            if self.pr6.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
+                raise ArtifactError("PR6 FactView belongs to another Snapshot")
         self.adjusted = (
             load_adjusted_price_view(data_root, adjusted_price_view_id)
             if adjusted_price_view_id is not None
@@ -359,6 +366,27 @@ class FactView:
         pit_policy: str = "actual",
         cutoff_policy: str | None = None,
     ) -> dict[str, Any]:
+        if domain == "pr6":
+            if self.pr6 is None:
+                raise ArtifactNotFoundError("VIEW_NOT_BUILT: explicit PR6 FactView required")
+            manifest = self.pr6.manifest
+            if pit_policy not in {"actual", manifest["pit_policy"]}:
+                raise ArtifactError("PR6 FactView policy differs from materialization")
+            if cutoff_policy is not None and cutoff_policy != manifest["cutoff_policy"]:
+                raise ArtifactError("PR6 FactView cutoff differs from materialization")
+            selected = set(symbols) if symbols is not None else None
+            selected_fields = tuple(fields or manifest["fields"])
+            if not selected_fields or len(selected_fields)!=len(set(selected_fields)) or set(selected_fields)-set(manifest["fields"]):
+                raise ArtifactError("invalid PR6 FactView fields")
+            rows = tuple({"symbol":r["symbol"],"session":r["session"],
+                          **{f:r["values"][f] for f in selected_fields}} for r in self.pr6.rows
+                         if (selected is None or r["symbol"] in selected)
+                         and (start_session is None or r["session"]>=start_session)
+                         and (end_session is None or r["session"]<=end_session))
+            return {"snapshot_ref":manifest["snapshot_ref"],"view_id":self.pr6.ref.view_id,
+                    "rows":rows,"fields":selected_fields,"pit_policy":manifest["pit_policy"],
+                    "cutoff_policy":manifest["cutoff_policy"],"knowledge_cutoff":manifest["knowledge_cutoff"],
+                    "pit_qualification":manifest["pit_qualification"],"domain_refs":manifest["domain_refs"]}
         if domain == "adjusted_price":
             if self.adjusted is None:
                 raise ArtifactNotFoundError("adjusted-price view unavailable; build-required")

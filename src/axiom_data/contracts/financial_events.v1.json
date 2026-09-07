@@ -1,0 +1,73 @@
+{
+  "contract_version": "financial_events.v1",
+  "domain": "financial_events",
+  "primary_key": [
+    "logical_event_key",
+    "revision_id"
+  ],
+  "sort_order": [
+    "logical_event_key",
+    "revision_id"
+  ],
+  "fields": [
+    {
+      "name": "symbol",
+      "nullable": false
+    },
+    {
+      "name": "logical_event_key",
+      "nullable": false
+    },
+    {
+      "name": "revision_id",
+      "nullable": false
+    },
+    {
+      "name": "source_available_at",
+      "nullable": true
+    },
+    {
+      "name": "first_observed_at",
+      "nullable": false
+    },
+    {
+      "name": "vendor_available_at",
+      "nullable": true
+    },
+    {
+      "name": "availability_basis",
+      "nullable": false
+    },
+    {
+      "name": "pit_qualification",
+      "nullable": false
+    },
+    {
+      "name": "source_ref",
+      "nullable": false
+    },
+    {
+      "name": "endpoint",
+      "nullable": false
+    },
+    {
+      "name": "report_period",
+      "nullable": false
+    },
+    {
+      "name": "report_type",
+      "nullable": false
+    },
+    {
+      "name": "values",
+      "nullable": false
+    },
+    {
+      "name": "missing_reasons",
+      "nullable": false
+    }
+  ],
+  "revision_semantics": "content fingerprint of economic identity and business payload; repeated observations preserve earliest observation; conflicting simultaneous revisions fail",
+  "availability_semantics": "safe/operational use actual first_observed; vendor date usable only under explicit best_effort_vendor_v1; verified unavailable",
+  "missing_semantics": "null retains explicit missing reason; no forward fill across revisions"
+}

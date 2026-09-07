@@ -74,3 +74,10 @@ The logical layout is:
 ```text
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
+
+## PR6 PIT and financial facts
+
+PR6 scope and contracts are documented in [ADR 0005](docs/adr/0005-pr6-pit-financial.md).
+The Snapshot Reader exposes as-of revisions, membership, historical union and financial
+derivations. PR6 Fact/Qlib materialization is explicit and snapshot-bound.
+PR7 leaves and D-M2 total acceptance remain deferred.

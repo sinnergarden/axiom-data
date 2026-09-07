@@ -148,6 +148,37 @@ class SnapshotReader:
             if row["symbol"] in selected and start <= row["session"] <= end
         )
 
+    def as_of(self, domain: str, *, knowledge_cutoff: str, pit_policy: str,
+              symbols: Sequence[str] | None = None) -> tuple[dict[str, Any], ...]:
+        from axiom_data.pit import select_revisions
+        return select_revisions(self.facts(domain, symbols=symbols),
+                                policy=pit_policy, knowledge_cutoff=knowledge_cutoff)
+
+    def financial_derived(self, *, knowledge_cutoff: str, pit_policy: str,
+                          symbols: Sequence[str] | None = None) -> tuple[dict[str, Any], ...]:
+        from axiom_data.pit import financial_derived
+        return financial_derived(self.facts("financial_events", symbols=symbols),
+                                 policy=pit_policy, knowledge_cutoff=knowledge_cutoff)
+
+    def members(self, group_id: str, target_session: str, *, knowledge_cutoff: str,
+                pit_policy: str, domain: str = "universe_membership") -> tuple[dict[str, Any], ...]:
+        from axiom_data.pit import members
+        if domain not in {"universe_membership", "industry_membership"}:
+            raise ArtifactError("membership domain required")
+        return members(self.facts(domain), group_id=group_id,
+                       target_session=_session(target_session, "target_session"),
+                       knowledge_cutoff=knowledge_cutoff, policy=pit_policy)
+
+    def historical_union(self, group_id: str, start_session: str, end_session: str,
+                         lookback_start: str, *, knowledge_cutoff: str,
+                         pit_policy: str) -> tuple[str, ...]:
+        from axiom_data.pit import historical_union
+        return historical_union(self.facts("universe_membership"), group_id=group_id,
+            start_session=_session(start_session, "start_session"),
+            end_session=_session(end_session, "end_session"),
+            lookback_start=_session(lookback_start, "lookback_start"),
+            knowledge_cutoff=knowledge_cutoff, policy=pit_policy)
+
     def facts(
         self,
         domain: str,
@@ -441,6 +472,9 @@ def build_qlib_view(
 def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
     """Verify one exact view, all files, and its source Snapshot closure."""
 
+    if isinstance(view_id, str) and view_id.startswith("pr6-fact-"):
+        from axiom_data.pr6_views import load_pr6_fact_view
+        return load_pr6_fact_view(data_root, view_id)
     layout = _layout(data_root)
     view_id = _identity("view_id", view_id)
     target = layout.qlib_exports / view_id
@@ -631,7 +665,8 @@ class QlibViewReader:
     def __init__(self, data_root: str | Path, view_id: str) -> None:
         self.data_root = Path(data_root)
         self.view = load_qlib_view(self.data_root, view_id)
-        self.path = _layout(self.data_root).qlib_exports / view_id
+        self.path = (_layout(self.data_root).derived_commits("pr6_fact") / view_id
+                     if view_id.startswith("pr6-fact-") else _layout(self.data_root).qlib_exports / view_id)
 
     def calendar(self) -> tuple[str, ...]:
         layout = _layout(self.data_root)
@@ -659,7 +694,7 @@ class QlibViewReader:
                 path = _relative_file(
                     layout.root,
                     self.path,
-                    f"{item['storage_path']}/{field}.day.bin",
+                    f"{item['storage_path']}/{self.view.manifest.get('qlib_field_mapping', {}).get(field, field)}.day.bin",
                 )
                 content = path.read_bytes()
                 if len(content) < 8 or len(content) % 4:

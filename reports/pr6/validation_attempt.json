@@ -1,0 +1,9 @@
+{
+  "run_id": "pr6-pit-financial-20260908-r1-validation-v3",
+  "stage": "offline_validation",
+  "code_bundle": "/home/liuming/workspace/axiom/data/forensic/pr6-pit-financial-20260908-r1/code-bundles/16f33772f0da6a05004942f200df224e8476199e5b2ed4ddc148fb25e0188943",
+  "source_root": "/home/liuming/workspace/axiom/data/forensic/pr6-pit-financial-20260908-r1/validated-root-v3",
+  "recovery_root": "/home/liuming/workspace/axiom/data/forensic/pr6-pit-financial-20260908-r1/recovered-root-v3",
+  "log": "/tmp/axiom-pr6-validation-v3.log",
+  "validator": "axiom_data.evidence.validate_pr6_evidence"
+}

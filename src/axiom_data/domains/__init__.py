@@ -33,3 +33,7 @@ __all__ = [
     "validate_trading_calendar_rows",
     "validate_dm1_snapshot_rows",
 ]
+
+from .pr6 import PR6_DOMAINS
+PR6_SNAPSHOT_DOMAINS = DM1_SNAPSHOT_DOMAINS + PR6_DOMAINS
+ALL_CANONICAL_DOMAINS = PR6_SNAPSHOT_DOMAINS

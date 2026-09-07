@@ -605,3 +605,61 @@ def validate_pr5_evidence(
 
 
 __all__ = ["validate_d01_snapshot_coexistence", "validate_pr5_evidence"]
+
+
+def pr6_actual_refs(data_root: str | Path, snapshot_id: str, view_id: str) -> dict[str, Any]:
+    """Resolve PR6 evidence through the same manifest-truth loaders used by readers."""
+    from axiom_data.consumption import SnapshotReader
+    from axiom_data.pr6_views import load_pr6_fact_view
+    reader = SnapshotReader(data_root, snapshot_id)
+    view = load_pr6_fact_view(data_root, view_id)
+    if view.manifest['snapshot_ref']['snapshot_id'] != snapshot_id:
+        raise ArtifactError('PR6 evidence View/Snapshot mismatch')
+    return {
+        'snapshot': {'snapshot_id': snapshot_id, 'identity_digest': reader.snapshot.manifest['identity_digest']},
+        'view': {'view_id': view_id, 'identity_digest': view.manifest['identity_digest']},
+        'domain_commits': {d: {'domain_commit_id': c.ref.commit_id,
+                              'logical_content_digest': c.manifest['logical_content_digest'],
+                              'rows': len(c.rows)} for d, c in reader.commits.items()},
+    }
+
+
+def validate_pr6_evidence(run_manifest: Mapping[str, Any], *, data_root: str | Path,
+                          offline_root: str | Path) -> bool:
+    """Fixed PR6 gate schema; caller booleans and coordinated fake references cannot pass."""
+    from axiom_data.pr6_reconciliation import reconcile
+    expected_fields = {'schema_version', 'data_root', 'offline_root', 'artifact_refs',
+                       'offline_artifact_refs', 'reconciliation', 'gates'}
+    if set(run_manifest) != expected_fields or run_manifest['schema_version'] != 'pr6_evidence.v1':
+        raise ArtifactError('PR6 evidence schema mismatch')
+    if str(Path(data_root)) != run_manifest['data_root'] or str(Path(offline_root)) != run_manifest['offline_root']:
+        raise ArtifactError('PR6 verifier must bind actual validation roots')
+    if Path(data_root).resolve() == Path(offline_root).resolve():
+        raise ArtifactError('PR6 recovery requires a different root')
+    refs = run_manifest['artifact_refs']
+    actual = pr6_actual_refs(data_root, refs['snapshot']['snapshot_id'], refs['view']['view_id'])
+    offline = pr6_actual_refs(offline_root, refs['snapshot']['snapshot_id'], refs['view']['view_id'])
+    if refs != actual or run_manifest['offline_artifact_refs'] != offline or offline != actual:
+        raise ArtifactError('PR6 actual artifact refs or recovery identity mismatch')
+    report = reconcile(data_root, refs['snapshot']['snapshot_id'], refs['view']['view_id'])
+    if run_manifest['reconciliation'] != report:
+        raise ArtifactError('PR6 reconciliation does not match actual inputs')
+    for root in (data_root, offline_root):
+        for kind, identity in [('data_snapshot', refs['snapshot']['snapshot_id']),
+                               ('pr6_fact_view', refs['view']['view_id']),
+                               ('qlib_view', refs['view']['view_id'])]:
+            lookup_catalog(root, kind, identity)
+    from axiom_data.consumption import SnapshotReader
+    financial = SnapshotReader(data_root, refs['snapshot']['snapshot_id']).commits['financial_events'].rows
+    revision_counts = Counter(r['logical_event_key'] for r in financial)
+    gates = {
+        'artifact_closure': True,
+        'offline_identity_and_values': actual == offline,
+        'historical_union_exact': report['historical_union']['count'] == 3601,
+        'direct_qlib_values': report['direct_qlib_comparisons'] > 0,
+        'bounded_membership_reconciliation': all(r['result'] == 'MATCH' for r in report['membership']),
+        'source_revisions_retained': max(revision_counts.values(), default=0) > 1,
+    }
+    if run_manifest['gates'] != gates or not all(gates.values()):
+        raise ArtifactError('PR6 gate result differs from actual validation')
+    return True

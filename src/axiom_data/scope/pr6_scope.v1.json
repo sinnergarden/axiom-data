@@ -1,0 +1,785 @@
+{
+  "schema_version": "axiom_data.pr6_scope.v1",
+  "authority": {
+    "package": "axiom-qsys-pr4-audit.c969c74-20260906-r5",
+    "sha256": {
+      "package_manifest.json": "3fbeea59662590614fe0aa9d2d3b907929b1e3f1656d3e6ae9417e13f56f859f",
+      "data_leaf_manifest.json": "4fb9ed254fbd47ef7d7091f5b6734aa8fd6b24b4ea836704f670ad51f6481cc9",
+      "leaf_to_migration_slice.json": "73095f6da881ea32703fd34368f0274e1e1c7ae65380d3020f4e866258b4beeb",
+      "feature_dependency_closure.json": "bc84c1e449b98c1cb9462f4edcba98b32fb0aeca116a5dc0ef1571cb672cc50a",
+      "financial_derived_closure.json": "995501ef02cc76fdc6096419cf865ecf0fc7aa00c3952a8f0514d37ab460a877",
+      "historical_union_verification.json": "94050713e806501584e91092b587b1b636046ba25bd8a74794fbe5d177ec8e18"
+    }
+  },
+  "required_leaves": [
+    {
+      "leaf_id": "balance.accounts_receivable",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "balance.current_assets",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "balance.current_liabilities",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "balance.equity",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "balance.inventory",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "balance.total_assets",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "cashflow.operating",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "financial.single_quarter_oper_cost",
+      "domain": "financial_stable_derived",
+      "artifact_kind": "stable_derived",
+      "slice_id": "slice_financial_stable_derived",
+      "contract_pit_gate": "single-quarter/TTM component lineage and max availability"
+    },
+    {
+      "leaf_id": "financial.single_quarter_revenue",
+      "domain": "financial_stable_derived",
+      "artifact_kind": "stable_derived",
+      "slice_id": "slice_financial_stable_derived",
+      "contract_pit_gate": "single-quarter/TTM component lineage and max availability"
+    },
+    {
+      "leaf_id": "financial.ttm_net_income",
+      "domain": "financial_stable_derived",
+      "artifact_kind": "stable_derived",
+      "slice_id": "slice_financial_stable_derived",
+      "contract_pit_gate": "single-quarter/TTM component lineage and max availability"
+    },
+    {
+      "leaf_id": "financial.ttm_revenue",
+      "domain": "financial_stable_derived",
+      "artifact_kind": "stable_derived",
+      "slice_id": "slice_financial_stable_derived",
+      "contract_pit_gate": "single-quarter/TTM component lineage and max availability"
+    },
+    {
+      "leaf_id": "income.net_income",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "income.oper_cost",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "income.revenue",
+      "domain": "financial_statement",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "indicator.current_ratio",
+      "domain": "financial_indicator",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "indicator.debt_ratio",
+      "domain": "financial_indicator",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "indicator.gross_margin",
+      "domain": "financial_indicator",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "indicator.roe",
+      "domain": "financial_indicator",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_financial_as_reported",
+      "contract_pit_gate": "as-reported revisions, source_available, first_observed, units"
+    },
+    {
+      "leaf_id": "industry.membership",
+      "domain": "industry_membership",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_pit_industry",
+      "contract_pit_gate": "PIT industry membership, taxonomy, and cohort timing"
+    },
+    {
+      "leaf_id": "universe.membership",
+      "domain": "universe_membership",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_pit_universe",
+      "contract_pit_gate": "PIT membership effective intervals and availability"
+    },
+    {
+      "leaf_id": "valuation.pb",
+      "domain": "valuation_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_valuation",
+      "contract_pit_gate": "valuation units, denominator identity, and fallback provenance"
+    },
+    {
+      "leaf_id": "valuation.pe",
+      "domain": "valuation_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_valuation",
+      "contract_pit_gate": "valuation units, denominator identity, and fallback provenance"
+    },
+    {
+      "leaf_id": "valuation.ps",
+      "domain": "valuation_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_valuation",
+      "contract_pit_gate": "valuation units, denominator identity, and fallback provenance"
+    }
+  ],
+  "leaf_semantics": [
+    {
+      "leaf_id": "balance.accounts_receivable",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "balancesheet.accounts_receiv",
+      "source": "tushare.balancesheet",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical accounts_receiv/ar -> Qlib",
+      "fallback/provenance issue": "name mismatch exists",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "semantic_name_then_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "balance.current_assets",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "balancesheet.total_cur_assets",
+      "source": "tushare.balancesheet",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "fallback input",
+      "fallback/provenance issue": "not-applicable and missing differ",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "revision_aware_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "balance.current_liabilities",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "balancesheet.total_cur_liab",
+      "source": "tushare.balancesheet",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "fallback input",
+      "fallback/provenance issue": "not-applicable and missing differ",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "revision_aware_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "balance.equity",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "balancesheet.total_hldr_eqy_exc_min_int",
+      "source": "tushare.balancesheet",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical -> Qlib",
+      "fallback/provenance issue": "revision/publication timeline required",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "revision_aware_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "balance.inventory",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "balancesheet.inventories",
+      "source": "tushare.balancesheet",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical -> Qlib",
+      "fallback/provenance issue": "not-applicable and missing differ",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "revision_aware_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "balance.total_assets",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "balancesheet.total_assets",
+      "source": "tushare.balancesheet",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical -> Qlib",
+      "fallback/provenance issue": "revision/publication timeline required",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "revision_aware_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "cashflow.operating",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "cashflow.n_cashflow_act",
+      "source": "tushare.cashflow",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical -> Qlib",
+      "fallback/provenance issue": "revision/publication timeline required",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "revision_aware_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "financial.single_quarter_oper_cost",
+      "domain": "financial_stable_derived",
+      "leaf_field/stable_derived": "single_quarter_oper_cost",
+      "source": "revision-visible cumulative financial statement facts",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof_and_component_max_availability",
+      "PIT evidence class": "requires_revision_bound_source_available_and_first_observed",
+      "revision requirement": "derive per visible revision set; never overwrite earlier statement revisions",
+      "missing semantics": "missing or non-consecutive component quarter makes output unavailable, never zero-filled",
+      "current Qsys physical source": "income sidecar; current implementation computes inside Research",
+      "fallback/provenance issue": "current Qsys ownership differs from target Data MD boundary",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "Data-owned stable-derived contract required",
+      "owner": "Data",
+      "artifact_kind": "stable_derived",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "financial.single_quarter_revenue",
+      "domain": "financial_stable_derived",
+      "leaf_field/stable_derived": "single_quarter_revenue",
+      "source": "revision-visible cumulative financial statement facts",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof_and_component_max_availability",
+      "PIT evidence class": "requires_revision_bound_source_available_and_first_observed",
+      "revision requirement": "derive per visible revision set; never overwrite earlier statement revisions",
+      "missing semantics": "missing or non-consecutive component quarter makes output unavailable, never zero-filled",
+      "current Qsys physical source": "income sidecar; current implementation computes inside Research",
+      "fallback/provenance issue": "current Qsys ownership differs from target Data MD boundary",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "Data-owned stable-derived contract required",
+      "owner": "Data",
+      "artifact_kind": "stable_derived",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "financial.ttm_net_income",
+      "domain": "financial_stable_derived",
+      "leaf_field/stable_derived": "ttm_net_income",
+      "source": "revision-visible cumulative financial statement facts",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof_and_component_max_availability",
+      "PIT evidence class": "requires_revision_bound_source_available_and_first_observed",
+      "revision requirement": "derive per visible revision set; never overwrite earlier statement revisions",
+      "missing semantics": "missing or non-consecutive component quarter makes output unavailable, never zero-filled",
+      "current Qsys physical source": "income sidecar; current implementation computes inside Research",
+      "fallback/provenance issue": "current Qsys ownership differs from target Data MD boundary",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "Data-owned stable-derived contract required",
+      "owner": "Data",
+      "artifact_kind": "stable_derived",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "financial.ttm_revenue",
+      "domain": "financial_stable_derived",
+      "leaf_field/stable_derived": "ttm_revenue",
+      "source": "revision-visible cumulative financial statement facts",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof_and_component_max_availability",
+      "PIT evidence class": "requires_revision_bound_source_available_and_first_observed",
+      "revision requirement": "derive per visible revision set; never overwrite earlier statement revisions",
+      "missing semantics": "missing or non-consecutive component quarter makes output unavailable, never zero-filled",
+      "current Qsys physical source": "income sidecar; current implementation computes inside Research",
+      "fallback/provenance issue": "current Qsys ownership differs from target Data MD boundary",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "Data-owned stable-derived contract required",
+      "owner": "Data",
+      "artifact_kind": "stable_derived",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "income.net_income",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "income.n_income",
+      "source": "tushare.income.n_income",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical/Qlib or audited sidecar",
+      "fallback/provenance issue": "revision/publication timeline required",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "revision_aware_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "income.oper_cost",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "income.oper_cost",
+      "source": "tushare.income.oper_cost",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "audited income sidecar",
+      "fallback/provenance issue": "revision/publication timeline required",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "revision_aware_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "income.revenue",
+      "domain": "financial_statement",
+      "leaf_field/stable_derived": "income.revenue",
+      "source": "tushare.income.revenue",
+      "unit": "CNY",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical/Qlib or audited sidecar",
+      "fallback/provenance issue": "legacy formal inference can use mutable unbound income.parquet",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "revision_aware_financial_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "indicator.current_ratio",
+      "domain": "financial_indicator",
+      "leaf_field/stable_derived": "current_ratio",
+      "source": "tushare.fina_indicator",
+      "unit": "ratio",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical -> Qlib",
+      "fallback/provenance issue": "may fall back current_assets/current_liabilities",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "semantic_decision_required",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "indicator.debt_ratio",
+      "domain": "financial_indicator",
+      "leaf_field/stable_derived": "debt_to_assets",
+      "source": "tushare.fina_indicator",
+      "unit": "decimal ratio",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical -> Qlib",
+      "fallback/provenance issue": "may fall back (assets-equity)/assets",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "semantic_decision_required",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "indicator.gross_margin",
+      "domain": "financial_indicator",
+      "leaf_field/stable_derived": "grossprofit_margin",
+      "source": "tushare.fina_indicator",
+      "unit": "decimal ratio",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical -> Qlib",
+      "fallback/provenance issue": "may fall back (revenue-oper_cost)/revenue",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "semantic_decision_required",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "indicator.roe",
+      "domain": "financial_indicator",
+      "leaf_field/stable_derived": "roe/roe_waa",
+      "source": "tushare.fina_indicator",
+      "unit": "decimal ratio",
+      "PIT requirement": "announcement_asof",
+      "PIT evidence class": "unknown_evidence",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical -> Qlib",
+      "fallback/provenance issue": "may fall back net_income/equity",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "semantic_decision_required",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "industry.membership",
+      "domain": "industry_membership",
+      "leaf_field/stable_derived": "PIT classification interval",
+      "source": "tushare.bak_basic; stock_basic fallback",
+      "unit": "taxonomy code",
+      "PIT requirement": "effective_interval",
+      "PIT evidence class": "best_effort/bootstrap",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical/Qlib industry; meta.db fallback",
+      "fallback/provenance issue": "current metadata fallback contaminates history",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "PIT_universe_industry_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "universe.membership",
+      "domain": "universe_membership",
+      "leaf_field/stable_derived": "PIT index membership",
+      "source": "tushare.index_weight",
+      "unit": "effective interval",
+      "PIT requirement": "effective_interval",
+      "PIT evidence class": "best_effort/bootstrap",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "research universe artifacts",
+      "fallback/provenance issue": "absence outside proven snapshot is unknown",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "PIT_universe_industry_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "valuation.pb",
+      "domain": "valuation_daily",
+      "leaf_field/stable_derived": "pb",
+      "source": "tushare.daily_basic.pb",
+      "unit": "ratio",
+      "PIT requirement": "completed_session",
+      "PIT evidence class": "observed_candidate",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical daily -> Qlib",
+      "fallback/provenance issue": "missing is unknown",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "source_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "valuation.pe",
+      "domain": "valuation_daily",
+      "leaf_field/stable_derived": "pe",
+      "source": "tushare.daily_basic.pe",
+      "unit": "ratio",
+      "PIT requirement": "completed_session",
+      "PIT evidence class": "observed_candidate",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical daily -> Qlib",
+      "fallback/provenance issue": "loss/nonmeaningful and missing must differ",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "source_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    },
+    {
+      "leaf_id": "valuation.ps",
+      "domain": "valuation_daily",
+      "leaf_field/stable_derived": "ps/ps_ttm",
+      "source": "tushare.daily_basic.ps/ps_ttm",
+      "unit": "ratio",
+      "PIT requirement": "completed_session",
+      "PIT evidence class": "observed_candidate",
+      "revision requirement": "retain immutable observation/request/revision identity; announcement domains require actual visibility revisions",
+      "missing semantics": "missing/unknown is never silently zero, suspended, current, or identity factor",
+      "current Qsys physical source": "canonical daily -> Qlib",
+      "fallback/provenance issue": "direct/alias/total_mv-revenue fallback changes provenance",
+      "Axiom PR3 coverage": "not_covered",
+      "migration status": "semantic_decision_then_source_slice",
+      "owner": "Data",
+      "artifact_kind": "canonical_fact_or_membership",
+      "requirement_kind": "closure_terminal"
+    }
+  ],
+  "stable_derived_requirements": [
+    {
+      "leaf_id": "financial.single_quarter_oper_cost",
+      "domain": "financial_stable_derived",
+      "artifact_kind": "stable_derived",
+      "slice_id": "slice_financial_stable_derived",
+      "contract_pit_gate": "single-quarter/TTM component lineage and max availability"
+    },
+    {
+      "leaf_id": "financial.single_quarter_revenue",
+      "domain": "financial_stable_derived",
+      "artifact_kind": "stable_derived",
+      "slice_id": "slice_financial_stable_derived",
+      "contract_pit_gate": "single-quarter/TTM component lineage and max availability"
+    },
+    {
+      "leaf_id": "financial.ttm_net_income",
+      "domain": "financial_stable_derived",
+      "artifact_kind": "stable_derived",
+      "slice_id": "slice_financial_stable_derived",
+      "contract_pit_gate": "single-quarter/TTM component lineage and max availability"
+    },
+    {
+      "leaf_id": "financial.ttm_revenue",
+      "domain": "financial_stable_derived",
+      "artifact_kind": "stable_derived",
+      "slice_id": "slice_financial_stable_derived",
+      "contract_pit_gate": "single-quarter/TTM component lineage and max availability"
+    }
+  ],
+  "financial_derived_contract": {
+    "schema_version": "axiom_financial_stable_derived_audit.v1",
+    "target_owner": "Data",
+    "pipeline": [
+      "as-reported cumulative statement revision",
+      "single-quarter fact",
+      "rolling four-quarter TTM fact",
+      "Research growth/threshold transform"
+    ],
+    "availability": {
+      "single_quarter_usable_at": "max(current cumulative revision usable_at, immediately preceding cumulative revision usable_at); Q1 uses current only",
+      "ttm_usable_at": "max(usable_at of all four exact component quarters)",
+      "source_time_fields": [
+        "source_available",
+        "first_observed"
+      ],
+      "revision_rule": "derive from the revision set visible at the knowledge cutoff; a later restatement creates a new derived revision"
+    },
+    "contract_counterexamples": [
+      {
+        "case": "missing previous cumulative quarter",
+        "result": "non-Q1 single-quarter and dependent TTM unavailable"
+      },
+      {
+        "case": "four-quarter window skips a fiscal quarter",
+        "result": "TTM unavailable even if four rows exist"
+      },
+      {
+        "case": "same report period has two versions on one date",
+        "result": "select by explicit revision/evidence policy or fail ambiguity; never file order"
+      },
+      {
+        "case": "later restatement with old announcement date",
+        "result": "not visible before revision-specific source_available/first_observed"
+      },
+      {
+        "case": "one component has later usable_at",
+        "result": "TTM usable_at is that latest component time"
+      },
+      {
+        "case": "zero denominator in Research YoY",
+        "result": "growth output invalid/missing, not infinity or zero"
+      }
+    ],
+    "current_qsys_evidence": "fixed_tree/qsys/feature/groups/growth_confirmation_v0.py::_single_q_value,_compute_quarterly_features,_rolling_max_available_from",
+    "ownership_correction": "Qsys currently computes stable single-quarter/TTM inside Research; migration target moves those facts to Data while leaving YoY/growth/threshold Features in Research"
+  },
+  "deferred_pr7_leaves": [
+    {
+      "leaf_id": "forecast.announcement",
+      "domain": "forecast_observation",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_forecast",
+      "contract_pit_gate": "announcement/revision visibility and forecast-period identity"
+    },
+    {
+      "leaf_id": "forecast.period_end",
+      "domain": "forecast_observation",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_forecast",
+      "contract_pit_gate": "announcement/revision visibility and forecast-period identity"
+    },
+    {
+      "leaf_id": "forecast.type",
+      "domain": "forecast_observation",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_forecast",
+      "contract_pit_gate": "announcement/revision visibility and forecast-period identity"
+    },
+    {
+      "leaf_id": "holder.number",
+      "domain": "shareholder_observation",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_shareholder",
+      "contract_pit_gate": "observation/report dates, revision and availability"
+    },
+    {
+      "leaf_id": "holder.top10_ratio",
+      "domain": "shareholder_observation",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_shareholder",
+      "contract_pit_gate": "observation/report dates, revision and availability"
+    },
+    {
+      "leaf_id": "margin.balance",
+      "domain": "margin_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_margin_lending",
+      "contract_pit_gate": "exchange scope, units, freshness, and circ_mv→total_mv fallback"
+    },
+    {
+      "leaf_id": "margin.buy",
+      "domain": "margin_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_margin_lending",
+      "contract_pit_gate": "exchange scope, units, freshness, and circ_mv→total_mv fallback"
+    },
+    {
+      "leaf_id": "margin.lend_balance_volume",
+      "domain": "margin_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_margin_lending",
+      "contract_pit_gate": "exchange scope, units, freshness, and circ_mv→total_mv fallback"
+    },
+    {
+      "leaf_id": "margin.lend_repay_volume",
+      "domain": "margin_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_margin_lending",
+      "contract_pit_gate": "exchange scope, units, freshness, and circ_mv→total_mv fallback"
+    },
+    {
+      "leaf_id": "margin.lend_sell_volume",
+      "domain": "margin_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_margin_lending",
+      "contract_pit_gate": "exchange scope, units, freshness, and circ_mv→total_mv fallback"
+    },
+    {
+      "leaf_id": "margin.repay",
+      "domain": "margin_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_margin_lending",
+      "contract_pit_gate": "exchange scope, units, freshness, and circ_mv→total_mv fallback"
+    },
+    {
+      "leaf_id": "margin.total_balance",
+      "domain": "margin_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_margin_lending",
+      "contract_pit_gate": "exchange scope, units, freshness, and circ_mv→total_mv fallback"
+    },
+    {
+      "leaf_id": "moneyflow.big_buy",
+      "domain": "moneyflow_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_moneyflow",
+      "contract_pit_gate": "source components, units, and session availability"
+    },
+    {
+      "leaf_id": "moneyflow.big_sell",
+      "domain": "moneyflow_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_moneyflow",
+      "contract_pit_gate": "source components, units, and session availability"
+    },
+    {
+      "leaf_id": "moneyflow.net",
+      "domain": "moneyflow_daily",
+      "artifact_kind": "canonical_fact_or_membership",
+      "slice_id": "slice_moneyflow",
+      "contract_pit_gate": "source components, units, and session availability"
+    }
+  ],
+  "reused_pr5_leaves": [
+    "market.circ_mv",
+    "market.total_mv",
+    "shares.float",
+    "shares.total"
+  ],
+  "validated_authority_files": 1518,
+  "feature_dependency_count": 469
+}
