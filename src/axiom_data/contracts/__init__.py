@@ -44,6 +44,7 @@ _CONTRACT_DOMAINS = {
 
 
 PR6_CONTRACT_VERSIONS = tuple(name + ".v1" for name in ("financial_events", "valuation_daily", "universe_membership", "industry_membership"))
+PR6_CONTRACT_VERSIONS += tuple(v.replace(".v1", ".v2") for v in PR6_CONTRACT_VERSIONS)
 _CONTRACT_FILES.update({v: v + ".json" for v in PR6_CONTRACT_VERSIONS})
 _CONTRACT_DOMAINS.update({v: v[:-3] for v in PR6_CONTRACT_VERSIONS})
 

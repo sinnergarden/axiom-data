@@ -26,11 +26,11 @@ def market_contracts() -> dict[str, dict[str, Any]]:
     return {contract["domain"]: contract for contract in contracts}
 
 
-def _rows(domain: str, rows: object) -> tuple[Mapping[str, object], ...]:
+def _rows(domain: str, rows: object, version: str = "v1") -> tuple[Mapping[str, object], ...]:
     if isinstance(rows, (str, bytes)) or not isinstance(rows, Sequence):
         raise MarketContractError(f"{domain} rows must be a sequence")
     try:
-        contract = load_contract(f"{domain}.v1")
+        contract = load_contract(f"{domain}.{version}")
     except ValueError as exc:
         raise MarketContractError(f"unknown canonical domain {domain!r}") from exc
     expected_fields = tuple(field["name"] for field in contract["fields"])
@@ -50,11 +50,11 @@ def _rows(domain: str, rows: object) -> tuple[Mapping[str, object], ...]:
     return tuple(frozen)
 
 
-def _validate_keys(domain: str, rows: Sequence[Mapping[str, object]]) -> None:
+def _validate_keys(domain: str, rows: Sequence[Mapping[str, object]], version: str = "v1") -> None:
     """Check identity and ordering after domain key types have been validated."""
 
     try:
-        contract = load_contract(f"{domain}.v1")
+        contract = load_contract(f"{domain}.{version}")
     except ValueError as exc:
         raise MarketContractError(f"unknown canonical domain {domain!r}") from exc
     primary_key = contract["primary_key"]

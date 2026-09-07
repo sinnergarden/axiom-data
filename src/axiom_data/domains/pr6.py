@@ -16,13 +16,23 @@ FINANCIAL_FIELDS = {
 
 def economic_content(row):
     excluded = {'revision_id', 'source_ref', 'source_available_at', 'first_observed_at',
-                'vendor_available_at', 'availability_basis', 'pit_qualification', 'boundary_source_ref'}
+                'vendor_available_at', 'availability_basis', 'pit_qualification', 'boundary_source_ref', 'observations'}
     return {k:v for k,v in row.items() if k not in excluded}
 
 
 def validate_rows(domain, rows):
-    frozen = _rows(domain, rows)
+    version = "v2" if rows and "observations" in rows[0] else "v1"
+    frozen = _rows(domain, rows, version)
     for row in frozen:
+        if version == 'v2':
+            observations=row['observations']
+            if not isinstance(observations,list) or not observations:
+                raise MarketContractError('observation lineage required')
+            for o in observations:
+                if o['observation_id'] != fingerprint({k:v for k,v in o.items() if k!='observation_id'}):
+                    raise MarketContractError('observation identity mismatch')
+                if o['revision_id'] != row['revision_id'] or instant(o['observed_at']) < instant(row['first_observed_at']):
+                    raise MarketContractError('invalid content observation binding')
         _symbol(row['symbol'])
         _provenance(row)
         for field in ('logical_event_key', 'revision_id'):
@@ -61,10 +71,10 @@ def validate_rows(domain, rows):
                 raise MarketContractError('empty or reversed membership interval')
             if domain=='industry_membership':
                 _text('industry_id',row['industry_id'])
-    _validate_keys(domain,frozen)
+    _validate_keys(domain,frozen,version)
     if 'membership' in domain:
         from axiom_data.pit import select_revisions
-        for cutoff in sorted({r['first_observed_at'] for r in frozen}):
+        for cutoff in sorted({o['observed_at'] for r in frozen for o in r.get('observations',[{'observed_at':r['first_observed_at']}])}):
             selected=select_revisions(frozen,policy='operational_pit_v1',knowledge_cutoff=cutoff)
             intervals={}
             for row in sorted(selected,key=lambda r:(r['group_id'],r['symbol'],r['effective_from'])):

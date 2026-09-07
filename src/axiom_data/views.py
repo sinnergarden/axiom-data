@@ -374,8 +374,11 @@ class FactView:
                 raise ArtifactError("PR6 FactView policy differs from materialization")
             if cutoff_policy is not None and cutoff_policy != manifest["cutoff_policy"]:
                 raise ArtifactError("PR6 FactView cutoff differs from materialization")
-            selected = set(symbols) if symbols is not None else None
-            selected_fields = tuple(fields or manifest["fields"])
+            from axiom_data.pr6_coverage import admit_materialized
+            selected = set(symbols) if symbols is not None else set(manifest['validated_scope']['symbols'])
+            selected_fields = tuple(fields) if fields is not None else tuple(manifest["fields"])
+            admit_materialized(manifest,selected,start_session or manifest['validated_scope']['start_session'],
+                               end_session or manifest['validated_scope']['end_session'],selected_fields)
             if not selected_fields or len(selected_fields)!=len(set(selected_fields)) or set(selected_fields)-set(manifest["fields"]):
                 raise ArtifactError("invalid PR6 FactView fields")
             rows = tuple({"symbol":r["symbol"],"session":r["session"],
@@ -386,7 +389,15 @@ class FactView:
             return {"snapshot_ref":manifest["snapshot_ref"],"view_id":self.pr6.ref.view_id,
                     "rows":rows,"fields":selected_fields,"pit_policy":manifest["pit_policy"],
                     "cutoff_policy":manifest["cutoff_policy"],"knowledge_cutoff":manifest["knowledge_cutoff"],
-                    "pit_qualification":manifest["pit_qualification"],"domain_refs":manifest["domain_refs"]}
+                    "pit_qualification":manifest["pit_qualification"],"domain_refs":manifest["domain_refs"],
+                    "industry_mapping":manifest['industry_mapping'],
+                    "requested_scope":{"symbols":sorted(selected),"start_session":start_session or manifest['scope']['start_session'],
+                        "end_session":end_session or manifest['scope']['end_session'],"fields":list(selected_fields)},
+                    "actual_available_scope":manifest['actual_available_scope'],"validated_scope":manifest['validated_scope'],
+                    "facts":tuple({'symbol':r['symbol'],'session':r['session'],
+                        'fields':{f:r['facts'][f] for f in selected_fields}} for r in self.pr6.rows
+                        if r['symbol'] in selected and (start_session is None or r['session']>=start_session)
+                        and (end_session is None or r['session']<=end_session))}
         if domain == "adjusted_price":
             if self.adjusted is None:
                 raise ArtifactNotFoundError("adjusted-price view unavailable; build-required")

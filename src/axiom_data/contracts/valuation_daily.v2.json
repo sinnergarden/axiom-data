@@ -1,0 +1,69 @@
+{
+  "contract_version": "valuation_daily.v2",
+  "domain": "valuation_daily",
+  "primary_key": [
+    "logical_event_key",
+    "revision_id"
+  ],
+  "sort_order": [
+    "logical_event_key",
+    "revision_id"
+  ],
+  "fields": [
+    {
+      "name": "symbol",
+      "nullable": false
+    },
+    {
+      "name": "logical_event_key",
+      "nullable": false
+    },
+    {
+      "name": "revision_id",
+      "nullable": false
+    },
+    {
+      "name": "source_available_at",
+      "nullable": true
+    },
+    {
+      "name": "first_observed_at",
+      "nullable": false
+    },
+    {
+      "name": "vendor_available_at",
+      "nullable": true
+    },
+    {
+      "name": "availability_basis",
+      "nullable": false
+    },
+    {
+      "name": "pit_qualification",
+      "nullable": false
+    },
+    {
+      "name": "source_ref",
+      "nullable": false
+    },
+    {
+      "name": "session",
+      "nullable": false
+    },
+    {
+      "name": "values",
+      "nullable": false
+    },
+    {
+      "name": "missing_reasons",
+      "nullable": false
+    },
+    {
+      "name": "observations",
+      "nullable": false
+    }
+  ],
+  "revision_semantics": "Content fingerprint excludes observations. Ordered source observations retain recurrence and source lineage; earliest content observation is preserved.",
+  "availability_semantics": "operational selects last actual observation; vendor selects vendor time then observation time, tied incompatible content fails. Universe selects a complete reconstructed state.",
+  "missing_semantics": "null retains explicit missing reason; no forward fill across revisions"
+}

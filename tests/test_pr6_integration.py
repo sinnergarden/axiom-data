@@ -28,11 +28,14 @@ class Pr6IntegrationTest(unittest.TestCase):
                 {'ts_code':'600000.SH','trade_date':'20260105','pe':10,'pb':1,'ps':2}])],
             }
             requests['financial_events'].append(('fina_indicator',{'ts_code':'600000.SH','period':'20250331'},[{'ts_code':'600000.SH','ann_date':'20250401','end_date':'20250331','update_flag':'1','current_ratio':None,'debt_to_assets':None,'grossprofit_margin':None,'roe':None}]))
+            for endpoint,values in [('balancesheet',{'accounts_receiv':1,'total_cur_assets':2,'total_cur_liab':1,'total_hldr_eqy_exc_min_int':1,'inventories':1,'total_assets':3}),('cashflow',{'n_cashflow_act':1})]:
+                requests['financial_events'].append((endpoint,{'ts_code':'600000.SH','period':'20250331'},[
+                    dict(ts_code='600000.SH',ann_date='20250401',f_ann_date='20250401',end_date='20250331',report_type='1',update_flag='1',**values)]))
             for domain,jobs in requests.items():
                 refs=[Pr6Collector(root,Client(rows)).collect(endpoint,params,retrieved_at='2026-09-01T00:00:00Z').raw_batch_id for endpoint,params,rows in jobs]
                 config={'membership_end_exclusive':'2026-01-08'} if domain=='universe_membership' else {}
                 builder=Pr6Builder(root,domain,builder_config=config,dependency_commit_ids={d:commits[d] for d in _DOMAIN_DEPENDENCIES[domain]})
-                commits[domain]=BuildApplication(domain,builder).build(None,refs,[],domain+'.v1').commit_id
+                commits[domain]=BuildApplication(domain,builder).build(None,refs,[],domain+'.v2').commit_id
             snapshot=create_snapshot(root,commits);reader=SnapshotReader(root,snapshot.snapshot_id)
             args={'pit_policy':'best_effort_vendor_v1','knowledge_cutoff':'2026-09-02T00:00:00Z'}
             union=reader.historical_union('000906.SH','2026-01-05','2026-01-07','2026-01-02',**args)
@@ -44,8 +47,33 @@ class Pr6IntegrationTest(unittest.TestCase):
                 self.assertEqual('600000.SH' in [r['symbol'] for r in reader.members('000906.SH',day,**args)],expected)
             for day,expected in [('2026-01-05','bank'),('2026-01-07','industry')]:
                 self.assertEqual(reader.members('tushare_bak_basic',day,domain='industry_membership',**args)[0]['industry_id'],expected)
-            view=build_pr6_fact_view(root,snapshot.snapshot_id,symbols=['600000.SH'],start_session='2026-01-02',end_session='2026-01-05',universe_ids=['000906.SH'],industry_system='tushare_bak_basic',**args)
-            direct=FactView(root,snapshot.snapshot_id,pr6_fact_view_id=view.view_id).read('pr6')['rows']
+            view=build_pr6_fact_view(root,snapshot.snapshot_id,symbols=['600000.SH'],start_session='2026-01-05',end_session='2026-01-05',universe_ids=['000906.SH'],industry_system='tushare_bak_basic',**args)
+            fact_view=FactView(root,snapshot.snapshot_id,pr6_fact_view_id=view.view_id)
+            result=fact_view.read('pr6');direct=result['rows']
+            missing=result['facts'][0]['fields']['financial.ttm_revenue']
+            self.assertIsNone(missing['value']);self.assertEqual(missing['missing_reason'],'missing_quarter')
+            self.assertTrue(missing['component_revision_refs']);self.assertTrue(missing['derived_ref'])
+            self.assertEqual(missing['unit'],'CNY');self.assertEqual(missing['quality_state'],'BLOCKED')
+            self.assertEqual(result['industry_mapping']['code_to_industry']['1'],'bank')
+            self.assertEqual(QlibViewReader(root,view.view_id).fact_metadata()['rows'],result['facts'])
+            from axiom_data.artifacts import ArtifactError
+            for kwargs in [{'start_session':'2020-01-01'},{'end_session':'2026-01-07'},{'symbols':['600002.SH']},{'fields':['unknown']}]:
+                with self.assertRaises(ArtifactError):fact_view.read('pr6',**kwargs)
+            build_args=dict(symbols=['600000.SH'],start_session='2026-01-05',end_session='2026-01-05',universe_ids=['000906.SH'],industry_system='tushare_bak_basic',**args)
+            for change,code in [({'start_session':'2020-01-01'},'INSUFFICIENT_SCOPE'),({'end_session':'2026-01-07'},'INSUFFICIENT_SCOPE'),({'universe_ids':['unknown']},'UNKNOWN_UNIVERSE'),({'industry_system':'unknown'},'UNKNOWN_CLASSIFICATION'),({'symbols':['600002.SH']},'INSUFFICIENT_SCOPE')]:
+                with self.assertRaisesRegex(ArtifactError,code):build_pr6_fact_view(root,snapshot.snapshot_id,**dict(build_args,**change))
+            with self.assertRaisesRegex(ArtifactError,'UNKNOWN_UNIVERSE'):reader.members('unknown','2026-01-05',**args)
+            with self.assertRaisesRegex(ArtifactError,'INSUFFICIENT_SCOPE'):reader.as_of('financial_events',symbols=['600002.SH'],**args)
+            membership=reader.membership_facts('000906.SH','2026-01-05',**args)
+            self.assertEqual(membership['pit_policy'],args['pit_policy']);self.assertEqual(membership['version'],commits['universe_membership'])
+            # Removing mapping from an immutable View cannot remain readable.
+            import json
+            from axiom_data.pr6_views import load_pr6_fact_view
+            path=root/'derived/pr6_fact/commits'/view.view_id/'manifest.json'
+            original=path.read_bytes();manifest=json.loads(original);del manifest['industry_mapping']
+            path.write_text(json.dumps(manifest))
+            with self.assertRaises(ArtifactError):load_pr6_fact_view(root,view.view_id)
+            path.write_bytes(original)
             binary=QlibViewReader(root,view.view_id).market_daily(include_missing=True)
             self.assertEqual(direct,binary)
             self.assertEqual(direct[-1]['financial.single_quarter_revenue'],100)

@@ -100,7 +100,7 @@ class Pr6Builder(MarketDomainBuilder):
             for name in ('pr6_source.py','pit.py','domains/pr6.py','artifacts.py')}
         super().__init__(data_root,domain,builder_config=config,**kwargs)
 
-    def _build_rows(self, contract, parent_rows, raw_batches):
+    def _legacy_rows(self, contract, parent_rows, raw_batches):
         normalized=[]
         weights=defaultdict(list)
         for raw in raw_batches:
@@ -184,6 +184,106 @@ class Pr6Builder(MarketDomainBuilder):
             if old is None or instant(row['first_observed_at'])<instant(old['first_observed_at']):
                 by_key[key]=dict(row)
         return [by_key[k] for k in sorted(by_key)]
+
+    def _build_rows(self, contract, parent_rows, raw_batches):
+        if not contract['contract_version'].endswith('.v2'):
+            return self._legacy_rows(contract, parent_rows, raw_batches)
+        # Parent is immutable; replay only its explicit raw lineage plus new inputs.
+        from axiom_data.artifacts import load_raw_batch
+        refs = {o['source_ref'] for r in parent_rows for o in r['observations']}
+        refs.update(o['boundary_source_ref'] for r in parent_rows for o in r['observations']
+                    if o.get('boundary_source_ref'))
+        refs.update(ref for r in parent_rows for o in r['observations']
+                    for ref in o.get('state_raw_refs', []))
+        raws = {r.ref.raw_batch_id:r for r in raw_batches}
+        for ref in sorted(refs - raws.keys()):
+            raws[ref] = load_raw_batch(self.layout.root, ref)
+        ordered = sorted(raws.values(), key=lambda r:(instant(r.manifest['retrieved_at']),r.ref.raw_batch_id))
+        content = {}
+        def retain(row, observation):
+            key = (row['logical_event_key'], row['revision_id'])
+            previous = content.get(key)
+            if previous is None:
+                previous = dict(row, observations=[]); content[key] = previous
+            elif instant(row['first_observed_at']) < instant(previous['first_observed_at']):
+                history = previous['observations'];previous.update(row);previous['observations']=history
+            observation['observation_id'] = fingerprint(observation)
+            if observation not in previous['observations']:
+                previous['observations'].append(observation)
+        if self.domain != 'universe_membership':
+            for raw in ordered:
+                for row in self._legacy_rows(contract, (), [raw]):
+                    retain(row, {'observed_at':raw.manifest['retrieved_at'],
+                        'source_ref':raw.ref.raw_batch_id,'revision_id':row['revision_id'],
+                        'vendor_available_at':row['vendor_available_at']})
+        else:
+            # One complete interval state per actual observation timestamp. For a
+            # repeated effective snapshot, later retrieval replaces that snapshot.
+            timeline = defaultdict(list)
+            for raw in ordered: timeline[raw.manifest['retrieved_at']].append(raw)
+            snapshots = {}; history = []
+            for observed in sorted(timeline, key=instant):
+                history.extend(timeline[observed])
+                simultaneous={}
+                for raw in timeline[observed]:
+                    # Validate the original profile/payload before deriving any state.
+                    profile=raw.manifest
+                    if (profile['source_profile_digest']!=profile_digest() or profile['source_profile_ref']!='tushare.pr6.index_weight'
+                        or profile['source_profile_version']!='tushare_pr6.v1' or profile['domain']!=self.domain
+                        or profile['request']['fields']!=load_pr6_source_profile()['endpoints']['index_weight']['fields']):
+                        raise ArtifactError('PR6 source profile binding mismatch')
+                    validate_payload('index_weight',profile['request']['params'],json.loads(raw.payload))
+                    records=json.loads(raw.payload);params=raw.manifest['request']['params']
+                    grouped=defaultdict(list)
+                    for row in records:grouped[(row['index_code'],row['trade_date'])].append(row)
+                    if not records:
+                        if params['start_date']!=params['end_date']:
+                            raise ArtifactError('empty ranged snapshot has no effective identity')
+                        grouped[(params['index_code'],params['start_date'])]=[]
+                    for key, values in grouped.items():
+                        if key in simultaneous and sorted(simultaneous[key],key=fingerprint)!=sorted(values,key=fingerprint):
+                            raise ArtifactError('ambiguous simultaneous membership snapshots')
+                        simultaneous[key]=values
+                    # A bounded response supersedes earlier effective snapshots in
+                    # that exact request interval, including a corrected boundary.
+                    for key in list(snapshots):
+                        if key[0]==params['index_code'] and params['start_date']<=key[1]<=params['end_date']:
+                            del snapshots[key]
+                    for key,values in grouped.items():snapshots[key]=(raw,values)
+                state_rows=[]
+                for group in sorted({key[0] for key in snapshots}):
+                    dates=sorted(key[1] for key in snapshots if key[0]==group)
+                    end=self.builder_config.get('membership_end_exclusive')
+                    if 'membership_end_exclusive' not in self.builder_config or (end is not None and end<=source_date(dates[-1])):
+                        raise ArtifactError('membership requires explicit coverage end or open interval')
+                    for i,day in enumerate(dates):
+                        raw,records=snapshots[(group,day)]
+                        boundary=snapshots[(group,dates[i+1])][0] if i+1<len(dates) else None
+                        stop=source_date(dates[i+1]) if boundary else end
+                        for source in records:
+                            if self.builder_config.get('symbols') and source['con_code'] not in self.builder_config['symbols']:continue
+                            row=self._base(source['con_code'],raw)
+                            row.update(group_id=group,effective_from=source_date(day),effective_to=stop,
+                                boundary_source_ref=boundary.ref.raw_batch_id if boundary else None,
+                                logical_event_key=fingerprint([group,source['con_code'],source_date(day)]),
+                                vendor_available_at=source_date(day)+'T23:59:59+08:00')
+                            if boundary:row['first_observed_at']=max(row['first_observed_at'],boundary.manifest['retrieved_at'],key=instant)
+                            row['revision_id']=fingerprint(economic_content(row));state_rows.append(row)
+                if not state_rows:
+                    raise ArtifactError('INSUFFICIENT_SCOPE: empty interval state has no canonical history')
+                state_id=fingerprint({'raw_refs':sorted(r.ref.raw_batch_id for r in history),
+                                      'observed_at':observed})
+                for row in state_rows:
+                    retain(row, {'observed_at':observed,'source_ref':row['source_ref'],
+                        'boundary_source_ref':row['boundary_source_ref'],
+                        'revision_id':row['revision_id'],'vendor_available_at':row['vendor_available_at'],
+                        'state_id':state_id,
+                        'coverage_from':min(source_date(k[1]) for k in snapshots if k[0]==row['group_id']),
+                        'coverage_to':self.builder_config['membership_end_exclusive'] or (date.fromisoformat(max(source_date(k[1]) for k in snapshots if k[0]==row['group_id']))+timedelta(days=1)).isoformat(),
+                        'state_raw_refs':sorted(r.ref.raw_batch_id for r in history)})
+        for row in content.values():
+            row['observations'].sort(key=lambda o:(instant(o['observed_at']),o['observation_id']))
+        return [content[k] for k in sorted(content)]
 
     @staticmethod
     def _base(symbol,raw):

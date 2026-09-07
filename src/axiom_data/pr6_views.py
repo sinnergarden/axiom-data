@@ -33,13 +33,15 @@ def project(reader, scope, policy, cutoff):
     if any(d not in reader.commits for d in PR6_DOMAINS):raise ArtifactError('PR6 snapshot required')
     sessions=sorted({r['session'] for r in reader.trading_calendar(start_session=start,end_session=end) if r['is_open']})
     if not sessions:raise ArtifactError('PR6 View has no calendar coverage')
+    from axiom_data.pr6_coverage import admit_view
+    actual_scope=admit_view(reader,scope,policy,cutoff)
     taxonomy=sorted({r['industry_id'] for r in reader.facts('industry_membership')})
     encoding={industry:i+1 for i,industry in enumerate(taxonomy)}
     events=[];derived=[];wide=[];memberships=[];industries=[]
     for session in sessions:
         session_cutoff=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
         facts=reader.as_of('financial_events',knowledge_cutoff=session_cutoff,pit_policy=policy,symbols=symbols)
-        stable=financial_derived(facts,policy=policy,knowledge_cutoff=session_cutoff)
+        stable=reader.financial_derived(symbols=symbols,pit_policy=policy,knowledge_cutoff=session_cutoff)
         valuation=reader.as_of('valuation_daily',knowledge_cutoff=session_cutoff,pit_policy=policy,symbols=symbols)
         membership={}
         for group in scope['universe_ids']:
@@ -47,35 +49,70 @@ def project(reader, scope, policy, cutoff):
                 membership[row['symbol']]=row
                 memberships.append(dict(row,target_session=session))
         industry={r['symbol']:r for r in reader.members(scope['industry_system'],session,
-            domain='industry_membership',knowledge_cutoff=session_cutoff,pit_policy=policy)}
+            domain='industry_membership',knowledge_cutoff=session_cutoff,pit_policy=policy,symbols=symbols)}
         industries.extend(dict(r,target_session=session) for r in industry.values())
         events.extend(dict(r,target_session=session) for r in facts)
         derived.extend(dict(r,target_session=session) for r in stable)
         for symbol in symbols:
-            values={f:None for f in WIDE_FIELDS};refs={}
+            values={f:None for f in WIDE_FIELDS};refs={}; metadata={}
+            for leaf in WIDE_FIELDS:
+                metadata[leaf]=fact_metadata(None,None,leaf,reader,policy,session_cutoff)
             for leaf,(endpoint,field) in FIELD_MAP.items():
                 candidates=[r for r in facts if r['symbol']==symbol and r['endpoint']==endpoint and
                             r['report_type']==('supplier_indicator' if endpoint=='fina_indicator' else '1')]
                 if candidates:
                     row=max(candidates,key=lambda r:r['report_period']);values[leaf]=row['values'][field]
                     refs[leaf]=row['revision_id']
+                    metadata[leaf]=fact_metadata(row,values[leaf],leaf,reader,policy,session_cutoff)
             for field in DERIVED_FIELDS:
                 candidates=[r for r in stable if r['symbol']==symbol and r['field']==field and r['report_type']=='1']
                 if candidates:
                     row=max(candidates,key=lambda r:r['report_period']);values['financial.'+field]=row['value']
                     refs['financial.'+field]=row['derived_id']
+                    metadata['financial.'+field]=fact_metadata(row,row['value'],'financial.'+field,reader,policy,session_cutoff)
             for row in valuation:
                 if row['symbol']==symbol and row['session']==session:
                     for field,value in row['values'].items():
                         values['valuation.'+field]=value;refs['valuation.'+field]=row['revision_id']
+                        metadata['valuation.'+field]=fact_metadata(row,value,'valuation.'+field,reader,policy,session_cutoff)
             # Absence is unknown outside demonstrated snapshot coverage.  A separate
             # cohort list, rather than a zero, expresses positive membership.
-            values['universe.membership']=1 if symbol in membership else None
+            values['universe.membership']=1 if symbol in membership else 0
             values['industry.membership']=encoding[industry[symbol]['industry_id']] if symbol in industry else None
+            for leaf,row in [('universe.membership',membership.get(symbol)),('industry.membership',industry.get(symbol))]:
+                metadata[leaf]=fact_metadata(row,values[leaf],leaf,reader,policy,session_cutoff)
+            metadata['universe.membership']['universe_ids']=scope['universe_ids']
+            metadata['industry.membership'].update(classification_system=scope['industry_system'],mapping_ref='industry_mapping')
             wide.append({'session':session,'symbol':symbol,'values':values,'provenance':refs,
-                         'knowledge_cutoff':session_cutoff})
+                         'knowledge_cutoff':session_cutoff,'facts':metadata})
     return {'wide':wide,'events':events,'derived':derived,'memberships':memberships,'industries':industries,
-            'industry_encoding':encoding,'sessions':sessions}
+            'industry_encoding':encoding,'industry_mapping':{'classification_system':scope['industry_system'],
+                'version':reader.commits['industry_membership'].ref.commit_id,
+                'code_to_industry':{str(v):k for k,v in encoding.items()}},
+            'actual_available_scope':actual_scope,'sessions':sessions}
+
+
+def fact_metadata(row,value,leaf,reader,policy,cutoff):
+    row=row or {}
+    reason=row.get('missing_reason')
+    if value is None and reason is None:
+        field=FIELD_MAP.get(leaf,(None,leaf.split('.')[-1]))[1]
+        reason=('source_value_missing' if field in row.get('missing_reasons',{})
+                else 'PIT_component_not_visible')
+    domain=('financial_events' if leaf.startswith(('income.','balance.','cashflow.','indicator.','financial.'))
+            else 'valuation_daily' if leaf.startswith('valuation.') else leaf.split('.')[0]+'_membership')
+    unit=('CNY' if leaf.startswith(('income.','balance.','cashflow.','financial.'))
+          else 'ratio' if leaf.startswith(('indicator.','valuation.')) else 'code' if leaf.startswith('industry.') else 'boolean')
+    return {'value':value,'unit':unit,'validity':'missing' if value is None else 'valid',
+            'missing_reason':reason,'pit_qualification':row.get('pit_qualification','best_effort'),
+            'usable_at':row.get('usable_from'),'pit_policy':policy,'knowledge_cutoff':cutoff,
+            'source_ref':row.get('source_ref'),'revision_ref':row.get('revision_id'),
+            'observation_ref':row.get('observation_ref'),'derived_ref':row.get('derived_id'),
+            'component_revision_refs':row.get('component_revisions',[]),
+            'quarter_components':row.get('quarter_components',[]),
+            'expected_quarters':row.get('expected_quarters',[]),
+            'domain_ref':reader.commits[domain].ref.commit_id,
+            'quality_state':'BLOCKED' if value is None else 'PASS'}
 
 
 def _files(payload, symbols, bundle):
@@ -92,14 +129,18 @@ def _files(payload, symbols, bundle):
 
 def _manifest(reader, scope, policy, cutoff, payload, bundle):
     contents=_files(payload,scope['symbols'],bundle)
-    return {'artifact_type':'pr6_fact_view','schema_version':'pr6_fact_view.v1',
+    return {'artifact_type':'pr6_fact_view','schema_version':'pr6_fact_view.v2',
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
         'domain_refs':reader.snapshot.manifest['domain_refs'],'scope':scope,
+        'requested_scope':dict(scope,fields=list(WIDE_FIELDS)),
+        'actual_available_scope':payload['actual_available_scope'],
+        'validated_scope':dict(scope,fields=list(WIDE_FIELDS)),
         'pit_policy':policy,'knowledge_cutoff':instant(cutoff).isoformat(),
         'cutoff_policy':'min_knowledge_cutoff_session_end_Asia_Shanghai.v1',
         'instrument_storage_scope':[{'symbol':s,'qlib_symbol':_qlib_symbol(s),'storage_path':'features/'+_qlib_symbol(s).lower(),'start_session':payload['sessions'][0],'end_session':payload['sessions'][-1]} for s in scope['symbols']],
         'fields':list(WIDE_FIELDS),'qlib_field_mapping':{f:f.replace('.','__') for f in WIDE_FIELDS},
-        'industry_encoding':payload['industry_encoding'],
+        'industry_encoding':payload['industry_encoding'],'industry_mapping':payload['industry_mapping'],
+        'fact_metadata_schema':'typed_fact.v1',
         'implementation_digests':{name:_digest(content.encode()) for name,content in sorted(bundle.items())},
         'files':[{'path':p,'content_digest':_digest(b),'size':len(b)} for p,b in sorted(contents.items())],
         'pit_qualification':weakest_pit_qualification(payload['events']+payload['memberships']+payload['industries']),
@@ -130,7 +171,7 @@ def load_pr6_fact_view(data_root,view_id):
     view_id=_identity('view_id',view_id)
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
     manifest,digest=_load_manifest(layout.root,target,artifact_type='pr6_fact_view',
-        schema_version='pr6_fact_view.v1',identity_field='view_id',identity=view_id)
+        schema_version='pr6_fact_view.v2',identity_field='view_id',identity=view_id)
     _validate_manifest_identity(manifest,'view_id','pr6-fact',view_id)
     reader=SnapshotReader(data_root,manifest['snapshot_ref']['snapshot_id'])
     payload=project(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])

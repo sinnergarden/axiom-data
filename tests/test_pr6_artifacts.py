@@ -39,13 +39,14 @@ class Pr6ArtifactTest(unittest.TestCase):
 
     def build(self,raw,parent=None):
         builder=Pr6Builder(self.root,'financial_events',dependency_commit_ids={'security_master':self.security.commit_id})
-        ref=BuildApplication('financial_events',builder).build(parent,[raw.raw_batch_id],[],'financial_events.v1')
+        ref=BuildApplication('financial_events',builder).build(parent,[raw.raw_batch_id],[],'financial_events.v2')
         return validate_domain_commit_closure(self.root,'financial_events',ref.commit_id)
 
     def test_raw_mapping_revision_retention_and_repeated_observation(self):
         first=self.build(self.collect(100,'2025-04-02T00:00:00Z'))
         repeated=self.build(self.collect(100,'2025-04-03T00:00:00Z'),first.ref.commit_id)
-        self.assertEqual(first.rows,repeated.rows)
+        self.assertEqual(first.rows[0]['revision_id'],repeated.rows[0]['revision_id'])
+        self.assertEqual(len(repeated.rows[0]['observations']),2)
         changed=self.build(self.collect(None,'2025-06-02T00:00:00Z'),repeated.ref.commit_id)
         self.assertEqual(len(changed.rows),2)
         early=select_revisions(changed.rows,policy='operational_pit_v1',knowledge_cutoff='2025-05-01T00:00:00Z')
@@ -53,6 +54,60 @@ class Pr6ArtifactTest(unittest.TestCase):
         late=select_revisions(changed.rows,policy='operational_pit_v1',knowledge_cutoff='2025-07-01T00:00:00Z')
         self.assertIsNone(late[0]['values']['revenue'])
         self.assertEqual(late[0]['missing_reasons']['revenue'],'vendor_null')
+
+    def test_financial_aba_and_clean_replay(self):
+        raw=[self.collect(v,t) for v,t in [(100,'2025-04-02T00:00:00Z'),
+             (200,'2025-04-04T00:00:00Z'),(100,'2025-04-06T00:00:00Z'),
+             (100,'2025-04-08T00:00:00Z')]]
+        commit=None
+        for ref in raw:commit=self.build(ref,commit.ref.commit_id if commit else None)
+        self.assertEqual(len(commit.rows),2)
+        self.assertEqual(sum(len(r['observations']) for r in commit.rows),4)
+        self.assertEqual(next(r for r in commit.rows if r['values']['revenue']==100)['first_observed_at'],'2025-04-02T00:00:00Z')
+        builder=Pr6Builder(self.root,'financial_events',dependency_commit_ids={'security_master':self.security.commit_id})
+        rebuilt=BuildApplication('financial_events',builder).build(None,[r.raw_batch_id for r in reversed(raw)],[],'financial_events.v2')
+        replay=validate_domain_commit_closure(self.root,'financial_events',rebuilt.commit_id)
+        self.assertEqual(commit.rows,replay.rows)
+        import shutil
+        with tempfile.TemporaryDirectory() as clean:
+            shutil.copytree(self.root/'raw',Path(clean)/'raw')
+            security=BuildApplication('security_master',MarketDomainBuilder(clean,'security_master')).build(None,['security-fixture'],[],'security_master.v1')
+            fresh=BuildApplication('financial_events',Pr6Builder(clean,'financial_events',dependency_commit_ids={'security_master':security.commit_id})).build(None,[r.raw_batch_id for r in raw],[],'financial_events.v2')
+            self.assertEqual(commit.rows,validate_domain_commit_closure(clean,'financial_events',fresh.commit_id).rows)
+        for day,value in [('03',100),('05',200),('07',100),('09',100)]:
+            selected=select_revisions(commit.rows,policy='operational_pit_v1',knowledge_cutoff='2025-04-'+day+'T00:00:00Z')
+            self.assertEqual(selected[0]['values']['revenue'],value)
+            self.assertIn('observation_id',selected[0]['observation_ref'])
+        self.assertEqual(select_revisions(commit.rows,policy='best_effort_vendor_v1',knowledge_cutoff='2025-04-02T00:00:00Z')[0]['values']['revenue'],100)
+
+    def test_incremental_exit_reentry_correction_and_replay(self):
+        from axiom_data.pit import members
+        def collect(start,end,days,observed):
+            rows=[{'index_code':'000906.SH','con_code':'000001.SZ','trade_date':day,'weight':1} for day in days]
+            return Pr6Collector(self.root,Client(rows)).collect('index_weight',
+                {'index_code':'000906.SH','start_date':start,'end_date':end},retrieved_at=observed)
+        first=collect('20250101','20250101',['20250101'],'2025-01-02T00:00:00Z')
+        exit_raw=collect('20250601','20250601',[],'2025-06-02T00:00:00Z')
+        enter=collect('20250801','20250801',['20250801'],'2025-08-02T00:00:00Z')
+        correction=collect('20250715','20250801',['20250715'],'2025-09-02T00:00:00Z')
+        app=BuildApplication('universe_membership',Pr6Builder(self.root,'universe_membership',
+            dependency_commit_ids={'security_master':self.security.commit_id},
+            builder_config={'membership_end_exclusive':None}))
+        prior=None;states=[]
+        for raw in (first,exit_raw,enter,correction):
+            ref=app.build(prior,[raw.raw_batch_id],[],'universe_membership.v2')
+            prior=ref.commit_id;states.append(validate_domain_commit_closure(self.root,'universe_membership',prior))
+        self.assertIsNone(states[0].rows[0]['effective_to'])
+        selected=select_revisions(states[1].rows,policy='operational_pit_v1',knowledge_cutoff='2025-06-03T00:00:00Z')
+        self.assertEqual([(r['effective_from'],r['effective_to']) for r in selected],[('2025-01-01','2025-06-01')])
+        rebuilt=app.build(None,[r.raw_batch_id for r in (correction,first,enter,exit_raw)],[],'universe_membership.v2')
+        self.assertEqual(states[-1].rows,validate_domain_commit_closure(self.root,'universe_membership',rebuilt.commit_id).rows)
+        for policy in ('operational_pit_v1','best_effort_vendor_v1'):
+            args=dict(policy=policy,knowledge_cutoff='2025-10-01T00:00:00Z',group_id='000906.SH')
+            for day,count in [('2024-12-31',0),('2025-02-01',1),('2025-06-01',0),('2025-07-14',0),('2025-07-15',1),('2025-08-02',1)]:
+                self.assertEqual(len(members(states[-1].rows,target_session=day,**args)),count)
+        early=select_revisions(states[-1].rows,policy='operational_pit_v1',knowledge_cutoff='2025-01-03T00:00:00Z')
+        self.assertIsNone(early[0]['effective_to'])
 
     def test_individual_batch_request_rejects_other_security_and_period(self):
         collector=Pr6Collector(self.root,Client([income()]))
@@ -90,8 +145,8 @@ class Pr6ArtifactTest(unittest.TestCase):
         app=BuildApplication('universe_membership',Pr6Builder(self.root,'universe_membership',
             dependency_commit_ids={'security_master':self.security.commit_id},
             builder_config={'membership_end_exclusive':'2025-08-01'}))
-        old=app.build(None,[first.raw_batch_id],[],'universe_membership.v1')
-        new=app.build(old.commit_id,[first.raw_batch_id,later.raw_batch_id],[],'universe_membership.v1')
+        old=app.build(None,[first.raw_batch_id],[],'universe_membership.v2')
+        new=app.build(old.commit_id,[first.raw_batch_id,later.raw_batch_id],[],'universe_membership.v2')
         before=validate_domain_commit_closure(self.root,'universe_membership',old.commit_id)
         after=validate_domain_commit_closure(self.root,'universe_membership',new.commit_id)
         args={'policy':'operational_pit_v1','knowledge_cutoff':'2025-06-15T00:00:00Z'}
@@ -109,4 +164,4 @@ class Pr6ArtifactTest(unittest.TestCase):
         source=Pr6Collector(self.root,Client([{'ts_code':'000001.SZ','trade_date':'20260103','pe':1,'pb':1,'ps':1}])).collect('daily_basic',{'ts_code':'000001.SZ','trade_date':'20260103'})
         builder=Pr6Builder(self.root,'valuation_daily',dependency_commit_ids={'security_master':self.security.commit_id,'trading_calendar':cal.commit_id})
         with self.assertRaisesRegex(ArtifactError,'open calendar'):
-            BuildApplication('valuation_daily',builder).build(None,[source.raw_batch_id],[],'valuation_daily.v1')
+            BuildApplication('valuation_daily',builder).build(None,[source.raw_batch_id],[],'valuation_daily.v2')

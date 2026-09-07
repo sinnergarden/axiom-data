@@ -1,0 +1,1438 @@
+{
+  "schema_version": "pr6_evidence.v1",
+  "data_root": "/home/liuming/workspace/axiom/data/forensic/pr6-review-20260908-r1/source",
+  "offline_root": "/home/liuming/workspace/axiom/data/forensic/pr6-review-20260908-r1/recovery",
+  "artifact_refs": {
+    "snapshot": {
+      "snapshot_id": "snapshot-ad4d8aed7b053e0cce0c531a23bd57b05a71b929b425b71fd2e36ffdc79588f8",
+      "identity_digest": "sha256:ad4d8aed7b053e0cce0c531a23bd57b05a71b929b425b71fd2e36ffdc79588f8"
+    },
+    "view": {
+      "view_id": "pr6-fact-c292417d2bc528e5e68e39ca4063110b0b7a1795ce7c75cf5d8917596d1cca75",
+      "identity_digest": "sha256:c292417d2bc528e5e68e39ca4063110b0b7a1795ce7c75cf5d8917596d1cca75"
+    },
+    "domain_commits": {
+      "adjustment_factors": {
+        "domain_commit_id": "adjustment_factors-7ea6e47a630152e335452b588a41d467f68aed8dc3c2aaf6ca091924def455f3",
+        "logical_content_digest": "sha256:5795a1a77f124793fdb79c7ac09e58d905309380433d187510e5f1742468397d",
+        "rows": 414
+      },
+      "benchmark_daily": {
+        "domain_commit_id": "benchmark_daily-4bceb56643d7769f49baccdd589a00db02f8f2f98a7c4a9d0127fbdd469d4491",
+        "logical_content_digest": "sha256:25517c11c50fa7456a4a8f761589e771dee074dca302faeeec8cdda818085d29",
+        "rows": 69
+      },
+      "corporate_actions": {
+        "domain_commit_id": "corporate_actions-9698be63724f51fbccba095d981ba316cf3eec805b0b60ba643393285cc1733e",
+        "logical_content_digest": "sha256:72bf59f2fd2b1c814de6eef8d72f46f61a74096105f3ec88f0d51bcb322d3307",
+        "rows": 3
+      },
+      "financial_events": {
+        "domain_commit_id": "financial_events-9380a2ab672c19fb47d555354487d59118e75962612759c925d654072bef74a6",
+        "logical_content_digest": "sha256:832d650a9bc3c1b55cdfd1a4b7020f41f23847d36fb5ec2ec020213c65298685",
+        "rows": 29
+      },
+      "industry_membership": {
+        "domain_commit_id": "industry_membership-f2a9a05d903c133418e85d28c815fdeb4647a5f4e152b22b109a34dcca4fbd0f",
+        "logical_content_digest": "sha256:a3a6aae8d19a311d5ca8442ab05ea7af4a2fffde66c7f3f643569723d718d581",
+        "rows": 8
+      },
+      "market_daily": {
+        "domain_commit_id": "market_daily-96bcd3a607420d06bbb28daac11d50cb4220fa4bc55fa7de5f7d2b8a306ccf3e",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "rows": 414
+      },
+      "price_limits": {
+        "domain_commit_id": "price_limits-838631aecbaa7cd3343f339df8c08e6809e566fe733fb8fc25ffd8fac6d90937",
+        "logical_content_digest": "sha256:c1998b79843d1f4a5dec9e446b056cc9ad64bc38956d875830eadc00dd074def",
+        "rows": 414
+      },
+      "security_capital": {
+        "domain_commit_id": "security_capital-dac2ba81bfb34e2138e9d219f209a955da332ffc7e1b50f9b01df82a36342d71",
+        "logical_content_digest": "sha256:883380692328a5f88997acfd3fed63d02140011ef0e9cfc0d7de24237e82823a",
+        "rows": 409
+      },
+      "security_master": {
+        "domain_commit_id": "security_master-53eff9573855a5201f6a0bead3622707d4c691255d34548609f3c477312979e7",
+        "logical_content_digest": "sha256:9e8c12aa9f350c10d4a4332ad64f1076229b5f11d82550b36ff190a95a32f211",
+        "rows": 8
+      },
+      "security_status": {
+        "domain_commit_id": "security_status-9ce6c14dec42a2bbbacee481c3cf7b6a4cadd436768f52e1079d7fbf90708462",
+        "logical_content_digest": "sha256:0d20ef8ca8cc787b248fbde8c4bd12f414c8b5f147a55f8bf05100b59063c498",
+        "rows": 414
+      },
+      "trading_calendar": {
+        "domain_commit_id": "trading_calendar-a2783ca26529f7af3ede5570d42bdf7d0c9ce2c40ad9185f26cf0964a90a4fbc",
+        "logical_content_digest": "sha256:41a6653591c21e74512e40d818230c031fcf073e8f815a973d29ec7c25dafa82",
+        "rows": 194
+      },
+      "universe_membership": {
+        "domain_commit_id": "universe_membership-eb276723d3fd2c70c89ea26d281487e27d6c71ac08a496cf199f8134bc9615b8",
+        "logical_content_digest": "sha256:af72b163367814925f3c0f7d6d17ca5bab92c8d65ecfda5343078f4decf06171",
+        "rows": 18
+      },
+      "valuation_daily": {
+        "domain_commit_id": "valuation_daily-08376d72df7c280519a4b3adf50d735c2b8a057746c2677642f183d1a311e6b9",
+        "logical_content_digest": "sha256:341bf3069e8f10a447be30f47a273f842d846a204712d1499fde04086b6a14b4",
+        "rows": 8
+      }
+    }
+  },
+  "offline_artifact_refs": {
+    "snapshot": {
+      "snapshot_id": "snapshot-ad4d8aed7b053e0cce0c531a23bd57b05a71b929b425b71fd2e36ffdc79588f8",
+      "identity_digest": "sha256:ad4d8aed7b053e0cce0c531a23bd57b05a71b929b425b71fd2e36ffdc79588f8"
+    },
+    "view": {
+      "view_id": "pr6-fact-c292417d2bc528e5e68e39ca4063110b0b7a1795ce7c75cf5d8917596d1cca75",
+      "identity_digest": "sha256:c292417d2bc528e5e68e39ca4063110b0b7a1795ce7c75cf5d8917596d1cca75"
+    },
+    "domain_commits": {
+      "adjustment_factors": {
+        "domain_commit_id": "adjustment_factors-7ea6e47a630152e335452b588a41d467f68aed8dc3c2aaf6ca091924def455f3",
+        "logical_content_digest": "sha256:5795a1a77f124793fdb79c7ac09e58d905309380433d187510e5f1742468397d",
+        "rows": 414
+      },
+      "benchmark_daily": {
+        "domain_commit_id": "benchmark_daily-4bceb56643d7769f49baccdd589a00db02f8f2f98a7c4a9d0127fbdd469d4491",
+        "logical_content_digest": "sha256:25517c11c50fa7456a4a8f761589e771dee074dca302faeeec8cdda818085d29",
+        "rows": 69
+      },
+      "corporate_actions": {
+        "domain_commit_id": "corporate_actions-9698be63724f51fbccba095d981ba316cf3eec805b0b60ba643393285cc1733e",
+        "logical_content_digest": "sha256:72bf59f2fd2b1c814de6eef8d72f46f61a74096105f3ec88f0d51bcb322d3307",
+        "rows": 3
+      },
+      "financial_events": {
+        "domain_commit_id": "financial_events-9380a2ab672c19fb47d555354487d59118e75962612759c925d654072bef74a6",
+        "logical_content_digest": "sha256:832d650a9bc3c1b55cdfd1a4b7020f41f23847d36fb5ec2ec020213c65298685",
+        "rows": 29
+      },
+      "industry_membership": {
+        "domain_commit_id": "industry_membership-f2a9a05d903c133418e85d28c815fdeb4647a5f4e152b22b109a34dcca4fbd0f",
+        "logical_content_digest": "sha256:a3a6aae8d19a311d5ca8442ab05ea7af4a2fffde66c7f3f643569723d718d581",
+        "rows": 8
+      },
+      "market_daily": {
+        "domain_commit_id": "market_daily-96bcd3a607420d06bbb28daac11d50cb4220fa4bc55fa7de5f7d2b8a306ccf3e",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "rows": 414
+      },
+      "price_limits": {
+        "domain_commit_id": "price_limits-838631aecbaa7cd3343f339df8c08e6809e566fe733fb8fc25ffd8fac6d90937",
+        "logical_content_digest": "sha256:c1998b79843d1f4a5dec9e446b056cc9ad64bc38956d875830eadc00dd074def",
+        "rows": 414
+      },
+      "security_capital": {
+        "domain_commit_id": "security_capital-dac2ba81bfb34e2138e9d219f209a955da332ffc7e1b50f9b01df82a36342d71",
+        "logical_content_digest": "sha256:883380692328a5f88997acfd3fed63d02140011ef0e9cfc0d7de24237e82823a",
+        "rows": 409
+      },
+      "security_master": {
+        "domain_commit_id": "security_master-53eff9573855a5201f6a0bead3622707d4c691255d34548609f3c477312979e7",
+        "logical_content_digest": "sha256:9e8c12aa9f350c10d4a4332ad64f1076229b5f11d82550b36ff190a95a32f211",
+        "rows": 8
+      },
+      "security_status": {
+        "domain_commit_id": "security_status-9ce6c14dec42a2bbbacee481c3cf7b6a4cadd436768f52e1079d7fbf90708462",
+        "logical_content_digest": "sha256:0d20ef8ca8cc787b248fbde8c4bd12f414c8b5f147a55f8bf05100b59063c498",
+        "rows": 414
+      },
+      "trading_calendar": {
+        "domain_commit_id": "trading_calendar-a2783ca26529f7af3ede5570d42bdf7d0c9ce2c40ad9185f26cf0964a90a4fbc",
+        "logical_content_digest": "sha256:41a6653591c21e74512e40d818230c031fcf073e8f815a973d29ec7c25dafa82",
+        "rows": 194
+      },
+      "universe_membership": {
+        "domain_commit_id": "universe_membership-eb276723d3fd2c70c89ea26d281487e27d6c71ac08a496cf199f8134bc9615b8",
+        "logical_content_digest": "sha256:af72b163367814925f3c0f7d6d17ca5bab92c8d65ecfda5343078f4decf06171",
+        "rows": 18
+      },
+      "valuation_daily": {
+        "domain_commit_id": "valuation_daily-08376d72df7c280519a4b3adf50d735c2b8a057746c2677642f183d1a311e6b9",
+        "logical_content_digest": "sha256:341bf3069e8f10a447be30f47a273f842d846a204712d1499fde04086b6a14b4",
+        "rows": 8
+      }
+    }
+  },
+  "reconciliation": {
+    "schema_version": "pr6_reconciliation.v1",
+    "reference_manifest_digest": "e4f7b27a3cdd2cb37ada05ebff8524093be16da3e0a90950b5c3c37ea798ea3b",
+    "direct_qlib_comparisons": 184,
+    "source_mapping_checks": [
+      {
+        "revision_id": "bc7ce8f3c1efab34cd94c3d8402444419f69d6966f02016f8129fa80f686bb52",
+        "source_ref": "pr6-86518602454b2b92a9c084d679390898e973b742376d5f991179b4d586819ea5",
+        "fields": 3
+      },
+      {
+        "revision_id": "65798a65386c1e3bdd564f9c02bf92a732fd2ff382b4328020bf9a89a404e78e",
+        "source_ref": "pr6-36961e6cd9cdb41a680c31f02219aa2286d85fb60437bf0fea895f908fef7ea8",
+        "fields": 3
+      },
+      {
+        "revision_id": "b380caa4c6d414051761131914cdd8af6b3ede790c4dbeb2e9b61a4d710a866c",
+        "source_ref": "pr6-6f097763d15ae435908f5e16e016e151a9179e2bdacda6f937a3ab2d47f5eda2",
+        "fields": 3
+      },
+      {
+        "revision_id": "807a3907cd6d981d9fcfbd62361efcea1516ce1a76e35db0681bc6876ee5d8a8",
+        "source_ref": "pr6-ec0bd023d3ac8b7509d408ae5b07c98c22d06d83fe5b3872eac1ca837968affe",
+        "fields": 3
+      },
+      {
+        "revision_id": "86448e70483fe866c3e48a572bf35fdf86a8947ccf71fe2de845e3ba59962fcf",
+        "source_ref": "pr6-0aade839b061e836e283b6af796e0178617091d6a26c0fb37904540f0578e78b",
+        "fields": 1
+      },
+      {
+        "revision_id": "5135dca0e9964659242278e3540f28a3cdf66856ce1450173dc94aae5f65e939",
+        "source_ref": "pr6-e16beea94b54873d3c4603b51b666e273a9e35a432ce1e06ecad252c6edcfe2c",
+        "fields": 1
+      },
+      {
+        "revision_id": "efe0228439893f0eba20e0cf09ca6c8fa933f90222d13c6c6461d2e429e47aef",
+        "source_ref": "pr6-33f34b863584a87e2eab6f9f51e9fa9f6ba2462a904066d78ee76686fa2f2222",
+        "fields": 1
+      },
+      {
+        "revision_id": "eb8c935e38afcb4e5da67db852c6cee6bc08a59345297245dbffee74349bd2e9",
+        "source_ref": "pr6-80dbbfd36c5f12719dfb4399188a346b6af1d5500c8bb274da0e23d97a6471dc",
+        "fields": 1
+      },
+      {
+        "revision_id": "2fdc2d0da68099cef9c98258ecc910e7c85336a6942986aa9340e53954909004",
+        "source_ref": "pr6-cafc55901d9fb9aa8ae4cc52eb3f4882090d396784c41bd4f9fa4d42527adfcb",
+        "fields": 3
+      },
+      {
+        "revision_id": "1623521a62508b89a0213c3eae2bb0de40dc4b2157a05e9ba73af82ab514eed8",
+        "source_ref": "pr6-566c3425dac14acbcd906c34742b7ae36a2ebc1c0eac930b8feac20389c11914",
+        "fields": 6
+      },
+      {
+        "revision_id": "cfa4831826d7b5a9d7b5511dbe9a65e618841b19e9c7c9dfacca8132bc65de25",
+        "source_ref": "pr6-74bef993e29c4047a15fc6a5b942ce1c30e0d7dc5d481d165a977c35bc6a459b",
+        "fields": 4
+      },
+      {
+        "revision_id": "17ad79b00c229d935687f2a7987ec774c5be91e599231df2687e9ef0b3ba458c",
+        "source_ref": "pr6-314dd736ce4131d552c60bd0e706dc6c0df02a11d29452e5dca3b3f48cad430b",
+        "fields": 4
+      },
+      {
+        "revision_id": "cff8e07074831ba186bbf6791bb2f2cf4ddaf3f0226bdb0a63eef1810cf7d467",
+        "source_ref": "pr6-f33a6842d8136868861b4a45c6137dc12ac8d15f32c0dfad5464301c392a8506",
+        "fields": 1
+      },
+      {
+        "revision_id": "7788e8c16a09c53325fc73361cf3e5b5854e96f8e1fb1592b4cf19915f552ddb",
+        "source_ref": "pr6-065b1707c9a68e23e2c27f2961ebb475ae99bdcbbfe0cdc18a777dc0aaa3e34a",
+        "fields": 1
+      },
+      {
+        "revision_id": "c3762eaab9d72e02960831bd9367699adc51b882343ac5467022cd00b738f668",
+        "source_ref": "pr6-323724a183d56a9cf5de7c196fc14921e5d473f5698010ffb5278306a1806922",
+        "fields": 6
+      },
+      {
+        "revision_id": "8d3086d9cbb9499f869d3c2949e3ec892f33bc10a24060dcff411d1d3b013942",
+        "source_ref": "pr6-7aa2ddbb984c3e338e6720018c816d7f591a2186cc82a49108c905e8b1b37372",
+        "fields": 3
+      },
+      {
+        "revision_id": "50fd4e6cddbd1a66c86b0c53e84da98c9734471760cd52976509a95a64983a92",
+        "source_ref": "pr6-f53552f35159b06120e1d5c59a6540b74298f0a82f818e07b0218ccace24628e",
+        "fields": 4
+      },
+      {
+        "revision_id": "75df0d3807f53e9051f627af2cd5d3861aa0ca9909577652d7664cc9977d0416",
+        "source_ref": "pr6-f15919ad7bb8d1641d5c8c2d9ebf0d15a476e3b0c59612bb803275c026dd3924",
+        "fields": 4
+      },
+      {
+        "revision_id": "b41f76e4869adac7179303eb542950cf718d7ab8b02bfda1cd501c21d7e380cd",
+        "source_ref": "pr6-f3784dc16743bd0f3c3d4d110228292eac6c446011c38ea212755346d4bd9243",
+        "fields": 6
+      },
+      {
+        "revision_id": "44bfb856202cee01836b5b153669f98f82a62732792c4323971ce2b8c769a3e7",
+        "source_ref": "pr6-c4d855599bbe038c278cf084ad680a87a0e0fd36808e936531111297e771a47f",
+        "fields": 6
+      },
+      {
+        "revision_id": "4ca0591f20c85e7980d32faf937d23109621c2c3404d4e3afa6c3fdd5aad6431",
+        "source_ref": "pr6-ad06d2c581560e3ccccd02e5e713951ec58f86c4e2a45356fc9be4248955fa7c",
+        "fields": 4
+      },
+      {
+        "revision_id": "59ab09913023ca5bf461a4bb2de2ed37efbf8a4a5f08f5bcfafdcd8a64bff6c0",
+        "source_ref": "pr6-ad06d2c581560e3ccccd02e5e713951ec58f86c4e2a45356fc9be4248955fa7c",
+        "fields": 4
+      },
+      {
+        "revision_id": "03b0877a7d62f922d8b6f7ec78b18cccd50e14fb753f993834bb00e082197b27",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c",
+        "fields": 3
+      },
+      {
+        "revision_id": "21117987406eb9aaa8b5283e3e133bdc02f1ff946d7e32ae25ddf2b9f69425bc",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c",
+        "fields": 3
+      },
+      {
+        "revision_id": "96a6128ddac72da8ab4388ebd65598e022968d1005003df7beefc75b11fea003",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c",
+        "fields": 3
+      },
+      {
+        "revision_id": "f1ac9bedaf088344c1b49ad13c0eaeabf7313dec6a068d27f9e8ea190f1bf76b",
+        "source_ref": "pr6-3540d96ad9f2b728a2b44bbff3ee5e9bc1516e6bab131c9192fea2548eac3166",
+        "fields": 6
+      },
+      {
+        "revision_id": "752986803f337b193d4ad21756d9ec6261e155f8610a78a0299035d031ad7316",
+        "source_ref": "pr6-f0253a092451da7c097e8b0512cefd8d8d8f107d6c455765665925ecf09f0e8a",
+        "fields": 6
+      },
+      {
+        "revision_id": "f3345469f1ba8f4738e0bc8a158b69855cd1b8ada0bab502de56f484e6150222",
+        "source_ref": "pr6-176636be087ebde1efc78bb03d5c4ea86948015772b355ab6095a1811b096d41",
+        "fields": 4
+      },
+      {
+        "revision_id": "0750a8517c56d126af3ff02c4b95b257cdeaa7e1750749e91970634ffc55a5c6",
+        "source_ref": "pr6-540bf0cee4365036559502bf53d0f8a4c970a47f293257f15412f778268e9894",
+        "fields": 3
+      },
+      {
+        "revision_id": "838b7b9c5c643d850182aab965c6e1deafcfe9787cce3369cc642f233f152b06",
+        "source_ref": "pr6-b39e102b8fa22d5ca98286773b4c149c290db890ff41f14a0e66159c43c44ab4",
+        "fields": 3
+      },
+      {
+        "revision_id": "1cad0915549a86fde2df9a10320b1ab926d338a1874b97a20ed7437d9207ffb6",
+        "source_ref": "pr6-b39e102b8fa22d5ca98286773b4c149c290db890ff41f14a0e66159c43c44ab4",
+        "fields": 3
+      },
+      {
+        "revision_id": "df194eacfc1676ffbbb1f688c2df55c30028985ae42871f600d77fe31ee4b111",
+        "source_ref": "pr6-349ccdb292cc58d270d0a897a4da55cfb74bf2e2f4d82d27482eda0e2b0a7f8d",
+        "fields": 3
+      },
+      {
+        "revision_id": "29d025881c417224aac3e5b29c0f1fff88e02ff7bd1427f0a6e55e6d739e08ae",
+        "source_ref": "pr6-349ccdb292cc58d270d0a897a4da55cfb74bf2e2f4d82d27482eda0e2b0a7f8d",
+        "fields": 3
+      },
+      {
+        "revision_id": "69df40a410323169a6892f1e3e54f52df9dc6db10d0736830a5e66342adbae04",
+        "source_ref": "pr6-b39e102b8fa22d5ca98286773b4c149c290db890ff41f14a0e66159c43c44ab4",
+        "fields": 3
+      },
+      {
+        "revision_id": "1b1db7f897d4637932c3f24139483814a9acc8318fb30a02edca8cd0999b53a2",
+        "source_ref": "pr6-349ccdb292cc58d270d0a897a4da55cfb74bf2e2f4d82d27482eda0e2b0a7f8d",
+        "fields": 3
+      },
+      {
+        "revision_id": "1a8159e3576725a1d9c924a9ef9b14ca975a180cf7dd1cd0f02cca55841ed606",
+        "source_ref": "pr6-b39e102b8fa22d5ca98286773b4c149c290db890ff41f14a0e66159c43c44ab4",
+        "fields": 3
+      },
+      {
+        "revision_id": "c8bc78e544421813d1fa54e760eab099ce0765faeb2a4b8d4de2cd5452975744",
+        "source_ref": "pr6-349ccdb292cc58d270d0a897a4da55cfb74bf2e2f4d82d27482eda0e2b0a7f8d",
+        "fields": 3
+      }
+    ],
+    "independent_ttm_checks": [
+      {
+        "symbol": "688981.SH",
+        "field": "revenue",
+        "quarters": [
+          13675528000.0,
+          15609410000.0,
+          15916850000.0,
+          16301085000.0
+        ],
+        "expected": 61502873000.0,
+        "axiom_values": [
+          61502873000.0,
+          61502873000.0,
+          61502873000.0,
+          61502873000.0
+        ]
+      },
+      {
+        "symbol": "688981.SH",
+        "field": "net_income",
+        "quarters": [
+          1191788000.0,
+          1590712000.0,
+          2140458000.0,
+          2320915000.0
+        ],
+        "expected": 7243873000.0,
+        "axiom_values": [
+          7243873000.0,
+          7243873000.0,
+          7243873000.0,
+          7243873000.0
+        ]
+      }
+    ],
+    "income": [
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-09-30",
+        "field": "revenue",
+        "axiom": 41878720000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "bc7ce8f3c1efab34cd94c3d8402444419f69d6966f02016f8129fa80f686bb52",
+        "source_ref": "pr6-86518602454b2b92a9c084d679390898e973b742376d5f991179b4d586819ea5"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-09-30",
+        "field": "net_income",
+        "axiom": 3232660000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "bc7ce8f3c1efab34cd94c3d8402444419f69d6966f02016f8129fa80f686bb52",
+        "source_ref": "pr6-86518602454b2b92a9c084d679390898e973b742376d5f991179b4d586819ea5"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-09-30",
+        "field": "oper_cost",
+        "axiom": 34491601000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "bc7ce8f3c1efab34cd94c3d8402444419f69d6966f02016f8129fa80f686bb52",
+        "source_ref": "pr6-86518602454b2b92a9c084d679390898e973b742376d5f991179b4d586819ea5"
+      },
+      {
+        "symbol": "600036.SH",
+        "report_period": "2024-12-31",
+        "field": "revenue",
+        "axiom": 337488000000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "65798a65386c1e3bdd564f9c02bf92a732fd2ff382b4328020bf9a89a404e78e",
+        "source_ref": "pr6-36961e6cd9cdb41a680c31f02219aa2286d85fb60437bf0fea895f908fef7ea8"
+      },
+      {
+        "symbol": "600036.SH",
+        "report_period": "2024-12-31",
+        "field": "net_income",
+        "axiom": 149559000000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "65798a65386c1e3bdd564f9c02bf92a732fd2ff382b4328020bf9a89a404e78e",
+        "source_ref": "pr6-36961e6cd9cdb41a680c31f02219aa2286d85fb60437bf0fea895f908fef7ea8"
+      },
+      {
+        "symbol": "600036.SH",
+        "report_period": "2024-12-31",
+        "field": "oper_cost",
+        "axiom": null,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "65798a65386c1e3bdd564f9c02bf92a732fd2ff382b4328020bf9a89a404e78e",
+        "source_ref": "pr6-36961e6cd9cdb41a680c31f02219aa2286d85fb60437bf0fea895f908fef7ea8"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-06-30",
+        "field": "revenue",
+        "axiom": 26269310000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "b380caa4c6d414051761131914cdd8af6b3ede790c4dbeb2e9b61a4d710a866c",
+        "source_ref": "pr6-6f097763d15ae435908f5e16e016e151a9179e2bdacda6f937a3ab2d47f5eda2"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-06-30",
+        "field": "net_income",
+        "axiom": 1641948000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "b380caa4c6d414051761131914cdd8af6b3ede790c4dbeb2e9b61a4d710a866c",
+        "source_ref": "pr6-6f097763d15ae435908f5e16e016e151a9179e2bdacda6f937a3ab2d47f5eda2"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-06-30",
+        "field": "oper_cost",
+        "axiom": 22616160000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "b380caa4c6d414051761131914cdd8af6b3ede790c4dbeb2e9b61a4d710a866c",
+        "source_ref": "pr6-6f097763d15ae435908f5e16e016e151a9179e2bdacda6f937a3ab2d47f5eda2"
+      },
+      {
+        "symbol": "600036.SH",
+        "report_period": "2025-03-31",
+        "field": "revenue",
+        "axiom": 83751000000.0,
+        "frozen_qsys_versions": [
+          83751000000.0
+        ],
+        "result": "MATCH",
+        "revision_id": "807a3907cd6d981d9fcfbd62361efcea1516ce1a76e35db0681bc6876ee5d8a8",
+        "source_ref": "pr6-ec0bd023d3ac8b7509d408ae5b07c98c22d06d83fe5b3872eac1ca837968affe"
+      },
+      {
+        "symbol": "600036.SH",
+        "report_period": "2025-03-31",
+        "field": "net_income",
+        "axiom": 37513000000.0,
+        "frozen_qsys_versions": [
+          37513000000.0
+        ],
+        "result": "MATCH",
+        "revision_id": "807a3907cd6d981d9fcfbd62361efcea1516ce1a76e35db0681bc6876ee5d8a8",
+        "source_ref": "pr6-ec0bd023d3ac8b7509d408ae5b07c98c22d06d83fe5b3872eac1ca837968affe"
+      },
+      {
+        "symbol": "600036.SH",
+        "report_period": "2025-03-31",
+        "field": "oper_cost",
+        "axiom": null,
+        "frozen_qsys_versions": [
+          null
+        ],
+        "result": "MATCH",
+        "revision_id": "807a3907cd6d981d9fcfbd62361efcea1516ce1a76e35db0681bc6876ee5d8a8",
+        "source_ref": "pr6-ec0bd023d3ac8b7509d408ae5b07c98c22d06d83fe5b3872eac1ca837968affe"
+      },
+      {
+        "symbol": "600036.SH",
+        "report_period": "2024-03-31",
+        "field": "revenue",
+        "axiom": 86417000000.0,
+        "frozen_qsys_versions": [
+          86417000000.0
+        ],
+        "result": "MATCH",
+        "revision_id": "2fdc2d0da68099cef9c98258ecc910e7c85336a6942986aa9340e53954909004",
+        "source_ref": "pr6-cafc55901d9fb9aa8ae4cc52eb3f4882090d396784c41bd4f9fa4d42527adfcb"
+      },
+      {
+        "symbol": "600036.SH",
+        "report_period": "2024-03-31",
+        "field": "net_income",
+        "axiom": 38442000000.0,
+        "frozen_qsys_versions": [
+          38442000000.0
+        ],
+        "result": "MATCH",
+        "revision_id": "2fdc2d0da68099cef9c98258ecc910e7c85336a6942986aa9340e53954909004",
+        "source_ref": "pr6-cafc55901d9fb9aa8ae4cc52eb3f4882090d396784c41bd4f9fa4d42527adfcb"
+      },
+      {
+        "symbol": "600036.SH",
+        "report_period": "2024-03-31",
+        "field": "oper_cost",
+        "axiom": null,
+        "frozen_qsys_versions": [
+          null
+        ],
+        "result": "MATCH",
+        "revision_id": "2fdc2d0da68099cef9c98258ecc910e7c85336a6942986aa9340e53954909004",
+        "source_ref": "pr6-cafc55901d9fb9aa8ae4cc52eb3f4882090d396784c41bd4f9fa4d42527adfcb"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-03-31",
+        "field": "revenue",
+        "axiom": 12593782000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "8d3086d9cbb9499f869d3c2949e3ec892f33bc10a24060dcff411d1d3b013942",
+        "source_ref": "pr6-7aa2ddbb984c3e338e6720018c816d7f591a2186cc82a49108c905e8b1b37372"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-03-31",
+        "field": "net_income",
+        "axiom": 450160000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "8d3086d9cbb9499f869d3c2949e3ec892f33bc10a24060dcff411d1d3b013942",
+        "source_ref": "pr6-7aa2ddbb984c3e338e6720018c816d7f591a2186cc82a49108c905e8b1b37372"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-03-31",
+        "field": "oper_cost",
+        "axiom": 10807279000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "8d3086d9cbb9499f869d3c2949e3ec892f33bc10a24060dcff411d1d3b013942",
+        "source_ref": "pr6-7aa2ddbb984c3e338e6720018c816d7f591a2186cc82a49108c905e8b1b37372"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-12-31",
+        "field": "revenue",
+        "axiom": 57745538740.4,
+        "frozen_qsys_versions": [
+          57745538740.4
+        ],
+        "result": "MATCH",
+        "revision_id": "03b0877a7d62f922d8b6f7ec78b18cccd50e14fb753f993834bb00e082197b27",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-12-31",
+        "field": "net_income",
+        "axiom": 5180328226.4,
+        "frozen_qsys_versions": [
+          5180328226.4
+        ],
+        "result": "MATCH",
+        "revision_id": "03b0877a7d62f922d8b6f7ec78b18cccd50e14fb753f993834bb00e082197b27",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-12-31",
+        "field": "oper_cost",
+        "axiom": null,
+        "frozen_qsys_versions": [
+          null
+        ],
+        "result": "MATCH",
+        "revision_id": "03b0877a7d62f922d8b6f7ec78b18cccd50e14fb753f993834bb00e082197b27",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-12-31",
+        "field": "revenue",
+        "axiom": 57795570000.0,
+        "frozen_qsys_versions": [
+          57745538740.4
+        ],
+        "result": "DRIFT",
+        "revision_id": "21117987406eb9aaa8b5283e3e133bdc02f1ff946d7e32ae25ddf2b9f69425bc",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-12-31",
+        "field": "net_income",
+        "axiom": null,
+        "frozen_qsys_versions": [
+          5180328226.4
+        ],
+        "result": "DRIFT",
+        "revision_id": "21117987406eb9aaa8b5283e3e133bdc02f1ff946d7e32ae25ddf2b9f69425bc",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-12-31",
+        "field": "oper_cost",
+        "axiom": null,
+        "frozen_qsys_versions": [
+          null
+        ],
+        "result": "MATCH",
+        "revision_id": "21117987406eb9aaa8b5283e3e133bdc02f1ff946d7e32ae25ddf2b9f69425bc",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-12-31",
+        "field": "revenue",
+        "axiom": 57795570000.0,
+        "frozen_qsys_versions": [
+          57745538740.4
+        ],
+        "result": "DRIFT",
+        "revision_id": "96a6128ddac72da8ab4388ebd65598e022968d1005003df7beefc75b11fea003",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-12-31",
+        "field": "net_income",
+        "axiom": 5373118000.0,
+        "frozen_qsys_versions": [
+          5180328226.4
+        ],
+        "result": "DRIFT",
+        "revision_id": "96a6128ddac72da8ab4388ebd65598e022968d1005003df7beefc75b11fea003",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2024-12-31",
+        "field": "oper_cost",
+        "axiom": 47051267000.0,
+        "frozen_qsys_versions": [
+          null
+        ],
+        "result": "DRIFT",
+        "revision_id": "96a6128ddac72da8ab4388ebd65598e022968d1005003df7beefc75b11fea003",
+        "source_ref": "pr6-26fae4cc4e74cb598e65b0d0f5aa31e4f5ac60a105024dfa11f5b23f40c5989c"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2025-03-31",
+        "field": "revenue",
+        "axiom": 16301085000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "0750a8517c56d126af3ff02c4b95b257cdeaa7e1750749e91970634ffc55a5c6",
+        "source_ref": "pr6-540bf0cee4365036559502bf53d0f8a4c970a47f293257f15412f778268e9894"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2025-03-31",
+        "field": "net_income",
+        "axiom": 2320915000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "0750a8517c56d126af3ff02c4b95b257cdeaa7e1750749e91970634ffc55a5c6",
+        "source_ref": "pr6-540bf0cee4365036559502bf53d0f8a4c970a47f293257f15412f778268e9894"
+      },
+      {
+        "symbol": "688981.SH",
+        "report_period": "2025-03-31",
+        "field": "oper_cost",
+        "axiom": 12536046000.0,
+        "frozen_qsys_versions": [],
+        "result": "MISSING_FROZEN_REFERENCE",
+        "revision_id": "0750a8517c56d126af3ff02c4b95b257cdeaa7e1750749e91970634ffc55a5c6",
+        "source_ref": "pr6-540bf0cee4365036559502bf53d0f8a4c970a47f293257f15412f778268e9894"
+      }
+    ],
+    "membership": [
+      {
+        "index": "000906.SH",
+        "session": "2025-05-30",
+        "axiom": [
+          "000001.SZ",
+          "000401.SZ",
+          "600000.SH",
+          "600036.SH",
+          "688981.SH"
+        ],
+        "frozen_qsys": [
+          "000001.SZ",
+          "000401.SZ",
+          "600000.SH",
+          "600036.SH",
+          "688981.SH"
+        ],
+        "result": "MATCH"
+      },
+      {
+        "index": "000906.SH",
+        "session": "2025-06-30",
+        "axiom": [
+          "000001.SZ",
+          "000062.SZ",
+          "600000.SH",
+          "600036.SH",
+          "688981.SH"
+        ],
+        "frozen_qsys": [
+          "000001.SZ",
+          "000062.SZ",
+          "600000.SH",
+          "600036.SH",
+          "688981.SH"
+        ],
+        "result": "MATCH"
+      },
+      {
+        "index": "000852.SH",
+        "session": "2025-05-30",
+        "axiom": [
+          "000062.SZ"
+        ],
+        "frozen_qsys": [
+          "000062.SZ"
+        ],
+        "result": "MATCH"
+      },
+      {
+        "index": "000852.SH",
+        "session": "2025-06-30",
+        "axiom": [
+          "603072.SH"
+        ],
+        "frozen_qsys": [
+          "603072.SH"
+        ],
+        "result": "MATCH"
+      }
+    ],
+    "historical_union": {
+      "count": 3601,
+      "ordered_digest": "5bb93d10bf5c01d6b2962decb48356578bb8942f787c5746c77d0b3a09b1df93",
+      "interval_conversion": "inclusive_end_plus_one_day"
+    },
+    "legacy_qlib": [
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "valuation.pe",
+        "axiom": 7.5919,
+        "frozen_qsys": 7.591899871826172,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "valuation.pb",
+        "axiom": 1.0571,
+        "frozen_qsys": 1.0571000576019287,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "valuation.ps",
+        "axiom": 3.3381,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "indicator.current_ratio",
+        "axiom": null,
+        "frozen_qsys": null,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "indicator.debt_ratio",
+        "axiom": 0.8999290000000001,
+        "frozen_qsys": 0.9023029804229736,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "indicator.gross_margin",
+        "axiom": null,
+        "frozen_qsys": null,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "indicator.roe",
+        "axiom": 0.030164,
+        "frozen_qsys": 0.034689001739025116,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "income.revenue",
+        "axiom": 83751000000.0,
+        "frozen_qsys": 83751002112.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "income.net_income",
+        "axiom": 37513000000.0,
+        "frozen_qsys": 37512998912.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-10",
+        "field": "cashflow.operating",
+        "axiom": 95026000000.0,
+        "frozen_qsys": 95026003968.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "valuation.pe",
+        "axiom": 177.7404,
+        "frozen_qsys": 177.7404022216797,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "valuation.pb",
+        "axiom": 4.3971,
+        "frozen_qsys": 4.39709997177124,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "valuation.ps",
+        "axiom": 11.3746,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "indicator.current_ratio",
+        "axiom": 1.791,
+        "frozen_qsys": 1.726859450340271,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "indicator.debt_ratio",
+        "axiom": 0.328131,
+        "frozen_qsys": 0.5806898474693298,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "indicator.gross_margin",
+        "axiom": 0.230969,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "indicator.roe",
+        "axiom": 0.009112,
+        "frozen_qsys": 0.034957196563482285,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "income.revenue",
+        "axiom": 16301085000.0,
+        "frozen_qsys": 57745539072.0,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "income.net_income",
+        "axiom": 2320915000.0,
+        "frozen_qsys": 5180328448.0,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-10",
+        "field": "cashflow.operating",
+        "axiom": -1171520000.0,
+        "frozen_qsys": -1171520000.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "valuation.pe",
+        "axiom": 7.7007,
+        "frozen_qsys": 7.700699806213379,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "valuation.pb",
+        "axiom": 1.0722,
+        "frozen_qsys": 1.0721999406814575,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "valuation.ps",
+        "axiom": 3.3859,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "indicator.current_ratio",
+        "axiom": null,
+        "frozen_qsys": null,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "indicator.debt_ratio",
+        "axiom": 0.8999290000000001,
+        "frozen_qsys": 0.9023029804229736,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "indicator.gross_margin",
+        "axiom": null,
+        "frozen_qsys": null,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "indicator.roe",
+        "axiom": 0.030164,
+        "frozen_qsys": 0.034689001739025116,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "income.revenue",
+        "axiom": 83751000000.0,
+        "frozen_qsys": 83751002112.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "income.net_income",
+        "axiom": 37513000000.0,
+        "frozen_qsys": 37512998912.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-11",
+        "field": "cashflow.operating",
+        "axiom": 95026000000.0,
+        "frozen_qsys": 95026003968.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "valuation.pe",
+        "axiom": 179.0143,
+        "frozen_qsys": 179.01429748535156,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "valuation.pb",
+        "axiom": 4.4286,
+        "frozen_qsys": 4.428599834442139,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "valuation.ps",
+        "axiom": 11.4561,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "indicator.current_ratio",
+        "axiom": 1.791,
+        "frozen_qsys": 1.726859450340271,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "indicator.debt_ratio",
+        "axiom": 0.328131,
+        "frozen_qsys": 0.5806898474693298,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "indicator.gross_margin",
+        "axiom": 0.230969,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "indicator.roe",
+        "axiom": 0.009112,
+        "frozen_qsys": 0.034957196563482285,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "income.revenue",
+        "axiom": 16301085000.0,
+        "frozen_qsys": 57745539072.0,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "income.net_income",
+        "axiom": 2320915000.0,
+        "frozen_qsys": 5180328448.0,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-11",
+        "field": "cashflow.operating",
+        "axiom": -1171520000.0,
+        "frozen_qsys": -1171520000.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "valuation.pe",
+        "axiom": 7.6871,
+        "frozen_qsys": 7.687099933624268,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "valuation.pb",
+        "axiom": 1.0703,
+        "frozen_qsys": 1.0702999830245972,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "valuation.ps",
+        "axiom": 3.38,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "indicator.current_ratio",
+        "axiom": null,
+        "frozen_qsys": null,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "indicator.debt_ratio",
+        "axiom": 0.8999290000000001,
+        "frozen_qsys": 0.9023029804229736,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "indicator.gross_margin",
+        "axiom": null,
+        "frozen_qsys": null,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "indicator.roe",
+        "axiom": 0.030164,
+        "frozen_qsys": 0.034689001739025116,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "income.revenue",
+        "axiom": 83751000000.0,
+        "frozen_qsys": 83751002112.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "income.net_income",
+        "axiom": 37513000000.0,
+        "frozen_qsys": 37512998912.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-12",
+        "field": "cashflow.operating",
+        "axiom": 95026000000.0,
+        "frozen_qsys": 95026003968.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "valuation.pe",
+        "axiom": 177.6325,
+        "frozen_qsys": 177.63250732421875,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "valuation.pb",
+        "axiom": 4.3944,
+        "frozen_qsys": 4.394400119781494,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "valuation.ps",
+        "axiom": 11.3677,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "indicator.current_ratio",
+        "axiom": 1.791,
+        "frozen_qsys": 1.726859450340271,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "indicator.debt_ratio",
+        "axiom": 0.328131,
+        "frozen_qsys": 0.5806898474693298,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "indicator.gross_margin",
+        "axiom": 0.230969,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "indicator.roe",
+        "axiom": 0.009112,
+        "frozen_qsys": 0.034957196563482285,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "income.revenue",
+        "axiom": 16301085000.0,
+        "frozen_qsys": 57745539072.0,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "income.net_income",
+        "axiom": 2320915000.0,
+        "frozen_qsys": 5180328448.0,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-12",
+        "field": "cashflow.operating",
+        "axiom": -1171520000.0,
+        "frozen_qsys": -1171520000.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "valuation.pe",
+        "axiom": 7.6786,
+        "frozen_qsys": 7.678599834442139,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "valuation.pb",
+        "axiom": 1.0691,
+        "frozen_qsys": 1.069100022315979,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "valuation.ps",
+        "axiom": 3.3762,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "indicator.current_ratio",
+        "axiom": null,
+        "frozen_qsys": null,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "indicator.debt_ratio",
+        "axiom": 0.8999290000000001,
+        "frozen_qsys": 0.9023029804229736,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "indicator.gross_margin",
+        "axiom": null,
+        "frozen_qsys": null,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "indicator.roe",
+        "axiom": 0.030164,
+        "frozen_qsys": 0.034689001739025116,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "income.revenue",
+        "axiom": 83751000000.0,
+        "frozen_qsys": 83751002112.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "income.net_income",
+        "axiom": 37513000000.0,
+        "frozen_qsys": 37512998912.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "600036.SH",
+        "session": "2025-06-13",
+        "field": "cashflow.operating",
+        "axiom": 95026000000.0,
+        "frozen_qsys": 95026003968.0,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "valuation.pe",
+        "axiom": 178.7552,
+        "frozen_qsys": 178.7552032470703,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "valuation.pb",
+        "axiom": 4.4222,
+        "frozen_qsys": 4.4222002029418945,
+        "result": "MATCH"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "valuation.ps",
+        "axiom": 11.4396,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "indicator.current_ratio",
+        "axiom": 1.791,
+        "frozen_qsys": 1.726859450340271,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "indicator.debt_ratio",
+        "axiom": 0.328131,
+        "frozen_qsys": 0.5806898474693298,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "indicator.gross_margin",
+        "axiom": 0.230969,
+        "frozen_qsys": null,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "indicator.roe",
+        "axiom": 0.009112,
+        "frozen_qsys": 0.034957196563482285,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "income.revenue",
+        "axiom": 16301085000.0,
+        "frozen_qsys": 57745539072.0,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "income.net_income",
+        "axiom": 2320915000.0,
+        "frozen_qsys": 5180328448.0,
+        "result": "DRIFT"
+      },
+      {
+        "symbol": "688981.SH",
+        "session": "2025-06-13",
+        "field": "cashflow.operating",
+        "axiom": -1171520000.0,
+        "frozen_qsys": -1171520000.0,
+        "result": "MATCH"
+      }
+    ],
+    "industry_reference_limitation": "frozen Qsys industry integer encoding lacks frozen taxonomy map; supplier labels and Axiom labels checked through RawBatch closure, legacy code cannot be equated to Axiom code",
+    "qualification": "terminal source dates remain best_effort; frozen Qsys income binding does not prove historical revision availability"
+  },
+  "gates": {
+    "artifact_closure": true,
+    "offline_identity_and_values": true,
+    "historical_union_exact": true,
+    "direct_qlib_values": true,
+    "bounded_membership_reconciliation": true,
+    "source_revisions_retained": true
+  }
+}

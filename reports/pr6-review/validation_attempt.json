@@ -1,0 +1,15 @@
+{
+  "run_id": "pr6-review-20260908-r1",
+  "stage": "terminal_validation",
+  "code_bundle": "/home/liuming/workspace/axiom/data/forensic/pr6-review-20260908-r1/code-bundles/f528537d16976dc6b17fe2316ecb3a71e2f8b9d0d2a8cf420624f9f5efb12cd8",
+  "source_root": "/home/liuming/workspace/axiom/data/forensic/pr6-review-20260908-r1/source",
+  "recovery_root": "/home/liuming/workspace/axiom/data/forensic/pr6-review-20260908-r1/recovery",
+  "log": "/home/liuming/workspace/axiom/data/forensic/pr6-review-20260908-r1/validation.log",
+  "validator": "axiom_data.evidence.validate_pr6_evidence",
+  "implementation_bytes_match": true,
+  "tests": {
+    "passed": 100,
+    "total": 100,
+    "seconds": 65.769
+  }
+}

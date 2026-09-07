@@ -161,18 +161,30 @@ class SnapshotReader:
                                  policy=pit_policy, knowledge_cutoff=knowledge_cutoff)
 
     def members(self, group_id: str, target_session: str, *, knowledge_cutoff: str,
-                pit_policy: str, domain: str = "universe_membership") -> tuple[dict[str, Any], ...]:
+                pit_policy: str, domain: str = "universe_membership", symbols: Sequence[str] | None = None) -> tuple[dict[str, Any], ...]:
         from axiom_data.pit import members
         if domain not in {"universe_membership", "industry_membership"}:
             raise ArtifactError("membership domain required")
-        return members(self.facts(domain), group_id=group_id,
+        from axiom_data.pr6_coverage import membership_coverage
+        membership_coverage(self,domain,group_id,target_session,target_session,pit_policy,knowledge_cutoff,symbols)
+        return members(self.facts(domain, symbols=symbols), group_id=group_id,
                        target_session=_session(target_session, "target_session"),
                        knowledge_cutoff=knowledge_cutoff, policy=pit_policy)
+
+    def membership_facts(self, group_id, target_session, *, knowledge_cutoff, pit_policy,
+                         domain='universe_membership'):
+        rows=self.members(group_id,target_session,knowledge_cutoff=knowledge_cutoff,
+                          pit_policy=pit_policy,domain=domain)
+        return {'group_id':group_id,'version':self.commits[domain].ref.commit_id,
+                'snapshot_id':self.snapshot.ref.snapshot_id,'pit_policy':pit_policy,
+                'knowledge_cutoff':knowledge_cutoff,'target_session':target_session,'rows':rows}
 
     def historical_union(self, group_id: str, start_session: str, end_session: str,
                          lookback_start: str, *, knowledge_cutoff: str,
                          pit_policy: str) -> tuple[str, ...]:
         from axiom_data.pit import historical_union
+        from axiom_data.pr6_coverage import membership_coverage
+        membership_coverage(self,'universe_membership',group_id,lookback_start,end_session,pit_policy,knowledge_cutoff)
         return historical_union(self.facts("universe_membership"), group_id=group_id,
             start_session=_session(start_session, "start_session"),
             end_session=_session(end_session, "end_session"),
@@ -192,6 +204,22 @@ class SnapshotReader:
 
         if domain not in self.commits:
             raise ArtifactError(f"snapshot has no readable domain {domain!r}")
+        from axiom_data.domains import PR6_DOMAINS
+        if domain in PR6_DOMAINS:
+            from axiom_data.pr6_coverage import require_symbols
+            require_symbols(self.commits[domain].rows,symbols)
+            if start_session is not None or end_session is not None:
+                if domain != 'valuation_daily':
+                    raise ArtifactError('INSUFFICIENT_SCOPE: use explicit PIT membership/financial Reader')
+                candidates=[r for r in self.commits[domain].rows if symbols is None or r['symbol'] in symbols]
+                from axiom_data.pr6_coverage import require_range
+                days=[r['session'] for r in candidates]
+                if not days:raise ArtifactError('INSUFFICIENT_SCOPE: no valuation coverage')
+                require_range(start_session or min(days),end_session or max(days),min(days),max(days))
+                expected={(r['symbol'],c['session']) for r in candidates for c in self.trading_calendar(
+                    start_session=start_session or min(days),end_session=end_session or max(days)) if c['is_open']}
+                if not expected<={(r['symbol'],r['session']) for r in candidates}:
+                    raise ArtifactError('INSUFFICIENT_SCOPE: valuation gap')
         available = self.schema(domain)
         selected_fields = tuple(fields or available)
         if not selected_fields or len(selected_fields) != len(set(selected_fields)) or any(
@@ -667,6 +695,14 @@ class QlibViewReader:
         self.view = load_qlib_view(self.data_root, view_id)
         self.path = (_layout(self.data_root).derived_commits("pr6_fact") / view_id
                      if view_id.startswith("pr6-fact-") else _layout(self.data_root).qlib_exports / view_id)
+
+    def fact_metadata(self):
+        if self.view.manifest.get('artifact_type') != 'pr6_fact_view':
+            raise ArtifactError('PR6 FactView metadata required')
+        return {'view_id':self.view.ref.view_id,'snapshot_ref':self.view.manifest['snapshot_ref'],
+                'industry_mapping':self.view.manifest['industry_mapping'],
+                'validated_scope':self.view.manifest['validated_scope'],
+                'rows':tuple({'symbol':r['symbol'],'session':r['session'],'fields':r['facts']} for r in self.view.rows)}
 
     def calendar(self) -> tuple[str, ...]:
         layout = _layout(self.data_root)

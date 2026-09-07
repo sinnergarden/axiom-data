@@ -47,3 +47,22 @@ The delivery consists of this single PR6 changeset on the named branch. The fina
 Git check must show exactly one commit relative to main and a clean working tree.
 The commit identity and branch publication outcome are recorded in the task's
 final delivery response. No merge or PR7 implementation is part of this run.
+
+## Review correction run (2026-09-08)
+
+Objective: repair financial ABA observation sequencing, incremental membership state,
+coverage admission and typed FactView metadata. PR7 remains deferred; no merge.
+
+Stages: (1) reproduce and trace blockers; (2) implement and test all counterexamples;
+(3) real frozen supplier slice and new-root offline recovery; (4) independently
+validate terminal artifacts, full suite, code bundle, commit and remote branch.
+DoD: ABA resolves A/B/A at the three cutoffs; immutable child closes/corrects
+intervals and matches all-raw replay; date/symbol/ID/field coverage gaps reject;
+TTM null has missing reason and component refs; missing industry mapping rejects;
+actual source/recovery identities and six gates pass; full tests pass; delivery
+report contains all 13 requested items and commit SHA is verified remotely.
+
+All four correction stages completed. The 100-test suite passed in 65.769 seconds.
+New source/recovery roots under `pr6-review-20260908-r1` passed all six gates;
+repo implementation bytes match the frozen code bundle. The 13-item correction
+report is `reports/pr6-review/DELIVERY.md`. Remote verification follows commit.
