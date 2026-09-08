@@ -1,0 +1,2413 @@
+{
+  "decision": "V1_BASELINE_REJECTED",
+  "terminal_complete": false,
+  "stage": "SECURITY_MASTER_CANONICAL_BLOCKED",
+  "scope_count": 3601,
+  "scope_file": "/tmp/axiom-qsys-pr4-audit.c969c74-20260906-r5/frozen_cohort/row_keys/historical_read_union.json",
+  "scope_file_sha256": "b4d7f0ee85b7470ea30fa18bb0df9b48552e184acc430d9855a977ba9ecc2ef4",
+  "preflight_root": "/home/liuming/workspace/axiom/data/operations/v1-bootstrap-20260909-r1/data",
+  "security_raw_refs": {
+    "L": {
+      "raw_batch_id": "tushare-stock_basic-4b71a59ab6021db4b3cde2de623f4444487ab153dd6b8fbbc9a87fa9194f6a81",
+      "manifest_digest": "sha256:03d25fd8a5dfe66be1e141979c0c3cc42b64f3060d0d0066d131d1932a2ac90b"
+    },
+    "D": {
+      "raw_batch_id": "tushare-stock_basic-0b984aab43ea5953d52f41153dab84cd0c3fc98b2779bedafffab9cac23ed9f8",
+      "manifest_digest": "sha256:a7726e41a75fc9854f2d32490704b558e0ce1e0c14c8cbb8bb09eb728bb4f050"
+    },
+    "P": {
+      "raw_batch_id": "tushare-stock_basic-dcd4cb1a37a523e40df980d0c73c23542e50efe23719e907db2c143f3a048f1b",
+      "manifest_digest": "sha256:2967962b54add0652827337511ef3fd1066114ca4bc0d6a0712cdb64d321c8c1"
+    }
+  },
+  "required_delisted_count": 228,
+  "required_delisted_rows": [
+    {
+      "delist_date": "20240426",
+      "exchange": "SZSE",
+      "list_date": "19901210",
+      "list_status": "D",
+      "name": "ST星源(退)",
+      "ts_code": "000005.SZ"
+    },
+    {
+      "delist_date": "20200107",
+      "exchange": "SZSE",
+      "list_date": "19920616",
+      "list_status": "D",
+      "name": "神城A退(退)",
+      "ts_code": "000018.SZ"
+    },
+    {
+      "delist_date": "20151230",
+      "exchange": "SZSE",
+      "list_date": "19930607",
+      "list_status": "D",
+      "name": "招商地产(退)",
+      "ts_code": "000024.SZ"
+    },
+    {
+      "delist_date": "20170707",
+      "exchange": "SZSE",
+      "list_date": "19940103",
+      "list_status": "D",
+      "name": "新都退(退)",
+      "ts_code": "000033.SZ"
+    },
+    {
+      "delist_date": "20230712",
+      "exchange": "SZSE",
+      "list_date": "19940808",
+      "list_status": "D",
+      "name": "大通退(退)",
+      "ts_code": "000038.SZ"
+    },
+    {
+      "delist_date": "20250430",
+      "exchange": "SZSE",
+      "list_date": "19940808",
+      "list_status": "D",
+      "name": "*ST旭蓝(退)",
+      "ts_code": "000040.SZ"
+    },
+    {
+      "delist_date": "20240207",
+      "exchange": "SZSE",
+      "list_date": "19940912",
+      "list_status": "D",
+      "name": "*ST泛海(退)",
+      "ts_code": "000046.SZ"
+    },
+    {
+      "delist_date": "20230609",
+      "exchange": "SZSE",
+      "list_date": "20000807",
+      "list_status": "D",
+      "name": "*ST宜康(退)",
+      "ts_code": "000150.SZ"
+    },
+    {
+      "delist_date": "20241011",
+      "exchange": "SZSE",
+      "list_date": "19960925",
+      "list_status": "D",
+      "name": "ST旭电(退)",
+      "ts_code": "000413.SZ"
+    },
+    {
+      "delist_date": "20240605",
+      "exchange": "SZSE",
+      "list_date": "19960719",
+      "list_status": "D",
+      "name": "*ST民控(退)",
+      "ts_code": "000416.SZ"
+    },
+    {
+      "delist_date": "20190621",
+      "exchange": "SZSE",
+      "list_date": "19970328",
+      "list_status": "D",
+      "name": "小天鹅A(退)",
+      "ts_code": "000418.SZ"
+    },
+    {
+      "delist_date": "20180718",
+      "exchange": "SZSE",
+      "list_date": "19930518",
+      "list_status": "D",
+      "name": "烯碳退(退)",
+      "ts_code": "000511.SZ"
+    },
+    {
+      "delist_date": "20090506",
+      "exchange": "SZSE",
+      "list_date": "19930712",
+      "list_status": "D",
+      "name": "攀渝钛业(退)",
+      "ts_code": "000515.SZ"
+    },
+    {
+      "delist_date": "20130426",
+      "exchange": "SZSE",
+      "list_date": "19931108",
+      "list_status": "D",
+      "name": "白云山A(退)",
+      "ts_code": "000522.SZ"
+    },
+    {
+      "delist_date": "20130918",
+      "exchange": "SZSE",
+      "list_date": "19931112",
+      "list_status": "D",
+      "name": "美的电器(退)",
+      "ts_code": "000527.SZ"
+    },
+    {
+      "delist_date": "20230630",
+      "exchange": "SZSE",
+      "list_date": "19940202",
+      "list_status": "D",
+      "name": "*ST中天(退)",
+      "ts_code": "000540.SZ"
+    },
+    {
+      "delist_date": "20150126",
+      "exchange": "SZSE",
+      "list_date": "19940202",
+      "list_status": "D",
+      "name": "宏源证券(退)",
+      "ts_code": "000562.SZ"
+    },
+    {
+      "delist_date": "20250711",
+      "exchange": "SZSE",
+      "list_date": "19951128",
+      "list_status": "D",
+      "name": "工智退(退)",
+      "ts_code": "000584.SZ"
+    },
+    {
+      "delist_date": "20220524",
+      "exchange": "SZSE",
+      "list_date": "19951213",
+      "list_status": "D",
+      "name": "东电退(退)",
+      "ts_code": "000585.SZ"
+    },
+    {
+      "delist_date": "20230403",
+      "exchange": "SZSE",
+      "list_date": "19960425",
+      "list_status": "D",
+      "name": "*ST金洲(退)",
+      "ts_code": "000587.SZ"
+    },
+    {
+      "delist_date": "20150713",
+      "exchange": "SZSE",
+      "list_date": "19960320",
+      "list_status": "D",
+      "name": "国恒退(退)",
+      "ts_code": "000594.SZ"
+    },
+    {
+      "delist_date": "20130814",
+      "exchange": "SZSE",
+      "list_date": "19960819",
+      "list_status": "D",
+      "name": "金马集团(退)",
+      "ts_code": "000602.SZ"
+    },
+    {
+      "delist_date": "20230706",
+      "exchange": "SZSE",
+      "list_date": "19961004",
+      "list_status": "D",
+      "name": "顺利退(退)",
+      "ts_code": "000606.SZ"
+    },
+    {
+      "delist_date": "20230823",
+      "exchange": "SZSE",
+      "list_date": "19961108",
+      "list_status": "D",
+      "name": "*ST海投(退)",
+      "ts_code": "000616.SZ"
+    },
+    {
+      "delist_date": "20250716",
+      "exchange": "SZSE",
+      "list_date": "19961107",
+      "list_status": "D",
+      "name": "恒立退(退)",
+      "ts_code": "000622.SZ"
+    },
+    {
+      "delist_date": "20250930",
+      "exchange": "SZSE",
+      "list_date": "19961112",
+      "list_status": "D",
+      "name": "*ST天茂(退)",
+      "ts_code": "000627.SZ"
+    },
+    {
+      "delist_date": "20210412",
+      "exchange": "SZSE",
+      "list_date": "19961216",
+      "list_status": "D",
+      "name": "天夏退(退)",
+      "ts_code": "000662.SZ"
+    },
+    {
+      "delist_date": "20231026",
+      "exchange": "SZSE",
+      "list_date": "19961210",
+      "list_status": "D",
+      "name": "经纬纺机(退)",
+      "ts_code": "000666.SZ"
+    },
+    {
+      "delist_date": "20230714",
+      "exchange": "SZSE",
+      "list_date": "19961205",
+      "list_status": "D",
+      "name": "ST美置(退)",
+      "ts_code": "000667.SZ"
+    },
+    {
+      "delist_date": "20230816",
+      "exchange": "SZSE",
+      "list_date": "19961218",
+      "list_status": "D",
+      "name": "ST阳光城(退)",
+      "ts_code": "000671.SZ"
+    },
+    {
+      "delist_date": "20220704",
+      "exchange": "SZSE",
+      "list_date": "19970124",
+      "list_status": "D",
+      "name": "当代退(退)",
+      "ts_code": "000673.SZ"
+    },
+    {
+      "delist_date": "20220617",
+      "exchange": "SZSE",
+      "list_date": "19970221",
+      "list_status": "D",
+      "name": "华讯退(退)",
+      "ts_code": "000687.SZ"
+    },
+    {
+      "delist_date": "20190709",
+      "exchange": "SZSE",
+      "list_date": "19970226",
+      "list_status": "D",
+      "name": "华泽退(退)",
+      "ts_code": "000693.SZ"
+    },
+    {
+      "delist_date": "20230804",
+      "exchange": "SZSE",
+      "list_date": "19970704",
+      "list_status": "D",
+      "name": "ST泰禾(退)",
+      "ts_code": "000732.SZ"
+    },
+    {
+      "delist_date": "20170118",
+      "exchange": "SZSE",
+      "list_date": "19970704",
+      "list_status": "D",
+      "name": "长城信息(退)",
+      "ts_code": "000748.SZ"
+    },
+    {
+      "delist_date": "20210723",
+      "exchange": "SZSE",
+      "list_date": "19970627",
+      "list_status": "D",
+      "name": "斯太退(退)",
+      "ts_code": "000760.SZ"
+    },
+    {
+      "delist_date": "20220124",
+      "exchange": "SZSE",
+      "list_date": "19970606",
+      "list_status": "D",
+      "name": "ST平能(退)",
+      "ts_code": "000780.SZ"
+    },
+    {
+      "delist_date": "20230706",
+      "exchange": "SZSE",
+      "list_date": "19980416",
+      "list_status": "D",
+      "name": "银河退(退)",
+      "ts_code": "000806.SZ"
+    },
+    {
+      "delist_date": "20240812",
+      "exchange": "SZSE",
+      "list_date": "19970929",
+      "list_status": "D",
+      "name": "ST富通(退)",
+      "ts_code": "000836.SZ"
+    },
+    {
+      "delist_date": "20251111",
+      "exchange": "SZSE",
+      "list_date": "19980609",
+      "list_status": "D",
+      "name": "*ST高鸿(退)",
+      "ts_code": "000851.SZ"
+    },
+    {
+      "delist_date": "20240918",
+      "exchange": "SZSE",
+      "list_date": "19981028",
+      "list_status": "D",
+      "name": "海印股份(退)",
+      "ts_code": "000861.SZ"
+    },
+    {
+      "delist_date": "20171225",
+      "exchange": "SZSE",
+      "list_date": "19990927",
+      "list_status": "D",
+      "name": "华北高速(退)",
+      "ts_code": "000916.SZ"
+    },
+    {
+      "delist_date": "20230728",
+      "exchange": "SZSE",
+      "list_date": "19990720",
+      "list_status": "D",
+      "name": "*ST嘉凯(退)",
+      "ts_code": "000918.SZ"
+    },
+    {
+      "delist_date": "20201217",
+      "exchange": "SZSE",
+      "list_date": "19990923",
+      "list_status": "D",
+      "name": "凯迪退(退)",
+      "ts_code": "000939.SZ"
+    },
+    {
+      "delist_date": "20240711",
+      "exchange": "SZSE",
+      "list_date": "20000301",
+      "list_status": "D",
+      "name": "ST中南(退)",
+      "ts_code": "000961.SZ"
+    },
+    {
+      "delist_date": "20240724",
+      "exchange": "SZSE",
+      "list_date": "20000427",
+      "list_status": "D",
+      "name": "*ST高升(退)",
+      "ts_code": "000971.SZ"
+    },
+    {
+      "delist_date": "20240827",
+      "exchange": "SZSE",
+      "list_date": "20000601",
+      "list_status": "D",
+      "name": "*ST华铁(退)",
+      "ts_code": "000976.SZ"
+    },
+    {
+      "delist_date": "20181228",
+      "exchange": "SZSE",
+      "list_date": "20000616",
+      "list_status": "D",
+      "name": "中弘退(退)",
+      "ts_code": "000979.SZ"
+    },
+    {
+      "delist_date": "20240812",
+      "exchange": "SZSE",
+      "list_date": "20000706",
+      "list_status": "D",
+      "name": "中银绒业(退)",
+      "ts_code": "000982.SZ"
+    },
+    {
+      "delist_date": "20240628",
+      "exchange": "SZSE",
+      "list_date": "20000718",
+      "list_status": "D",
+      "name": "中期退(退)",
+      "ts_code": "000996.SZ"
+    },
+    {
+      "delist_date": "20240318",
+      "exchange": "SZSE",
+      "list_date": "20040625",
+      "list_status": "D",
+      "name": "ST鸿达(退)",
+      "ts_code": "002002.SZ"
+    },
+    {
+      "delist_date": "20230317",
+      "exchange": "SZSE",
+      "list_date": "20040705",
+      "list_status": "D",
+      "name": "中航机电(退)",
+      "ts_code": "002013.SZ"
+    },
+    {
+      "delist_date": "20191101",
+      "exchange": "SZSE",
+      "list_date": "20040713",
+      "list_status": "D",
+      "name": "华信退(退)",
+      "ts_code": "002018.SZ"
+    },
+    {
+      "delist_date": "20190709",
+      "exchange": "SZSE",
+      "list_date": "20061012",
+      "list_status": "D",
+      "name": "众和退(退)",
+      "ts_code": "002070.SZ"
+    },
+    {
+      "delist_date": "20210507",
+      "exchange": "SZSE",
+      "list_date": "20061012",
+      "list_status": "D",
+      "name": "长城退(退)",
+      "ts_code": "002071.SZ"
+    },
+    {
+      "delist_date": "20240418",
+      "exchange": "SZSE",
+      "list_date": "20061130",
+      "list_status": "D",
+      "name": "新海退(退)",
+      "ts_code": "002089.SZ"
+    },
+    {
+      "delist_date": "20230811",
+      "exchange": "SZSE",
+      "list_date": "20070208",
+      "list_status": "D",
+      "name": "*ST天润(退)",
+      "ts_code": "002113.SZ"
+    },
+    {
+      "delist_date": "20230804",
+      "exchange": "SZSE",
+      "list_date": "20070302",
+      "list_status": "D",
+      "name": "*ST紫鑫(退)",
+      "ts_code": "002118.SZ"
+    },
+    {
+      "delist_date": "20191129",
+      "exchange": "SZSE",
+      "list_date": "20070720",
+      "list_status": "D",
+      "name": "印纪退(退)",
+      "ts_code": "002143.SZ"
+    },
+    {
+      "delist_date": "20220623",
+      "exchange": "SZSE",
+      "list_date": "20070808",
+      "list_status": "D",
+      "name": "新光退(退)",
+      "ts_code": "002147.SZ"
+    },
+    {
+      "delist_date": "20260327",
+      "exchange": "SZSE",
+      "list_date": "20080512",
+      "list_status": "D",
+      "name": "*ST奥维",
+      "ts_code": "002231.SZ"
+    },
+    {
+      "delist_date": "20220617",
+      "exchange": "SZSE",
+      "list_date": "20080716",
+      "list_status": "D",
+      "name": "德奥退(退)",
+      "ts_code": "002260.SZ"
+    },
+    {
+      "delist_date": "20240816",
+      "exchange": "SZSE",
+      "list_date": "20090821",
+      "list_status": "D",
+      "name": "ST联络(退)",
+      "ts_code": "002280.SZ"
+    },
+    {
+      "delist_date": "20240819",
+      "exchange": "SZSE",
+      "list_date": "20090903",
+      "list_status": "D",
+      "name": "*ST超华(退)",
+      "ts_code": "002288.SZ"
+    },
+    {
+      "delist_date": "20240927",
+      "exchange": "SZSE",
+      "list_date": "20091127",
+      "list_status": "D",
+      "name": "*ST威创(退)",
+      "ts_code": "002308.SZ"
+    },
+    {
+      "delist_date": "20240815",
+      "exchange": "SZSE",
+      "list_date": "20091222",
+      "list_status": "D",
+      "name": "*ST洪涛(退)",
+      "ts_code": "002325.SZ"
+    },
+    {
+      "delist_date": "20250704",
+      "exchange": "SZSE",
+      "list_date": "20100113",
+      "list_status": "D",
+      "name": "人乐退(退)",
+      "ts_code": "002336.SZ"
+    },
+    {
+      "delist_date": "20240823",
+      "exchange": "SZSE",
+      "list_date": "20100122",
+      "list_status": "D",
+      "name": "ST新纶(退)",
+      "ts_code": "002341.SZ"
+    },
+    {
+      "delist_date": "20210723",
+      "exchange": "SZSE",
+      "list_date": "20100210",
+      "list_status": "D",
+      "name": "北讯退(退)",
+      "ts_code": "002359.SZ"
+    },
+    {
+      "delist_date": "20230712",
+      "exchange": "SZSE",
+      "list_date": "20100525",
+      "list_status": "D",
+      "name": "必康退(退)",
+      "ts_code": "002411.SZ"
+    },
+    {
+      "delist_date": "20230710",
+      "exchange": "SZSE",
+      "list_date": "20100601",
+      "list_status": "D",
+      "name": "深南退(退)",
+      "ts_code": "002417.SZ"
+    },
+    {
+      "delist_date": "20240705",
+      "exchange": "SZSE",
+      "list_date": "20100618",
+      "list_status": "D",
+      "name": "太安退(退)",
+      "ts_code": "002433.SZ"
+    },
+    {
+      "delist_date": "20240815",
+      "exchange": "SZSE",
+      "list_date": "20100618",
+      "list_status": "D",
+      "name": "ST长康(退)",
+      "ts_code": "002435.SZ"
+    },
+    {
+      "delist_date": "20220627",
+      "exchange": "SZSE",
+      "list_date": "20100713",
+      "list_status": "D",
+      "name": "晨鑫退(退)",
+      "ts_code": "002447.SZ"
+    },
+    {
+      "delist_date": "20210531",
+      "exchange": "SZSE",
+      "list_date": "20100716",
+      "list_status": "D",
+      "name": "康得退(退)",
+      "ts_code": "002450.SZ"
+    },
+    {
+      "delist_date": "20220628",
+      "exchange": "SZSE",
+      "list_date": "20100831",
+      "list_status": "D",
+      "name": "众应退(退)",
+      "ts_code": "002464.SZ"
+    },
+    {
+      "delist_date": "20220622",
+      "exchange": "SZSE",
+      "list_date": "20100910",
+      "list_status": "D",
+      "name": "圣莱退(退)",
+      "ts_code": "002473.SZ"
+    },
+    {
+      "delist_date": "20191016",
+      "exchange": "SZSE",
+      "list_date": "20100915",
+      "list_status": "D",
+      "name": "雏鹰退(退)",
+      "ts_code": "002477.SZ"
+    },
+    {
+      "delist_date": "20230418",
+      "exchange": "SZSE",
+      "list_date": "20101109",
+      "list_status": "D",
+      "name": "科林退(退)",
+      "ts_code": "002499.SZ"
+    },
+    {
+      "delist_date": "20240905",
+      "exchange": "SZSE",
+      "list_date": "20101117",
+      "list_status": "D",
+      "name": "ST鼎龙(退)",
+      "ts_code": "002502.SZ"
+    },
+    {
+      "delist_date": "20230811",
+      "exchange": "SZSE",
+      "list_date": "20101117",
+      "list_status": "D",
+      "name": "*ST搜特(退)",
+      "ts_code": "002503.SZ"
+    },
+    {
+      "delist_date": "20230821",
+      "exchange": "SZSE",
+      "list_date": "20101118",
+      "list_status": "D",
+      "name": "*ST弘高(退)",
+      "ts_code": "002504.SZ"
+    },
+    {
+      "delist_date": "20240830",
+      "exchange": "SZSE",
+      "list_date": "20101118",
+      "list_status": "D",
+      "name": "鹏都农牧(退)",
+      "ts_code": "002505.SZ"
+    },
+    {
+      "delist_date": "20200720",
+      "exchange": "SZSE",
+      "list_date": "20101123",
+      "list_status": "D",
+      "name": "天茂退(退)",
+      "ts_code": "002509.SZ"
+    },
+    {
+      "delist_date": "20200715",
+      "exchange": "SZSE",
+      "list_date": "20110728",
+      "list_status": "D",
+      "name": "龙力退(退)",
+      "ts_code": "002604.SZ"
+    },
+    {
+      "delist_date": "20240812",
+      "exchange": "SZSE",
+      "list_date": "20110815",
+      "list_status": "D",
+      "name": "ST爱康(退)",
+      "ts_code": "002610.SZ"
+    },
+    {
+      "delist_date": "20220622",
+      "exchange": "SZSE",
+      "list_date": "20110920",
+      "list_status": "D",
+      "name": "丹邦退(退)",
+      "ts_code": "002618.SZ"
+    },
+    {
+      "delist_date": "20220428",
+      "exchange": "SZSE",
+      "list_date": "20110929",
+      "list_status": "D",
+      "name": "*ST艾格(退)",
+      "ts_code": "002619.SZ"
+    },
+    {
+      "delist_date": "20240805",
+      "exchange": "SZSE",
+      "list_date": "20110929",
+      "list_status": "D",
+      "name": "*ST美吉(退)",
+      "ts_code": "002621.SZ"
+    },
+    {
+      "delist_date": "20240826",
+      "exchange": "SZSE",
+      "list_date": "20120327",
+      "list_status": "D",
+      "name": "ST航高(退)",
+      "ts_code": "002665.SZ"
+    },
+    {
+      "delist_date": "20191127",
+      "exchange": "SZSE",
+      "list_date": "20120605",
+      "list_status": "D",
+      "name": "长生退(退)",
+      "ts_code": "002680.SZ"
+    },
+    {
+      "delist_date": "20220627",
+      "exchange": "SZSE",
+      "list_date": "20120612",
+      "list_status": "D",
+      "name": "猛狮退(退)",
+      "ts_code": "002684.SZ"
+    },
+    {
+      "delist_date": "20240605",
+      "exchange": "SZSE",
+      "list_date": "20120911",
+      "list_status": "D",
+      "name": "*ST美盛(退)",
+      "ts_code": "002699.SZ"
+    },
+    {
+      "delist_date": "20210715",
+      "exchange": "SZSE",
+      "list_date": "20140127",
+      "list_status": "D",
+      "name": "欧浦退(退)",
+      "ts_code": "002711.SZ"
+    },
+    {
+      "delist_date": "20250627",
+      "exchange": "SZSE",
+      "list_date": "20150324",
+      "list_status": "D",
+      "name": "龙津退(退)",
+      "ts_code": "002750.SZ"
+    },
+    {
+      "delist_date": "20230713",
+      "exchange": "SZSE",
+      "list_date": "20150424",
+      "list_status": "D",
+      "name": "易尚退(退)",
+      "ts_code": "002751.SZ"
+    },
+    {
+      "delist_date": "20240125",
+      "exchange": "SZSE",
+      "list_date": "20150626",
+      "list_status": "D",
+      "name": "*ST柏龙(退)",
+      "ts_code": "002776.SZ"
+    },
+    {
+      "delist_date": "20230705",
+      "exchange": "SZSE",
+      "list_date": "20151222",
+      "list_status": "D",
+      "name": "奇信退(退)",
+      "ts_code": "002781.SZ"
+    },
+    {
+      "delist_date": "20200803",
+      "exchange": "SZSE",
+      "list_date": "20091030",
+      "list_status": "D",
+      "name": "金亚退(退)",
+      "ts_code": "300028.SZ"
+    },
+    {
+      "delist_date": "20220630",
+      "exchange": "SZSE",
+      "list_date": "20100108",
+      "list_status": "D",
+      "name": "数知退(退)",
+      "ts_code": "300038.SZ"
+    },
+    {
+      "delist_date": "20220627",
+      "exchange": "SZSE",
+      "list_date": "20100326",
+      "list_status": "D",
+      "name": "金刚退(退)",
+      "ts_code": "300064.SZ"
+    },
+    {
+      "delist_date": "20200825",
+      "exchange": "SZSE",
+      "list_date": "20100625",
+      "list_status": "D",
+      "name": "盛运退(退)",
+      "ts_code": "300090.SZ"
+    },
+    {
+      "delist_date": "20200721",
+      "exchange": "SZSE",
+      "list_date": "20100812",
+      "list_status": "D",
+      "name": "乐视退(退)",
+      "ts_code": "300104.SZ"
+    },
+    {
+      "delist_date": "20240725",
+      "exchange": "SZSE",
+      "list_date": "20100902",
+      "list_status": "D",
+      "name": "*ST保力(退)",
+      "ts_code": "300116.SZ"
+    },
+    {
+      "delist_date": "20200825",
+      "exchange": "SZSE",
+      "list_date": "20110107",
+      "list_status": "D",
+      "name": "神雾退(退)",
+      "ts_code": "300156.SZ"
+    },
+    {
+      "delist_date": "20220622",
+      "exchange": "SZSE",
+      "list_date": "20110215",
+      "list_status": "D",
+      "name": "腾邦退(退)",
+      "ts_code": "300178.SZ"
+    },
+    {
+      "delist_date": "20151102",
+      "exchange": "SZSE",
+      "list_date": "20110308",
+      "list_status": "D",
+      "name": "大华农(退)",
+      "ts_code": "300186.SZ"
+    },
+    {
+      "delist_date": "20220704",
+      "exchange": "SZSE",
+      "list_date": "20110415",
+      "list_status": "D",
+      "name": "聚龙退(退)",
+      "ts_code": "300202.SZ"
+    },
+    {
+      "delist_date": "20250721",
+      "exchange": "SZSE",
+      "list_date": "20110426",
+      "list_status": "D",
+      "name": "中程退(退)",
+      "ts_code": "300208.SZ"
+    },
+    {
+      "delist_date": "20200916",
+      "exchange": "SZSE",
+      "list_date": "20110511",
+      "list_status": "D",
+      "name": "千山退(退)",
+      "ts_code": "300216.SZ"
+    },
+    {
+      "delist_date": "20240819",
+      "exchange": "SZSE",
+      "list_date": "20110916",
+      "list_status": "D",
+      "name": "*ST巴安(退)",
+      "ts_code": "300262.SZ"
+    },
+    {
+      "delist_date": "20230706",
+      "exchange": "SZSE",
+      "list_date": "20111026",
+      "list_status": "D",
+      "name": "和佳退(退)",
+      "ts_code": "300273.SZ"
+    },
+    {
+      "delist_date": "20230731",
+      "exchange": "SZSE",
+      "list_date": "20120315",
+      "list_status": "D",
+      "name": "蓝盾退(退)",
+      "ts_code": "300297.SZ"
+    },
+    {
+      "delist_date": "20230530",
+      "exchange": "SZSE",
+      "list_date": "20120410",
+      "list_status": "D",
+      "name": "吉艾退(退)",
+      "ts_code": "300309.SZ"
+    },
+    {
+      "delist_date": "20220704",
+      "exchange": "SZSE",
+      "list_date": "20120508",
+      "list_status": "D",
+      "name": "邦讯退(退)",
+      "ts_code": "300312.SZ"
+    },
+    {
+      "delist_date": "20230705",
+      "exchange": "SZSE",
+      "list_date": "20120710",
+      "list_status": "D",
+      "name": "新文退(退)",
+      "ts_code": "300336.SZ"
+    },
+    {
+      "delist_date": "20230713",
+      "exchange": "SZSE",
+      "list_date": "20121009",
+      "list_status": "D",
+      "name": "光一退(退)",
+      "ts_code": "300356.SZ"
+    },
+    {
+      "delist_date": "20210830",
+      "exchange": "SZSE",
+      "list_date": "20140121",
+      "list_status": "D",
+      "name": "天翔退(退)",
+      "ts_code": "300362.SZ"
+    },
+    {
+      "delist_date": "20220630",
+      "exchange": "SZSE",
+      "list_date": "20140129",
+      "list_status": "D",
+      "name": "网力退(退)",
+      "ts_code": "300367.SZ"
+    },
+    {
+      "delist_date": "20170828",
+      "exchange": "SZSE",
+      "list_date": "20140127",
+      "list_status": "D",
+      "name": "欣泰退(退)",
+      "ts_code": "300372.SZ"
+    },
+    {
+      "delist_date": "20260122",
+      "exchange": "SZSE",
+      "list_date": "20140128",
+      "list_status": "D",
+      "name": "东通退",
+      "ts_code": "300379.SZ"
+    },
+    {
+      "delist_date": "20230710",
+      "exchange": "SZSE",
+      "list_date": "20140910",
+      "list_status": "D",
+      "name": "腾信退(退)",
+      "ts_code": "300392.SZ"
+    },
+    {
+      "delist_date": "20201110",
+      "exchange": "SZSE",
+      "list_date": "20150324",
+      "list_status": "D",
+      "name": "暴风退(退)",
+      "ts_code": "300431.SZ"
+    },
+    {
+      "delist_date": "20240920",
+      "exchange": "SZSE",
+      "list_date": "20151222",
+      "list_status": "D",
+      "name": "*ST美尚(退)",
+      "ts_code": "300495.SZ"
+    },
+    {
+      "delist_date": "20230712",
+      "exchange": "SZSE",
+      "list_date": "20160802",
+      "list_status": "D",
+      "name": "中潜退(退)",
+      "ts_code": "300526.SZ"
+    },
+    {
+      "delist_date": "20250522",
+      "exchange": "SZSE",
+      "list_date": "20170328",
+      "list_status": "D",
+      "name": "普利退(退)",
+      "ts_code": "300630.SZ"
+    },
+    {
+      "delist_date": "20240729",
+      "exchange": "SZSE",
+      "list_date": "20191029",
+      "list_status": "D",
+      "name": "左江退(退)",
+      "ts_code": "300799.SZ"
+    },
+    {
+      "delist_date": "20091229",
+      "exchange": "SSE",
+      "list_date": "19980122",
+      "list_status": "D",
+      "name": "邯郸钢铁(退)",
+      "ts_code": "600001.SH"
+    },
+    {
+      "delist_date": "20100226",
+      "exchange": "SSE",
+      "list_date": "19990810",
+      "list_status": "D",
+      "name": "ST东北高(退)",
+      "ts_code": "600003.SH"
+    },
+    {
+      "delist_date": "20170214",
+      "exchange": "SSE",
+      "list_date": "19990803",
+      "list_status": "D",
+      "name": "武钢股份(退)",
+      "ts_code": "600005.SH"
+    },
+    {
+      "delist_date": "20210913",
+      "exchange": "SSE",
+      "list_date": "19970526",
+      "list_status": "D",
+      "name": "葛洲坝(退)",
+      "ts_code": "600068.SH"
+    },
+    {
+      "delist_date": "20200827",
+      "exchange": "SSE",
+      "list_date": "19970430",
+      "list_status": "D",
+      "name": "退银鸽(退)",
+      "ts_code": "600069.SH"
+    },
+    {
+      "delist_date": "20200602",
+      "exchange": "SSE",
+      "list_date": "19970623",
+      "list_status": "D",
+      "name": "退保千(退)",
+      "ts_code": "600074.SH"
+    },
+    {
+      "delist_date": "20230725",
+      "exchange": "SSE",
+      "list_date": "19970520",
+      "list_status": "D",
+      "name": "*ST宋都(退)",
+      "ts_code": "600077.SH"
+    },
+    {
+      "delist_date": "20210317",
+      "exchange": "SSE",
+      "list_date": "19970606",
+      "list_status": "D",
+      "name": "退金钰(退)",
+      "ts_code": "600086.SH"
+    },
+    {
+      "delist_date": "20140605",
+      "exchange": "SSE",
+      "list_date": "19970612",
+      "list_status": "D",
+      "name": "退长油(退)",
+      "ts_code": "600087.SH"
+    },
+    {
+      "delist_date": "20220707",
+      "exchange": "SSE",
+      "list_date": "19970616",
+      "list_status": "D",
+      "name": "退济堂(退)",
+      "ts_code": "600090.SH"
+    },
+    {
+      "delist_date": "20220621",
+      "exchange": "SSE",
+      "list_date": "19970704",
+      "list_status": "D",
+      "name": "退明科(退)",
+      "ts_code": "600091.SH"
+    },
+    {
+      "delist_date": "20220623",
+      "exchange": "SSE",
+      "list_date": "19970626",
+      "list_status": "D",
+      "name": "退易见(退)",
+      "ts_code": "600093.SH"
+    },
+    {
+      "delist_date": "20120228",
+      "exchange": "SSE",
+      "list_date": "19970828",
+      "list_status": "D",
+      "name": "莱钢股份(退)",
+      "ts_code": "600102.SH"
+    },
+    {
+      "delist_date": "20240815",
+      "exchange": "SSE",
+      "list_date": "19971127",
+      "list_status": "D",
+      "name": "*ST天成(退)",
+      "ts_code": "600112.SH"
+    },
+    {
+      "delist_date": "20230626",
+      "exchange": "SSE",
+      "list_date": "19980420",
+      "list_status": "D",
+      "name": "*ST宏图(退)",
+      "ts_code": "600122.SH"
+    },
+    {
+      "delist_date": "20230327",
+      "exchange": "SSE",
+      "list_date": "19980225",
+      "list_status": "D",
+      "name": "*ST西源(退)",
+      "ts_code": "600139.SH"
+    },
+    {
+      "delist_date": "20220630",
+      "exchange": "SSE",
+      "list_date": "19990707",
+      "list_status": "D",
+      "name": "退环球(退)",
+      "ts_code": "600146.SH"
+    },
+    {
+      "delist_date": "20200814",
+      "exchange": "SSE",
+      "list_date": "19990408",
+      "list_status": "D",
+      "name": "退美都(退)",
+      "ts_code": "600175.SH"
+    },
+    {
+      "delist_date": "20250725",
+      "exchange": "SSE",
+      "list_date": "19990609",
+      "list_status": "D",
+      "name": "退锦港(退)",
+      "ts_code": "600190.SH"
+    },
+    {
+      "delist_date": "20260706",
+      "exchange": "SSE",
+      "list_date": "19990527",
+      "list_status": "D",
+      "name": "退市创兴",
+      "ts_code": "600193.SH"
+    },
+    {
+      "delist_date": "20251231",
+      "exchange": "SSE",
+      "list_date": "19990401",
+      "list_status": "D",
+      "name": "退苏吴(退)",
+      "ts_code": "600200.SH"
+    },
+    {
+      "delist_date": "20070430",
+      "exchange": "SSE",
+      "list_date": "19990630",
+      "list_status": "D",
+      "name": "S山东铝(退)",
+      "ts_code": "600205.SH"
+    },
+    {
+      "delist_date": "20220622",
+      "exchange": "SSE",
+      "list_date": "19990325",
+      "list_status": "D",
+      "name": "退罗顿(退)",
+      "ts_code": "600209.SH"
+    },
+    {
+      "delist_date": "20240710",
+      "exchange": "SSE",
+      "list_date": "19990927",
+      "list_status": "D",
+      "name": "ST阳光(退)",
+      "ts_code": "600220.SH"
+    },
+    {
+      "delist_date": "20250306",
+      "exchange": "SSE",
+      "list_date": "20000127",
+      "list_status": "D",
+      "name": "退卓朗(退)",
+      "ts_code": "600225.SH"
+    },
+    {
+      "delist_date": "20200205",
+      "exchange": "SSE",
+      "list_date": "20000628",
+      "list_status": "D",
+      "name": "退华业(退)",
+      "ts_code": "600240.SH"
+    },
+    {
+      "delist_date": "20230629",
+      "exchange": "SSE",
+      "list_date": "20001207",
+      "list_status": "D",
+      "name": "退中昌(退)",
+      "ts_code": "600242.SH"
+    },
+    {
+      "delist_date": "20210322",
+      "exchange": "SSE",
+      "list_date": "20001123",
+      "list_status": "D",
+      "name": "*ST成城(退)",
+      "ts_code": "600247.SH"
+    },
+    {
+      "delist_date": "20130715",
+      "exchange": "SSE",
+      "list_date": "20001227",
+      "list_status": "D",
+      "name": "天方药业(退)",
+      "ts_code": "600253.SH"
+    },
+    {
+      "delist_date": "20230215",
+      "exchange": "SSE",
+      "list_date": "20000706",
+      "list_status": "D",
+      "name": "*ST凯乐(退)",
+      "ts_code": "600260.SH"
+    },
+    {
+      "delist_date": "20120301",
+      "exchange": "SSE",
+      "list_date": "20000725",
+      "list_status": "D",
+      "name": "路桥建设(退)",
+      "ts_code": "600263.SH"
+    },
+    {
+      "delist_date": "20181228",
+      "exchange": "SSE",
+      "list_date": "20001228",
+      "list_status": "D",
+      "name": "外运发展(退)",
+      "ts_code": "600270.SH"
+    },
+    {
+      "delist_date": "20220622",
+      "exchange": "SSE",
+      "list_date": "20000810",
+      "list_status": "D",
+      "name": "退昌鱼(退)",
+      "ts_code": "600275.SH"
+    },
+    {
+      "delist_date": "20240718",
+      "exchange": "SSE",
+      "list_date": "20000725",
+      "list_status": "D",
+      "name": "ST亿利(退)",
+      "ts_code": "600277.SH"
+    },
+    {
+      "delist_date": "20240116",
+      "exchange": "SSE",
+      "list_date": "20001106",
+      "list_status": "D",
+      "name": "*ST华仪(退)",
+      "ts_code": "600290.SH"
+    },
+    {
+      "delist_date": "20220614",
+      "exchange": "SSE",
+      "list_date": "20000731",
+      "list_status": "D",
+      "name": "退西水(退)",
+      "ts_code": "600291.SH"
+    },
+    {
+      "delist_date": "20070430",
+      "exchange": "SSE",
+      "list_date": "20000719",
+      "list_status": "D",
+      "name": "S兰铝(退)",
+      "ts_code": "600296.SH"
+    },
+    {
+      "delist_date": "20240828",
+      "exchange": "SSE",
+      "list_date": "20001116",
+      "list_status": "D",
+      "name": "广汇汽车(退)",
+      "ts_code": "600297.SH"
+    },
+    {
+      "delist_date": "20240626",
+      "exchange": "SSE",
+      "list_date": "20001226",
+      "list_status": "D",
+      "name": "退商城(退)",
+      "ts_code": "600306.SH"
+    },
+    {
+      "delist_date": "20230327",
+      "exchange": "SSE",
+      "list_date": "20010626",
+      "list_status": "D",
+      "name": "*ST荣华(退)",
+      "ts_code": "600311.SH"
+    },
+    {
+      "delist_date": "20210129",
+      "exchange": "SSE",
+      "list_date": "20020131",
+      "list_status": "D",
+      "name": "营口港(退)",
+      "ts_code": "600317.SH"
+    },
+    {
+      "delist_date": "20240627",
+      "exchange": "SSE",
+      "list_date": "20010524",
+      "list_status": "D",
+      "name": "正源股份(退)",
+      "ts_code": "600321.SH"
+    },
+    {
+      "delist_date": "20091229",
+      "exchange": "SSE",
+      "list_date": "20020906",
+      "list_status": "D",
+      "name": "承德钒钛(退)",
+      "ts_code": "600357.SH"
+    },
+    {
+      "delist_date": "20250711",
+      "exchange": "SSE",
+      "list_date": "20040218",
+      "list_status": "D",
+      "name": "退海越(退)",
+      "ts_code": "600387.SH"
+    },
+    {
+      "delist_date": "20230718",
+      "exchange": "SSE",
+      "list_date": "20010319",
+      "list_status": "D",
+      "name": "ST粤泰(退)",
+      "ts_code": "600393.SH"
+    },
+    {
+      "delist_date": "20190712",
+      "exchange": "SSE",
+      "list_date": "20030924",
+      "list_status": "D",
+      "name": "退海润(退)",
+      "ts_code": "600401.SH"
+    },
+    {
+      "delist_date": "20180713",
+      "exchange": "SSE",
+      "list_date": "20030905",
+      "list_status": "D",
+      "name": "退吉恩(退)",
+      "ts_code": "600432.SH"
+    },
+    {
+      "delist_date": "20230606",
+      "exchange": "SSE",
+      "list_date": "20010212",
+      "list_status": "D",
+      "name": "*ST蓝光(退)",
+      "ts_code": "600466.SH"
+    },
+    {
+      "delist_date": "20071226",
+      "exchange": "SSE",
+      "list_date": "20050509",
+      "list_status": "D",
+      "name": "包头铝业(退)",
+      "ts_code": "600472.SH"
+    },
+    {
+      "delist_date": "20210601",
+      "exchange": "SSE",
+      "list_date": "20030807",
+      "list_status": "D",
+      "name": "*ST信威(退)",
+      "ts_code": "600485.SH"
+    },
+    {
+      "delist_date": "20110218",
+      "exchange": "SSE",
+      "list_date": "20020822",
+      "list_status": "D",
+      "name": "太行水泥(退)",
+      "ts_code": "600553.SH"
+    },
+    {
+      "delist_date": "20220713",
+      "exchange": "SSE",
+      "list_date": "20010328",
+      "list_status": "D",
+      "name": "退海创(退)",
+      "ts_code": "600555.SH"
+    },
+    {
+      "delist_date": "20240807",
+      "exchange": "SSE",
+      "list_date": "20020723",
+      "list_status": "D",
+      "name": "ST迪马(退)",
+      "ts_code": "600565.SH"
+    },
+    {
+      "delist_date": "20100125",
+      "exchange": "SSE",
+      "list_date": "20021011",
+      "list_status": "D",
+      "name": "*ST上航(退)",
+      "ts_code": "600591.SH"
+    },
+    {
+      "delist_date": "20100212",
+      "exchange": "SSE",
+      "list_date": "19920327",
+      "list_status": "D",
+      "name": "上实医药(退)",
+      "ts_code": "600607.SH"
+    },
+    {
+      "delist_date": "20260703",
+      "exchange": "SSE",
+      "list_date": "19920327",
+      "list_status": "D",
+      "name": "退市沪科",
+      "ts_code": "600608.SH"
+    },
+    {
+      "delist_date": "20210721",
+      "exchange": "SSE",
+      "list_date": "19920828",
+      "list_status": "D",
+      "name": "退鹏起(退)",
+      "ts_code": "600614.SH"
+    },
+    {
+      "delist_date": "20081126",
+      "exchange": "SSE",
+      "list_date": "19930118",
+      "list_status": "D",
+      "name": "上电股份(退)",
+      "ts_code": "600627.SH"
+    },
+    {
+      "delist_date": "20110823",
+      "exchange": "SSE",
+      "list_date": "19930219",
+      "list_status": "D",
+      "name": "百联股份(退)",
+      "ts_code": "600631.SH"
+    },
+    {
+      "delist_date": "20210721",
+      "exchange": "SSE",
+      "list_date": "19930304",
+      "list_status": "D",
+      "name": "退富控(退)",
+      "ts_code": "600634.SH"
+    },
+    {
+      "delist_date": "20260629",
+      "exchange": "SSE",
+      "list_date": "19930316",
+      "list_status": "D",
+      "name": "退市国化",
+      "ts_code": "600636.SH"
+    },
+    {
+      "delist_date": "20220621",
+      "exchange": "SSE",
+      "list_date": "19901219",
+      "list_status": "D",
+      "name": "退游久(退)",
+      "ts_code": "600652.SH"
+    },
+    {
+      "delist_date": "20210318",
+      "exchange": "SSE",
+      "list_date": "19930928",
+      "list_status": "D",
+      "name": "*ST航通(退)",
+      "ts_code": "600677.SH"
+    },
+    {
+      "delist_date": "20190523",
+      "exchange": "SSE",
+      "list_date": "19931018",
+      "list_status": "D",
+      "name": "*ST上普(退)",
+      "ts_code": "600680.SH"
+    },
+    {
+      "delist_date": "20210303",
+      "exchange": "SSE",
+      "list_date": "19931108",
+      "list_status": "D",
+      "name": "退刚泰(退)",
+      "ts_code": "600687.SH"
+    },
+    {
+      "delist_date": "20220614",
+      "exchange": "SSE",
+      "list_date": "19931122",
+      "list_status": "D",
+      "name": "退绿庭(退)",
+      "ts_code": "600695.SH"
+    },
+    {
+      "delist_date": "20260629",
+      "exchange": "SSE",
+      "list_date": "19931206",
+      "list_status": "D",
+      "name": "退市岩石",
+      "ts_code": "600696.SH"
+    },
+    {
+      "delist_date": "20210430",
+      "exchange": "SSE",
+      "list_date": "19960528",
+      "list_status": "D",
+      "name": "退工新(退)",
+      "ts_code": "600701.SH"
+    },
+    {
+      "delist_date": "20250527",
+      "exchange": "SSE",
+      "list_date": "19960516",
+      "list_status": "D",
+      "name": "中航产融(退)",
+      "ts_code": "600705.SH"
+    },
+    {
+      "delist_date": "20211022",
+      "exchange": "SSE",
+      "list_date": "19960716",
+      "list_status": "D",
+      "name": "首商股份(退)",
+      "ts_code": "600723.SH"
+    },
+    {
+      "delist_date": "20191212",
+      "exchange": "SSE",
+      "list_date": "19960916",
+      "list_status": "D",
+      "name": "退大控(退)",
+      "ts_code": "600747.SH"
+    },
+    {
+      "delist_date": "20230629",
+      "exchange": "SSE",
+      "list_date": "19961115",
+      "list_status": "D",
+      "name": "退运盛(退)",
+      "ts_code": "600767.SH"
+    },
+    {
+      "delist_date": "20230628",
+      "exchange": "SSE",
+      "list_date": "19961218",
+      "list_status": "D",
+      "name": "退辅仁(退)",
+      "ts_code": "600781.SH"
+    },
+    {
+      "delist_date": "20080318",
+      "exchange": "SSE",
+      "list_date": "19961227",
+      "list_status": "D",
+      "name": "东方锅炉(退)",
+      "ts_code": "600786.SH"
+    },
+    {
+      "delist_date": "20250703",
+      "exchange": "SSE",
+      "list_date": "19940103",
+      "list_status": "D",
+      "name": "退鹏博(退)",
+      "ts_code": "600804.SH"
+    },
+    {
+      "delist_date": "20180713",
+      "exchange": "SSE",
+      "list_date": "19940103",
+      "list_status": "D",
+      "name": "退昆机(退)",
+      "ts_code": "600806.SH"
+    },
+    {
+      "delist_date": "20250430",
+      "exchange": "SSE",
+      "list_date": "19940106",
+      "list_status": "D",
+      "name": "*ST东方(退)",
+      "ts_code": "600811.SH"
+    },
+    {
+      "delist_date": "20240614",
+      "exchange": "SSE",
+      "list_date": "19940204",
+      "list_status": "D",
+      "name": "*ST世茂(退)",
+      "ts_code": "600823.SH"
+    },
+    {
+      "delist_date": "20150520",
+      "exchange": "SSE",
+      "list_date": "19940224",
+      "list_status": "D",
+      "name": "东方明珠(退)",
+      "ts_code": "600832.SH"
+    },
+    {
+      "delist_date": "20240711",
+      "exchange": "SSE",
+      "list_date": "19940224",
+      "list_status": "D",
+      "name": "*ST易连(退)",
+      "ts_code": "600836.SH"
+    },
+    {
+      "delist_date": "20250304",
+      "exchange": "SSE",
+      "list_date": "19940224",
+      "list_status": "D",
+      "name": "海通证券(退)",
+      "ts_code": "600837.SH"
+    },
+    {
+      "delist_date": "20090827",
+      "exchange": "SSE",
+      "list_date": "19940311",
+      "list_status": "D",
+      "name": "新湖创业(退)",
+      "ts_code": "600840.SH"
+    },
+    {
+      "delist_date": "20220622",
+      "exchange": "SSE",
+      "list_date": "19940425",
+      "list_status": "D",
+      "name": "退中天(退)",
+      "ts_code": "600856.SH"
+    },
+    {
+      "delist_date": "20220630",
+      "exchange": "SSE",
+      "list_date": "19950228",
+      "list_status": "D",
+      "name": "退厦华(退)",
+      "ts_code": "600870.SH"
+    },
+    {
+      "delist_date": "20220621",
+      "exchange": "SSE",
+      "list_date": "19960318",
+      "list_status": "D",
+      "name": "退中房(退)",
+      "ts_code": "600890.SH"
+    },
+    {
+      "delist_date": "20210512",
+      "exchange": "SSE",
+      "list_date": "19960325",
+      "list_status": "D",
+      "name": "退秋林(退)",
+      "ts_code": "600891.SH"
+    },
+    {
+      "delist_date": "20220725",
+      "exchange": "SSE",
+      "list_date": "19960503",
+      "list_status": "D",
+      "name": "退海医(退)",
+      "ts_code": "600896.SH"
+    },
+    {
+      "delist_date": "20210322",
+      "exchange": "SSE",
+      "list_date": "20040824",
+      "list_status": "D",
+      "name": "*ST宜生(退)",
+      "ts_code": "600978.SH"
+    },
+    {
+      "delist_date": "20120320",
+      "exchange": "SSE",
+      "list_date": "20040614",
+      "list_status": "D",
+      "name": "广汽长丰(退)",
+      "ts_code": "600991.SH"
+    },
+    {
+      "delist_date": "20250527",
+      "exchange": "SSE",
+      "list_date": "20111107",
+      "list_status": "D",
+      "name": "玉龙股份(退)",
+      "ts_code": "601028.SH"
+    },
+    {
+      "delist_date": "20230630",
+      "exchange": "SSE",
+      "list_date": "20110428",
+      "list_status": "D",
+      "name": "*ST庞大(退)",
+      "ts_code": "601258.SH"
+    },
+    {
+      "delist_date": "20150521",
+      "exchange": "SSE",
+      "list_date": "20100202",
+      "list_status": "D",
+      "name": "*ST二重(退)",
+      "ts_code": "601268.SH"
+    },
+    {
+      "delist_date": "20150520",
+      "exchange": "SSE",
+      "list_date": "20091229",
+      "list_status": "D",
+      "name": "中国北车(退)",
+      "ts_code": "601299.SH"
+    },
+    {
+      "delist_date": "20200702",
+      "exchange": "SSE",
+      "list_date": "20110113",
+      "list_status": "D",
+      "name": "退锐电(退)",
+      "ts_code": "601558.SH"
+    },
+    {
+      "delist_date": "20250905",
+      "exchange": "SSE",
+      "list_date": "20091216",
+      "list_status": "D",
+      "name": "中国重工(退)",
+      "ts_code": "601989.SH"
+    },
+    {
+      "delist_date": "20250703",
+      "exchange": "SSE",
+      "list_date": "20120817",
+      "list_status": "D",
+      "name": "退龙宇(退)",
+      "ts_code": "603003.SH"
+    },
+    {
+      "delist_date": "20260331",
+      "exchange": "SSE",
+      "list_date": "20180116",
+      "list_status": "D",
+      "name": "德邦股份",
+      "ts_code": "603056.SH"
+    },
+    {
+      "delist_date": "20240329",
+      "exchange": "SSE",
+      "list_date": "20140124",
+      "list_status": "D",
+      "name": "ST贵人(退)",
+      "ts_code": "603555.SH"
+    },
+    {
+      "delist_date": "20240425",
+      "exchange": "SSE",
+      "list_date": "20170217",
+      "list_status": "D",
+      "name": "退博天(退)",
+      "ts_code": "603603.SH"
+    },
+    {
+      "delist_date": "20220524",
+      "exchange": "SSE",
+      "list_date": "20151222",
+      "list_status": "D",
+      "name": "退中新(退)",
+      "ts_code": "603996.SH"
+    },
+    {
+      "delist_date": "20230707",
+      "exchange": "SSE",
+      "list_date": "20200226",
+      "list_status": "D",
+      "name": "退紫晶(退)",
+      "ts_code": "688086.SH"
+    }
+  ],
+  "security_error": "PR3 cannot promote an unverified Tushare delist_date boundary",
+  "industry_source_summary": {
+    "status": "RAW_COLLECTION_VALIDATED",
+    "not_baseline_acceptance": true,
+    "requests": 2596,
+    "raw_batches": 2596,
+    "rows": 10712417,
+    "nonempty_dates": 2424,
+    "empty_dates": 172,
+    "first_nonempty_date": "20160809",
+    "last_nonempty_date": "20260908",
+    "raw_disk_bytes": 778297070,
+    "first_observation": "2026-09-08T19:16:21.346827+00:00",
+    "last_observation": "2026-09-08T19:25:40.945416+00:00",
+    "validation_seconds": 12.681112212943844,
+    "readonly_files": true,
+    "source_binding_and_payload_checks": "PASS",
+    "null_industry_required_symbols": {
+      "002975.SZ": 1,
+      "603719.SH": 1,
+      "002962.SZ": 1,
+      "603786.SH": 1,
+      "601696.SH": 2,
+      "603220.SH": 1,
+      "601319.SH": 1,
+      "001267.SZ": 4,
+      "603551.SH": 1,
+      "300726.SZ": 1,
+      "002911.SZ": 1,
+      "601916.SH": 1,
+      "600956.SH": 1,
+      "002841.SZ": 1,
+      "688001.SH": 6,
+      "300856.SZ": 1,
+      "002932.SZ": 1,
+      "601609.SH": 1,
+      "300829.SZ": 1,
+      "001289.SZ": 1,
+      "002831.SZ": 1,
+      "300573.SZ": 1,
+      "002948.SZ": 1,
+      "688630.SH": 1,
+      "300866.SZ": 1,
+      "603992.SH": 1,
+      "600746.SH": 2,
+      "600767.SH": 3,
+      "600755.SH": 2,
+      "600759.SH": 2,
+      "600761.SH": 2,
+      "600760.SH": 2,
+      "600750.SH": 2,
+      "600777.SH": 3,
+      "600757.SH": 2,
+      "600763.SH": 3,
+      "600758.SH": 2,
+      "600768.SH": 3,
+      "600775.SH": 3,
+      "600771.SH": 3,
+      "600747.SH": 2,
+      "600764.SH": 3,
+      "600748.SH": 2,
+      "600776.SH": 3,
+      "600754.SH": 2,
+      "600751.SH": 2,
+      "600773.SH": 3,
+      "600765.SH": 3,
+      "600770.SH": 3,
+      "600769.SH": 3,
+      "600778.SH": 3,
+      "600756.SH": 2,
+      "601077.SH": 1,
+      "002950.SZ": 1,
+      "603297.SH": 1,
+      "600068.SH": 8,
+      "603773.SH": 1,
+      "002973.SZ": 1,
+      "603687.SH": 1,
+      "300788.SZ": 1,
+      "002966.SZ": 1,
+      "603983.SH": 1,
+      "603053.SH": 1,
+      "002970.SZ": 1,
+      "300832.SZ": 1,
+      "605168.SH": 1,
+      "601778.SH": 1,
+      "002965.SZ": 1,
+      "300078.SZ": 1,
+      "300068.SZ": 1,
+      "300061.SZ": 1,
+      "300130.SZ": 1,
+      "300128.SZ": 1,
+      "300066.SZ": 1,
+      "300142.SZ": 1,
+      "300136.SZ": 1,
+      "300050.SZ": 1,
+      "300099.SZ": 1,
+      "300083.SZ": 1,
+      "300052.SZ": 1,
+      "300107.SZ": 1,
+      "300129.SZ": 1,
+      "300137.SZ": 1,
+      "300135.SZ": 1,
+      "300028.SZ": 1,
+      "300091.SZ": 1,
+      "300124.SZ": 1,
+      "300101.SZ": 1,
+      "300031.SZ": 1,
+      "300139.SZ": 1,
+      "300084.SZ": 1,
+      "300094.SZ": 1,
+      "300055.SZ": 1,
+      "300064.SZ": 1,
+      "300123.SZ": 1,
+      "300110.SZ": 1,
+      "300025.SZ": 1,
+      "300043.SZ": 1,
+      "300134.SZ": 1,
+      "300109.SZ": 1,
+      "300104.SZ": 1,
+      "300100.SZ": 1,
+      "300088.SZ": 1,
+      "300087.SZ": 1,
+      "300085.SZ": 1,
+      "300080.SZ": 1,
+      "300075.SZ": 1,
+      "300065.SZ": 1,
+      "300037.SZ": 1,
+      "300030.SZ": 1,
+      "300036.SZ": 1,
+      "300039.SZ": 1,
+      "300074.SZ": 1,
+      "300051.SZ": 1,
+      "300116.SZ": 1,
+      "300033.SZ": 1,
+      "300111.SZ": 1,
+      "300102.SZ": 1,
+      "300133.SZ": 1,
+      "300132.SZ": 1,
+      "300056.SZ": 1,
+      "300140.SZ": 1,
+      "300047.SZ": 1,
+      "300059.SZ": 1,
+      "300119.SZ": 1,
+      "300034.SZ": 1,
+      "300079.SZ": 1,
+      "300057.SZ": 1,
+      "300096.SZ": 1,
+      "300122.SZ": 1,
+      "300045.SZ": 1,
+      "300038.SZ": 1,
+      "300027.SZ": 1,
+      "300026.SZ": 1,
+      "300086.SZ": 1,
+      "300070.SZ": 1,
+      "300131.SZ": 1,
+      "300082.SZ": 1,
+      "300041.SZ": 1,
+      "300106.SZ": 1,
+      "300048.SZ": 1,
+      "300067.SZ": 1,
+      "300127.SZ": 1,
+      "300032.SZ": 1,
+      "300024.SZ": 1,
+      "300077.SZ": 1,
+      "300058.SZ": 1,
+      "300053.SZ": 1,
+      "300103.SZ": 1,
+      "300118.SZ": 1,
+      "300049.SZ": 1,
+      "300115.SZ": 1,
+      "300072.SZ": 1,
+      "300044.SZ": 1,
+      "300105.SZ": 1,
+      "300063.SZ": 1,
+      "300071.SZ": 1,
+      "300098.SZ": 1,
+      "300076.SZ": 1,
+      "300035.SZ": 1,
+      "300090.SZ": 1,
+      "300054.SZ": 1,
+      "300097.SZ": 1,
+      "300081.SZ": 1,
+      "300073.SZ": 1,
+      "300113.SZ": 1,
+      "302132.SZ": 5,
+      "603871.SH": 1,
+      "002896.SZ": 1,
+      "603390.SH": 1,
+      "003816.SZ": 1,
+      "601066.SH": 1,
+      "601990.SH": 1,
+      "603660.SH": 1,
+      "300567.SZ": 1,
+      "601619.SH": 1,
+      "002979.SZ": 1,
+      "603693.SH": 2,
+      "601236.SH": 1,
+      "688006.SH": 2,
+      "688003.SH": 3,
+      "688002.SH": 3,
+      "603093.SH": 1,
+      "300576.SZ": 1,
+      "600996.SH": 1,
+      "002936.SZ": 1,
+      "600968.SH": 1,
+      "300773.SZ": 1,
+      "601868.SH": 1,
+      "300809.SZ": 1,
+      "002967.SZ": 1,
+      "002955.SZ": 1,
+      "300775.SZ": 1,
+      "300779.SZ": 1,
+      "603327.SH": 1,
+      "300616.SZ": 1,
+      "300570.SZ": 1,
+      "603033.SH": 1,
+      "002832.SZ": 1,
+      "601512.SH": 1,
+      "002958.SZ": 1,
+      "300748.SZ": 1,
+      "688789.SH": 1,
+      "301039.SZ": 1,
+      "300362.SZ": 1,
+      "300331.SZ": 1,
+      "300343.SZ": 1,
+      "300384.SZ": 1,
+      "300366.SZ": 1,
+      "300341.SZ": 1,
+      "300358.SZ": 1,
+      "300367.SZ": 1,
+      "300376.SZ": 1,
+      "300312.SZ": 1,
+      "300352.SZ": 1,
+      "300348.SZ": 1,
+      "300388.SZ": 1,
+      "300355.SZ": 1,
+      "300381.SZ": 1,
+      "300346.SZ": 1,
+      "300326.SZ": 1,
+      "300357.SZ": 1,
+      "300324.SZ": 1,
+      "300370.SZ": 1,
+      "300318.SZ": 1,
+      "300356.SZ": 1,
+      "300371.SZ": 1,
+      "300387.SZ": 1,
+      "300328.SZ": 1,
+      "300332.SZ": 1,
+      "300379.SZ": 1,
+      "300342.SZ": 1,
+      "300385.SZ": 1,
+      "300349.SZ": 1,
+      "300364.SZ": 1,
+      "300315.SZ": 1,
+      "300327.SZ": 1,
+      "300339.SZ": 1,
+      "300360.SZ": 1,
+      "300382.SZ": 1,
+      "300314.SZ": 1,
+      "300333.SZ": 1,
+      "300383.SZ": 1,
+      "300375.SZ": 1,
+      "300336.SZ": 1,
+      "300322.SZ": 1,
+      "300350.SZ": 1,
+      "300372.SZ": 1,
+      "300368.SZ": 1,
+      "300365.SZ": 1,
+      "300359.SZ": 1,
+      "300353.SZ": 1,
+      "300334.SZ": 1,
+      "300323.SZ": 1,
+      "300363.SZ": 1,
+      "300380.SZ": 1,
+      "300311.SZ": 1,
+      "300378.SZ": 1,
+      "300369.SZ": 1,
+      "300335.SZ": 1,
+      "300373.SZ": 1,
+      "300317.SZ": 1,
+      "300351.SZ": 1,
+      "300316.SZ": 1,
+      "300377.SZ": 1,
+      "300319.SZ": 1,
+      "300337.SZ": 1,
+      "300347.SZ": 1,
+      "300386.SZ": 1,
+      "601860.SH": 1,
+      "600935.SH": 1,
+      "688190.SH": 1,
+      "301155.SZ": 1,
+      "301090.SZ": 1,
+      "688082.SH": 1,
+      "301091.SZ": 1,
+      "688105.SH": 1,
+      "688739.SH": 1,
+      "301087.SZ": 1,
+      "688182.SH": 1,
+      "688107.SH": 1,
+      "688232.SH": 1,
+      "301089.SZ": 1,
+      "301180.SZ": 1,
+      "603219.SH": 1,
+      "603071.SH": 1,
+      "600927.SH": 1,
+      "301177.SZ": 1,
+      "301101.SZ": 1,
+      "688248.SH": 1,
+      "688235.SH": 1,
+      "688192.SH": 1,
+      "688110.SH": 1,
+      "688032.SH": 1,
+      "600918.SH": 1,
+      "002959.SZ": 1,
+      "002978.SZ": 1,
+      "600782.SH": 2,
+      "600794.SH": 2,
+      "600785.SH": 2,
+      "600797.SH": 2,
+      "600796.SH": 2,
+      "600781.SH": 2,
+      "600800.SH": 2,
+      "600795.SH": 2,
+      "600789.SH": 2,
+      "600779.SH": 2,
+      "600798.SH": 2,
+      "600790.SH": 2,
+      "600787.SH": 2,
+      "600792.SH": 2,
+      "600783.SH": 2,
+      "600784.SH": 2,
+      "600780.SH": 2,
+      "600791.SH": 2,
+      "600801.SH": 2,
+      "600343.SH": 1,
+      "600345.SH": 1,
+      "600346.SH": 1,
+      "600348.SH": 1,
+      "600350.SH": 1,
+      "600351.SH": 1,
+      "600352.SH": 1,
+      "600353.SH": 1,
+      "600354.SH": 1,
+      "600356.SH": 1,
+      "600358.SH": 1,
+      "600359.SH": 1,
+      "600360.SH": 1,
+      "600361.SH": 1,
+      "600362.SH": 1,
+      "600363.SH": 1,
+      "600365.SH": 1,
+      "600366.SH": 1,
+      "600367.SH": 1,
+      "600368.SH": 1,
+      "600369.SH": 1,
+      "600370.SH": 1,
+      "600371.SH": 1,
+      "600372.SH": 1,
+      "600373.SH": 1,
+      "600375.SH": 1,
+      "600376.SH": 1,
+      "600377.SH": 1,
+      "600378.SH": 1,
+      "600380.SH": 1,
+      "600381.SH": 1,
+      "600382.SH": 1,
+      "600383.SH": 1,
+      "600386.SH": 1,
+      "600387.SH": 1,
+      "600388.SH": 1,
+      "600389.SH": 1,
+      "600390.SH": 1,
+      "600391.SH": 1,
+      "600392.SH": 1,
+      "600393.SH": 1,
+      "600395.SH": 1,
+      "600396.SH": 1,
+      "600397.SH": 1,
+      "600398.SH": 1,
+      "600399.SH": 1,
+      "600400.SH": 1,
+      "600401.SH": 1,
+      "600403.SH": 1,
+      "600405.SH": 1,
+      "600406.SH": 1,
+      "600408.SH": 1,
+      "600409.SH": 1,
+      "600410.SH": 1,
+      "600415.SH": 1,
+      "600416.SH": 1,
+      "300618.SZ": 1,
+      "002851.SZ": 1,
+      "300783.SZ": 1,
+      "603387.SH": 1,
+      "688690.SH": 1,
+      "300572.SZ": 1,
+      "600146.SH": 1,
+      "600149.SH": 1,
+      "600150.SH": 1,
+      "600151.SH": 1,
+      "600152.SH": 1,
+      "600153.SH": 1,
+      "600155.SH": 1,
+      "600156.SH": 1,
+      "600157.SH": 1,
+      "600158.SH": 1,
+      "600159.SH": 1,
+      "600160.SH": 1,
+      "600161.SH": 1,
+      "600162.SH": 1,
+      "600163.SH": 1,
+      "600165.SH": 1,
+      "600166.SH": 1,
+      "600167.SH": 1,
+      "600168.SH": 1,
+      "600169.SH": 1,
+      "600170.SH": 1,
+      "600171.SH": 1,
+      "600172.SH": 1,
+      "301029.SZ": 2,
+      "688800.SH": 2,
+      "688303.SH": 3,
+      "601825.SH": 2,
+      "301031.SZ": 2,
+      "300793.SZ": 1,
+      "300953.SZ": 1,
+      "603279.SH": 1,
+      "002957.SZ": 1,
+      "300803.SZ": 1,
+      "601658.SH": 1,
+      "300855.SZ": 1,
+      "601500.SH": 1,
+      "002926.SZ": 1,
+      "300761.SZ": 1,
+      "300798.SZ": 1,
+      "603486.SH": 2,
+      "603995.SH": 1,
+      "600928.SH": 1,
+      "002947.SZ": 1,
+      "603156.SH": 1,
+      "002938.SZ": 1,
+      "300747.SZ": 1,
+      "601869.SH": 1,
+      "603105.SH": 1,
+      "603489.SH": 1,
+      "300806.SZ": 1,
+      "300805.SZ": 1,
+      "300926.SZ": 1,
+      "300990.SZ": 1,
+      "300811.SZ": 1,
+      "301662.SZ": 1,
+      "002961.SZ": 1,
+      "601816.SH": 1,
+      "601108.SH": 1,
+      "300760.SZ": 1,
+      "603416.SH": 1,
+      "601995.SH": 1,
+      "688239.SH": 1,
+      "301018.SZ": 1,
+      "603348.SH": 1,
+      "002977.SZ": 1,
+      "600816.SH": 1,
+      "600804.SH": 1,
+      "600741.SH": 1,
+      "600807.SH": 1,
+      "600735.SH": 1,
+      "600734.SH": 1,
+      "600733.SH": 1,
+      "600739.SH": 1,
+      "600809.SH": 1,
+      "600811.SH": 1,
+      "600805.SH": 1,
+      "600736.SH": 1,
+      "600729.SH": 1,
+      "600742.SH": 1,
+      "600819.SH": 1,
+      "600745.SH": 1,
+      "600743.SH": 1,
+      "600806.SH": 1,
+      "600730.SH": 1,
+      "600740.SH": 1,
+      "600803.SH": 1,
+      "600817.SH": 1,
+      "600814.SH": 1,
+      "600810.SH": 1,
+      "600808.SH": 1,
+      "600812.SH": 1,
+      "600728.SH": 1,
+      "600737.SH": 1,
+      "600738.SH": 1,
+      "600818.SH": 1,
+      "600744.SH": 1,
+      "600815.SH": 1,
+      "600802.SH": 1,
+      "600732.SH": 1
+    },
+    "null_industry_rows": 568
+  },
+  "industry_null_diagnostic_counts": {
+    "source_date_before_listing": 158,
+    "source_current_listed_after_listing": 375,
+    "delisted_boundary_unresolved": 35
+  },
+  "industry_null_diagnostic_examples": {
+    "source_date_before_listing": {
+      "source_row": {
+        "industry": null,
+        "trade_date": "20200115",
+        "ts_code": "002975.SZ"
+      },
+      "stock_basic_row": {
+        "delist_date": null,
+        "exchange": "SZSE",
+        "list_date": "20200205",
+        "list_status": "L",
+        "name": "博杰股份",
+        "ts_code": "002975.SZ"
+      },
+      "raw_batch_id": "pr6-717acd6660eb86d0d96e2f571b57b72b2e2f0cd6cff236765019eb8d6bb1e403",
+      "manifest_digest": "sha256:ab36ccd0578b92ca3ffc3ee6af4a15846ce1115ddedb17c8bb60d039524affbd",
+      "source_profile_version": "tushare_pr6.v2",
+      "retrieved_at": "2026-09-08T19:19:42.433611+00:00"
+    },
+    "source_current_listed_after_listing": {
+      "source_row": {
+        "industry": null,
+        "trade_date": "20220124",
+        "ts_code": "001289.SZ"
+      },
+      "stock_basic_row": {
+        "delist_date": null,
+        "exchange": "SZSE",
+        "list_date": "20220124",
+        "list_status": "L",
+        "name": "龙源电力",
+        "ts_code": "001289.SZ"
+      },
+      "raw_batch_id": "pr6-f20ca33204916bb59de49fdc1c09f60d1dcf49f347e974cedad1f759a60316a1",
+      "manifest_digest": "sha256:fd9cf57fd4a6fbe541f571362089b1d78a035d2ee4e4ae703c1e8a56e3917136",
+      "source_profile_version": "tushare_pr6.v2",
+      "retrieved_at": "2026-09-08T19:21:30.597175+00:00"
+    },
+    "delisted_boundary_unresolved": {
+      "source_row": {
+        "industry": null,
+        "trade_date": "20170628",
+        "ts_code": "600767.SH"
+      },
+      "stock_basic_row": {
+        "delist_date": "20230629",
+        "exchange": "SSE",
+        "list_date": "19961115",
+        "list_status": "D",
+        "name": "退运盛(退)",
+        "ts_code": "600767.SH"
+      },
+      "raw_batch_id": "pr6-c2902016d9ef3fe6369164bfe6e31d6e2baafa2f5321857111898ba99ec57a9c",
+      "manifest_digest": "sha256:c28900c77f846835a812974f9f35f11db1884dd84e6cdf814907de87923ebbb0",
+      "source_profile_version": "tushare_pr6.v2",
+      "retrieved_at": "2026-09-08T19:17:26.534776+00:00"
+    }
+  },
+  "diagnostic_limitation": "Source listing observations used only to classify counterexamples; no delisting-effective boundary or canonical eligibility is inferred."
+}

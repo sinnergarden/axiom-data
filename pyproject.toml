@@ -9,6 +9,9 @@ description = "Immutable data publication contracts for the Axiom project family
 requires-python = ">=3.11"
 dependencies = []
 
+[project.scripts]
+axiom-data = "axiom_data.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

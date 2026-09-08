@@ -8,11 +8,15 @@ backtest semantics.
 
 ## Current delivery boundary
 
-PR1–PR6 are merged. PR7 completes the remaining 15 PR4 Data requirements and
-bounded D-M2 admission. Follow `src/axiom_data/scope/pr7_scope.v1.json`; preserve
-PR5/6 contracts and published artifact compatibility. Deliver a PR7 branch and
-commit for review; do not merge PR7. Do not enter D-M3 or modify SysQ, Research,
-Trade, Core, accounts or UI. Data root is `/home/liuming/workspace/axiom/data`.
+PR1–PR7 have passed independent review. The current delivery is the final V1
+operational release: public bootstrap/daily/repair/inspect, immutable partition
+reuse, full 2014-to-source-available history admission, recovery, performance and
+a read-only acceptance Notebook. Preserve the accepted 56 Data requirements and
+469 Feature dependency scope; add no Data domains or Research Features.
+Do not merge this release, change SysQ, or enter Research/Core/Trade/UI.
+Data root is `/home/liuming/workspace/axiom/data`. See `V1_WORK_LOG.md` for the
+terminal gates. Resolve a default pointer once at operation entry; builders
+continue to receive only explicit immutable identities.
 
 ## Invariants
 

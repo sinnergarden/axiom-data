@@ -447,6 +447,9 @@ def _publish_directory(
                     f"immutable artifact was concurrently published: {target.name}"
                 ) from exc
             raise ArtifactError(f"could not publish immutable artifact: {target.name}") from exc
+        from axiom_data.publication import readonly_publication, seal
+        if readonly_publication.get():
+            seal(target)
         _fsync_directory(target.parent)
 
 
@@ -805,6 +808,14 @@ class MarketDomainBuilder:
         if builder_config is not None and not isinstance(builder_config, Mapping):
             raise ArtifactError("builder_config must be a mapping")
         self.builder_config = _json_copy(builder_config or {})
+        if self.builder_config.get('storage_policy') == 'domain_time_blocks.v1':
+            import inspect
+            module = inspect.getmodule(type(self))
+            self.builder_config['storage_implementation'] = {
+                'publisher': _digest(Path(__file__).read_bytes()),
+                'partitions': _digest(Path(__file__).with_name('partitions.py').read_bytes()),
+                'builder': _digest(Path(module.__file__).read_bytes()),
+            }
         self.expected_commit_id = (
             _identity("commit_id", commit_id) if commit_id is not None else None
         )
@@ -930,6 +941,14 @@ class MarketDomainBuilder:
         builder_config_digest = _digest(_json_bytes(self.builder_config))
         builder_implementation_ref = _builder_implementation_ref(self)
         parent_ref = _commit_ref(parent) if parent is not None else None
+        if (parent is not None and self.builder_config.get('no_change_policy') == 'reuse_equal_state.v1'
+            and logical_digest == parent.manifest['logical_content_digest']
+            and self.builder_config == parent.manifest['builder_config']
+            and builder_implementation_ref == parent.manifest['builder_implementation_ref']
+            and dependencies == parent.manifest['dependency_commit_refs']
+            and (request.contract_version != 'universe_membership.v3' or
+                 self.group_states == parent.manifest['group_states'])):
+            return parent.ref
         raw_refs = [_raw_ref(raw) for raw in raw_batches]
         manifest = {
             "artifact_type": "domain_commit",
@@ -959,6 +978,12 @@ class MarketDomainBuilder:
                 "cross_domain": "PASS" if dependencies else "NOT_APPLICABLE",
             },
         }
+        if self.builder_config.get('storage_policy') == 'domain_time_blocks.v1':
+            from axiom_data.partitions import POLICY, publish_partitions
+            manifest['schema_version'] = 'domain_commit.v2'
+            manifest['partition_policy'] = POLICY
+            manifest['partitions'] = publish_partitions(self.layout, self.domain, rows)
+            manifest['output_files'] = []
         if request.contract_version == 'universe_membership.v3':
             if self.group_states != replay.group_states:
                 raise ArtifactError('group states differ from raw replay')
@@ -976,8 +1001,12 @@ class MarketDomainBuilder:
 
         def prepare(candidate: Path) -> None:
             _write_file(candidate / "contract.json", contract_content)
-            _write_file(candidate / "rows.json", rows_content)
-            staged_rows = json.loads((candidate / "rows.json").read_bytes())
+            if manifest['schema_version'] == 'domain_commit.v2':
+                from axiom_data.partitions import read_partitions
+                staged_rows = read_partitions(self.layout, self.domain, manifest, contract)
+            else:
+                _write_file(candidate / "rows.json", rows_content)
+                staged_rows = json.loads((candidate / "rows.json").read_bytes())
             _validate_domain_rows(self.domain, staged_rows)
             if self.domain in PR6_DOMAINS + PR7_DOMAINS:
                 _validate_pr6_dependencies(self.domain, staged_rows, loaded_dependencies)
@@ -985,7 +1014,7 @@ class MarketDomainBuilder:
                 _validate_market_dependencies(staged_rows, calendar, security)
             if _digest((candidate / "contract.json").read_bytes()) != contract_digest:
                 raise ArtifactError("staged contract digest mismatch")
-            if _digest((candidate / "rows.json").read_bytes()) != logical_digest:
+            if _digest(_json_bytes(staged_rows)) != logical_digest:
                 raise ArtifactError("staged logical content digest mismatch")
             _write_manifest(candidate, manifest)
 
@@ -1022,7 +1051,7 @@ def load_domain_commit(
         layout.root,
         target,
         artifact_type="domain_commit",
-        schema_version="domain_commit.v1",
+        schema_version=("domain_commit.v1", "domain_commit.v2"),
         identity_field="domain_commit_id",
         identity=domain_commit_id,
     )
@@ -1060,29 +1089,33 @@ def load_domain_commit(
     except BuildContractError as exc:
         raise ArtifactError("DomainCommit uses an unsupported Phase 1 contract") from exc
 
-    output_files = manifest.get("output_files")
-    if not isinstance(output_files, list) or len(output_files) != 1:
-        raise ArtifactError("Phase 1 DomainCommit requires exactly one output file")
-    output = output_files[0]
-    if not isinstance(output, dict):
-        raise ArtifactError("DomainCommit output entry is invalid")
-    rows_path = _relative_file(layout.root, target, output.get("path"))
-    if not rows_path.is_file():
-        raise ArtifactError("DomainCommit rows file is missing")
-    rows_content = rows_path.read_bytes()
-    if (
-        output.get("content_digest") != _digest(rows_content)
-        or manifest.get("logical_content_digest") != _digest(rows_content)
-    ):
-        raise ArtifactError("DomainCommit logical content digest mismatch")
-    try:
-        rows = json.loads(rows_content)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ArtifactError("DomainCommit rows are invalid JSON") from exc
-    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
-        raise ArtifactError("DomainCommit rows must be a JSON array of objects")
-    if output.get("rows") != len(rows):
-        raise ArtifactError("DomainCommit row count mismatch")
+    if manifest['schema_version'] == 'domain_commit.v2':
+        from axiom_data.partitions import read_partitions
+        rows = read_partitions(layout, domain, manifest, contract)
+    else:
+        output_files = manifest.get("output_files")
+        if not isinstance(output_files, list) or len(output_files) != 1:
+            raise ArtifactError("Phase 1 DomainCommit requires exactly one output file")
+        output = output_files[0]
+        if not isinstance(output, dict):
+            raise ArtifactError("DomainCommit output entry is invalid")
+        rows_path = _relative_file(layout.root, target, output.get("path"))
+        if not rows_path.is_file():
+            raise ArtifactError("DomainCommit rows file is missing")
+        rows_content = rows_path.read_bytes()
+        if (
+            output.get("content_digest") != _digest(rows_content)
+            or manifest.get("logical_content_digest") != _digest(rows_content)
+        ):
+            raise ArtifactError("DomainCommit logical content digest mismatch")
+        try:
+            rows = json.loads(rows_content)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ArtifactError("DomainCommit rows are invalid JSON") from exc
+        if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+            raise ArtifactError("DomainCommit rows must be a JSON array of objects")
+        if output.get("rows") != len(rows):
+            raise ArtifactError("DomainCommit row count mismatch")
     _validate_domain_rows(domain, rows)
     expected_cross_domain = (
         "PASS" if _DOMAIN_DEPENDENCIES[domain] else "NOT_APPLICABLE"
@@ -1104,13 +1137,63 @@ def _validate_domain_commit_closure(
     cache: dict[tuple[str, str], DomainCommit],
     raw_closure_cache: dict[tuple[str, str], frozenset[str]],
 ) -> DomainCommit:
+    """Postorder traversal; caches live only for this verified closure, never across reads."""
+    requested = (domain, domain_commit_id)
+    stack = [(requested, None)]
+    entered = set()
+    try:
+        while stack:
+            key, loaded = stack.pop()
+            if key in cache:
+                continue
+            if loaded is not None:
+                active.remove(key)
+                entered.remove(key)
+                _validate_domain_commit_node(root, *key, active, cache,
+                                             raw_closure_cache, loaded=loaded)
+                continue
+            if key in active:
+                raise ArtifactError("DomainCommit lineage contains a cycle")
+            commit = load_domain_commit(root, *key)
+            children = []
+            parent = commit.manifest.get("parent_commit_ref")
+            if parent is not None:
+                if (not isinstance(parent, dict) or parent.get("domain") != key[0]
+                    or not isinstance(parent.get("domain_commit_id"), str)):
+                    raise ArtifactError("DomainCommit parent ref is invalid")
+                children.append((key[0], parent["domain_commit_id"]))
+            dependencies = commit.manifest.get("dependency_commit_refs")
+            if not isinstance(dependencies, dict) or set(dependencies) != set(_DOMAIN_DEPENDENCIES[key[0]]):
+                raise ArtifactError("DomainCommit dependency refs are incomplete")
+            for name, ref in dependencies.items():
+                if not isinstance(ref, dict) or not isinstance(ref.get("domain_commit_id"), str):
+                    raise ArtifactError("DomainCommit dependency ref is invalid")
+                children.append((name, ref["domain_commit_id"]))
+            active.add(key)
+            entered.add(key)
+            stack.append((key, commit))
+            stack.extend((child, None) for child in reversed(children))
+    finally:
+        active.difference_update(entered)
+    return cache[requested]
+
+
+def _validate_domain_commit_node(
+    root: Path,
+    domain: str,
+    domain_commit_id: str,
+    active: set[tuple[str, str]],
+    cache: dict[tuple[str, str], DomainCommit],
+    raw_closure_cache: dict[tuple[str, str], frozenset[str]],
+    *, loaded: DomainCommit,
+) -> DomainCommit:
     key = (domain, domain_commit_id)
     if key in cache:
         return cache[key]
     if key in active:
         raise ArtifactError("DomainCommit lineage contains a cycle")
 
-    commit = load_domain_commit(root, domain, domain_commit_id)
+    commit = loaded
     active.add(key)
     try:
         raw_refs = commit.manifest.get("ordered_raw_batch_refs")

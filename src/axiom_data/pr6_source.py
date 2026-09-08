@@ -11,12 +11,14 @@ from axiom_data.pit import fingerprint, instant
 from axiom_data.domains.pr6 import economic_content
 
 
-def load_pr6_source_profile():
-    return json.loads(files('axiom_data.source_profiles').joinpath('tushare_pr6.v1.json').read_bytes())
+def load_pr6_source_profile(version='tushare_pr6.v1'):
+    if version not in {'tushare_pr6.v1','tushare_pr6.v2'}:
+        raise ArtifactError('unsupported PR6 SourceProfile version')
+    return json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
 
 
-def profile_digest():
-    return _digest(_json_bytes(load_pr6_source_profile()))
+def profile_digest(version='tushare_pr6.v1'):
+    return _digest(_json_bytes(load_pr6_source_profile(version)))
 
 
 def source_date(value):
@@ -28,8 +30,13 @@ def source_date(value):
         raise ArtifactError('invalid supplier date') from exc
 
 
-def validate_payload(endpoint, params, records):
-    definition=load_pr6_source_profile()['endpoints'][endpoint]
+def validate_payload(endpoint, params, records, *, profile_version='tushare_pr6.v1'):
+    profile=load_pr6_source_profile(profile_version)
+    if endpoint not in profile['endpoints']:
+        raise ArtifactError('endpoint outside SourceProfile')
+    definition=profile['endpoints'][endpoint]
+    if profile_version=='tushare_pr6.v2' and (not isinstance(records,list) or len(records)>=7000):
+        raise ArtifactError('possibly truncated bulk industry payload')
     allowed = {'ts_code','start_date','end_date','period','report_type','trade_date','index_code'}
     if not isinstance(params,dict) or not params or set(params)-allowed:
         raise ArtifactError('PR6 request must have bounded allowed parameters')
@@ -37,8 +44,8 @@ def validate_payload(endpoint, params, records):
         if set(params)!={'index_code','start_date','end_date'}:
             raise ArtifactError('index_weight requires explicit index and date bounds')
     elif endpoint=='bak_basic':
-        if set(params)!={'ts_code','trade_date'}:
-            raise ArtifactError('bak_basic requires one security and date')
+        if set(params) not in ([{'trade_date'},{'ts_code','trade_date'}] if profile_version=='tushare_pr6.v2' else [{'ts_code','trade_date'}]):
+            raise ArtifactError('bak_basic requires explicit security/date scope')
     elif not params.get('ts_code') or not (params.get('period') or params.get('trade_date') or
                                           (params.get('start_date') and params.get('end_date'))):
         raise ArtifactError('financial/valuation request requires security and date/period bounds')
@@ -73,21 +80,21 @@ def validate_payload(endpoint, params, records):
 class Pr6Collector(TushareCollector):
     implementation_revision='tushare-pr6-collector.v1'
 
-    def collect(self, endpoint, params, *, retrieved_at=None, membership_complete=False):
-        definition=load_pr6_source_profile()['endpoints'].get(endpoint)
+    def collect(self, endpoint, params, *, retrieved_at=None, membership_complete=False, profile_version='tushare_pr6.v1'):
+        definition=load_pr6_source_profile(profile_version)['endpoints'].get(endpoint)
         if definition is None:
             raise ArtifactError('unsupported PR6 endpoint')
-        validate_payload(endpoint,params,[])
+        validate_payload(endpoint,params,[],profile_version=profile_version)
         records=_response_records(self._client().query(endpoint,fields=','.join(definition['fields']),**params))
-        validate_payload(endpoint,params,records)
+        validate_payload(endpoint,params,records,profile_version=profile_version)
         observed=_retrieved_at(retrieved_at)
         request={'endpoint':endpoint,'params':params,'fields':definition['fields']}
         payload=_json_bytes(records)
-        identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(),
+        identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(profile_version),
                               'membership_complete':membership_complete})
         return write_raw_batch(self.data_root,'pr6-'+identity,domain=definition['domain'],
-            source_profile='tushare.pr6.'+endpoint,source_profile_version='tushare_pr6.v1',
-            source_profile_digest=profile_digest(),request=request,retrieved_at=observed,
+            source_profile='tushare.pr6.'+endpoint,source_profile_version=profile_version,
+            source_profile_digest=profile_digest(profile_version),request=request,retrieved_at=observed,
             payload=payload,collector_code=self.implementation_revision,
             summary={'rows':len(records),'historical_availability':'best_effort',
                      'membership_complete':membership_complete})
@@ -107,21 +114,23 @@ class Pr6Builder(MarketDomainBuilder):
         weights=defaultdict(list)
         for raw in raw_batches:
             m=raw.manifest; request=m['request']; endpoint=request.get('endpoint')
-            definition=load_pr6_source_profile()['endpoints'].get(endpoint)
+            version=m.get('source_profile_version')
+            definition=load_pr6_source_profile(version)['endpoints'].get(endpoint)
             if definition is None or definition['domain']!=self.domain:
                 raise ArtifactError('PR6 endpoint/domain mismatch')
-            if (m['schema_version']!='raw_batch.v2' or m['source_profile_digest']!=profile_digest()
-                or m['source_profile_version']!='tushare_pr6.v1'
-                or m['source_profile_ref']!='tushare.pr6.'+endpoint
+            if (m['schema_version']!='raw_batch.v2' or m['source_profile_digest']!=profile_digest(version)
+                 or m['source_profile_ref']!='tushare.pr6.'+endpoint
                 or request.get('fields')!=definition['fields']):
                 raise ArtifactError('PR6 source profile binding mismatch')
             records=json.loads(raw.payload)
-            validate_payload(endpoint,request['params'],records)
+            validate_payload(endpoint,request['params'],records,profile_version=version)
             if endpoint=='index_weight':
                 for source in records:
                     weights[source['index_code']].append((source,raw))
                 continue
             for source in records:
+                if version=='tushare_pr6.v2' and self.builder_config.get('symbols') and source['ts_code'] not in self.builder_config['symbols']:
+                    continue
                 row=self._base(source['ts_code'],raw)
                 if endpoint=='bak_basic':
                     represented=source_date(source['trade_date'])
