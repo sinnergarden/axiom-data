@@ -1,0 +1,17 @@
+{
+  "status": "PRIMARY_SOURCE_EVIDENCE_ONLY",
+  "security": "000005.SZ",
+  "source_url": "https://disc.static.szse.cn/disc/disk03/finalpage/2024-04-25/b8989912-ffa8-42a1-9f29-915e833bbb84.PDF",
+  "retrieved_at": "2026-09-08T19:50:54.131543+00:00",
+  "document_path": "/home/liuming/workspace/axiom/data/operations/v1-boundary-evidence-20260909-r1/accdaf67374852f67f3a41a5da80fe55584632eaac7494b0723cfe400833e95a.pdf",
+  "sha256": "accdaf67374852f67f3a41a5da80fe55584632eaac7494b0723cfe400833e95a",
+  "bytes": 273592,
+  "announcement_id": "2024-021",
+  "announcement_date": "2024-04-25",
+  "decision_date": "2024-04-11",
+  "removal_date": "2024-04-26",
+  "source_page": 1,
+  "supplier_delist_date": "20240426",
+  "supplier_raw_batch_id": "tushare-stock_basic-0b984aab43ea5953d52f41153dab84cd0c3fc98b2779bedafffab9cac23ed9f8",
+  "limitation": "One security corroborated; no new source mapping or canonical boundary has been admitted."
+}

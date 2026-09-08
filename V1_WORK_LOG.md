@@ -116,3 +116,19 @@ unimplemented or unvalidated. Partition writes reuse objects, but readers/builds
 still eagerly materialize full states; no full-scale daily performance claim.
 Candidate resume request-binding hardening and complete config-value validation
 also remain before production use. No current pointer was moved; no merge or push.
+
+## Source decision follow-up
+
+The primary SZSE-hosted issuer announcement 2024-021 corroborates 000005.SZ's
+2024-04-26 removal date and distinguishes its 2024-04-11 termination decision.
+Original PDF captured read-only by explicit SHA-256; metadata in
+reports/v1/primary_boundary_evidence.json. This validates a source distinction
+for one security, not a global boundary mapping for 228 securities.
+
+reports/v1/SOURCE_CONTRACT_DECISION.md proposes evidence-backed delisting mapping
+under a new SourceProfile while retaining security_master.v1, and a clean-root
+industry_membership.v3 for explicit null classification observations. The latter
+changes the accepted row contract; a concise contract decision was requested
+from the user under request section 1. No answer has arrived at this checkpoint.
+No runtime/contract change was applied; two source blocker tests reran 2/2 PASS.
+Full bootstrap remains blocked and the terminal goal remains incomplete.
