@@ -148,9 +148,19 @@ class SnapshotReader:
             if row["symbol"] in selected and start <= row["session"] <= end
         )
 
+    def leaf_fact(self, leaf, *, symbol, target_session, knowledge_cutoff, pit_policy):
+        from axiom_data.pr7_views import leaf_facts
+        return leaf_facts(self, leaf, symbol=symbol, target_session=target_session,
+                          knowledge_cutoff=knowledge_cutoff, pit_policy=pit_policy)
+
     def as_of(self, domain: str, *, knowledge_cutoff: str, pit_policy: str,
               symbols: Sequence[str] | None = None) -> tuple[dict[str, Any], ...]:
         from axiom_data.pit import select_revisions
+        from axiom_data.domains.pr7 import PR7_DOMAINS
+        if domain in PR7_DOMAINS:
+            from axiom_data.pr7_source import select_pr7_revisions
+            return select_pr7_revisions(self.facts(domain,symbols=symbols),policy=pit_policy,
+                                        knowledge_cutoff=knowledge_cutoff)
         universe = domain == "universe_membership"
         result = select_revisions(self.facts(domain, symbols=None if universe else symbols),
                                   policy=pit_policy, knowledge_cutoff=knowledge_cutoff,
@@ -222,7 +232,11 @@ class SnapshotReader:
 
         if domain not in self.commits:
             raise ArtifactError(f"snapshot has no readable domain {domain!r}")
-        from axiom_data.domains import PR6_DOMAINS
+        from axiom_data.domains import PR6_DOMAINS, PR7_DOMAINS
+        if domain in PR7_DOMAINS and symbols is not None:
+            requested=set(_symbols(symbols))
+            if not requested<={r['symbol'] for r in self.security_master()}:
+                raise ArtifactError('unknown security')
         if domain in PR6_DOMAINS:
             from axiom_data.pr6_coverage import require_symbols
             if domain=='universe_membership' and 'group_states' in self.commits[domain].manifest:
@@ -523,6 +537,9 @@ def build_qlib_view(
 def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
     """Verify one exact view, all files, and its source Snapshot closure."""
 
+    if isinstance(view_id, str) and view_id.startswith("pr7-fact-"):
+        from axiom_data.pr7_views import load_pr7_fact_view
+        return load_pr7_fact_view(data_root, view_id)
     if isinstance(view_id, str) and view_id.startswith("pr6-fact-"):
         from axiom_data.pr6_views import load_pr6_fact_view
         return load_pr6_fact_view(data_root, view_id)
@@ -716,10 +733,15 @@ class QlibViewReader:
     def __init__(self, data_root: str | Path, view_id: str) -> None:
         self.data_root = Path(data_root)
         self.view = load_qlib_view(self.data_root, view_id)
-        self.path = (_layout(self.data_root).derived_commits("pr6_fact") / view_id
+        self.path = (_layout(self.data_root).derived_commits("pr7_fact") / view_id
+                     if view_id.startswith("pr7-fact-") else _layout(self.data_root).derived_commits("pr6_fact") / view_id
                      if view_id.startswith("pr6-fact-") else _layout(self.data_root).qlib_exports / view_id)
 
     def fact_metadata(self):
+        if self.view.manifest.get('artifact_type') == 'pr7_fact_view':
+            return {'view_id':self.view.ref.view_id,'snapshot_ref':self.view.manifest['snapshot_ref'],
+                    'validated_scope':self.view.manifest['validated_scope'],
+                    'rows':tuple({'symbol':r['symbol'],'session':r['session'],'fields':r['facts']} for r in self.view.rows)}
         if self.view.manifest.get('artifact_type') != 'pr6_fact_view':
             raise ArtifactError('PR6 FactView metadata required')
         if self.view.manifest['schema_version']=='pr6_fact_view.v1':

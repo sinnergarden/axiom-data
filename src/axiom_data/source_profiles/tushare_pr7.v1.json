@@ -1,0 +1,158 @@
+{
+  "profile_version": "tushare_pr7.v1",
+  "historical_qualification": "best_effort",
+  "endpoints": {
+    "stk_holdernumber": {
+      "domain": "holder_count_events",
+      "fields": [
+        "ts_code",
+        "ann_date",
+        "end_date",
+        "holder_num"
+      ],
+      "mapping": {
+        "holder_num": [
+          "number",
+          1,
+          "count"
+        ]
+      },
+      "bound_field": "ann_date",
+      "limit": 3000,
+      "documentation": "https://tushare.pro/document/2?doc_id=166"
+    },
+    "top10_holders": {
+      "domain": "top_holders_reports",
+      "fields": [
+        "ts_code",
+        "ann_date",
+        "end_date",
+        "holder_name",
+        "hold_amount",
+        "hold_ratio",
+        "holder_type"
+      ],
+      "mapping": {},
+      "bound_field": "end_date",
+      "limit": 1000,
+      "documentation": "https://tushare.pro/document/2?doc_id=61"
+    },
+    "margin_detail": {
+      "domain": "margin_daily",
+      "fields": [
+        "ts_code",
+        "trade_date",
+        "rzye",
+        "rzmre",
+        "rzche",
+        "rqyl",
+        "rqchl",
+        "rqmcl",
+        "rzrqye"
+      ],
+      "mapping": {
+        "rzye": [
+          "balance",
+          1,
+          "CNY"
+        ],
+        "rzmre": [
+          "buy",
+          1,
+          "CNY"
+        ],
+        "rzche": [
+          "repay",
+          1,
+          "CNY"
+        ],
+        "rqyl": [
+          "lend_balance_volume",
+          1,
+          "shares"
+        ],
+        "rqchl": [
+          "lend_repay_volume",
+          1,
+          "shares"
+        ],
+        "rqmcl": [
+          "lend_sell_volume",
+          1,
+          "shares"
+        ],
+        "rzrqye": [
+          "total_balance",
+          1,
+          "CNY"
+        ]
+      },
+      "bound_field": "trade_date",
+      "limit": 6000,
+      "documentation": "https://tushare.pro/document/2?doc_id=59"
+    },
+    "moneyflow": {
+      "domain": "moneyflow_daily",
+      "fields": [
+        "ts_code",
+        "trade_date",
+        "buy_elg_amount",
+        "sell_elg_amount",
+        "net_mf_amount"
+      ],
+      "mapping": {
+        "buy_elg_amount": [
+          "big_buy",
+          10000,
+          "CNY"
+        ],
+        "sell_elg_amount": [
+          "big_sell",
+          10000,
+          "CNY"
+        ],
+        "net_mf_amount": [
+          "net",
+          10000,
+          "CNY"
+        ]
+      },
+      "bound_field": "trade_date",
+      "limit": 6000,
+      "documentation": "https://tushare.pro/document/2?doc_id=170"
+    },
+    "forecast": {
+      "domain": "forecast_observations",
+      "fields": [
+        "ts_code",
+        "ann_date",
+        "end_date",
+        "type"
+      ],
+      "mapping": {
+        "ann_date": [
+          "announcement",
+          "date",
+          "date"
+        ],
+        "end_date": [
+          "period_end",
+          "date",
+          "fiscal_date"
+        ],
+        "type": [
+          "type",
+          "text",
+          "enum"
+        ]
+      },
+      "bound_field": "ann_date",
+      "limit": 3500,
+      "documentation": "https://tushare.pro/document/2?doc_id=45"
+    }
+  },
+  "scope": "SSE/SZSE equities only; lending volumes are shares, not ETF units or derivative lots",
+  "moneyflow": "big_buy/sell retain ELG active order amounts independently; net is supplier L2 net, never recomputed from buckets",
+  "forecast": "company performance forecast classification; not analyst consensus; report period is fiscal horizon; no predicted metric amounts are in PR4 scope",
+  "holder": "top10 total-share-capital ratios in percentage points; complete requires ten distinct valid holders; group rows retained"
+}

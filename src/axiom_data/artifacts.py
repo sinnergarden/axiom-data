@@ -34,7 +34,8 @@ from axiom_data.domains import (
 )
 from axiom_data.domains.dm1 import DOMAIN_VALIDATORS as DM1_DOMAIN_VALIDATORS
 from axiom_data.domains.dm1 import DM1_REFERENCE_DOMAINS
-from axiom_data.domains import PR6_DOMAINS, PR6_SNAPSHOT_DOMAINS
+from axiom_data.domains import PR6_DOMAINS, PR6_SNAPSHOT_DOMAINS, PR7_DOMAINS, PR7_SNAPSHOT_DOMAINS
+from axiom_data.domains.pr7 import DOMAIN_VALIDATORS as PR7_DOMAIN_VALIDATORS
 from axiom_data.domains.pr6 import DOMAIN_VALIDATORS as PR6_DOMAIN_VALIDATORS
 from axiom_data.layout import DataRootLayout
 
@@ -50,6 +51,7 @@ _DOMAIN_VALIDATORS = {
 }
 _DOMAIN_VALIDATORS.update(DM1_DOMAIN_VALIDATORS)
 _DOMAIN_VALIDATORS.update(PR6_DOMAIN_VALIDATORS)
+_DOMAIN_VALIDATORS.update(PR7_DOMAIN_VALIDATORS)
 _DOMAIN_DEPENDENCIES = {
     "trading_calendar": (),
     "security_master": (),
@@ -63,6 +65,8 @@ _DOMAIN_DEPENDENCIES = {
 }
 _DOMAIN_DEPENDENCIES.update({d: ("security_master",) for d in PR6_DOMAINS})
 _DOMAIN_DEPENDENCIES["valuation_daily"] = ("trading_calendar", "security_master")
+_DOMAIN_DEPENDENCIES.update({d: ("security_master",) for d in PR7_DOMAINS})
+_DOMAIN_DEPENDENCIES.update({d: ("trading_calendar", "security_master") for d in ("margin_daily", "moneyflow_daily")})
 _SUFFIX_EXCHANGE = {".SH": "SSE", ".SZ": "SZSE"}
 _MARKET_BUILDER_REVISION = "market-json-builder.v1"
 _SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
@@ -628,7 +632,7 @@ def _validate_dm1_observation_refs(
     """Resolve observed provenance within this DomainCommit's RawBatch lineage."""
 
     for row in rows:
-        if row.get("pit_qualification") != "observed" and domain not in PR6_DOMAINS:
+        if row.get("pit_qualification") != "observed" and domain not in PR6_DOMAINS + PR7_DOMAINS:
             continue
         source_refs = [row.get("source_ref")]
         if row.get("boundary_source_ref") is not None:
@@ -771,7 +775,7 @@ def _validate_pr6_dependencies(domain, rows, dependencies):
     securities = {r["symbol"]: r for r in dependencies["security_master"].rows}
     if any(r["symbol"] not in securities for r in rows):
         raise ArtifactError("PR6 fact has no security identity")
-    if domain == "valuation_daily":
+    if domain in ("valuation_daily", "margin_daily", "moneyflow_daily"):
         sessions = {(r["exchange"], r["session"]) for r in dependencies["trading_calendar"].rows if r["is_open"]}
         if any((securities[r["symbol"]]["exchange"], r["session"]) not in sessions for r in rows):
             raise ArtifactError("valuation fact is outside open calendar coverage")
@@ -902,7 +906,7 @@ class MarketDomainBuilder:
             parent.rows if parent is not None else (),
             raw_batches,
         )
-        if self.domain in DM1_REFERENCE_DOMAINS + PR6_DOMAINS:
+        if self.domain in DM1_REFERENCE_DOMAINS + PR6_DOMAINS + PR7_DOMAINS:
             _validate_dm1_observation_refs(
                 self.layout.root,
                 self.domain,
@@ -916,6 +920,11 @@ class MarketDomainBuilder:
             replay.parent_group_states = self.parent_group_states
             if replay._build_rows(contract, parent.rows if parent else (), raw_batches) != rows:
                 raise ArtifactError("PR6 staged rows differ from their source mapping")
+        if self.domain in PR7_DOMAINS:
+            from axiom_data.pr7_source import Pr7Builder
+            replay = Pr7Builder(self.layout.root, self.domain, builder_config=self.builder_config)
+            if replay._build_rows(contract, parent.rows if parent else (), raw_batches) != rows:
+                raise ArtifactError("PR7 staged rows differ from RawBatch mapping")
         rows_content = _json_bytes(rows)
         logical_digest = _digest(rows_content)
         builder_config_digest = _digest(_json_bytes(self.builder_config))
@@ -970,7 +979,7 @@ class MarketDomainBuilder:
             _write_file(candidate / "rows.json", rows_content)
             staged_rows = json.loads((candidate / "rows.json").read_bytes())
             _validate_domain_rows(self.domain, staged_rows)
-            if self.domain in PR6_DOMAINS:
+            if self.domain in PR6_DOMAINS + PR7_DOMAINS:
                 _validate_pr6_dependencies(self.domain, staged_rows, loaded_dependencies)
             if self.domain == "market_daily" and calendar is not None and security is not None:
                 _validate_market_dependencies(staged_rows, calendar, security)
@@ -1152,7 +1161,7 @@ def _validate_domain_commit_closure(
                 raw_closure_cache[(domain, parent.ref.commit_id)]
             )
 
-        if domain in DM1_REFERENCE_DOMAINS + PR6_DOMAINS:
+        if domain in DM1_REFERENCE_DOMAINS + PR6_DOMAINS + PR7_DOMAINS:
             _validate_dm1_observation_refs(
                 root,
                 domain,
@@ -1174,6 +1183,14 @@ def _validate_domain_commit_closure(
                 validate_group_states(commit.rows,commit.manifest["group_states"])
             if expected_rows != list(commit.rows):
                 raise ArtifactError("PR6 canonical rows differ from their RawBatch mapping")
+
+        if domain in PR7_DOMAINS:
+            from axiom_data.pr7_source import Pr7Builder
+            replay = Pr7Builder(root, domain, builder_config=commit.manifest["builder_config"])
+            expected_rows = replay._build_rows(commit.contract, parent.rows if parent_ref is not None else (),
+                [load_raw_batch(root, ref["raw_batch_id"]) for ref in raw_refs])
+            if expected_rows != list(commit.rows):
+                raise ArtifactError("PR7 canonical rows differ from RawBatch mapping")
 
         dependency_refs = commit.manifest.get("dependency_commit_refs")
         required = set(_DOMAIN_DEPENDENCIES[domain])
@@ -1200,7 +1217,7 @@ def _validate_domain_commit_closure(
                         f"{domain} dependency ref does not match its artifact"
                     )
                 dependencies[dependency_domain] = dependency
-            if domain in PR6_DOMAINS:
+            if domain in PR6_DOMAINS + PR7_DOMAINS:
                 _validate_pr6_dependencies(domain, commit.rows, dependencies)
             if domain == "market_daily":
                 _validate_market_dependencies(
@@ -1260,6 +1277,8 @@ def _checked_snapshot_commits(
         ordered_domains = DM1_SNAPSHOT_DOMAINS
     elif requested_domains == set(PR6_SNAPSHOT_DOMAINS):
         ordered_domains = PR6_SNAPSHOT_DOMAINS
+    elif requested_domains == set(PR7_SNAPSHOT_DOMAINS):
+        ordered_domains = PR7_SNAPSHOT_DOMAINS
     else:
         raise ArtifactError("DataSnapshot requires exactly a registered domain set")
     cache: dict[tuple[str, str], DomainCommit] = {}
@@ -1324,6 +1343,7 @@ def create_snapshot(
     manifest = {
         "artifact_type": "data_snapshot",
         "schema_version": (
+            "data_snapshot.v4" if ordered_domains == PR7_SNAPSHOT_DOMAINS else
             "data_snapshot.v3" if ordered_domains == PR6_SNAPSHOT_DOMAINS else
             "data_snapshot.v2" if ordered_domains == DM1_SNAPSHOT_DOMAINS else "data_snapshot.v1"
         ),
@@ -1369,7 +1389,7 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
         layout.root,
         target,
         artifact_type="data_snapshot",
-        schema_version=("data_snapshot.v1", "data_snapshot.v2", "data_snapshot.v3"),
+        schema_version=("data_snapshot.v1", "data_snapshot.v2", "data_snapshot.v3", "data_snapshot.v4"),
         identity_field="snapshot_id",
         identity=snapshot_id,
     )
@@ -1381,6 +1401,7 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     schema_version = manifest.get("schema_version")
     ordered_domains = (
         MARKET_DOMAINS if schema_version == "data_snapshot.v1" else
+        PR7_SNAPSHOT_DOMAINS if schema_version == "data_snapshot.v4" else
         PR6_SNAPSHOT_DOMAINS if schema_version == "data_snapshot.v3" else DM1_SNAPSHOT_DOMAINS
     )
     required_domains = frozenset(ordered_domains)
@@ -1499,6 +1520,13 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
         view = load_pr6_fact_view(layout.root, artifact_dir.name)
         for artifact_type in ("pr6_fact_view", "qlib_view"):
             entries.append(CatalogEntry(artifact_type, view.ref.view_id, "pr6_fact",
+                view.manifest["schema_version"],
+                (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(), view.ref.manifest_digest))
+    from axiom_data.pr7_views import load_pr7_fact_view
+    for artifact_dir in _artifact_directories(layout.root, layout.derived_commits("pr7_fact")):
+        view = load_pr7_fact_view(layout.root, artifact_dir.name)
+        for artifact_type in ("pr7_fact_view", "qlib_view"):
+            entries.append(CatalogEntry(artifact_type, view.ref.view_id, "pr7_fact",
                 view.manifest["schema_version"],
                 (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(), view.ref.manifest_digest))
     for artifact_dir in _artifact_directories(layout.root, layout.qlib_exports):

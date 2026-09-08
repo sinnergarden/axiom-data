@@ -354,6 +354,9 @@ class FactView:
         if self.adjusted is not None and self.adjusted.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
             raise ArtifactError("FactView Derived ref belongs to another Snapshot")
 
+    def leaf_fact(self, leaf, **query):
+        return self.reader.leaf_fact(leaf, **query)
+
     def read(
         self,
         domain: str,

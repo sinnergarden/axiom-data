@@ -8,12 +8,11 @@ backtest semantics.
 
 ## Current delivery boundary
 
-PR1–PR5 are merged. PR6 implements PIT universe/industry, financial observations,
-valuation and the four PR4-required single-quarter/TTM leaves, with frozen source,
-reconciliation and recovery evidence. Follow the exact PR4-derived scope in
-`src/axiom_data/scope/pr6_scope.v1.json`. Deliver one PR6 branch/commit; do not merge.
-PR7 and total D-M2 acceptance remain deferred. Do not modify SysQ, Research,
-Trade, accounts or UI. Data root is `/home/liuming/workspace/axiom/data`.
+PR1–PR6 are merged. PR7 completes the remaining 15 PR4 Data requirements and
+bounded D-M2 admission. Follow `src/axiom_data/scope/pr7_scope.v1.json`; preserve
+PR5/6 contracts and published artifact compatibility. Deliver a PR7 branch and
+commit for review; do not merge PR7. Do not enter D-M3 or modify SysQ, Research,
+Trade, Core, accounts or UI. Data root is `/home/liuming/workspace/axiom/data`.
 
 ## Invariants
 

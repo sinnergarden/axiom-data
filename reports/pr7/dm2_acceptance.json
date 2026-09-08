@@ -1,0 +1,163 @@
+{
+  "schema_version": "dm2_acceptance.v1",
+  "snapshot_id": "snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786",
+  "status": "PASS_WITH_DECLARED_QUALIFICATION_REVIEW_PENDING",
+  "gates": [
+    {
+      "gate": "D01",
+      "status": "PASS",
+      "tests": [
+        "test_snapshot_is_immutable_fixed_composition",
+        "test_d01_requires_two_explicit_loadable_immutable_snapshots"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D02",
+      "status": "PASS",
+      "tests": [
+        "test_clean_offline_rebuild_has_identical_logical_artifacts"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D03",
+      "status": "PASS",
+      "tests": [
+        "test_full_incomplete_revision_null_holder_and_reentry",
+        "test_holder_count_revision_and_zero"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D04",
+      "status": "PASS",
+      "tests": [
+        "test_moneyflow_independent_units_and_sign",
+        "test_margin_zero_and_missing_distinct"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D05",
+      "status": "PASS",
+      "tests": [
+        "test_missing_wrong_type_cross_contract_and_patch_refs_are_rejected"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D06",
+      "status": "PASS",
+      "tests": [
+        "test_prefix_stability",
+        "test_future_visibility",
+        "test_forecast_publication_revision_prefix",
+        "test_same_retrieval_publication_order_and_visible_world"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D07",
+      "status": "PASS",
+      "tests": [
+        "test_full_incomplete_revision_null_holder_and_reentry",
+        "test_different_periods_remain_separate"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D08",
+      "status": "PASS",
+      "tests": [
+        "test_empty_group_isolation_reentry_rebuild_and_source_gap",
+        "test_complete_subset_membership_regression"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D09",
+      "status": "PASS",
+      "tests": [
+        "test_shareholder_only_extension_preserves_other_domains_and_prefix"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D10",
+      "status": "PASS",
+      "tests": [
+        "test_failed_canonical_build_keeps_raw_and_publishes_no_commit"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D11",
+      "status": "PASS",
+      "tests": [
+        "test_raw_only_offline_recovery_catalog_corruption_and_old_snapshot_coexist"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D12",
+      "status": "PASS",
+      "tests": [
+        "test_view_corruption_rejected",
+        "test_forged_canonical_mapping_fails_closed",
+        "test_full_closure_and_catalog_reject_deleted_raw"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D13",
+      "status": "PASS",
+      "tests": [
+        "test_insufficient_and_unknown_scope_fail"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D14",
+      "status": "PASS",
+      "tests": [
+        "test_qlib_numeric_and_typed_metadata",
+        "test_adjusted_identity_anchor_guard_factview_and_qlib_equivalence"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    },
+    {
+      "gate": "D15",
+      "status": "PASS",
+      "tests": [
+        "test_dm1_snapshot_views_and_classification",
+        "test_real_suspend_evidence_creates_rows_but_daily_absence_does_not"
+      ],
+      "scope": "bounded Data contract admission; inherited PR5/6 checks included"
+    }
+  ],
+  "requirements": 56,
+  "features": 469,
+  "full_tests": {
+    "passed": 136,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 100.969,
+    "log_sha256": "fde76d520b84da7c768a795647407f1dc04909cfdbe7cc0a42afa96ad10d3f27"
+  },
+  "offline_rebuild": {
+    "status": "PASS",
+    "source_root": "/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r3/source",
+    "recovery_root": "/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r3/recovery"
+  },
+  "limitations": [
+    "Historical terminal supplier facts are best_effort; operational uses real observations; verified remains fail-closed.",
+    "Adjusted prices use explicit research_non_pit policy and anchor; strict historical admission is unavailable for bootstrap factors.",
+    "Coverage is bounded to sampled symbols/dates, not full-market history.",
+    "43 holder-count observations have no matching immutable historical evidence; frozen margin/moneyflow/forecast fact rows are unavailable in PR4 package.",
+    "Formal S180 income offline replay remains unavailable.",
+    "D-M2 completion announcement remains subject to independent PR7 review."
+  ],
+  "dm3_started": false,
+  "research_implemented": false
+}

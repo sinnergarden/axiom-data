@@ -1,0 +1,2 @@
+PASS: independently loaded source and recovery, 56/469 closure, source/reference/Qlib checks, frozen code digests
+Executed frozen src matches final source bytes.
