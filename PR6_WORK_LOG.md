@@ -83,3 +83,18 @@ Terminal validation: frozen implementation matches repo bytes; 107/107 tests PAS
 View payloads match stored logical rows and identities. Final roots are
 `pr6-empty-prefix-compat-20260908-r4/source` and `/recovery`; the corresponding
 report is `reports/pr6-empty-prefix-compat/DELIVERY.md`.
+
+## Universe security projection correction
+
+DoD/stages: reproduce the real fixed Snapshot (12 selected rows; 688981.SH has
+2), correct Reader validation-before-projection ordering, run the complete suite
+and diff/show whitespace checks, then append one corrective commit and verify it.
+The selector and group-state completeness rules remain unchanged. as_of selects
+from complete universe rows; as_of and members share the final symbol projection
+and existing symbol admission. Six focused regressions cover real/subset reads,
+known nonmember/exit, unknown symbols, missing unrequested member rows, and empty
+correction/return. Focused tests: 6/6 PASS. PR7 remains deferred; no merge.
+
+Full suite: 113/113 PASS (93.631 seconds), including existing empty-state,
+enter/exit/re-enter, financial ABA/PIT prefix, v1/v2 compatibility and offline
+artifact evidence checks. `git diff --check`: PASS.

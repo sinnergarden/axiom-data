@@ -151,9 +151,20 @@ class SnapshotReader:
     def as_of(self, domain: str, *, knowledge_cutoff: str, pit_policy: str,
               symbols: Sequence[str] | None = None) -> tuple[dict[str, Any], ...]:
         from axiom_data.pit import select_revisions
-        return select_revisions(self.facts(domain, symbols=symbols),
-                                policy=pit_policy, knowledge_cutoff=knowledge_cutoff,
-                                group_states=self.commits[domain].manifest.get("group_states"))
+        universe = domain == "universe_membership"
+        result = select_revisions(self.facts(domain, symbols=None if universe else symbols),
+                                  policy=pit_policy, knowledge_cutoff=knowledge_cutoff,
+                                  group_states=self.commits[domain].manifest.get("group_states"))
+        return self._project_membership(domain, result, symbols) if universe else result
+
+    def _project_membership(self, domain, rows, symbols):
+        if symbols is None:
+            return rows
+        # Reuse existing symbol admission, after the complete state was validated.
+        # Its filtered canonical rows never become selector/closure inputs.
+        self.facts(domain, symbols=symbols)
+        selected = set(_symbols(symbols))
+        return tuple(row for row in rows if row["symbol"] in selected)
 
     def financial_derived(self, *, knowledge_cutoff: str, pit_policy: str,
                           symbols: Sequence[str] | None = None) -> tuple[dict[str, Any], ...]:
@@ -172,7 +183,7 @@ class SnapshotReader:
                        target_session=_session(target_session, "target_session"),
                        knowledge_cutoff=knowledge_cutoff, policy=pit_policy,
                        group_states=self.commits[domain].manifest.get("group_states"))
-        return tuple(r for r in result if symbols is None or r["symbol"] in symbols)
+        return self._project_membership(domain, result, symbols)
 
     def membership_facts(self, group_id, target_session, *, knowledge_cutoff, pit_policy,
                          domain='universe_membership'):
