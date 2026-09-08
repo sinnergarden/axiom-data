@@ -1,0 +1,54 @@
+{
+  "fixture": "reviewer synthetic counterexamples using canonical PIT revision selector and public projection",
+  "holder": [
+    {
+      "leaf": "holder.number",
+      "policy": "operational_pit_v1",
+      "report_period": "2025-03-31",
+      "value": 200,
+      "status": "PASS"
+    },
+    {
+      "leaf": "holder.number",
+      "policy": "best_effort_vendor_v1",
+      "report_period": "2025-03-31",
+      "value": 200,
+      "status": "PASS"
+    },
+    {
+      "leaf": "holder.top10_ratio",
+      "policy": "operational_pit_v1",
+      "report_period": "2025-03-31",
+      "value": 20,
+      "status": "PASS"
+    },
+    {
+      "leaf": "holder.top10_ratio",
+      "policy": "best_effort_vendor_v1",
+      "report_period": "2025-03-31",
+      "value": 20,
+      "status": "PASS"
+    }
+  ],
+  "calendar": [
+    {
+      "symbols": [
+        "000001.SZ"
+      ],
+      "available_calendar": "SSE",
+      "outcome": "INSUFFICIENT_SCOPE: SZSE calendar coverage",
+      "rows_generated": 0,
+      "status": "PASS"
+    },
+    {
+      "symbols": [
+        "600000.SH",
+        "000001.SZ"
+      ],
+      "available_calendar": "SSE",
+      "outcome": "INSUFFICIENT_SCOPE: SZSE calendar coverage",
+      "rows_generated": 0,
+      "status": "PASS"
+    }
+  ]
+}

@@ -139,16 +139,16 @@
   "requirements": 56,
   "features": 469,
   "full_tests": {
-    "passed": 136,
+    "passed": 146,
     "failed": 0,
     "skipped": 0,
-    "seconds": 100.969,
-    "log_sha256": "fde76d520b84da7c768a795647407f1dc04909cfdbe7cc0a42afa96ad10d3f27"
+    "seconds": 103.314,
+    "log_sha256": "b26048d6d3565ce87be778225bf6216dda1d0e3e671015432a83dbaf0991de69"
   },
   "offline_rebuild": {
     "status": "PASS",
-    "source_root": "/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r3/source",
-    "recovery_root": "/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r3/recovery"
+    "source_root": "/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r5/source",
+    "recovery_root": "/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r5/recovery"
   },
   "limitations": [
     "Historical terminal supplier facts are best_effort; operational uses real observations; verified remains fail-closed.",
@@ -159,5 +159,21 @@
     "D-M2 completion announcement remains subject to independent PR7 review."
   ],
   "dm3_started": false,
-  "research_implemented": false
+  "research_implemented": false,
+  "final_blocker_checks": {
+    "status": "PASS",
+    "tests": [
+      "test_old_period_late_revision_cannot_replace_q1",
+      "test_same_period_revision_new_period_and_future_visibility",
+      "test_incomplete_latest_top10_does_not_fall_back",
+      "test_each_symbol_uses_own_open_sessions_and_qlib_agrees",
+      "test_szse_with_only_sse_and_mixed_missing_calendar_fail",
+      "test_matching_exchange_calendars_pass",
+      "test_exchange_mapping_mismatch_and_unknown_fail",
+      "test_calendar_interior_gap_fails",
+      "test_closed_day_direct_projection_fails",
+      "test_published_pr7_v1_view_still_loads"
+    ],
+    "evidence": "projection_blockers.json"
+  }
 }

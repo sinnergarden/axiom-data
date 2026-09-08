@@ -61,7 +61,7 @@ qualification. PR7 is not merged.
     deletion/rebuild agree. Both roots are independently reopened and checked.
 16. [D-M2 acceptance](dm2_acceptance.json): D01–D15 are mapped to passing tests and
     bounded real evidence. Independent PR7 review remains the final release gate.
-17. Full suite: 136/136 PASS, zero skipped, 100.969 seconds; [test log](full_tests.log).
+17. Full suite: 146/146 PASS, zero skipped, 103.314 seconds; [test log](full_tests.log).
     Diff and commit whitespace checks are recorded at delivery.
 18. Limitations: bounded dates/symbols, terminal best_effort history, unavailable
     strict historical adjusted prices (explicit research_non_pit view used), missing
@@ -72,13 +72,13 @@ qualification. PR7 is not merged.
 ## Exact bounded artifacts
 
 - snapshot_id: `snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786`
-- pr6_view_id: `pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f`
-- pr7_view_id: `pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae`
+- pr6_view_id: `pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e`
+- pr7_view_id: `pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5`
 - adjusted_view_id: `adjusted-price-5722f89cb9640a0caaeb1c653d6bda330e8ffecd7e5f0987a895634051c2c47b`
 
-Source: `/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r3/source`
+Source: `/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r5/source`
 
-Recovery: `/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r3/recovery`
+Recovery: `/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r5/recovery`
 
 ## Reproduction
 
@@ -88,3 +88,24 @@ build plan and executed code bundle paths are recorded in offline_rebuild.json.
 Collection uses `scripts/collect_pr7.py --run-root <explicit run root>`; rebuilding
 uses `scripts/run_pr7_dm2.py --target <new root> --plan <explicit frozen plan>`,
 after copying precisely the raw identities named by that plan.
+
+## Final two-blocker correction
+
+Holder count and Top10 daily projection first consume the per-report-period PIT
+winners, then choose the greatest economic report period. A later announcement
+for 2024YE cannot replace an already visible 2025Q1 observation. Both PIT policies
+return 2025Q1 / 200 in the holder probe; Top10 chooses Q1 / 20. An incomplete newer
+report remains selected with a null aggregate and its completeness metadata.
+
+PR7 projection resolves each symbol's exchange and requires its complete calendar
+for the requested interval, including closed-day entries. Missing SZSE calendar
+fails both SZSE-only and required mixed-exchange queries. Each symbol is projected
+only on its own open sessions. Qlib's common binary axis uses null padding plus
+identity-bound per-instrument valid_sessions; its public reader does not turn
+padding into ordinary rows, even with include_missing=True.
+
+New materialization is pr7_fact_view.v2. Published v1 retains frozen projection,
+manifest and identity semantics. Canonical domain and Snapshot identities remain
+unchanged. [Reviewer probes](projection_blockers.json) and the full 146-test suite
+pass. The explicit final closure is admission-r5; its source and recovery agree.
+This is an additional PR7 review commit, not a merge or D-M3 expansion.

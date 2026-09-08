@@ -1,2 +1,3 @@
 PASS: independently loaded source and recovery, 56/469 closure, source/reference/Qlib checks, frozen code digests
 Executed frozen src matches final source bytes.
+PR7 period/exchange follow-up: 146/146 tests pass; canonical Snapshot unchanged; v2 View with preserved v1 dispatch.

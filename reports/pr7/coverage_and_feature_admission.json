@@ -39,7 +39,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "balance.accounts_receivable",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -56,7 +56,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "balance.current_assets",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -73,7 +73,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "balance.current_liabilities",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -90,7 +90,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "balance.equity",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -107,7 +107,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "balance.inventory",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -124,7 +124,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "balance.total_assets",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -157,7 +157,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "cashflow.operating",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -173,8 +173,8 @@
       "requirement": "financial.single_quarter_oper_cost",
       "owner": "financial_stable_derived",
       "contract": "pr6_fact_view.v2",
-      "artifact": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "artifact": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "financial.single_quarter_oper_cost",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -190,8 +190,8 @@
       "requirement": "financial.single_quarter_revenue",
       "owner": "financial_stable_derived",
       "contract": "pr6_fact_view.v2",
-      "artifact": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "artifact": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "financial.single_quarter_revenue",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -207,8 +207,8 @@
       "requirement": "financial.ttm_net_income",
       "owner": "financial_stable_derived",
       "contract": "pr6_fact_view.v2",
-      "artifact": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "artifact": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "financial.ttm_net_income",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -224,8 +224,8 @@
       "requirement": "financial.ttm_revenue",
       "owner": "financial_stable_derived",
       "contract": "pr6_fact_view.v2",
-      "artifact": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "artifact": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "financial.ttm_revenue",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -243,7 +243,7 @@
       "contract": "forecast_observations.v1",
       "artifact": "forecast_observations-16618c24fa4b66ecf403f33a0684202feaa75cc222892165f78582d7f9f85929",
       "public_field": "forecast.announcement",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "000401.SZ",
@@ -259,7 +259,7 @@
       "contract": "forecast_observations.v1",
       "artifact": "forecast_observations-16618c24fa4b66ecf403f33a0684202feaa75cc222892165f78582d7f9f85929",
       "public_field": "forecast.period_end",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "000401.SZ",
@@ -275,7 +275,7 @@
       "contract": "forecast_observations.v1",
       "artifact": "forecast_observations-16618c24fa4b66ecf403f33a0684202feaa75cc222892165f78582d7f9f85929",
       "public_field": "forecast.type",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "000401.SZ",
@@ -291,7 +291,7 @@
       "contract": "holder_count_events.v1",
       "artifact": "holder_count_events-ee009e0d75d4e2314e2cdc236e45204219064e9aedc88c217c4e328cbd4de10d",
       "public_field": "holder.number",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -307,7 +307,7 @@
       "contract": "top_holders_reports.v1",
       "artifact": "top_holders_reports-518705b5bd9d02ea959d97f54d7fe67d2f60d999551e1fefef9f280a37d0387c",
       "public_field": "holder.top10_ratio",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -322,7 +322,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "income.net_income",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -339,7 +339,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "income.oper_cost",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -356,7 +356,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "income.revenue",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -373,7 +373,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "indicator.current_ratio",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -390,7 +390,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "indicator.debt_ratio",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -407,7 +407,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "indicator.gross_margin",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -424,7 +424,7 @@
       "owner": "financial_events",
       "contract": "financial_events.v2",
       "artifact": "financial_events-52adac7be1b41823c6516d7994304c25f19746350e84501506cb82160e3fac47",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "indicator.roe",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -441,7 +441,7 @@
       "owner": "industry_membership",
       "contract": "industry_membership.v2",
       "artifact": "industry_membership-13f54848d466ef17035507ce2b7c1675b1276078a417447717b403f29e113c4e",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "industry.membership",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -459,7 +459,7 @@
       "contract": "margin_daily.v1",
       "artifact": "margin_daily-7cae2073097ac641f565572fec02d7377fe5691401187c37da2da7d54008949e",
       "public_field": "margin.balance",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -475,7 +475,7 @@
       "contract": "margin_daily.v1",
       "artifact": "margin_daily-7cae2073097ac641f565572fec02d7377fe5691401187c37da2da7d54008949e",
       "public_field": "margin.buy",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -491,7 +491,7 @@
       "contract": "margin_daily.v1",
       "artifact": "margin_daily-7cae2073097ac641f565572fec02d7377fe5691401187c37da2da7d54008949e",
       "public_field": "margin.lend_balance_volume",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -507,7 +507,7 @@
       "contract": "margin_daily.v1",
       "artifact": "margin_daily-7cae2073097ac641f565572fec02d7377fe5691401187c37da2da7d54008949e",
       "public_field": "margin.lend_repay_volume",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -523,7 +523,7 @@
       "contract": "margin_daily.v1",
       "artifact": "margin_daily-7cae2073097ac641f565572fec02d7377fe5691401187c37da2da7d54008949e",
       "public_field": "margin.lend_sell_volume",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -539,7 +539,7 @@
       "contract": "margin_daily.v1",
       "artifact": "margin_daily-7cae2073097ac641f565572fec02d7377fe5691401187c37da2da7d54008949e",
       "public_field": "margin.repay",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -555,7 +555,7 @@
       "contract": "margin_daily.v1",
       "artifact": "margin_daily-7cae2073097ac641f565572fec02d7377fe5691401187c37da2da7d54008949e",
       "public_field": "margin.total_balance",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -779,7 +779,7 @@
       "contract": "moneyflow_daily.v1",
       "artifact": "moneyflow_daily-e4e4f7f8d87b2fcf943120df0e608ae80df174f3b0cd3696992181036f58dc9e",
       "public_field": "moneyflow.big_buy",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -795,7 +795,7 @@
       "contract": "moneyflow_daily.v1",
       "artifact": "moneyflow_daily-e4e4f7f8d87b2fcf943120df0e608ae80df174f3b0cd3696992181036f58dc9e",
       "public_field": "moneyflow.big_sell",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -811,7 +811,7 @@
       "contract": "moneyflow_daily.v1",
       "artifact": "moneyflow_daily-e4e4f7f8d87b2fcf943120df0e608ae80df174f3b0cd3696992181036f58dc9e",
       "public_field": "moneyflow.net",
-      "view": "pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae",
+      "view": "pr7-fact-bbec4919922368305ee96afa507304b78a85d6bdd0d05f76883f917f357cebb5",
       "pit_qualification": "best_effort",
       "coverage": {
         "symbol": "688981.SH",
@@ -858,7 +858,7 @@
       "owner": "universe_membership",
       "contract": "universe_membership.v3",
       "artifact": "universe_membership-c954887d36755a3784c99f4957d678a436e6e79aade44d92ca5fec7c4f2d2f3f",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "universe.membership",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -875,7 +875,7 @@
       "owner": "valuation_daily",
       "contract": "valuation_daily.v2",
       "artifact": "valuation_daily-d619239828cd6cdfe4dd9ee6aceb908be8661297d17b99927ea9e2e5a817e129",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "valuation.pb",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -892,7 +892,7 @@
       "owner": "valuation_daily",
       "contract": "valuation_daily.v2",
       "artifact": "valuation_daily-d619239828cd6cdfe4dd9ee6aceb908be8661297d17b99927ea9e2e5a817e129",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "valuation.pe",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -909,7 +909,7 @@
       "owner": "valuation_daily",
       "contract": "valuation_daily.v2",
       "artifact": "valuation_daily-d619239828cd6cdfe4dd9ee6aceb908be8661297d17b99927ea9e2e5a817e129",
-      "view": "pr6-fact-128ce659c9eeef38922d7e762ec56bb4ad353b337ab4fe5ffc7de29f9a0e754f",
+      "view": "pr6-fact-1abe9f256a3c7f501b4596974f4b763b30a2885ee435de0a887b83f0d8c0ed4e",
       "public_field": "valuation.ps",
       "pit_qualification": "best_effort",
       "coverage": {
@@ -9510,24 +9510,24 @@
         "snapshot_id": "snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786",
         "contract_version": "holder_count_events.v1",
         "domain_commit_id": "holder_count_events-ee009e0d75d4e2314e2cdc236e45204219064e9aedc88c217c4e328cbd4de10d",
-        "value": 257979.0,
+        "value": null,
         "unit": "count",
-        "validity": "valid",
-        "missing_reason": null,
+        "validity": "missing",
+        "missing_reason": "vendor_null",
         "pit_policy": "best_effort_vendor_v1",
         "knowledge_cutoff": "2025-06-13T15:59:59+00:00",
         "pit_qualification": "best_effort",
-        "usable_at": "2025-05-09T15:59:59+00:00",
+        "usable_at": "2025-04-25T15:59:59+00:00",
         "source_ref": "pr7-1456d02b816f54cbb03e7532c2c99cea063f2a5bd7a08c4f101ed52439a8b408",
-        "revision_ref": "ad7428e9295c8703a92cab00920e00cd54d2087731026a4c790fe64ea002de9a",
+        "revision_ref": "4df86b17bc9d26140cde45684cf419e46014a6933a58f34e6360f3991fc20cf5",
         "observation_ref": {
-          "observation_id": "626729015917b94236477a779ed49371fb17c7200cf1d4066fbaf769895a3735",
+          "observation_id": "74211ac8b2268c1490d23d14b5c62bee652417b5840edcf77c2d51914ce46f3a",
           "observed_at": "2026-09-08T16:16:00.362321+00:00",
-          "revision_id": "ad7428e9295c8703a92cab00920e00cd54d2087731026a4c790fe64ea002de9a",
+          "revision_id": "4df86b17bc9d26140cde45684cf419e46014a6933a58f34e6360f3991fc20cf5",
           "source_ref": "pr7-1456d02b816f54cbb03e7532c2c99cea063f2a5bd7a08c4f101ed52439a8b408",
-          "vendor_available_at": "2025-05-09T23:59:59+08:00"
+          "vendor_available_at": "2025-04-25T23:59:59+08:00"
         },
-        "report_period": "2025-03-31",
+        "report_period": "2025-04-25",
         "quality": "not_applicable"
       }
     ],
@@ -10076,7 +10076,7 @@
       }
     ]
   },
-  "logical_digest": "8356404f2a1a3493ebad4af9308f4ed817a7b48f66d496cb21770d06ff253156",
+  "logical_digest": "add62de3192a37b07838e7ff2f86fe421d1fd96bddd0857ccc7b16c0428d9c47",
   "historical_union": [
     "000001.SZ",
     "000401.SZ",

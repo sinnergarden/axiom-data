@@ -111,10 +111,20 @@ test_missing_unrequested_member_still_fails (test_pr6_projection.MembershipProje
 test_multiple_symbols_projection (test_pr6_projection.MembershipProjectionTest.test_multiple_symbols_projection) ... ok
 test_real_full_and_688981_projection (test_pr6_projection.MembershipProjectionTest.test_real_full_and_688981_projection) ... ok
 test_unknown_security_keeps_admission_error (test_pr6_projection.MembershipProjectionTest.test_unknown_security_keeps_admission_error) ... ok
+test_calendar_interior_gap_fails (test_pr7_projection.Pr7ProjectionTest.test_calendar_interior_gap_fails) ... ok
+test_closed_day_direct_projection_fails (test_pr7_projection.Pr7ProjectionTest.test_closed_day_direct_projection_fails) ... ok
+test_each_symbol_uses_own_open_sessions_and_qlib_agrees (test_pr7_projection.Pr7ProjectionTest.test_each_symbol_uses_own_open_sessions_and_qlib_agrees) ... ok
+test_exchange_mapping_mismatch_and_unknown_fail (test_pr7_projection.Pr7ProjectionTest.test_exchange_mapping_mismatch_and_unknown_fail) ... ok
+test_incomplete_latest_top10_does_not_fall_back (test_pr7_projection.Pr7ProjectionTest.test_incomplete_latest_top10_does_not_fall_back) ... ok
+test_matching_exchange_calendars_pass (test_pr7_projection.Pr7ProjectionTest.test_matching_exchange_calendars_pass) ... ok
+test_old_period_late_revision_cannot_replace_q1 (test_pr7_projection.Pr7ProjectionTest.test_old_period_late_revision_cannot_replace_q1) ... ok
+test_same_period_revision_new_period_and_future_visibility (test_pr7_projection.Pr7ProjectionTest.test_same_period_revision_new_period_and_future_visibility) ... ok
+test_szse_with_only_sse_and_mixed_missing_calendar_fail (test_pr7_projection.Pr7ProjectionTest.test_szse_with_only_sse_and_mixed_missing_calendar_fail) ... ok
 test_complete_subset_membership_regression (test_pr7_real.Pr7RealTest.test_complete_subset_membership_regression) ... ok
 test_insufficient_and_unknown_scope_fail (test_pr7_real.Pr7RealTest.test_insufficient_and_unknown_scope_fail) ... ok
 test_legacy_guard_is_enforced_and_reads_work (test_pr7_real.Pr7RealTest.test_legacy_guard_is_enforced_and_reads_work) ... ok
 test_operational_before_actual_observation_is_missing (test_pr7_real.Pr7RealTest.test_operational_before_actual_observation_is_missing) ... ok
+test_published_pr7_v1_view_still_loads (test_pr7_real.Pr7RealTest.test_published_pr7_v1_view_still_loads) ... ok
 test_qlib_numeric_and_typed_metadata (test_pr7_real.Pr7RealTest.test_qlib_numeric_and_typed_metadata) ... ok
 test_real_holder_group_and_forecast (test_pr7_real.Pr7RealTest.test_real_holder_group_and_forecast) ... ok
 test_shareholder_only_extension_preserves_other_domains_and_prefix (test_pr7_real.Pr7RealTest.test_shareholder_only_extension_preserves_other_domains_and_prefix) ... ok
@@ -136,6 +146,6 @@ test_verified_fail_closed (test_pr7_source.Pr7SourceTest.test_verified_fail_clos
 test_wrong_request_and_duplicate_holder_rejected (test_pr7_source.Pr7SourceTest.test_wrong_request_and_duplicate_holder_rejected) ... ok
 
 ----------------------------------------------------------------------
-Ran 136 tests in 100.969s
+Ran 146 tests in 103.314s
 
 OK

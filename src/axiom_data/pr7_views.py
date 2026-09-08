@@ -1,6 +1,7 @@
 """Public Snapshot-bound PR7 facts and numeric Qlib projection."""
 import json
 from pathlib import Path
+from datetime import date,timedelta
 from importlib.resources import files
 from axiom_data.artifacts import (ArtifactError,_layout,_json_bytes,_digest,_identity_digest,_derived_identity,
     _timestamp,_write_file,_write_manifest,_publish_directory,_load_manifest,_validate_manifest_identity,_safe_path,_identity,load_raw_batch)
@@ -37,15 +38,50 @@ def request_coverage(reader,domain,symbol,session):
     raise ArtifactError('INSUFFICIENT_SCOPE: no bounded supplier request for '+symbol+' '+session)
 
 
+def exchange_sessions(reader,symbols,start,end):
+    """Validate each requested exchange for every calendar day before projection."""
+    from axiom_data.domains.market import _symbol
+    start=_session(start,'start_session');end=_session(end,'end_session')
+    if start>end:raise ArtifactError('reversed calendar scope')
+    master=reader.security_master();calendar=reader.trading_calendar()
+    days=[];day=date.fromisoformat(start)
+    while day<=date.fromisoformat(end):
+        days.append(day.isoformat());day+=timedelta(days=1)
+    result={}
+    for symbol in _symbols(symbols):
+        identities=[r for r in master if r['symbol']==symbol]
+        if not identities:raise ArtifactError('unknown security')
+        if len(identities)!=1:raise ArtifactError('ambiguous security exchange mapping')
+        exchange=identities[0]['exchange']
+        if exchange not in {'SSE','SZSE'}:raise ArtifactError('unknown exchange')
+        _symbol(symbol,exchange)
+        rows=[r for r in calendar if r['exchange']==exchange and start<=r['session']<=end]
+        by_day={r['session']:r for r in rows}
+        if len(rows)!=len(by_day) or set(by_day)!=set(days):
+            raise ArtifactError('INSUFFICIENT_SCOPE: '+exchange+' calendar coverage')
+        if any(type(r['is_open']) is not bool for r in rows):raise ArtifactError('invalid exchange session state')
+        result[symbol]={'exchange':exchange,'sessions':[d for d in days if by_day[d]['is_open']]}
+    return result
+
+
+def select_latest_report(period_winners,target_session):
+    """PIT has selected each period's revision; economic period now takes precedence."""
+    candidates=[r for r in period_winners if r['report_period']<=target_session]
+    return max(candidates,key=lambda r:r['report_period']) if candidates else None
+
+
 def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
     if leaf not in LEAF_DOMAINS:raise ArtifactError('unknown PR7 leaf')
     _session(target_session,'target_session');instant(knowledge_cutoff)
     domain=LEAF_DOMAINS[leaf];field=leaf.split('.',1)[1]
+    if not exchange_sessions(reader,[symbol],target_session,target_session)[symbol]['sessions']:
+        raise ArtifactError('CLOSED_SESSION: '+symbol+' '+target_session)
     request_coverage(reader,domain,symbol,target_session)
     selected=reader.as_of(domain,symbols=[symbol],pit_policy=pit_policy,knowledge_cutoff=knowledge_cutoff)
     candidates=[r for r in selected if (r['session']==target_session if domain in DAILY_DOMAINS else
         domain=='forecast_observations' or r['report_period']<=target_session)]
-    row=max(candidates,key=lambda r:(r['announcement'] or r['session'],r['report_period'] or r['session'])) if candidates else None
+    row=(select_latest_report(selected,target_session) if domain in {'holder_count_events','top_holders_reports'} else
+         max(candidates,key=lambda r:(r['announcement'] or r['session'],r['report_period'] or r['session'])) if candidates else None)
     value=row['values'][field] if row else None
     reason=row['missing_reasons'].get(field) if row else 'no_observation_at_cutoff'
     metadata={'leaf':leaf,'symbol':symbol,'target_session':target_session,'snapshot_id':reader.snapshot.ref.snapshot_id,
@@ -70,19 +106,18 @@ def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
 def project(reader,scope,policy,cutoff):
     symbols=_symbols(scope['symbols']);start=_session(scope['start_session'],'start');end=_session(scope['end_session'],'end')
     if start>end:raise ArtifactError('reversed View range')
-    calendar=reader.trading_calendar()
-    days=[r['session'] for r in calendar]
-    if not days or start<min(days) or end>max(days):raise ArtifactError('INSUFFICIENT_SCOPE: calendar bounds')
-    sessions=sorted({r['session'] for r in reader.trading_calendar(start_session=start,end_session=end) if r['is_open']})
-    if not sessions:raise ArtifactError('INSUFFICIENT_SCOPE: calendar')
+    calendars=exchange_sessions(reader,symbols,start,end)
+    if not any(item['sessions'] for item in calendars.values()):
+        raise ArtifactError('INSUFFICIENT_SCOPE: no open exchange sessions')
     if any(d not in reader.commits for d in PR7_DOMAINS):raise ArtifactError('PR7 Snapshot required')
     wide=[]
-    for session in sessions:
-        effective=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
-        for symbol in symbols:
+    for symbol in symbols:
+        for session in calendars[symbol]['sessions']:
+            effective=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
             facts={leaf:leaf_facts(reader,leaf,symbol=symbol,target_session=session,knowledge_cutoff=effective,pit_policy=policy) for leaf in LEAF_DOMAINS}
             wide.append({'symbol':symbol,'session':session,'values':{f:facts[f]['value'] for f in NUMERIC_FIELDS},'facts':facts})
-    return {'wide':wide,'sessions':sessions}
+    wide.sort(key=lambda r:r['session'])
+    return {'wide':wide,'sessions':sorted({r['session'] for r in wide}),'symbol_calendars':calendars}
 
 
 def payload_files(payload,symbols,bundle):
@@ -90,20 +125,21 @@ def payload_files(payload,symbols,bundle):
     output['calendars/day.txt']=('\n'.join(sessions)+'\n').encode()
     output['instruments/all.txt']=''.join(f'{_qlib_symbol(s)}\t{sessions[0]}\t{sessions[-1]}\n' for s in symbols).encode()
     for symbol in symbols:
-        rows=[r for r in payload['wide'] if r['symbol']==symbol]
-        for f in NUMERIC_FIELDS:output[f'features/{_qlib_symbol(symbol).lower()}/{f.replace(".","__")}.day.bin']=_feature_bytes(0,[r['values'][f] for r in rows])
+        rows={r['session']:r for r in payload['wide'] if r['symbol']==symbol}
+        # Qlib's shared storage axis is padded, never projected across exchanges.
+        for f in NUMERIC_FIELDS:output[f'features/{_qlib_symbol(symbol).lower()}/{f.replace(".","__")}.day.bin']=_feature_bytes(0,[rows[d]['values'][f] if d in rows else None for d in sessions])
     return output
 
 
 def manifest_for(reader,scope,policy,cutoff,payload,bundle):
     contents=payload_files(payload,scope['symbols'],bundle)
-    return {'artifact_type':'pr7_fact_view','schema_version':'pr7_fact_view.v1',
+    return {'artifact_type':'pr7_fact_view','schema_version':'pr7_fact_view.v2',
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
         'scope':scope,'validated_scope':dict(scope,fields=list(LEAF_DOMAINS)),
         'pit_policy':policy,'knowledge_cutoff':instant(cutoff).isoformat(),
         'cutoff_policy':'min_knowledge_cutoff_session_end_Asia_Shanghai.v1',
         'fields':list(NUMERIC_FIELDS),'fact_fields':list(LEAF_DOMAINS),'qlib_field_mapping':{f:f.replace('.','__') for f in NUMERIC_FIELDS},
-        'instrument_storage_scope':[{'symbol':s,'qlib_symbol':_qlib_symbol(s),'storage_path':'features/'+_qlib_symbol(s).lower(),'start_session':payload['sessions'][0],'end_session':payload['sessions'][-1]} for s in scope['symbols']],
+        'instrument_storage_scope':[{'symbol':s,'qlib_symbol':_qlib_symbol(s),'storage_path':'features/'+_qlib_symbol(s).lower(),'start_session':payload['sessions'][0],'end_session':payload['sessions'][-1],'exchange':payload['symbol_calendars'][s]['exchange'],'valid_sessions':payload['symbol_calendars'][s]['sessions']} for s in scope['symbols']],
         'implementation_digests':{n:_digest(c.encode()) for n,c in sorted(bundle.items())},
         'files':[{'path':p,'content_digest':_digest(b),'size':len(b)} for p,b in sorted(contents.items())],
         'validation_summary':{'status':'PASS','rows':len(payload['wide']),'leaves':len(LEAF_DOMAINS)}}
@@ -127,14 +163,18 @@ def build_pr7_fact_view(data_root,snapshot_id,*,symbols,start_session,end_sessio
 
 def load_pr7_fact_view(data_root,view_id):
     view_id=_identity('view_id',view_id);layout=_layout(data_root);target=layout.derived_commits('pr7_fact')/view_id
-    manifest,digest=_load_manifest(layout.root,target,artifact_type='pr7_fact_view',schema_version='pr7_fact_view.v1',identity_field='view_id',identity=view_id)
+    manifest,digest=_load_manifest(layout.root,target,artifact_type='pr7_fact_view',schema_version=('pr7_fact_view.v1','pr7_fact_view.v2'),identity_field='view_id',identity=view_id)
     _validate_manifest_identity(manifest,'view_id','pr7-fact',view_id)
+    if manifest['schema_version']=='pr7_fact_view.v1':
+        from axiom_data.pr7_views_v1 import project as projection, manifest_for as make_manifest, payload_files as make_files
+    else:
+        projection,make_manifest,make_files=project,manifest_for,payload_files
     reader=SnapshotReader(data_root,manifest['snapshot_ref']['snapshot_id'])
-    payload=project(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
+    payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):raise ArtifactError('invalid code bundle')
-    expected=manifest_for(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'],payload,bundle)
+    expected=make_manifest(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'],payload,bundle)
     if {k:v for k,v in manifest.items() if k not in {'view_id','identity_digest','created_at'}}!=expected:raise ArtifactError('PR7 View semantic closure mismatch')
-    for path,content in payload_files(payload,manifest['scope']['symbols'],bundle).items():
+    for path,content in make_files(payload,manifest['scope']['symbols'],bundle).items():
         if _safe_path(layout.root,target/path,closure=target).read_bytes()!=content:raise ArtifactError('PR7 file differs from Snapshot projection')
     return DerivedView(DerivedViewRef('pr7_fact',view_id,digest),manifest,tuple(payload['wide']))

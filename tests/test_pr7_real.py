@@ -79,3 +79,8 @@ class Pr7RealTest(unittest.TestCase):
         subset=self.reader.as_of('universe_membership',symbols=['688981.SH'],**query)
         self.assertEqual(len(all_rows),12);self.assertEqual(len(subset),2)
         self.assertEqual(subset,tuple(r for r in all_rows if r['symbol']=='688981.SH'))
+
+    def test_published_pr7_v1_view_still_loads(self):
+        old=load_pr7_fact_view(Path('/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r3/source'),'pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae')
+        self.assertEqual(old.manifest['schema_version'],'pr7_fact_view.v1')
+        self.assertEqual(len(old.rows),12)

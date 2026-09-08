@@ -89,3 +89,36 @@ executed frozen source file matches the final source bytes. Full suite passed
 Terminal artifacts and all 19 report items are in `reports/pr7/PR7_REPORT.md` and
 its linked machine reports. The delivery handoff records the commit and verifies its remote branch identity.
 PR7 is not merged; D-M2 release acceptance awaits independent review.
+
+## PR7 final two-blocker follow-up
+
+Definition of done: both reviewer counterexamples fail before the fix and pass
+through public projection afterward; same-period revisions, latest economic
+period, Top10 incompleteness and direct/Qlib agree; each requested security has
+complete coverage in its own exchange calendar, with no cross-exchange fallback.
+Full suite, 56/469 admission, legacy denial and frozen offline rebuild must pass,
+then an additional review commit is delivered without merge or D-M3 work.
+
+1. Scope and counterexamples: complete. Eight initial tests reproduced nine
+   failures, covering period precedence and exchange coverage.
+2. Fix and targeted validation: holder/Top10 share the existing per-period PIT
+   revision selection followed by `select_latest_report`. PR7 direct/session
+   projection uses one `exchange_sessions` validator. Qlib uses explicit valid
+   sessions per instrument; shared binary storage padding is not a projected row.
+   New output is pr7_fact_view.v2; published v1 uses its frozen projection and
+   identity contract and remains loadable.
+3. Final verification and delivery: full suite and explicit `admission-r5`
+   source/recovery are the required terminal evidence for this follow-up.
+
+Follow-up terminal validation passed: 146/146 tests, no skips (103.314 seconds).
+Both holder policies return Q1 / 200 rather than the late YE / 100 correction;
+Top10 follows the same period precedence and preserves incomplete reports.
+SSE-only calendar fails SZSE and mixed requests with zero projection rows. Mixed
+complete calendars and closed-day/Qlib masking agree with direct output.
+
+The admission-r5 frozen rebuild preserves 56/56 requirements and 469/469 Feature
+admission with legacy reads denied. Independent source/recovery reopening and
+raw/reference/Qlib validation passed. Executed frozen source matches final bytes.
+Canonical Snapshot identity is unchanged. New PR7 output uses v2; the real
+published v1 fixture still loads. The follow-up is delivered as one additional
+commit for review, without merge or D-M3 work.
