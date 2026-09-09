@@ -1,0 +1,14 @@
+{
+  "status": "CHECKPOINT_VALIDATED",
+  "terminal_v1_complete": false,
+  "raw_refs": 1821,
+  "reference_inputs": 8,
+  "full_scores_recomputed": true,
+  "fixture_matches_source": true,
+  "readonly_raw": true,
+  "primary_digests_verified": true,
+  "tests": 164,
+  "skips": 0,
+  "full_bootstrap_started": false,
+  "industry_canonical_promotion": false
+}

@@ -1,0 +1,58 @@
+{
+  "profile_version": "tushare_industry_qualification.v1",
+  "purpose": "Full-union SW2021/CITIC source qualification; separate candidate evidence, no cross-taxonomy fill",
+  "historical_knowledge": "best_effort terminal observations; no inferred historical knowledge",
+  "pagination": "Explicit limit/offset; completeness requires observed terminal page and independent batch/stock checks",
+  "endpoints": {
+    "index_classify": {
+      "domain": "industry_membership",
+      "documentation": "https://tushare.pro/document/2?doc_id=181",
+      "fields": [
+        "index_code",
+        "industry_name",
+        "parent_code",
+        "level",
+        "industry_code",
+        "is_pub",
+        "src"
+      ]
+    },
+    "index_member_all": {
+      "domain": "industry_membership",
+      "documentation": "https://tushare.pro/document/2?doc_id=335",
+      "maximum_rows": 2000,
+      "fields": [
+        "l1_code",
+        "l1_name",
+        "l2_code",
+        "l2_name",
+        "l3_code",
+        "l3_name",
+        "ts_code",
+        "name",
+        "in_date",
+        "out_date",
+        "is_new"
+      ]
+    },
+    "ci_index_member": {
+      "domain": "industry_membership",
+      "documentation": "https://tushare.pro/document/2?doc_id=373",
+      "maximum_rows": 5000,
+      "fields": [
+        "l1_code",
+        "l1_name",
+        "l2_code",
+        "l2_name",
+        "l3_code",
+        "l3_name",
+        "ts_code",
+        "name",
+        "in_date",
+        "out_date",
+        "is_new"
+      ],
+      "taxonomy_metadata": "L1/L2/L3 code/name pairs and parent relations in member response; edition not asserted by API"
+    }
+  }
+}

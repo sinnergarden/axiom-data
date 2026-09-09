@@ -1,6 +1,44 @@
+# Active source qualification (2026-09-09 latest user request)
+
+Compare SW2021 and CITIC over the explicit PR4 union of 3,601 securities,
+2014-01-01 through the frozen available endpoint 2026-09-08. Keep both Raw
+lineages separate. The old SW pilot rejection is historical evidence under the
+superseded strict gap gate, not the new acceptance policy.
+
+Qualification stages:
+1. Validate source profile, pagination, repeatability and batch completeness.
+2. Score both complete histories identically; resolve source gaps, boundary
+   ambiguity and delist mapping, then select exactly one authority.
+3. Implement the new contract/root and continue original V1 stages 3–5 below.
+4. Independently validate full artifacts, requested evidence and final report.
+
+Small verified supplier gaps and uncertain boundary sessions use the user's
+explicit availability/ambiguity semantics; incomplete collection still fails.
+No canonical industry promotion or full bootstrap has started. Existing pilot
+artifacts and the 161-test checkpoint remain validated; final V1 is incomplete.
+
+Qualification checkpoint validated:
+- 1,821 new immutable Raw refs; SW 7,908 / CITIC 6,740 unique membership
+  rows, repeat equality, 1,250 category comparisons and 508 stock comparisons.
+- With official exchange delist dates: 9,162,373 expected sessions; SW interval
+  coverage 98.615773%, CITIC 79.350426%. SW 125,648 source-gap sessions,
+  1,180 ambiguous boundaries, zero interior conflicts; CITIC 42 conflict sessions.
+- Prefer SW2021. A newly reproduced taxonomy contradiction remains: metadata
+  850401.SI versus member 850412.SI for 特钢Ⅲ. User was asked whether the
+  affected 32,458 target sessions may use taxonomy_code_unresolved availability;
+  no answer received yet, no alias or canonical promotion performed.
+- Official SSE/SZSE full delist tables locate all 228 target D securities;
+  211 supplier dates match and 17 differ. Exact exchange boundary precedence is
+  supported by evidence; the new canonical adapter has not yet been published.
+- Full suite 164/164 PASS, zero skips, 113.487 seconds. All scores independently
+  recomputed, fixture matched actual source rows, 1,821 Raw refs and primary
+  documents revalidated; published Raw files readonly.
+- Full report: reports/pr8/industry_authority/QUALIFICATION.md. The original
+  five-stage V1 terminal outcome remains incomplete; full bootstrap has not begun.
+
 # Axiom Data V1 operational release
 
-## Active PR8 source decision (2026-09-09 user correction)
+## Historical SW-only pilot decision (superseded by full-union qualification)
 
 SW2021 is the formal industry candidate. Qualify index_classify and
 index_member_all on 40 representative securities before full industry bootstrap.

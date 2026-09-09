@@ -18,11 +18,14 @@ Data root is `/home/liuming/workspace/axiom/data`. See `V1_WORK_LOG.md` for the
 terminal gates. Resolve a default pointer once at operation entry; builders
 continue to receive only explicit immutable identities.
 
-PR8 industry authority is SW2021, via qualified index_classify/index_member_all.
-First pass the user's 30–50-security source qualification gates. Preserve all
-L1/L2/L3 taxonomy relations; bootstrap history is best_effort. A changed industry
-contract requires a new lineage root. stock_basic/bak_basic industry are
-comparison/forensic sources; no fallback or automatic missing-state synthesis.
+PR8 must qualify SW2021 and CITIC across the actual 3,601-security historical
+union before choosing one industry authority. Preserve each taxonomy separately;
+stock_basic/bak_basic are comparison evidence only. Verified small source gaps
+are classification_unavailable/source_coverage_gap; uncertain out-date sessions
+may be boundary_session_ambiguous. Never synthesize an industry sentinel or fill
+across taxonomies. Use a new contract and lineage root, best_effort history, and
+close the delist boundary decision before full bootstrap. After qualification
+passes, continue the complete V1 gates without another approval pause.
 
 ## Invariants
 
