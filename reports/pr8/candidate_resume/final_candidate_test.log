@@ -1,0 +1,6 @@
+test_candidate_is_not_promoted_and_failed_raw_is_retained (test_v1_candidate.CandidateTest.test_candidate_is_not_promoted_and_failed_raw_is_retained) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 14.940s
+
+OK

@@ -311,17 +311,17 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             'status':'RUNNING', 'published_commits':{}, 'failed':{}}
         if state['plan_digest'] != _digest(_json_bytes(plan)) or state['plan'] != plan:
             raise ArtifactError('resume build plan mismatch')
+        # A mutable execution record cannot keep a stale successful candidate on failure.
+        state.pop('snapshot_id', None)
+        state.pop('domain_commit_ids', None)
+        state['ready_for_consumption'] = False
+        state.update(status='RUNNING', stage='CANONICAL_BUILD')
         _save(path,state)
         for domain in PR7_SNAPSHOT_DOMAINS:
             if domain not in domain_inputs:
                 continue
             spec = domain_inputs[domain]
             try:
-                if domain in state['published_commits']:
-                    identity = state['published_commits'][domain]
-                    validate_domain_commit_closure(layout.root,domain,identity)
-                    commits[domain] = identity
-                    continue
                 config = dict(spec['config'], storage_policy='domain_time_blocks.v1',
                               no_change_policy='reuse_equal_state.v1')
                 deps = {name: commits[name] for name in _DOMAIN_DEPENDENCIES[domain]}
@@ -337,6 +337,32 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
                     cls = Pr6Builder if domain in PR6_DOMAINS else Pr7Builder if domain in PR7_DOMAINS else TushareDm1Builder
                     builder = cls(layout.root,domain,builder_config=config,dependency_commit_ids=deps)
                 previous = None if spec['new_lineage'] else commits.get(domain)
+                if domain in state['published_commits']:
+                    from axiom_data.artifacts import _builder_implementation_ref, _raw_ref, _commit_ref
+                    identity = state['published_commits'][domain]
+                    resumed = validate_domain_commit_closure(layout.root,domain,identity)
+                    if identity == previous:
+                        # No-change reuse has no new input refs in the parent manifest;
+                        # replay the explicit request to prove it still yields that state.
+                        replay = BuildApplication(domain,builder).build(previous,spec['raw_batch_ids'],[],spec['contract_version'])
+                        if replay.commit_id != identity:
+                            raise ArtifactError('resume no-change result differs from request')
+                    else:
+                        parent_ref = _commit_ref(validate_domain_commit_closure(layout.root,domain,previous)) if previous else None
+                        expected = {
+                            'contract_version': spec['contract_version'],
+                            'parent_commit_ref': parent_ref,
+                            'ordered_raw_batch_refs': [_raw_ref(load_raw_batch(layout.root,r)) for r in spec['raw_batch_ids']],
+                            'ordered_patch_refs': [],
+                            'builder_config': builder.builder_config,
+                            'builder_implementation_ref': _builder_implementation_ref(builder),
+                            'dependency_commit_refs': {d:_commit_ref(validate_domain_commit_closure(layout.root,d,i)) for d,i in deps.items()},
+                        }
+                        if any(resumed.manifest.get(k) != v for k,v in expected.items()):
+                            raise ArtifactError('resume commit does not match explicit build request')
+                    commits[domain] = identity
+                    state['failed'].pop(domain,None)
+                    continue
                 ref = BuildApplication(domain,builder).build(previous,spec['raw_batch_ids'],[],spec['contract_version'])
                 commits[domain] = ref.commit_id
                 state['published_commits'][domain] = ref.commit_id
@@ -354,7 +380,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
                 raise ArtifactError('candidate domain closure mismatch')
             state.update(snapshot_id=candidate.snapshot_id, domain_commit_ids=commits,
                          status='CANDIDATE_BUILT', stage='REQUIRED_VIEWS_AND_FULL_ADMISSION',
-                         ready_for_consumption=False)
+                         ready_for_consumption=False, failed={})
         except Exception as exc:
             state.update(status='FAILED', failed={'snapshot':{'error_type':type(exc).__name__}})
         _save(path,state)

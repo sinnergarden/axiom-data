@@ -29,6 +29,24 @@ class CandidateTest(unittest.TestCase):
             again=assemble_candidate(root,run_id='candidate',parent_snapshot_id=parent.snapshot.ref.snapshot_id,
                                      domain_inputs={'holder_count_events':spec})
             self.assertEqual(again['snapshot_id'],result['snapshot_id'])
+            nochange_spec=dict(spec,new_lineage=False)
+            nochange=assemble_candidate(root,run_id='nochange',parent_snapshot_id=result['snapshot_id'],
+                                       domain_inputs={'holder_count_events':nochange_spec})
+            self.assertEqual(nochange['domain_commit_ids']['holder_count_events'],new.commits['holder_count_events'].ref.commit_id)
+            resumed_nochange=assemble_candidate(root,run_id='nochange',parent_snapshot_id=result['snapshot_id'],
+                                                domain_inputs={'holder_count_events':nochange_spec})
+            self.assertEqual(resumed_nochange['snapshot_id'],nochange['snapshot_id'])
+            # Another valid commit is not evidence that this request completed.
+            state_path=root/'operations/candidate/build.json'
+            tampered=json.loads(state_path.read_bytes())
+            tampered['published_commits']['holder_count_events']=old['holder_count_events']
+            state_path.write_text(json.dumps(tampered))
+            rejected=assemble_candidate(root,run_id='candidate',parent_snapshot_id=parent.snapshot.ref.snapshot_id,
+                                        domain_inputs={'holder_count_events':spec})
+            self.assertEqual(rejected['status'],'FAILED')
+            self.assertNotIn('snapshot_id',rejected)
+            self.assertNotIn('domain_commit_ids',rejected)
+            self.assertFalse(rejected['ready_for_consumption'])
             failed=assemble_candidate(root,run_id='failed',parent_snapshot_id=parent.snapshot.ref.snapshot_id,
                 domain_inputs={'financial_events':dict(spec,contract_version='financial_events.v2')})
             self.assertEqual(failed['status'],'FAILED')

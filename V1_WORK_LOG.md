@@ -216,3 +216,16 @@ Full bootstrap remains blocked and the terminal goal remains incomplete.
 
 Boundary follow-up final suite: 167/167 PASS, zero skips, 111.945 seconds;
 explicit Raw and primary fixture integrity checks pass. V1 remains incomplete.
+
+Candidate recovery follow-up:
+- Resumed commits now bind to the exact parent, ordered Raw refs, contract,
+  resolved builder config/implementation and dependency commits; another valid
+  commit in the mutable execution record is rejected.
+- No-change parent reuse is replayed against explicit inputs. Recovery clears
+  stale Snapshot fields before revalidation and cannot report a failed state
+  with a prior successful candidate result.
+- Real PR7 regression covers normal/no-change resume and substituted valid
+  commit rejection. Original Snapshot/Raw inputs remain intact; no pointer move.
+- Report: reports/pr8/candidate_resume/REPORT.md. Full V1 remains incomplete,
+  with industry code decision and the original bootstrap/admission/daily/
+  recovery/Notebook gates outstanding.
