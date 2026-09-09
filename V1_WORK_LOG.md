@@ -36,6 +36,20 @@ Qualification checkpoint validated:
 - Full report: reports/pr8/industry_authority/QUALIFICATION.md. The original
   five-stage V1 terminal outcome remains incomplete; full bootstrap has not begun.
 
+Official boundary implementation follow-up:
+- New explicit ExchangeSecurityBuilder and exchange_security.v1 source policy
+  consume original SSE JSON/SZSE XLSX as immutable Raw inputs, without new deps.
+- All 3,601 security identities and 228 official termination boundaries build;
+  old Tushare non-null boundary rejection remains intact. A/B share records are
+  keyed by the actual security type/code, not company code.
+- Exact real commit: security_master-d672728d9fc0f45e4fd4a10c1782844f26f979a05c1ca65433428330c4595d02.
+  A raw-only isolated offline rebuild matches its identity and all rows.
+- Public candidate config security_boundary_policy=exchange_security.v1 selects
+  the new builder explicitly. No baseline Snapshot or pointer promotion.
+- This closes the 228-security source mapping/build stage; full pipeline
+  admission and operational V1 gates remain. Industry decision is still pending.
+- Evidence: reports/pr8/exchange_security/REPORT.md and explicit plan/result refs.
+
 # Axiom Data V1 operational release
 
 ## Historical SW-only pilot decision (superseded by full-union qualification)
@@ -199,3 +213,6 @@ changes the accepted row contract; a concise contract decision was requested
 from the user under request section 1. No answer has arrived at this checkpoint.
 No runtime/contract change was applied; two source blocker tests reran 2/2 PASS.
 Full bootstrap remains blocked and the terminal goal remains incomplete.
+
+Boundary follow-up final suite: 167/167 PASS, zero skips, 111.945 seconds;
+explicit Raw and primary fixture integrity checks pass. V1 remains incomplete.

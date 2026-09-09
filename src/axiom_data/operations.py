@@ -281,12 +281,16 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
     layout = _layout(data_root)
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
-    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive'}
+    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy'}
     for domain, spec in domain_inputs.items():
         if not isinstance(spec, dict) or set(spec) != {'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}:
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
         if not isinstance(spec['config'], dict) or set(spec['config'])-allowed_config:
             raise ArtifactError('unsupported public builder config')
+        if 'security_boundary_policy' in spec['config'] and (
+            domain != 'security_master' or spec['config']['security_boundary_policy'] != 'exchange_security.v1'
+        ):
+            raise ArtifactError('unsupported security boundary policy')
         from axiom_data.build import BuildRequest
         BuildRequest(None, spec['raw_batch_ids'], [], spec['contract_version'])
         if type(spec['new_lineage']) is not bool:
@@ -324,7 +328,11 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
                 if domain in {'trading_calendar','security_master','market_daily'}:
                     options = {'calendar_commit_id':deps['trading_calendar'],
                                'security_master_commit_id':deps['security_master']} if domain=='market_daily' else {}
-                    builder = TushareMarketBuilder(layout.root,domain,builder_config=config,**options)
+                    if domain == 'security_master' and config.get('security_boundary_policy') == 'exchange_security.v1':
+                        from axiom_data.exchange_security import ExchangeSecurityBuilder
+                        builder = ExchangeSecurityBuilder(layout.root,builder_config=config)
+                    else:
+                        builder = TushareMarketBuilder(layout.root,domain,builder_config=config,**options)
                 else:
                     cls = Pr6Builder if domain in PR6_DOMAINS else Pr7Builder if domain in PR7_DOMAINS else TushareDm1Builder
                     builder = cls(layout.root,domain,builder_config=config,dependency_commit_ids=deps)
