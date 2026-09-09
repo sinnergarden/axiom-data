@@ -1,5 +1,34 @@
 # Axiom Data V1 operational release
 
+## Active PR8 source decision (2026-09-09 user correction)
+
+SW2021 is the formal industry candidate. Qualify index_classify and
+index_member_all on 40 representative securities before full industry bootstrap.
+The prior null-classification proposal is suspended. Existing bak_basic raw is
+superseded forensic/comparison evidence, retained unchanged; no SW promotion.
+The next industry contract preserves all L1/L2/L3 code/name relationships, exact
+source observations and honest best_effort historical knowledge, on a new root.
+
+Pilot stages within the original V1 plan:
+1. Freeze profile, explicit 40-symbol scope and request plan; collect immutable
+   default/Y/N observations, taxonomy and current stock_basic comparison.
+2. Independently validate request binding, taxonomy joins, in/out boundaries,
+   intervals, gaps, listing relation, old missing cases and batch equivalence.
+3. Only on all pilot gates PASS, implement the versioned SW contract/new lineage,
+   full SW bootstrap and remaining original V1 gates. If historical capability is
+   insufficient, submit the new source decision without fallback.
+Pilot run: data/operations/sw2021-pilot-20260909-r1. Frozen code and plan exist;
+126 initial and 23 crosscheck requests completed with 149 validated RawBatches.
+Pilot REJECTED: 000506.SZ / 000975.SZ / 001289.SZ have 1,000 / 119 / 14
+unexplained open-session gaps. All taxonomy joins, repeated observations and
+applicable category crosschecks agree. Source raw success is not pilot acceptance.
+Evidence and next source decision: reports/pr8/SW2021_SOURCE_QUALIFICATION.md.
+Final suite: 161/161 PASS, zero skips, 110.825 seconds; all new/forensic Raw refs
+reloaded successfully. No merge/push or pointer change.
+No SW canonical lineage or full bootstrap has started. The two original source
+blockers remain open under the corrected source analysis.
+The previous industry v3 approval question is superseded by this user decision.
+
 Authority: user V1 request dated 2026-09-09; accepted PR7
 95efe78b734ebf9783c7a59d3b81c19a8abb445e; PR4 final authoritative
 469 Feature / 56 requirement package. Data root remains

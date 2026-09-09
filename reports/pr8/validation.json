@@ -1,0 +1,15 @@
+{
+  "tests": 161,
+  "test_seconds": 110.825,
+  "failures": 0,
+  "skips": 0,
+  "log_sha256": "1b370399545a8d51a31b5fc5c8b73e7a139cd817b56a7099313e62c2ae058ae8",
+  "new_raw_verified": 149,
+  "forensic_raw_verified": 2596,
+  "new_raw_readonly": true,
+  "pilot_decision": "REJECTED",
+  "full_industry_bootstrap_started": false,
+  "baseline_snapshot_id": null,
+  "current_pointer_present": false,
+  "terminal_v1_complete": false
+}

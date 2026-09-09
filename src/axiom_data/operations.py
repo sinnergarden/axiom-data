@@ -61,7 +61,7 @@ def _request(spec):
         raise ArtifactError('source request requires the complete public plan schema')
     params = spec['params']
     keys = {'ts_code', 'exchange', 'list_status', 'start_date', 'end_date', 'trade_date',
-            'index_code', 'period', 'report_type'}
+            'index_code', 'period', 'report_type', 'src', 'level', 'l1_code', 'l2_code', 'l3_code', 'is_new'}
     if not isinstance(params, dict) or set(params) - keys:
         raise ArtifactError('unsupported source request parameter')
     if any(not isinstance(v, str) or len(v) > 128 for v in params.values()):
@@ -83,8 +83,9 @@ def _request(spec):
     from axiom_data.dm1_source import load_dm1_source_profile
     from axiom_data.pr6_source import load_pr6_source_profile, validate_payload as pr6_validate
     from axiom_data.pr7_source import load_pr7_source_profile, validate_payload as pr7_validate
+    from axiom_data.sw_source import load_profile as sw_profile, validate_request as sw_validate
     profiles = {'market': load_tushare_source_profile(), 'dm1': load_dm1_source_profile(),
-                'pr6': load_pr6_source_profile(), 'pr6_bulk': load_pr6_source_profile('tushare_pr6.v2'), 'pr7': load_pr7_source_profile()}
+                'pr6': load_pr6_source_profile(), 'pr6_bulk': load_pr6_source_profile('tushare_pr6.v2'), 'pr7': load_pr7_source_profile(), 'sw_pilot': sw_profile()}
     family = spec['collector']
     if family not in profiles or spec['endpoint'] not in profiles[family]['endpoints']:
         raise ArtifactError('unsupported source operation')
@@ -102,6 +103,10 @@ def _request(spec):
         pr6_validate(spec['endpoint'], params, [], profile_version='tushare_pr6.v2' if family=='pr6_bulk' else 'tushare_pr6.v1')
     if family == 'pr7':
         pr7_validate(spec['endpoint'], params, [])
+    if family == 'sw_pilot':
+        sw_validate(spec['endpoint'], params)
+    elif set(params) & {'src','level','l1_code','l2_code','l3_code','is_new'}:
+        raise ArtifactError('SW parameters require the SW qualification collector')
     # These descriptive fields are enums/date maps, not arbitrary caller strings.
     if spec['availability_policy'] not in {'session_close', 'next_session_publication', 'revision_scan', 'reference_observation'}:
         raise ArtifactError('unsupported availability policy')
@@ -133,6 +138,11 @@ def _source_binding(spec):
         profile = load_pr6_source_profile(version)
         digest = profile_digest(version)
         ref = 'tushare.pr6.' + endpoint
+    elif family == 'sw_pilot':
+        from axiom_data.sw_source import load_profile, profile_digest
+        profile = load_profile()
+        digest = profile_digest()
+        ref = 'tushare.sw-pilot.' + endpoint
     else:
         from axiom_data.pr7_source import load_pr7_source_profile, profile_digest
         profile = load_pr7_source_profile()
@@ -162,6 +172,7 @@ def collect_requests(data_root, *, run_id, requests, client=None):
     from axiom_data.dm1_source import TushareDm1Collector
     from axiom_data.pr6_source import Pr6Collector
     from axiom_data.pr7_source import Pr7Collector
+    from axiom_data.sw_source import SwQualificationCollector
     _identity('run_id', run_id)
     if not isinstance(requests, list) or not requests:
         raise ArtifactError('explicit nonempty source request plan required')
@@ -183,7 +194,8 @@ def collect_requests(data_root, *, run_id, requests, client=None):
         _save(path, state)
         collectors = {'market': TushareCollector(layout.root, client),
                       'dm1': TushareDm1Collector(layout.root, client),
-                      'pr6': Pr6Collector(layout.root, client), 'pr6_bulk': Pr6Collector(layout.root, client), 'pr7': Pr7Collector(layout.root, client)}
+                      'pr6': Pr6Collector(layout.root, client), 'pr6_bulk': Pr6Collector(layout.root, client), 'pr7': Pr7Collector(layout.root, client),
+                      'sw_pilot': SwQualificationCollector(layout.root, client)}
         consecutive_failures = 0
         for key, spec in zip(keys, requests):
             try:

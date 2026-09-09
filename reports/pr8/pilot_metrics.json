@@ -1,0 +1,37 @@
+{
+  "sw2021-pilot-20260909-r1": {
+    "status": "COMPLETE",
+    "request_count": 126,
+    "raw_count": 126,
+    "failures": 0,
+    "rows_by_endpoint": {
+      "index_member_all": 100,
+      "stock_basic": 5899,
+      "index_classify": 511
+    },
+    "raw_file_bytes": 1115452,
+    "first_observed": "2026-09-09T01:35:23.457606+00:00",
+    "last_observed": "2026-09-09T01:35:39.015851+00:00",
+    "observation_span_seconds": 15.558245,
+    "all_raw_readonly": true
+  },
+  "sw2021-crosscheck-20260909-r1": {
+    "status": "COMPLETE",
+    "request_count": 23,
+    "raw_count": 23,
+    "failures": 0,
+    "rows_by_endpoint": {
+      "index_member_all": 539
+    },
+    "raw_file_bytes": 153574,
+    "first_observed": "2026-09-09T01:36:45.168039+00:00",
+    "last_observed": "2026-09-09T01:36:47.354128+00:00",
+    "observation_span_seconds": 2.186089,
+    "all_raw_readonly": true
+  },
+  "frozen_collector_code_checks": "PASS",
+  "inspector_code_sha256": "ac7442b3a81ad64667f921aff7bd95d8ec668166444b893d85ed24245621597d",
+  "qualification_report_sha256": "6f01542393fbe396131f73e4d3b67dffd50e4b30dbe9ec42f11e6a925857b5eb",
+  "current_pointer_present": false,
+  "qualification_seconds": 0.2900823499658145
+}
