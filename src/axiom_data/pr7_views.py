@@ -21,20 +21,26 @@ NUMERIC_FIELDS=tuple(f for f in LEAF_DOMAINS if not f.startswith('forecast.'))
 def request_coverage(reader,domain,symbol,session):
     """Admit bounded requests, including explicit empty supplier responses."""
     if symbol not in {r['symbol'] for r in reader.security_master()}:raise ArtifactError('unknown security')
-    commit=reader.commits.get(domain)
-    if commit is None:raise ArtifactError('Snapshot lacks PR7 domain')
-    refs=set()
-    while commit:
-        refs.update(r['raw_batch_id'] for r in commit.manifest['ordered_raw_batch_refs'])
-        parent=commit.manifest['parent_commit_ref']
-        if parent:
-            from axiom_data.artifacts import validate_domain_commit_closure
-            commit=validate_domain_commit_closure(reader.data_root,domain,parent['domain_commit_id'])
-        else:commit=None
+    if domain not in reader.commits:raise ArtifactError('Snapshot lacks PR7 domain')
+    # Only this checked Reader owns the index. New Readers validate their closure
+    # again; no disk cache or execution report can supply request authority.
+    if not hasattr(reader,'_pr7_request_intervals'):reader._pr7_request_intervals={}
+    if domain not in reader._pr7_request_intervals:
+        commit=reader.commits[domain];refs=set()
+        while commit:
+            refs.update(r['raw_batch_id'] for r in commit.manifest['ordered_raw_batch_refs'])
+            parent=commit.manifest['parent_commit_ref']
+            if parent:
+                from axiom_data.artifacts import validate_domain_commit_closure
+                commit=validate_domain_commit_closure(reader.data_root,domain,parent['domain_commit_id'])
+            else:commit=None
+        intervals={}
+        for ref in sorted(refs):
+            raw=load_raw_batch(reader.data_root,ref);params=raw.manifest['request']['params']
+            intervals.setdefault(params['ts_code'],[]).append((params['start_date'],params['end_date']))
+        reader._pr7_request_intervals[domain]=intervals
     day=session.replace('-','')
-    for ref in sorted(refs):
-        raw=load_raw_batch(reader.data_root,ref);params=raw.manifest['request']['params']
-        if params['ts_code']==symbol and params['start_date']<=day<=params['end_date']:return
+    if any(start<=day<=end for start,end in reader._pr7_request_intervals[domain].get(symbol,())):return
     raise ArtifactError('INSUFFICIENT_SCOPE: no bounded supplier request for '+symbol+' '+session)
 
 

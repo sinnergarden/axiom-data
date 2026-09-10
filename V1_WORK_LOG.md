@@ -1,3 +1,15 @@
+# Request coverage reuse checkpoint — 2026-09-10
+
+218/218 tests PASS (67.525s). Repeated PR7 scope checks reuse verified request
+intervals within a single Reader; 100 checks on the frozen real fixture load
+three Raw batches instead of 300. New Readers still validate their complete
+closure and reject corrupted Raw. Evidence in reports/pr8/request_coverage_reuse;
+real calendar append evidence in reports/pr8/calendar_incremental.
+Stage 3/5: 16/18 canonical domains validated; status and adjustment remain.
+Full-scope audit r1 (session 44224, bundle_r13) waits on candidate r2, audits the
+entire requested canonical scope and explicitly leaves admission unassessed.
+Full-root operations, Views/admission and all remaining terminal gates continue.
+
 # Calendar incremental boundary checkpoint — 2026-09-10
 
 217/217 tests PASS (69.125s). Calendar append/overlap seeds each exchange

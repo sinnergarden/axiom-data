@@ -1,0 +1,19 @@
+{
+  "snapshot_id": "snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786",
+  "scope": {
+    "domain": "margin_daily",
+    "symbol": "688981.SH",
+    "session": "2025-06-13"
+  },
+  "before": {
+    "queries": 100,
+    "raw_loads": 300,
+    "seconds": 0.196364353003446
+  },
+  "after": {
+    "queries": 100,
+    "raw_loads": 3,
+    "seconds": 0.002597295999294147
+  },
+  "qualification": "bounded real closure; request checks only; excludes Reader startup; not full-root daily performance"
+}
