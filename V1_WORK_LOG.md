@@ -1,3 +1,13 @@
+# Valuation projection checkpoint — 2026-09-10
+
+225/225 tests PASS (65.159s). After full PR6 scope admission, valuation projection
+reads the target month and uses the existing revision selector. Future/ABA tests
+and direct equivalence pass; the real full valuation six-row probe drops from
+153 objects/8.45 GB/65.86s to one object/19.27 MB/0.122s. Structural validation
+cost is reported separately. Full PR6 payload digest is unchanged. Evidence:
+reports/pr8/valuation_session_projection. Stage 3/5; adjustment builds continue;
+V1 terminal gates remain incomplete.
+
 # Required View shared validation checkpoint — 2026-09-10
 
 223/223 tests PASS (63.096s). All five View kinds share one fully checked Reader

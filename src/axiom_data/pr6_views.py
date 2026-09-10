@@ -9,7 +9,7 @@ from axiom_data.artifacts import (ArtifactError, _layout, _json_bytes, _digest, 
 from axiom_data.consumption import SnapshotReader, _feature_bytes, _qlib_symbol, _symbols, _session
 from axiom_data.domains import PR6_DOMAINS
 from axiom_data.domains.dm1 import weakest_pit_qualification
-from axiom_data.pit import instant, financial_derived
+from axiom_data.pit import instant, financial_derived, select_revisions
 from axiom_data.views import DerivedView, DerivedViewRef
 
 FIELD_MAP = {
@@ -20,6 +20,14 @@ FIELD_MAP = {
 }
 DERIVED_FIELDS=('single_quarter_revenue','single_quarter_oper_cost','ttm_revenue','ttm_net_income')
 WIDE_FIELDS=tuple(FIELD_MAP)+tuple('financial.'+f for f in DERIVED_FIELDS)+('valuation.pe','valuation.pb','valuation.ps','universe.membership','industry.membership')
+
+
+def _valuation_at(reader,symbols,session,policy,cutoff):
+    """After View admission, select all revisions of the requested daily keys."""
+    selected=set(symbols)
+    rows=[r for r in reader._session_rows('valuation_daily',session,session)
+          if r['symbol'] in selected and r['session']==session]
+    return select_revisions(rows,policy=policy,knowledge_cutoff=cutoff)
 
 
 def project(reader, scope, policy, cutoff):
@@ -43,7 +51,7 @@ def project(reader, scope, policy, cutoff):
         session_cutoff=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
         facts=reader.as_of('financial_events',knowledge_cutoff=session_cutoff,pit_policy=policy,symbols=symbols)
         stable=reader.financial_derived(symbols=symbols,pit_policy=policy,knowledge_cutoff=session_cutoff)
-        valuation=reader.as_of('valuation_daily',knowledge_cutoff=session_cutoff,pit_policy=policy,symbols=symbols)
+        valuation=_valuation_at(reader,symbols,session,policy,session_cutoff)
         membership={}
         for group in scope['universe_ids']:
             for row in reader.members(group,session,knowledge_cutoff=session_cutoff,pit_policy=policy):
