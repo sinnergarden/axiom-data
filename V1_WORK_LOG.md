@@ -1,3 +1,12 @@
+# Daily execution checkpoint — 2026-09-10
+
+215/215 tests PASS (65.964s). Public daily API/CLI execute per-source collection,
+resume retained Raw after partial failure, bind frozen build templates and produce
+an immutable candidate through assemble_candidate. Simulated T+1 alignment and
+NO_CHANGE pass on a copied real PR7 closure. View/admission acceptance and the
+full-root daily performance gate remain outstanding. See docs/operations/daily.md.
+Stage 3/5: 15/18 domains validated; valuation active, then status and adjustment.
+
 # Validation applicability checkpoint — 2026-09-10
 
 reports/pr8/validation_applicability/report.json binds the actual 214-test PASS

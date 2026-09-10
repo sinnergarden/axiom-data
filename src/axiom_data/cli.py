@@ -23,6 +23,10 @@ def main():
     daily_plan = commands.add_parser('plan-daily')
     daily_plan.add_argument('--snapshot', required=True)
     daily_plan.add_argument('--plan', type=Path, required=True)
+    daily = commands.add_parser('daily')
+    daily.add_argument('--snapshot', required=True)
+    daily.add_argument('--run-id', required=True)
+    daily.add_argument('--plan', type=Path, required=True)
     source_plan=commands.add_parser('plan-bootstrap-sources')
     source_plan.add_argument('--scope',type=Path,required=True)
     source_plan.add_argument('--output',type=Path,required=True)
@@ -32,6 +36,12 @@ def main():
     source_collect.add_argument('--domains',nargs='+',required=True)
     commands.add_parser('rebuild-catalog')
     args = parser.parse_args()
+    if args.operation == 'daily':
+        from axiom_data.operations import daily
+        result=daily(args.data_root,run_id=args.run_id,snapshot_id=args.snapshot,
+                     **json.loads(args.plan.read_bytes()))
+        print(json.dumps(result,ensure_ascii=False,indent=2))
+        return 0 if result['status'] in {'CANDIDATE_BUILT','NO_CHANGE'} else 1
     if args.operation == 'repair':
         from axiom_data.operations import repair
         result = repair(args.data_root, run_id=args.run_id, snapshot_id=args.snapshot,

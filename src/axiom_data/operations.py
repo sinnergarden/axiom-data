@@ -348,34 +348,8 @@ def compare_pr7_projection(data_root, snapshot_id, view_id, *, symbols, fields, 
             'rows': len(actual), 'fields': fields, 'start_session': start_session, 'end_session': end_session}
 
 
-def repair(data_root, *, run_id, snapshot_id, domain_inputs):
-    """Rebuild frozen inputs with the installed builder into a repair candidate.
-
-    Each domain explicitly chooses incremental or clean lineage. Old artifacts
-    remain intact; the returned candidate still requires Views and admission.
-    """
-    from axiom_data.build import _validate_identity
-    concrete = _validate_identity('snapshot_id', snapshot_id)
-    return assemble_candidate(data_root, run_id=run_id, domain_inputs=domain_inputs,
-                              parent_snapshot_id=concrete)
-
-
-def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=None):
-    """Build explicit changed domains and an immutable candidate; never promote it.
-
-    A required-view or full-admission stage must accept the candidate before any
-    default pointer can move. Frozen raw remains published after a failed build.
-    """
-    from axiom_data import BuildApplication, create_snapshot, SnapshotReader, validate_domain_commit_closure
-    from axiom_data.artifacts import _DOMAIN_DEPENDENCIES
+def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
     from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
-    from axiom_data.tushare import TushareMarketBuilder
-    from axiom_data.dm1_source import TushareDm1Builder
-    from axiom_data.pr6_source import Pr6Builder
-    from axiom_data.pr7_source import Pr7Builder
-    from axiom_data.domains import PR6_DOMAINS, PR7_DOMAINS
-    _identity('run_id', run_id)
-    layout = _layout(data_root)
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
     allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition','top10_qualification','margin_qualification','corporate_action_observations','capital_qualification','limit_qualification','forecast_source_types','corporate_action_reobservation'}
@@ -413,9 +387,106 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             if domain not in _EXPECTED_ENDPOINTS or spec['config']['dm1_source_partitioning']!='security.v1':
                 raise ArtifactError('unsupported D-M1 source partitioning')
         from axiom_data.build import BuildRequest
-        BuildRequest(None, spec['raw_batch_ids'], [], spec['contract_version'])
+        if domain in pending_domains and spec['raw_batch_ids'] == []:
+            from axiom_data.build import _registered_contract
+            _registered_contract('contract_version', spec['contract_version'])
+        else:
+            BuildRequest(None, spec['raw_batch_ids'], [], spec['contract_version'])
         if type(spec['new_lineage']) is not bool:
             raise ArtifactError('new_lineage must be boolean')
+
+
+def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, client=None):
+    """Execute the frozen source plan and build its immutable daily candidate.
+
+    Requests retain independent economic windows. Each domain input lists any
+    existing frozen Raw needed in addition to collected inputs. Candidate success
+    still requires View/admission acceptance before consumption or promotion.
+    """
+    import fcntl
+    from axiom_data.build import _validate_identity
+    _identity('run_id',run_id)
+    concrete=_validate_identity('snapshot_id',snapshot_id)
+    if not isinstance(source_requests,list) or not source_requests:
+        raise ArtifactError('daily requires explicit source requests')
+    source_requests=json.loads(_json_bytes(source_requests))
+    planned=plan_daily(data_root,concrete,source_requests=source_requests)
+    requested=set(planned['source_change_domains'])
+    _validate_domain_inputs(domain_inputs,pending_domains=requested)
+    if not requested<=set(domain_inputs):
+        raise ArtifactError('daily build inputs must cover every required source domain')
+    frozen=json.loads(_json_bytes({'source_plan':planned,'domain_inputs':domain_inputs}))
+    layout=_layout(data_root);directory=layout.root/'operations'/run_id
+    with writer(layout.root):
+        _ensure_directory(layout.root,directory)
+    with open(_safe_path(layout.root,directory/'daily.lock'),'a+b') as lock:
+        try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError as exc:raise ArtifactError('daily run already active') from exc
+        path=_safe_path(layout.root,directory/'daily.json')
+        if path.exists() and json.loads(path.read_bytes())['plan']!=frozen:
+            raise ArtifactError('resume daily plan differs from frozen inputs')
+        state={'schema_version':'daily_run.v1','run_id':run_id,'plan':frozen,
+            'plan_digest':_digest(_json_bytes(frozen)),'status':'RUNNING','stage':'COLLECTION',
+            'ready_for_consumption':False}
+        _save(path,state)
+        try:
+            collected=collect_requests(layout.root,run_id=run_id,requests=source_requests,client=client)
+            state['collected_raw_batch_ids']=dict(collected['completed'])
+            if collected['status']!='COMPLETE':
+                state.update(status='FAILED',failed=collected['failed'])
+                _save(path,state);return state
+            inputs=json.loads(_json_bytes(frozen['domain_inputs']))
+            for request in planned['source_requests']:
+                raw_id=collected['completed'][request['request_id']]
+                ids=inputs[request['domain']]['raw_batch_ids']
+                if raw_id not in ids:ids.append(raw_id)
+            state.update(stage='CANONICAL_BUILD',resolved_domain_inputs=inputs);_save(path,state)
+            result=assemble_candidate(layout.root,run_id=run_id,domain_inputs=inputs,
+                                      parent_snapshot_id=concrete)
+            state.update(status=result['status'],stage=result['stage'],failed=result['failed'])
+            if result['status']=='CANDIDATE_BUILT':
+                ids=result['domain_commit_ids'];changed=sorted(d for d,i in ids.items() if i!=planned['parent_commits'][d])
+                state.update(snapshot_id=result['snapshot_id'],domain_commit_ids=ids,
+                    changed_domains=changed,reused_domains=sorted(set(ids)-set(changed)))
+                if not changed:
+                    if result['snapshot_id']!=concrete:raise ArtifactError('no-change Snapshot identity mismatch')
+                    state['status']='NO_CHANGE'
+            _save(path,state);return state
+        except Exception as exc:
+            state.update(status='FAILED',error_type=type(exc).__name__)
+            state.pop('snapshot_id',None);state.pop('domain_commit_ids',None)
+            _save(path,state);raise
+
+
+def repair(data_root, *, run_id, snapshot_id, domain_inputs):
+    """Rebuild frozen inputs with the installed builder into a repair candidate.
+
+    Each domain explicitly chooses incremental or clean lineage. Old artifacts
+    remain intact; the returned candidate still requires Views and admission.
+    """
+    from axiom_data.build import _validate_identity
+    concrete = _validate_identity('snapshot_id', snapshot_id)
+    return assemble_candidate(data_root, run_id=run_id, domain_inputs=domain_inputs,
+                              parent_snapshot_id=concrete)
+
+
+def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=None):
+    """Build explicit changed domains and an immutable candidate; never promote it.
+
+    A required-view or full-admission stage must accept the candidate before any
+    default pointer can move. Frozen raw remains published after a failed build.
+    """
+    from axiom_data import BuildApplication, create_snapshot, SnapshotReader, validate_domain_commit_closure
+    from axiom_data.artifacts import _DOMAIN_DEPENDENCIES
+    from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
+    from axiom_data.tushare import TushareMarketBuilder
+    from axiom_data.dm1_source import TushareDm1Builder
+    from axiom_data.pr6_source import Pr6Builder
+    from axiom_data.pr7_source import Pr7Builder
+    from axiom_data.domains import PR6_DOMAINS, PR7_DOMAINS
+    _identity('run_id', run_id)
+    layout = _layout(data_root)
+    _validate_domain_inputs(domain_inputs)
     with writer(layout.root):
         parent_id = _resolve_snapshot_id(layout.root, parent_snapshot_id) if parent_snapshot_id else None
         parent = SnapshotReader(layout.root, parent_id) if parent_id else None
