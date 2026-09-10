@@ -1,3 +1,23 @@
+# DM1 security session scope checkpoint — 2026-09-11
+
+Added the explicit opt-in `security_session_scope=exchange_security.v1` mapping
+for adjustment factors and security capital. The frozen identity/calendar rule
+keeps only open sessions within the half-open security identity interval; known
+pre-list, delist/post-delist, and closed-calendar supplier rows produce no
+ordinary canonical fact, while missing/unknown identity or calendar fails
+closed. The complete diagnostic inventory records 16,747 on/after-delist factor
+rows plus 2 closed-calendar factor rows (16,749 exact exclusion keys total) and
+0 capital rows; refs and digests are recorded in
+`docs/dm1_security_session_scope.v1.md` and the external report it names.
+Raw batches and previously published artifacts remain unchanged; no baseline
+capital rebuild was performed, and full-scope reconstruction remains pending.
+The new policy accepts a full parent followed by a one-day/subset incremental
+patch after validating the full frozen parent history. Targeted tests pass 7/7;
+the one full suite run passes 238/238 in
+`/tmp/dm1-security-session-scope-fullsuite-20260911.log`. The targeted test
+compares single-symbol mapper calls; it does not claim public partitioned-path
+equivalence.
+
 # New-server reproducibility checkpoint — 2026-09-11
 
 Acceptance pending. Frozen Raw/profile/config/code/Snapshot/View restore must

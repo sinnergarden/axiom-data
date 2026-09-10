@@ -32,6 +32,7 @@ from axiom_data.tushare import (
     _source_symbol,
     _tushare_raw_batch_id,
 )
+from axiom_data.domains.market import _checked_security_identity_state
 
 
 _PROFILE_NAME = "tushare_dm1.v1.json"
@@ -55,6 +56,8 @@ _EXPECTED_ENDPOINTS = {
     "benchmark_daily": {"index_daily"},
     "security_capital": {"daily_basic"},
 }
+_SECURITY_SESSION_SCOPE_POLICY = "exchange_security.v1"
+_SECURITY_SESSION_SCOPE_DOMAINS = frozenset({"adjustment_factors", "security_capital"})
 
 
 def load_dm1_source_profile() -> dict[str, Any]:
@@ -337,6 +340,11 @@ class TushareDm1Builder(MarketDomainBuilder):
             config['corporate_action_observations_digest']=_digest(files('axiom_data.source_profiles').joinpath(config['corporate_action_observations']+'.json').read_bytes())
         if 'dm1_source_partitioning' in config and config['dm1_source_partitioning']!='security.v1':
             raise ArtifactError('unsupported D-M1 source partitioning')
+        if 'security_session_scope' in config and (
+            domain not in _SECURITY_SESSION_SCOPE_DOMAINS
+            or config['security_session_scope'] != _SECURITY_SESSION_SCOPE_POLICY
+        ):
+            raise ArtifactError('unsupported security session scope policy')
         if domain!='security_status' and 'session_suspension_policy' in config:
             raise ArtifactError('session suspension mapping requires security_status')
         from axiom_data.session_suspension import bind_profile
@@ -386,6 +394,8 @@ class TushareDm1Builder(MarketDomainBuilder):
             raise ArtifactError('capital qualification requires security_capital.v2 and explicit mapping')
         if self.domain=='corporate_actions' and ((contract['contract_version']=='corporate_actions.v2') != bool(self.builder_config.get('corporate_action_observations'))):
             raise ArtifactError('corporate action observations require explicit v2 contract/mapping')
+        if self.builder_config.get('security_session_scope') == _SECURITY_SESSION_SCOPE_POLICY:
+            self._validate_parent_security_sessions(parent_rows)
         if self.builder_config.get('dm1_source_partitioning')=='security.v1':
             return self._partitioned_rows(contract,parent_rows,raw_batches,symbols,start,end)
         tables, observed_at = _raw_tables(
@@ -478,6 +488,85 @@ class TushareDm1Builder(MarketDomainBuilder):
         )
         if cache is not None:cache[domain]=commit
         return commit
+
+    def _security_session_scope_enabled(self) -> bool:
+        return self.builder_config.get("security_session_scope") == _SECURITY_SESSION_SCOPE_POLICY
+
+    def _security_session_context(self, symbols: Sequence[str], start: str, end: str):
+        calendar = self._dependency("trading_calendar")
+        security = self._dependency("security_master")
+        securities = {row["symbol"]: row for row in security.rows}
+        calendars = {(row["exchange"], row["session"]): row for row in calendar.rows}
+        identities = {}
+        for symbol in symbols:
+            identity = securities.get(symbol)
+            if identity is None or identity.get("exchange") not in {"SSE", "SZSE"}:
+                raise ArtifactError("security session scope requires a frozen security identity")
+            identities[symbol] = identity
+        return identities, calendars
+
+    def _allowed_security_sessions(
+        self,
+        tables,
+        endpoint: str,
+        symbols: Sequence[str],
+        start: str,
+        end: str,
+    ) -> set[tuple[str, str]]:
+        """Return source sessions that are open and within frozen identity bounds."""
+
+        if not self._security_session_scope_enabled():
+            return set()
+        identities, calendars = self._security_session_context(symbols, start, end)
+        allowed: set[tuple[str, str]] = set()
+        for source, _raw in tables[endpoint]:
+            symbol = _source_symbol(source.get("ts_code"))
+            session = _source_date(source.get("trade_date"))
+            if symbol not in identities or not start <= session <= end:
+                continue
+            identity = identities[symbol]
+            try:
+                state = _checked_security_identity_state(identity, session)
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ArtifactError("security session scope has an invalid security identity") from exc
+            if state == "unknown":
+                raise ArtifactError("security session scope cannot qualify unknown identity state")
+            calendar_row = calendars.get((identity["exchange"], session))
+            if calendar_row is None:
+                raise ArtifactError("security session scope requires an exchange calendar row")
+            if calendar_row["is_open"] is not True:
+                continue
+            if state == "within_identity_interval":
+                allowed.add((symbol, session))
+        return allowed
+
+    def _validate_parent_security_sessions(
+        self,
+        parent_rows: Sequence[Mapping[str, Any]],
+    ) -> None:
+        """Reject invalid parent facts without narrowing an incremental patch."""
+
+        if not parent_rows:
+            return
+        calendar = self._dependency("trading_calendar")
+        security = self._dependency("security_master")
+        identities = {row["symbol"]: row for row in security.rows}
+        calendars = {(row["exchange"], row["session"]): row for row in calendar.rows}
+        for row in parent_rows:
+            symbol = row.get("symbol")
+            session = row.get("session")
+            if symbol not in identities or not isinstance(session, str):
+                raise ArtifactError("security session scope refuses an invalid parent fact row")
+            identity = identities[symbol]
+            if identity.get("exchange") not in {"SSE", "SZSE"}:
+                raise ArtifactError("security session scope has an invalid security identity")
+            try:
+                state = _checked_security_identity_state(identity, session)
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ArtifactError("security session scope has an invalid security identity") from exc
+            calendar_row = calendars.get((identity["exchange"], session))
+            if state != "within_identity_interval" or calendar_row is None or calendar_row["is_open"] is not True:
+                raise ArtifactError("security session scope refuses an invalid parent fact row")
 
     @staticmethod
     def _evidence(raw: RawBatch) -> dict[str, Any]:
@@ -654,11 +743,16 @@ class TushareDm1Builder(MarketDomainBuilder):
 
     def _factor_rows(self, tables, symbols, start, end):  # type: ignore[no-untyped-def]
         rows = []
+        allowed = self._allowed_security_sessions(
+            tables, "adj_factor", tuple(sorted(symbols)), start, end
+        ) if self._security_session_scope_enabled() else None
         for source, raw in tables["adj_factor"]:
             symbol = _source_symbol(source.get("ts_code"))
             session = _source_date(source.get("trade_date"))
             factor = _optional_float(source.get("adj_factor"))
             if symbol in symbols and start <= session <= end:
+                if allowed is not None and (symbol, session) not in allowed:
+                    continue
                 if factor is None or factor <= 0:
                     raise ArtifactError("adjustment factor must be positive")
                 rows.append({"session": session, "symbol": symbol, "factor": factor, **self._evidence(raw)})
@@ -678,10 +772,15 @@ class TushareDm1Builder(MarketDomainBuilder):
 
     def _capital_rows(self, tables, symbols, start, end):  # type: ignore[no-untyped-def]
         rows = []
+        allowed = self._allowed_security_sessions(
+            tables, "daily_basic", tuple(sorted(symbols)), start, end
+        ) if self._security_session_scope_enabled() else None
         for source, raw in tables["daily_basic"]:
             symbol = _source_symbol(source.get("ts_code"))
             session = _source_date(source.get("trade_date"))
             if symbol not in symbols or not start <= session <= end:
+                continue
+            if allowed is not None and (symbol, session) not in allowed:
                 continue
             total = _scaled_float(source.get("total_share"), 10000)
             circulating = _scaled_float(source.get("float_share"), 10000)
