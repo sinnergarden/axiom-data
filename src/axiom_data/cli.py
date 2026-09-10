@@ -15,6 +15,7 @@ def main():
     collect.add_argument('--plan', type=Path, required=True)
     inspect = commands.add_parser('inspect')
     inspect.add_argument('--snapshot', required=True)
+    inspect.add_argument('--scope', type=Path)
     repair = commands.add_parser('repair')
     repair.add_argument('--snapshot', required=True)
     repair.add_argument('--run-id', required=True)
@@ -61,7 +62,12 @@ def main():
             'failed': len(result['failed']), 'pending': result['pending_count']}))
         return 0 if result['status'] == 'COMPLETE' else 1
     if args.operation == 'inspect':
-        print(json.dumps(inspect_snapshot(args.data_root, args.snapshot), ensure_ascii=False, indent=2))
+        if args.scope:
+            from axiom_data.operations import inspect_scope
+            result=inspect_scope(args.data_root,args.snapshot,**json.loads(args.scope.read_bytes()))
+        else:
+            result=inspect_snapshot(args.data_root,args.snapshot)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         print(json.dumps({'catalog_entries': rebuild_catalog(args.data_root)}))
     return 0

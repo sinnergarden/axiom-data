@@ -1,3 +1,12 @@
+# Scope inspection checkpoint — 2026-09-10
+
+214/214 tests PASS (64.388s). Public inspect_scope and inspect --scope report
+actual canonical session gaps/nulls/zeros against exchange calendars and security
+lifecycles. Integer bit masks retain interior gaps. This is current audit of
+canonical revisions, explicitly NOT_ASSESSED for admission; historical PIT
+semantics remain separate. Full-scope admission and all V1 terminal gates remain.
+Stage 3/5, limits canonical active; candidate continuation waits on the exact queue.
+
 # Daily PIT query checkpoint — 2026-09-10
 
 213/213 tests PASS (63.542s). Daily PR7 as_of optionally bounds economic sessions;

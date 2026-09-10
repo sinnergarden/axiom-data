@@ -38,6 +38,15 @@ def resolve_snapshot(data_root, snapshot_id):
     return load_snapshot(data_root, _resolve_snapshot_id(data_root, snapshot_id)).ref.snapshot_id
 
 
+def inspect_scope(data_root, snapshot_id, *, domain, symbols, start_session, end_session, fields):
+    """Read-only canonical session audit on one concretely resolved Snapshot."""
+    from axiom_data.consumption import SnapshotReader
+    from axiom_data.scope_coverage import session_coverage
+    reader=SnapshotReader(data_root,_resolve_snapshot_id(data_root,snapshot_id))
+    return session_coverage(reader,domain,symbols=symbols,start_session=start_session,
+                            end_session=end_session,fields=fields)
+
+
 def inspect_snapshot(data_root, snapshot_id):
     """Read-only quality inventory; data extents never masquerade as admission."""
     from axiom_data.consumption import SnapshotReader
