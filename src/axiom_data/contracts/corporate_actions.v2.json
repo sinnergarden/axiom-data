@@ -1,0 +1,167 @@
+{
+  "contract_version": "corporate_actions.v2",
+  "domain": "corporate_actions",
+  "primary_key": [
+    "symbol",
+    "action_id",
+    "action_version"
+  ],
+  "sort_order": [
+    "symbol",
+    "action_id",
+    "action_version"
+  ],
+  "semantics": {
+    "meaning": "Observed security-level economic action facts; Data does not calculate cash or position consequences.",
+    "supported_types": [
+      "cash_dividend",
+      "stock_dividend",
+      "capital_transfer",
+      "split",
+      "consolidation"
+    ],
+    "support_matrix": {
+      "tushare.dividend.dm1.v1": [
+        "cash_dividend",
+        "stock_dividend",
+        "capital_transfer"
+      ],
+      "split": "contract-supported but current source mapping unavailable",
+      "consolidation": "contract-supported but current source mapping unavailable"
+    },
+    "dates": "announcement, record, ex/effective, payment, and share-available dates remain distinct; none substitutes for another.",
+    "unsupported": "A source row with non-zero unsupported economic terms is a build error, never silently discarded.",
+    "unresolved_observations": "Supported source terms without ex-date remain undated_action; implementation declarations without supported terms remain unresolved_terms, action_type unresolved, with no invented term. Only dated_action is admissible to a date-bounded action query. Unknown observations are inspectable without date projection."
+  },
+  "fields": [
+    {
+      "name": "symbol",
+      "type": "string",
+      "nullable": false,
+      "unit": "canonical security code"
+    },
+    {
+      "name": "action_id",
+      "type": "string",
+      "nullable": false,
+      "unit": "stable source action identity"
+    },
+    {
+      "name": "action_version",
+      "type": "string",
+      "nullable": false,
+      "unit": "source observation version"
+    },
+    {
+      "name": "action_type",
+      "type": "string",
+      "nullable": false,
+      "unit": null
+    },
+    {
+      "name": "announcement_date",
+      "type": "date",
+      "nullable": true,
+      "unit": "calendar date"
+    },
+    {
+      "name": "record_date",
+      "type": "date",
+      "nullable": true,
+      "unit": "calendar date"
+    },
+    {
+      "name": "ex_date",
+      "type": "date",
+      "nullable": true,
+      "unit": "calendar date"
+    },
+    {
+      "name": "effective_date",
+      "type": "date",
+      "nullable": true,
+      "unit": "calendar date"
+    },
+    {
+      "name": "payment_date",
+      "type": "date",
+      "nullable": true,
+      "unit": "calendar date"
+    },
+    {
+      "name": "share_available_date",
+      "type": "date",
+      "nullable": true,
+      "unit": "calendar date"
+    },
+    {
+      "name": "cash_per_share",
+      "type": "float64",
+      "nullable": true,
+      "unit": "CNY/share after tax as supplied"
+    },
+    {
+      "name": "stock_ratio",
+      "type": "float64",
+      "nullable": true,
+      "unit": "new shares per old share"
+    },
+    {
+      "name": "transfer_ratio",
+      "type": "float64",
+      "nullable": true,
+      "unit": "new shares per old share"
+    },
+    {
+      "name": "split_ratio",
+      "type": "float64",
+      "nullable": true,
+      "unit": "new shares per old share"
+    },
+    {
+      "name": "source_available_at",
+      "type": "datetime",
+      "nullable": true,
+      "unit": "timezone-aware"
+    },
+    {
+      "name": "first_observed_at",
+      "type": "datetime",
+      "nullable": false,
+      "unit": "timezone-aware"
+    },
+    {
+      "name": "availability_basis",
+      "type": "string",
+      "nullable": false,
+      "unit": null
+    },
+    {
+      "name": "pit_qualification",
+      "type": "string",
+      "nullable": false,
+      "unit": null
+    },
+    {
+      "name": "source_ref",
+      "type": "string",
+      "nullable": false,
+      "unit": null
+    },
+    {
+      "name": "observation_state",
+      "type": "string",
+      "nullable": false,
+      "unit": null
+    }
+  ],
+  "validation": [
+    "dated_action has explicit effective/ex date and one positive supported term",
+    "undated_action retains a supported positive term and null effective/ex dates",
+    "unresolved_terms has null economic terms and cannot be projected as an action",
+    "date-bounded queries fail closed for securities with unresolved source observations",
+    "unsupported nonzero stock terms remain a build error",
+    "source dates never substitute for another date",
+    "Raw and availability provenance remain explicit"
+  ]
+}

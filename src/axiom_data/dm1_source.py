@@ -319,6 +319,10 @@ class TushareDm1Builder(MarketDomainBuilder):
         if domain not in _EXPECTED_ENDPOINTS:
             raise ArtifactError("TushareDm1Builder supports only D-M1 reference domains")
         config = dict(builder_config)
+        if 'corporate_action_observations' in config:
+            if domain!='corporate_actions' or config['corporate_action_observations']!='corporate_action_observations.v1':
+                raise ArtifactError('unsupported corporate action observation mapping')
+            config['corporate_action_observations_digest']=_digest(files('axiom_data.source_profiles').joinpath(config['corporate_action_observations']+'.json').read_bytes())
         if 'dm1_source_partitioning' in config and config['dm1_source_partitioning']!='security.v1':
             raise ArtifactError('unsupported D-M1 source partitioning')
         if domain!='security_status' and 'session_suspension_policy' in config:
@@ -366,6 +370,8 @@ class TushareDm1Builder(MarketDomainBuilder):
         raw_batches: Sequence[RawBatch],
     ) -> list[dict[str, Any]]:
         symbols, start, end = self._scope()
+        if self.domain=='corporate_actions' and ((contract['contract_version']=='corporate_actions.v2') != bool(self.builder_config.get('corporate_action_observations'))):
+            raise ArtifactError('corporate action observations require explicit v2 contract/mapping')
         if self.builder_config.get('dm1_source_partitioning')=='security.v1':
             return self._partitioned_rows(contract,parent_rows,raw_batches,symbols,start,end)
         tables, observed_at = _raw_tables(
@@ -558,6 +564,7 @@ class TushareDm1Builder(MarketDomainBuilder):
 
     def _action_rows(self, tables, symbols, start, end):  # type: ignore[no-untyped-def]
         rows = []
+        qualified=bool(self.builder_config.get('corporate_action_observations'))
         for source, raw in tables["dividend"]:
             symbol = _source_symbol(source.get("ts_code"))
             if symbol not in symbols:
@@ -565,9 +572,9 @@ class TushareDm1Builder(MarketDomainBuilder):
             if source.get("div_proc") != "实施":
                 continue
             effective = _source_date(source.get("ex_date"), nullable=True)
-            if effective is None:
+            if effective is None and not qualified:
                 raise ArtifactError("implemented corporate action requires ex_date")
-            if not start <= effective <= end:
+            if effective is not None and not start <= effective <= end:
                 continue
             terms = {
                 "cash_dividend": _optional_float(source.get("cash_div_tax")),
@@ -580,8 +587,10 @@ class TushareDm1Builder(MarketDomainBuilder):
                 raise ArtifactError("dividend row contains unsupported stock terms")
             emitted = 0
             natural = [symbol, source.get("end_date"), source.get("ann_date"), source.get("div_proc")]
+            if qualified and all(value in (None,0,0.0) for value in terms.values()):
+                terms={'unresolved':None}
             for action_type, value in terms.items():
-                if value in (None, 0, 0.0):
+                if value in (None, 0, 0.0) and action_type!='unresolved':
                     continue
                 action_id = "ca-" + _digest(_json_bytes([natural, action_type])).split(":", 1)[1]
                 version = "obs-" + _digest(_json_bytes(source)).split(":", 1)[1]
@@ -601,6 +610,7 @@ class TushareDm1Builder(MarketDomainBuilder):
                     "transfer_ratio": value if action_type == "capital_transfer" else None,
                     "split_ratio": None,
                     **self._evidence(raw),
+                    **({'observation_state':'unresolved_terms' if action_type=='unresolved' else 'undated_action' if effective is None else 'dated_action'} if qualified else {}),
                 })
                 emitted += 1
             if emitted == 0:

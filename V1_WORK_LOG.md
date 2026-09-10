@@ -1,3 +1,13 @@
+# Corporate action observations checkpoint — 2026-09-10
+
+201/201 tests PASS (63.474s). New corporate_actions.v2 root represents undated
+source observations without substituting dates. Affected date-bounded queries
+fail closed; v1 remains unchanged. Full source scan: 35,068 dated / 30 undated /
+one unresolved-terms observation, no failures. Full market is independently
+validated: 9,151,217 rows / 153 partitions / 1,453.834s. Financial canonical:
+696,217 rows / 90 partitions / 793.077s. Imports into the main root and remaining
+canonical work continue. Stage 3/5, V1 terminal incomplete, no merge/push/pointer.
+
 # Margin qualification checkpoint — 2026-09-10
 
 200/200 tests PASS (67.678s). Explicit negative-repayment qualification preserves

@@ -642,13 +642,17 @@ def _equal_rows(left, right):
     return all(a == b for a, b in zip_longest(left, right, fillvalue=missing))
 
 
-def _validate_domain_rows(domain: str, rows: object) -> None:
+def _validate_domain_rows(domain: str, rows: object, *, contract=None) -> None:
     try:
         from axiom_data.partition_rows import PartitionRows
+        validator=_DOMAIN_VALIDATORS[domain]
+        if domain=='corporate_actions' and contract is not None:
+            from axiom_data.domains.dm1 import validate_corporate_action_rows
+            validator=lambda batch:validate_corporate_action_rows(batch,contract['contract_version'].rsplit('.',1)[1])
         if isinstance(rows, PartitionRows):
-            rows.validate(_DOMAIN_VALIDATORS[domain])
+            rows.validate(validator)
         else:
-            _DOMAIN_VALIDATORS[domain](rows)
+            validator(rows)
     except MarketContractError as exc:
         raise ArtifactError(f"{domain} rows violate {domain}.v1: {exc}") from exc
 
@@ -1056,7 +1060,7 @@ class MarketDomainBuilder:
             else:
                 _write_file(candidate / "rows.json", rows_content)
                 staged_rows = json.loads((candidate / "rows.json").read_bytes())
-            _validate_domain_rows(self.domain, staged_rows)
+            _validate_domain_rows(self.domain, staged_rows,contract=contract)
             if self.domain in PR6_DOMAINS + PR7_DOMAINS:
                 _validate_pr6_dependencies(self.domain, staged_rows, loaded_dependencies)
             if self.domain == "market_daily" and calendar is not None and security is not None:
@@ -1172,7 +1176,7 @@ def load_domain_commit(
             raise ArtifactError("DomainCommit rows must be a JSON array of objects")
         if output.get("rows") != len(rows):
             raise ArtifactError("DomainCommit row count mismatch")
-    _validate_domain_rows(domain, rows)
+    _validate_domain_rows(domain, rows,contract=contract)
     expected_cross_domain = (
         "PASS" if _DOMAIN_DEPENDENCIES[domain] else "NOT_APPLICABLE"
     )
@@ -1332,6 +1336,16 @@ def _validate_domain_commit_node(
                 RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]))
             if not _equal_rows(expected_rows, commit.rows):
                 raise ArtifactError("PR7 canonical rows differ from RawBatch mapping")
+            del expected_rows
+
+        if commit.ref.contract_version=='corporate_actions.v2':
+            from axiom_data.dm1_source import TushareDm1Builder
+            replay=TushareDm1Builder(root,domain,builder_config=commit.manifest['builder_config'],
+                dependency_commit_ids={d:ref['domain_commit_id'] for d,ref in commit.manifest['dependency_commit_refs'].items()})
+            expected_rows=replay._build_rows(commit.contract,parent.rows if parent_ref is not None else (),
+                RawBatches(root,[ref['raw_batch_id'] for ref in raw_refs]))
+            if not _equal_rows(expected_rows,commit.rows):
+                raise ArtifactError('corporate action observations differ from RawBatch mapping')
             del expected_rows
 
         dependency_refs = commit.manifest.get("dependency_commit_refs")

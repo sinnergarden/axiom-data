@@ -203,8 +203,9 @@ def validate_security_capital_rows(rows: object) -> None:
     _validate_keys("security_capital", frozen)
 
 
-def validate_corporate_action_rows(rows: object) -> None:
-    frozen = _rows("corporate_actions", rows)
+def validate_corporate_action_rows(rows: object, version=None) -> None:
+    version=version or ('v2' if isinstance(rows,Sequence) and any(isinstance(row,Mapping) and 'observation_state' in row for row in rows) else 'v1')
+    frozen = _rows("corporate_actions", rows,version)
     for index, row in enumerate(frozen):
         _symbol(row["symbol"])
         _text("action_id", row["action_id"])
@@ -218,7 +219,7 @@ def validate_corporate_action_rows(rows: object) -> None:
             "share_available_date",
         ):
             _date(f"row {index} {name}", row[name], nullable=True)
-        _date(f"row {index} effective_date", row["effective_date"])
+        _date(f"row {index} effective_date", row["effective_date"],nullable=version=='v2')
         terms = {
             "cash_dividend": "cash_per_share",
             "stock_dividend": "stock_ratio",
@@ -226,12 +227,22 @@ def validate_corporate_action_rows(rows: object) -> None:
             "split": "split_ratio",
             "consolidation": "split_ratio",
         }
-        if action_type not in terms:
+        unresolved=version=='v2' and action_type=='unresolved'
+        if action_type not in terms and not unresolved:
             raise MarketContractError("corporate action type is unsupported")
         values = {
             name: _number(name, row[name])
             for name in ("cash_per_share", "stock_ratio", "transfer_ratio", "split_ratio")
         }
+        if version=='v2':
+            expected='unresolved_terms' if unresolved else 'undated_action' if row['effective_date'] is None else 'dated_action'
+            if row['observation_state']!=expected or row['ex_date']!=row['effective_date']:
+                raise MarketContractError('corporate action observation state mismatch')
+        if unresolved:
+            if any(value is not None for value in values.values()):
+                raise MarketContractError('unresolved action must not invent economic terms')
+            _provenance(row)
+            continue
         selected = terms[action_type]
         if values[selected] is None or values[selected] <= 0:  # type: ignore[operator]
             raise MarketContractError("corporate action term must be positive")
@@ -243,7 +254,7 @@ def validate_corporate_action_rows(rows: object) -> None:
         if action_type == "consolidation" and ratio is not None and ratio >= 1:
             raise MarketContractError("consolidation ratio must be below one")
         _provenance(row)
-    _validate_keys("corporate_actions", frozen)
+    _validate_keys("corporate_actions", frozen,version)
 
 
 def validate_dm1_snapshot_rows(
@@ -327,6 +338,8 @@ def validate_dm1_snapshot_rows(
         identity = securities.get(row["symbol"])
         if identity is None:
             raise MarketContractError("corporate action has no security identity")
+        if row.get('observation_state','dated_action')!='dated_action':
+            continue
         exchange_dates = sorted(
             session for exchange, session in calendar if exchange == identity["exchange"]
         )

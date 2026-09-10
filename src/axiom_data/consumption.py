@@ -274,6 +274,11 @@ class SnapshotReader:
         end = _session(end_session, "end_session") if end_session else None
         if start is not None and end is not None and start > end:
             raise ArtifactError("fact session interval is reversed")
+        if domain=='corporate_actions' and (start is not None or end is not None):
+            if any(row.get('observation_state','dated_action')!='dated_action'
+                and (selected_symbols is None or row['symbol'] in selected_symbols)
+                for row in self.commits[domain].rows):
+                raise ArtifactError('INSUFFICIENT_SCOPE: unresolved corporate action observations; inspect without date projection')
         rows = []
         for row in self.commits[domain].rows:
             row_symbol = row.get("symbol")

@@ -1,0 +1,38 @@
+[
+  {
+    "raw_id": "tushare-corporate_actions-dividend-886976834ffc9599155ada310e130effbb87fc0e267b606bd115c9dbebe4839d",
+    "row_index": 39,
+    "row": {
+      "ann_date": "20160908",
+      "cash_div_tax": 0.0,
+      "div_listdate": null,
+      "div_proc": "实施",
+      "end_date": "20160914",
+      "ex_date": null,
+      "pay_date": null,
+      "record_date": "20161213",
+      "stk_bo_rate": null,
+      "stk_co_rate": 1.7021276,
+      "stk_div": 1.7021276,
+      "ts_code": "000155.SZ"
+    }
+  },
+  {
+    "raw_id": "tushare-corporate_actions-dividend-8ce6da674961bc2429eed0586f3c5bbce5a5d8af2434ba80c2f5dfffbcb3d745",
+    "row_index": 54,
+    "row": {
+      "ann_date": "20081204",
+      "cash_div_tax": null,
+      "div_listdate": "20081217",
+      "div_proc": "实施",
+      "end_date": "20080930",
+      "ex_date": null,
+      "pay_date": null,
+      "record_date": null,
+      "stk_bo_rate": null,
+      "stk_co_rate": null,
+      "stk_div": 0.0,
+      "ts_code": "000557.SZ"
+    }
+  }
+]
