@@ -1,3 +1,12 @@
+# Universe acquisition checkpoint — 2026-09-10
+
+195/195 tests PASS (139.910s). Explicit complete initial acquisition reduces the
+full 306-request universe mapping to 264,600 observations / two group states,
+27.078s and 759,404 KiB RSS. Source gaps do not create empty membership.
+See reports/pr8/universe_acquisition/REPORT.md. Top10 source is complete;
+market canonical and other source work continue. Stage 3/5, terminal V1
+incomplete; no pointer/merge/push.
+
 # Market source scan and holder canonical checkpoint — 2026-09-10
 
 192/192 tests PASS (134.099s). Full market scan found four failing security

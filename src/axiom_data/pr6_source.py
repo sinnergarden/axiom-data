@@ -106,6 +106,16 @@ class Pr6Builder(MarketDomainBuilder):
 
     def __init__(self, data_root, domain, *, builder_config=None, **kwargs):
         config=dict(builder_config or {})
+        acquisition=config.get('universe_acquisition')
+        if acquisition is not None:
+            if (domain!='universe_membership' or not isinstance(acquisition,dict)
+                or set(acquisition)!={'policy','raw_batch_ids'}
+                or acquisition['policy']!='complete_bootstrap.v1'
+                or not isinstance(acquisition['raw_batch_ids'],list)
+                or not acquisition['raw_batch_ids']
+                or any(not isinstance(ref,str) for ref in acquisition['raw_batch_ids'])
+                or len(set(acquisition['raw_batch_ids']))!=len(acquisition['raw_batch_ids'])):
+                raise ArtifactError('invalid explicit universe acquisition')
         if domain=='industry_membership' and config.get('industry_source_profile')=='tushare_sw2021.v1':
             from axiom_data.sw_mapping import load_mapping_profile
             config['sw_mapping_profile']=load_mapping_profile()
@@ -207,6 +217,9 @@ class Pr6Builder(MarketDomainBuilder):
             from axiom_data.sw_industry import build_rows
             return build_rows(self,contract,parent_rows,raw_batches)
         group_mode=contract['contract_version']=='universe_membership.v3'
+        acquisition=self.builder_config.get('universe_acquisition')
+        if acquisition and not group_mode:
+            raise ArtifactError('complete bootstrap requires universe_membership.v3')
         self.group_states=[]
         if not group_mode and not contract['contract_version'].endswith('.v2'):
             return self._legacy_rows(contract, parent_rows, raw_batches)
@@ -246,7 +259,24 @@ class Pr6Builder(MarketDomainBuilder):
             # One complete interval state per actual observation timestamp. For a
             # repeated effective snapshot, later retrieval replaces that snapshot.
             timeline = defaultdict(list)
-            for raw in ordered: timeline[raw.manifest['retrieved_at']].append(raw)
+            bootstrap=set(acquisition['raw_batch_ids']) if acquisition else set()
+            if bootstrap - raws.keys():
+                raise ArtifactError('incomplete explicit universe acquisition')
+            completed=max((r.manifest['retrieved_at'] for r in ordered if r.ref.raw_batch_id in bootstrap),key=instant) if bootstrap else None
+            bounds=defaultdict(list)
+            for raw in ordered:
+                observed=raw.manifest['retrieved_at']
+                if raw.ref.raw_batch_id in bootstrap:
+                    params=raw.manifest['request']['params']
+                    bounds[params['index_code']].append((params['start_date'],params['end_date']))
+                    observed=completed
+                elif completed and instant(observed)<=instant(completed):
+                    raise ArtifactError('incremental observation predates complete bootstrap')
+                timeline[observed].append(raw)
+            for intervals in bounds.values():
+                intervals.sort()
+                if any(a[1]>=b[0] for a,b in zip(intervals,intervals[1:])):
+                    raise ArtifactError('overlapping bootstrap request intervals')
             snapshots = {}; history = []
             for observed in sorted(timeline, key=instant):
                 history.extend(timeline[observed])
@@ -263,6 +293,10 @@ class Pr6Builder(MarketDomainBuilder):
                     grouped=defaultdict(list)
                     for row in records:grouped[(row['index_code'],row['trade_date'])].append(row)
                     if not records:
+                        # A monthly history query without records asserts no
+                        # effective observation. It cannot erase membership.
+                        if raw.ref.raw_batch_id in bootstrap and params['start_date']!=params['end_date']:
+                            continue
                         if group_mode and profile['summary'].get('membership_complete') is not True:
                             raise ArtifactError('SOURCE_GAP: empty response lacks complete membership assertion')
                         if params['start_date']!=params['end_date']:
@@ -279,6 +313,8 @@ class Pr6Builder(MarketDomainBuilder):
                             del snapshots[key]
                     for key,values in grouped.items():snapshots[key]=(raw,values)
                 state_rows=[]
+                if acquisition and not snapshots:
+                    raise ArtifactError('SOURCE_GAP: bootstrap contains no membership observation')
                 for group in sorted({key[0] for key in snapshots}):
                     dates=sorted(key[1] for key in snapshots if key[0]==group)
                     end=self.builder_config.get('membership_end_exclusive')
@@ -315,7 +351,7 @@ class Pr6Builder(MarketDomainBuilder):
                                 'effective_to':source_date(dates[i+1]) if i+1<len(dates) else self.builder_config['membership_end_exclusive'],
                                 'member_count':len(symbols),'member_set_digest':fingerprint(symbols),
                                 'members':symbols,'source_ref':raw.ref.raw_batch_id})
-                        state={'universe_id':group,'first_observed_at':last.manifest['retrieved_at'],
+                        state={'universe_id':group,'first_observed_at':observed if acquisition else last.manifest['retrieved_at'],
                             'source_available_at':None,'pit_qualification':'best_effort',
                             'vendor_available_at':source_date(dates[0])+'T23:59:59+08:00',
                             'source_ref':last.ref.raw_batch_id,'raw_refs':sorted(raw.ref.raw_batch_id for raw in group_raws),
@@ -325,17 +361,26 @@ class Pr6Builder(MarketDomainBuilder):
                             'member_set_digest':intervals[-1]['member_set_digest'],
                             'intervals':intervals,
                             'member_revision_refs':sorted(r['revision_id'] for r in state_rows if r['group_id']==group)}
+                        if acquisition:
+                            state['acquisition_policy']=acquisition['policy']
+                            state['unobserved_requests']=[raw.ref.raw_batch_id for raw in group_raws
+                                if not json.loads(raw.payload) and raw.manifest['request']['params']['start_date']!=raw.manifest['request']['params']['end_date']]
                         state['state_id']=fingerprint(state);states[group]=state
                         if state not in self.group_states:self.group_states.append(state)
                 for row in state_rows:
                     group_state=states.get(row['group_id'])
-                    retain(row, {'observed_at':group_state['first_observed_at'] if group_state else observed,'source_ref':row['source_ref'],
+                    observation={'observed_at':group_state['first_observed_at'] if group_state else observed,'source_ref':row['source_ref'],
                         'boundary_source_ref':row['boundary_source_ref'],
                         'revision_id':row['revision_id'],'vendor_available_at':row['vendor_available_at'],
                         'state_id':group_state['state_id'] if group_state else state_id,
                         'coverage_from':min(source_date(k[1]) for k in snapshots if k[0]==row['group_id']),
                         'coverage_to':self.builder_config['membership_end_exclusive'] or (date.fromisoformat(max(source_date(k[1]) for k in snapshots if k[0]==row['group_id']))+timedelta(days=1)).isoformat(),
-                        'state_raw_refs':group_state['raw_refs'] if group_state else sorted(r.ref.raw_batch_id for r in history)})
+                        'state_raw_refs':group_state['raw_refs'] if group_state else sorted(r.ref.raw_batch_id for r in history)}
+                    if acquisition:
+                        # group_state_ref supplies the complete immutable Raw
+                        # closure once, rather than repeating it in every row.
+                        del observation['state_raw_refs']
+                    retain(row, observation)
         for row in content.values():
             row['observations'].sort(key=lambda o:(instant(o['observed_at']),o['observation_id']))
         return [content[k] for k in sorted(content)]
