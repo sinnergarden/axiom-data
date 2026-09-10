@@ -1,0 +1,176 @@
+{
+  "schema_version": "axiom_data.pr8_reconciliation_inventory.v1",
+  "status": "NOT_ASSESSED",
+  "purpose": "Inventory existing canonical Axiom evidence and immutable Qsys comparison evidence before the PR8 full baseline reconciliation.",
+  "scope": {
+    "target_universe": "csi1800_pit_v2",
+    "target_instruments": 3601,
+    "target_start": "2014-01-01",
+    "target_end": "2026-09-08",
+    "comparison_status": "NOT_ASSESSED",
+    "admission_rule": "Qsys comparison gaps limit reconciliation scope; they do not automatically block canonical admission."
+  },
+  "verification_policy": {
+    "mode": "read_only",
+    "market_qsys_content_hash_verified_this_round": false,
+    "parquet_content_hash_verified_this_round": true,
+    "checks_recorded": [
+      "manifest binding read",
+      "file existence checked",
+      "parquet size checked where stated",
+      "small manifest SHA256 recorded where observed"
+    ],
+    "not_done": [
+      "full baseline comparison",
+      "SnapshotReader or new source calls",
+      "full parquet content scan",
+      "legacy/mutable SysQ inspection"
+    ]
+  },
+  "market_qsys_metadata_only": [
+    {
+      "report": "reports/pr3/run_manifest.json",
+      "declared_path": "SysQ/data/raw_panels/raw_panel_csi800_20200101_20251231.parquet",
+      "declared_bytes": 89478083,
+      "declared_content_sha256": "4f9ce6d340ccfa90979f048e9a7463b42c695f79ed2ae11d31bcc2fa8d49bbe4",
+      "declared_role": "frozen-forensic-reference-only",
+      "scope": {"symbols": 20, "start": "2025-01-01", "end": "2025-12-31"},
+      "local_binding": "report metadata only; no checked forensic market copy or manifest"
+    },
+    {
+      "report": "reports/pr5/run_manifest.json",
+      "declared_path": "/home/liuming/.openclaw/workspace/SysQ/data/raw_panels/raw_panel_csi800_20200101_20251231.parquet",
+      "declared_bytes": 89478083,
+      "declared_content_sha256": "4f9ce6d340ccfa90979f048e9a7463b42c695f79ed2ae11d31bcc2fa8d49bbe4",
+      "declared_role": "frozen reconciliation evidence only; not truth authority",
+      "scope": {"symbols": ["600000.SH", "600036.SH", "688981.SH", "603072.SH", "000001.SZ", "301581.SZ"], "start": "2025-06-01", "end": "2025-09-05", "benchmark": "000300.SH"},
+      "local_binding": "report metadata only; external path not opened"
+    }
+  ],
+  "existing_market_reports": [
+    {
+      "path": "reports/pr3/direct_qlib_equivalence.json",
+      "relationship": "Axiom direct to Qlib",
+      "scope": "20 symbols, 2025-01-01..2025-12-31, 14 fields",
+      "result": "4858 direct keys / 4858 Qlib keys"
+    },
+    {
+      "path": "reports/pr5/direct_qlib_equivalence.json",
+      "relationship": "Axiom direct to Qlib",
+      "scope": "6 symbols, 2025-06-01..2025-09-05, 14 fields",
+      "result": "414 direct keys / 414 Qlib keys"
+    },
+    {
+      "path": "reports/pr3/tushare_axiom_qsys_reconciliation.json",
+      "relationship": "source to Axiom to Qsys bounded probe",
+      "scope": "4 symbols, 2025-06-10..2025-06-13",
+      "result": {"all_equal": 179, "qsys_missing": 32, "axiom_tushare_equal_qsys_different": 13, "source_current_missing": 0}
+    },
+    {
+      "path": "reports/pr5/qsys_reconciliation.json",
+      "relationship": "source to Axiom to Qsys bounded probe",
+      "scope": "6 symbols, 2025-06-10..2025-06-13",
+      "result": {"all_equal": 179, "qsys_missing": 144, "axiom_tushare_equal_qsys_different": 13, "source_current_missing": 0}
+    }
+  ],
+  "frozen_qsys": {
+    "pr6": {
+      "root": "/home/liuming/workspace/axiom/data/forensic/pr6-empty-prefix-compat-20260908-r4/source/evidence/pr6_reference",
+      "reference_manifest": "reference_manifest.json",
+      "reference_manifest_schema": "pr6_frozen_reference.v1",
+      "reference_manifest_observed_sha256": "c08cfb69d5da2130a9d9db8ea278d46ba71997c1edea593cfdc8af9defb66f00",
+      "artifacts": [
+        {
+          "path": "pr4/frozen_income/income.parquet",
+          "exists": true,
+          "size_bytes": 3677614,
+          "declared_sha256": "6ef941166aaeed8658ee5dd796056d728303d23e0d28703e5b089ac26214fa42",
+          "observed_sha256": "6ef941166aaeed8658ee5dd796056d728303d23e0d28703e5b089ac26214fa42",
+          "content_hash_match": true,
+          "manifest_binding_checked": true,
+          "content_hash_verified_this_round": true,
+          "scope": {"scope_key": "csi1800", "rows": 93878, "start": "2014-03-13", "end": "2026-08-21", "required_history_start": "2014-03-13"}
+        },
+        {
+          "path": "pr4/frozen_income/manifest.json",
+          "exists": true,
+          "declared_sha256": "0b549ae0ff2ae82b6a6ed90c242d9a4a46e6227e008ff39e6ef987de21d85bae",
+          "manifest_binding_checked": true,
+          "content_hash_verified_this_round": false
+        },
+        {
+          "path": "pr4/frozen_cohort/universe/csi1800_pit_v2/membership.parquet",
+          "exists": true,
+          "size_bytes": 43162,
+          "declared_sha256": "567137db93fb9b2bbdb9220f6d0ed813fec233da87948a953a255b2e08b386df",
+          "observed_sha256": "567137db93fb9b2bbdb9220f6d0ed813fec233da87948a953a255b2e08b386df",
+          "content_hash_match": true,
+          "manifest_binding_checked": true,
+          "content_hash_verified_this_round": true,
+          "scope": {"universe_id": "csi1800_pit_v2", "unique_instruments": 3601, "snapshots": 235, "validated_trading_dates": 2081, "snapshot_start": "2007-01-31", "snapshot_end": "2026-07-31", "registry_start": "2018-01-01", "registry_end": "2026-07-31"}
+        },
+        {
+          "path": "pr4/frozen_cohort/universe/csi1800_pit_v2/manifest.json",
+          "exists": true,
+          "declared_sha256": "70065082299a682a4c3443fafcee21e57fe62f159ce18c0002895a960683c579",
+          "manifest_binding_checked": true,
+          "content_hash_verified_this_round": false
+        }
+      ],
+      "reusable_report": "reports/pr6/DELIVERY.md",
+      "coverage": "membership 4/4 bounded matches; 3601-security historical union; bounded income and legacy Qlib comparisons; industry taxonomy semantic comparison unresolved"
+    },
+    "pr7": {
+      "root": "/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r5/source/evidence/shareholder",
+      "reference_manifest": "reference_manifest.json",
+      "reference_manifest_observed_sha256": "eee983775881fdf079c12ee4b8be6ddb93f4cfaa31836d859131f891b554b84a",
+      "source_artifact": "0baf4e0fc24e5f95f691fb3f332badb8e8d32ed708118c0f1e019a28ce049800",
+      "artifacts": [
+        {
+          "path": "holder_num.parquet",
+          "exists": true,
+          "size_bytes": 921813,
+          "declared_sha256": "8bb111f2e9d979bb604c155e4a211dd7087949fa1ecabc317128621c92dc5eb3",
+          "observed_sha256": "8bb111f2e9d979bb604c155e4a211dd7087949fa1ecabc317128621c92dc5eb3",
+          "content_hash_match": true,
+          "manifest_binding_checked": true,
+          "content_hash_verified_this_round": true
+        },
+        {
+          "path": "top10_holder_ratio.parquet",
+          "exists": true,
+          "size_bytes": 1103350,
+          "declared_sha256": "8690a233c1bb5daeddd54ad88a7c8bdef68be3f1a9dde25e513a517935fc45fb",
+          "observed_sha256": "8690a233c1bb5daeddd54ad88a7c8bdef68be3f1a9dde25e513a517935fc45fb",
+          "content_hash_match": true,
+          "manifest_binding_checked": true,
+          "content_hash_verified_this_round": true
+        },
+        {
+          "path": "manifest.json",
+          "exists": true,
+          "declared_sha256": "87cdfe2e5300028206cacb2afca19c1985936d698818be53e614deeb38acce03",
+          "manifest_binding_checked": true,
+          "content_hash_verified_this_round": false
+        }
+      ],
+      "scope": {"scope_key": "csi1800", "symbols": 3131, "start": "2017-01-01", "end": "2026-08-21"},
+      "reusable_report": "reports/pr7/reconciliation.json",
+      "coverage": {"holder_count_exact": 24, "holder_count_unavailable_historical_evidence": 43, "top10_exact": 15, "margin_moneyflow_forecast_immutable_qsys_rows": 0}
+    }
+  },
+  "full_scope_missing": [
+    "verified Qsys market comparison for 3601 securities across 2014-01-01..2026-09-08",
+    "PR6 income coverage before 2014-03-13 and after 2026-08-21",
+    "PR6 membership snapshot coverage after 2026-07-31",
+    "PR7 shareholder coverage before 2017-01-01",
+    "immutable Qsys comparison rows for PR7 margin, moneyflow and forecast",
+    "industry integer-to-taxonomy semantic mapping"
+  ],
+  "classification_rules": {
+    "canonical_source_or_axiom_gap": "evaluate from source and Axiom evidence independently",
+    "qsys_reference_unverified": "market Qsys report metadata without checked local frozen artifact",
+    "unavailable_historical_evidence": "comparison rows absent from the immutable frozen package",
+    "not_assessed": "full baseline reconciliation not run"
+  }
+}
