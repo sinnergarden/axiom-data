@@ -319,6 +319,8 @@ class TushareDm1Builder(MarketDomainBuilder):
         if domain not in _EXPECTED_ENDPOINTS:
             raise ArtifactError("TushareDm1Builder supports only D-M1 reference domains")
         config = dict(builder_config)
+        if 'dm1_source_partitioning' in config and config['dm1_source_partitioning']!='security.v1':
+            raise ArtifactError('unsupported D-M1 source partitioning')
         if domain!='security_status' and 'session_suspension_policy' in config:
             raise ArtifactError('session suspension mapping requires security_status')
         from axiom_data.session_suspension import bind_profile
@@ -364,6 +366,8 @@ class TushareDm1Builder(MarketDomainBuilder):
         raw_batches: Sequence[RawBatch],
     ) -> list[dict[str, Any]]:
         symbols, start, end = self._scope()
+        if self.builder_config.get('dm1_source_partitioning')=='security.v1':
+            return self._partitioned_rows(contract,parent_rows,raw_batches,symbols,start,end)
         tables, observed_at = _raw_tables(
             self.layout.root, self.domain, raw_batches, set(symbols), start, end
         )
@@ -381,10 +385,61 @@ class TushareDm1Builder(MarketDomainBuilder):
             rows = self._capital_rows(tables, set(symbols), start, end)
         return _merge_canonical(contract, parent_rows, rows)
 
+    def _partitioned_rows(self,contract,parent_rows,raw_batches,symbols,start,end):
+        from axiom_data.artifacts import RawBatches
+        import hashlib
+        chunks, endpoint_refs, observations = {}, {}, []
+        for raw in raw_batches:
+            scope=_request_symbols(raw)
+            if len(scope)!=1 or not scope<=set(symbols):
+                raise ArtifactError('partitioned D-M1 requires individual scoped requests')
+            symbol=next(iter(scope))
+            chunks.setdefault(symbol,[]).append(raw.ref.raw_batch_id)
+            observations.append(raw.manifest['retrieved_at'])
+            count=len(json.loads(raw.payload))
+            if count:
+                endpoint=raw.manifest['request']['endpoint']
+                endpoint_refs.setdefault(endpoint,[]).append((raw.ref.raw_batch_id,count))
+        if set(chunks)!=set(symbols):raise ArtifactError('D-M1 requests do not cover scoped securities')
+        # Preserve the original full-scope provenance and observation time even
+        # though source tables are materialized one security at a time.
+        observed_at=max(observations)
+        digest=hashlib.sha256(b'['); first=True
+        for refs in endpoint_refs.values():
+            for ref,count in refs:
+                encoded=_json_bytes(ref)
+                for _ in range(count):
+                    if not first:digest.update(b',')
+                    digest.update(encoded);first=False
+        digest.update(b']')
+        status_scope='scope-'+digest.hexdigest()
+        limit_scope='scope-'+_digest(_json_bytes([raw.ref.raw_batch_id for raw in raw_batches]))[7:]
+        self._row_dependency_cache={}
+        def mapped():
+            for symbol in symbols:
+                chunk=RawBatches(self.layout.root,chunks[symbol])
+                tables,_=_raw_tables(self.layout.root,self.domain,chunk,{symbol},start,end)
+                if self.domain=='security_status':
+                    yield from self._status_rows(tables,[symbol],start,end,observed_at,scope_ref=status_scope)
+                elif self.domain=='price_limits':
+                    yield from self._limit_rows(tables,[symbol],start,end,observed_at,chunk,scope_ref=limit_scope)
+                elif self.domain=='corporate_actions':yield from self._action_rows(tables,{symbol},start,end)
+                elif self.domain=='adjustment_factors':yield from self._factor_rows(tables,{symbol},start,end)
+                elif self.domain=='benchmark_daily':yield from self._benchmark_rows(tables,{symbol},start,end)
+                else:yield from self._capital_rows(tables,{symbol},start,end)
+        try:
+            return _merge_canonical(contract,parent_rows,mapped())
+        finally:
+            del self._row_dependency_cache
+
     def _dependency(self, domain: str):
-        return validate_domain_commit_closure(
+        cache=getattr(self,'_row_dependency_cache',None)
+        if cache is not None and domain in cache:return cache[domain]
+        commit=validate_domain_commit_closure(
             self.layout.root, domain, self.dependency_commit_ids[domain]
         )
+        if cache is not None:cache[domain]=commit
+        return commit
 
     @staticmethod
     def _evidence(raw: RawBatch) -> dict[str, Any]:
@@ -396,7 +451,7 @@ class TushareDm1Builder(MarketDomainBuilder):
             "source_ref": raw.ref.raw_batch_id,
         }
 
-    def _status_rows(self, tables, symbols, start, end, observed_at):  # type: ignore[no-untyped-def]
+    def _status_rows(self, tables, symbols, start, end, observed_at,scope_ref=None):  # type: ignore[no-untyped-def]
         daily_evidence={(r['ts_code'],r['trade_date']):r for r,_ in tables['daily']}
         daily: dict[tuple[str, str], RawBatch] = {}
         for row, raw in tables["daily"]:
@@ -419,7 +474,7 @@ class TushareDm1Builder(MarketDomainBuilder):
             raise ArtifactConflictError("daily and suspension evidence conflict")
         calendar = self._dependency("trading_calendar")
         security = {row["symbol"]: row for row in self._dependency("security_master").rows}
-        scope_ref = "scope-" + _digest(_json_bytes([raw.ref.raw_batch_id for values in tables.values() for _, raw in values])).split(":", 1)[1]
+        scope_ref = scope_ref or "scope-" + _digest(_json_bytes([raw.ref.raw_batch_id for values in tables.values() for _, raw in values])).split(":", 1)[1]
         rows = []
         for session_row in calendar.rows:
             session = session_row["session"]
@@ -456,7 +511,7 @@ class TushareDm1Builder(MarketDomainBuilder):
                 })
         return rows
 
-    def _limit_rows(self, tables, symbols, start, end, observed_at, raw_batches):  # type: ignore[no-untyped-def]
+    def _limit_rows(self, tables, symbols, start, end, observed_at, raw_batches,scope_ref=None):  # type: ignore[no-untyped-def]
         found: dict[tuple[str, str], tuple[Mapping[str, Any], RawBatch]] = {}
         for row, raw in tables["stk_limit"]:
             key = (_source_symbol(row.get("ts_code")), _source_date(row.get("trade_date")))
@@ -465,7 +520,7 @@ class TushareDm1Builder(MarketDomainBuilder):
             found[key] = (row, raw)
         calendar = self._dependency("trading_calendar")
         securities = {row["symbol"]: row for row in self._dependency("security_master").rows}
-        source_ref = "scope-" + _digest(_json_bytes([raw.ref.raw_batch_id for raw in raw_batches])).split(":", 1)[1]
+        source_ref = scope_ref or "scope-" + _digest(_json_bytes([raw.ref.raw_batch_id for raw in raw_batches])).split(":", 1)[1]
         rows = []
         for cal in calendar.rows:
             session = cal["session"]

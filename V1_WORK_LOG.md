@@ -1,3 +1,11 @@
+# D-M1 materialization checkpoint — 2026-09-10
+
+190/190 tests PASS (137.532s). Six reference mappers now support bounded
+security batches with unchanged logical values/full-scope provenance.
+Stage 3/5 remains active. Market source is retrying the final failed batch
+under its original identity; remaining source domains retain their checkpoints.
+Full canonical/admission/baseline and stages 4–5 are still due.
+
 # Active checkpoint — 2026-09-10 source/storage follow-up
 
 Stage 3/5 remains active. SW correction and industry stage are validated.

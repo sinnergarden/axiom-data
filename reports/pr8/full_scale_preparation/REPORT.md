@@ -59,3 +59,10 @@ active acquisition jobs use their frozen code/plan and separate source roots;
 no active job's inputs were replaced. No baseline pointer, merge or push.
 
 Full suite: 189/189 PASS, zero skips, 138.450 seconds; git diff check passed.
+
+D-M1 follow-up: opt-in `dm1_source_partitioning=security.v1` maps one
+security at a time while preserving the original global observation time and
+full-scope provenance hashes. All six reference domains match eager mapping,
+including source gaps and empty endpoint responses; incomplete request sets
+still fail. Dependency validation is cached only inside one mapping invocation.
+Full follow-up suite: 190/190 PASS, zero skips, 137.532 seconds.

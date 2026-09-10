@@ -296,7 +296,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
     layout = _layout(data_root)
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
-    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning'}
+    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning'}
     for domain, spec in domain_inputs.items():
         if not isinstance(spec, dict) or set(spec) != {'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}:
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
@@ -312,6 +312,10 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             raise ArtifactError('unsupported session suspension policy')
         if 'market_source_partitioning' in spec['config'] and (domain!='market_daily' or spec['config']['market_source_partitioning']!='security.v1'):
             raise ArtifactError('unsupported market source partitioning')
+        if 'dm1_source_partitioning' in spec['config']:
+            from axiom_data.dm1_source import _EXPECTED_ENDPOINTS
+            if domain not in _EXPECTED_ENDPOINTS or spec['config']['dm1_source_partitioning']!='security.v1':
+                raise ArtifactError('unsupported D-M1 source partitioning')
         from axiom_data.build import BuildRequest
         BuildRequest(None, spec['raw_batch_ids'], [], spec['contract_version'])
         if type(spec['new_lineage']) is not bool:
