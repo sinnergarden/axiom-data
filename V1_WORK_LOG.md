@@ -1,3 +1,12 @@
+# Top10 source qualification checkpoint — 2026-09-10
+
+198/198 tests PASS (100.147s). Full 10,803-request source/row scan passes with
+explicit top10_ambiguity.v1: conflicting holders and totals above 100.01% retain
+source evidence and produce incomplete reports with null concentration. Old
+configurations remain fail-closed. See reports/pr8/top10_qualification/REPORT.md.
+Universe canonical is independently validated (265,400 rows / 14 partitions).
+Stage 3/5 continues; V1 admission/baseline and stages 4–5 remain incomplete.
+
 # Universe acquisition checkpoint — 2026-09-10
 
 195/195 tests PASS (139.910s). Explicit complete initial acquisition reduces the

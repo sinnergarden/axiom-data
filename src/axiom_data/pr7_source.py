@@ -86,7 +86,9 @@ def _number(value):
     return value
 
 
-def normalize(raw, domain):
+def normalize(raw, domain, *, top10_qualification=None):
+    if top10_qualification is not None and (domain!='top_holders_reports' or top10_qualification!='top10_ambiguity.v1'):
+        raise ArtifactError('unsupported Top10 qualification')
     m=raw.manifest;request=m['request'];endpoint=request.get('endpoint')
     version=m.get('source_profile_version')
     d=load_pr7_source_profile(version)['endpoints'].get(endpoint)
@@ -125,8 +127,26 @@ def normalize(raw, domain):
                     'category':s.get('holder_type'),'shares':shares,'ratio':ratio,'validity':'valid' if valid else 'invalid',
                     'missing_reason':None if valid else 'source_value_missing'})
             row['holders'].sort(key=lambda h:h['holder_id'])
+            if top10_qualification:
+                by_name=defaultdict(list)
+                for s in sources:by_name[s['holder_name']].append(s)
+                qualified={}
+                for h in row['holders']:
+                    variants={fingerprint(s):s for s in by_name[h['name']]}
+                    if len(variants)>1:
+                        h=dict(h,shares=None,ratio=None,category=None,validity='invalid',
+                            missing_reason='ambiguous_source_rows',
+                            source_variants=[variants[k] for k in sorted(variants)],
+                            qualification_profile=top10_qualification)
+                    qualified[h['holder_id']]=h
+                row['holders']=[qualified[k] for k in sorted(qualified)]
             if len({h['holder_id'] for h in row['holders']})!=len(row['holders']):raise ArtifactError('duplicate holder in report')
             complete=len(row['holders'])==10 and all(h['validity']=='valid' for h in row['holders'])
+            if top10_qualification and complete and sum(h['ratio'] for h in row['holders'])>100.01:
+                row['holders']=[dict(h,ratio=None,source_ratio=h['ratio'],validity='invalid',
+                    missing_reason='inconsistent_report_total',qualification_profile=top10_qualification)
+                    for h in row['holders']]
+                complete=False
             row['group_completeness']='complete' if complete else 'incomplete'
             row['values']['top10_ratio']=sum(h['ratio'] for h in row['holders']) if complete else None
             if not complete:row['missing_reasons']['top10_ratio']='incomplete_report'
@@ -151,6 +171,11 @@ class Pr7Builder(MarketDomainBuilder):
 
     def __init__(self,data_root,domain,*,builder_config=None,**kwargs):
         config=dict(builder_config or {})
+        qualification=config.get('top10_qualification')
+        if qualification is not None:
+            if domain!='top_holders_reports' or qualification!='top10_ambiguity.v1':
+                raise ArtifactError('unsupported Top10 qualification')
+            config['top10_qualification_digest']=_digest(files('axiom_data.source_profiles').joinpath(qualification+'.json').read_bytes())
         config['implementation_content']={n:_digest(files('axiom_data').joinpath(n).read_bytes()) for n in ('pr7_source.py','domains/pr7.py','pit.py','artifacts.py')}
         super().__init__(data_root,domain,builder_config=config,**kwargs)
 
@@ -160,7 +185,7 @@ class Pr7Builder(MarketDomainBuilder):
         for ref in sorted(refs-raws.keys()):raws[ref]=load_raw_batch(self.layout.root,ref)
         content={}
         for raw in sorted(raws.values(),key=lambda r:(instant(r.manifest['retrieved_at']),r.ref.raw_batch_id)):
-            for row in normalize(raw,self.domain):
+            for row in normalize(raw,self.domain,top10_qualification=self.builder_config.get('top10_qualification')):
                 key=(row['logical_event_key'],row['revision_id'])
                 kept=content.setdefault(key,dict(row,observations=[]))
                 o={'observed_at':raw.manifest['retrieved_at'],'source_ref':raw.ref.raw_batch_id,

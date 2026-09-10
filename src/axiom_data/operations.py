@@ -296,7 +296,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
     layout = _layout(data_root)
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
-    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition'}
+    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition','top10_qualification'}
     for domain, spec in domain_inputs.items():
         if not isinstance(spec, dict) or set(spec) != {'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}:
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
@@ -304,6 +304,8 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             raise ArtifactError('unsupported public builder config')
         if 'universe_acquisition' in spec['config'] and domain!='universe_membership':
             raise ArtifactError('universe acquisition requires universe_membership')
+        if 'top10_qualification' in spec['config'] and (domain!='top_holders_reports' or spec['config']['top10_qualification']!='top10_ambiguity.v1'):
+            raise ArtifactError('unsupported Top10 qualification')
         if 'security_boundary_policy' in spec['config'] and (
             domain != 'security_master' or spec['config']['security_boundary_policy'] != 'exchange_security.v1'
         ):

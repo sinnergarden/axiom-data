@@ -1,0 +1,60 @@
+[
+  {
+    "raw_id": "pr7-da33322aa275110357008f92e44b850f57eaf67bad403681027deec2d6415f8f",
+    "key": [
+      "20140630",
+      "20140812",
+      "深圳市建设投资控股公司"
+    ],
+    "rows": [
+      {
+        "ann_date": "20140812",
+        "end_date": "20140630",
+        "hold_amount": 323796320.0,
+        "hold_ratio": 54.3301,
+        "holder_name": "深圳市建设投资控股公司",
+        "holder_type": "投资、咨询公司",
+        "ts_code": "000011.SZ"
+      },
+      {
+        "ann_date": "20140812",
+        "end_date": "20140630",
+        "hold_amount": 323796324.0,
+        "hold_ratio": 54.3301,
+        "holder_name": "深圳市建设投资控股公司",
+        "holder_type": "投资公司",
+        "ts_code": "000011.SZ"
+      }
+    ],
+    "identical": false
+  },
+  {
+    "raw_id": "pr7-8f80ef35b9739bd3950a91e67aca503655866a80a5ca62b88caaec4404419a6f",
+    "key": [
+      "20250331",
+      "20250430",
+      "张林"
+    ],
+    "rows": [
+      {
+        "ann_date": "20250430",
+        "end_date": "20250331",
+        "hold_amount": 2856500.0,
+        "hold_ratio": 0.4475,
+        "holder_name": "张林",
+        "holder_type": "自然人",
+        "ts_code": "000573.SZ"
+      },
+      {
+        "ann_date": "20250430",
+        "end_date": "20250331",
+        "hold_amount": 3360000.0,
+        "hold_ratio": 0.5264,
+        "holder_name": "张林",
+        "holder_type": "自然人",
+        "ts_code": "000573.SZ"
+      }
+    ],
+    "identical": false
+  }
+]

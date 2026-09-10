@@ -39,7 +39,23 @@ def validate_rows(domain,rows):
                 if h['holder_id']!=fingerprint(['tushare',h['name']]):raise MarketContractError('holder identity mismatch')
                 valid=all(isinstance(h[k],(int,float)) and not isinstance(h[k],bool) and math.isfinite(h[k]) for k in ('shares','ratio')) and h['shares']>=0 and 0<=h['ratio']<=100
                 if h['validity']!=('valid' if valid else 'invalid'):raise MarketContractError('holder validity mismatch')
+                if h.get('missing_reason')=='ambiguous_source_rows':
+                    variants=h.get('source_variants',[])
+                    if (h.get('qualification_profile')!='top10_ambiguity.v1' or valid
+                        or any(h[k] is not None for k in ('shares','ratio','category'))
+                        or len(variants)<2 or len({fingerprint(s) for s in variants})!=len(variants)
+                        or any(s.get('holder_name')!=h['name'] or s.get('ts_code')!=r['symbol']
+                            or s.get('end_date')!=r['report_period'].replace('-','')
+                            or s.get('ann_date')!=r['announcement'].replace('-','') for s in variants)):
+                        raise MarketContractError('ambiguous holder source closure mismatch')
             complete=len(holders)==10 and all(h['validity']=='valid' for h in holders)
+            if any(h.get('missing_reason')=='inconsistent_report_total' for h in holders):
+                if (len(holders)!=10 or any(h.get('qualification_profile')!='top10_ambiguity.v1'
+                    or h.get('missing_reason')!='inconsistent_report_total' or h['ratio'] is not None
+                    or not isinstance(h.get('source_ratio'),(int,float)) or isinstance(h['source_ratio'],bool)
+                    or not 0<=h['source_ratio']<=100 for h in holders)
+                    or sum(h['source_ratio'] for h in holders)<=100.01):
+                    raise MarketContractError('inconsistent report total evidence mismatch')
             if r['group_completeness']!=('complete' if complete else 'incomplete'):raise MarketContractError('group completeness mismatch')
             expected=sum(h['ratio'] for h in holders) if complete else None
             if r['values']['top10_ratio']!=expected:raise MarketContractError('incomplete report aggregate or incorrect ratio')
