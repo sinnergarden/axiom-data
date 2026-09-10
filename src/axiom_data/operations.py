@@ -143,6 +143,55 @@ def _request(spec):
     return _digest(_json_bytes({'spec': spec, 'binding': _source_binding(spec)}))
 
 
+def plan_daily(data_root, snapshot_id, *, source_requests):
+    """Inspect explicit per-source daily requests without collection or publication.
+
+    Requests may cover different economic dates and revision windows. Availability
+    policies describe when collection is expected; only actual collection can
+    establish whether a required supplier response exists.
+    """
+    from axiom_data.consumption import SnapshotReader
+    if not isinstance(source_requests, list):
+        raise ArtifactError('daily source requests must be an explicit list')
+    keys = [_request(spec) for spec in source_requests]
+    if len(set(keys)) != len(keys):
+        raise ArtifactError('duplicate daily source request')
+    policies = {'margin_daily': 'next_session_publication',
+        **{d: 'revision_scan' for d in ('financial_events', 'holder_count_events',
+           'top_holders_reports', 'forecast_observations', 'corporate_actions')},
+        **{d: 'reference_observation' for d in ('trading_calendar', 'security_master',
+           'universe_membership', 'industry_membership')}}
+    for spec in source_requests:
+        if spec['availability_policy'] != policies.get(spec['domain'], 'session_close'):
+            raise ArtifactError('daily availability policy does not match domain')
+    concrete = _resolve_snapshot_id(data_root, snapshot_id)
+    reader = SnapshotReader(data_root, concrete)
+    changed = sorted({spec['domain'] for spec in source_requests})
+    if set(changed) - set(reader.commits):
+        raise ArtifactError('daily domain is absent from the explicit parent Snapshot')
+    affected = set(changed)
+    while True:
+        expanded = affected | {d for d, c in reader.commits.items()
+            if set(c.manifest['dependency_commit_refs']) & affected}
+        if expanded == affected:
+            break
+        affected = expanded
+    requests = [{'request_id': key, **json.loads(_json_bytes(spec)),
+                 'source_binding': _source_binding(spec),
+                 'required': True, 'availability_state': 'UNCONFIRMED_UNTIL_COLLECTION',
+                 'expected_t_plus_one': spec['availability_policy'] == 'next_session_publication'}
+                for key, spec in zip(keys, source_requests)]
+    plan = {'schema_version': 'daily_plan.v1', 'parent_snapshot_id': concrete,
+        'parent_commits': {d: c.ref.commit_id for d, c in reader.commits.items()},
+        'source_requests': requests, 'source_change_domains': changed,
+        'changed_domain_candidates': sorted(affected),
+        'dependency_review_domains': sorted(affected - set(changed)),
+        'unchanged_domain_candidates': sorted(set(reader.commits) - affected),
+        'unconfirmed_required_requests': keys,
+        'ready_for_consumption': False}
+    return dict(plan, plan_digest=_digest(_json_bytes(plan)))
+
+
 def _source_binding(spec):
     family, endpoint = spec['collector'], spec['endpoint']
     if family == 'market':

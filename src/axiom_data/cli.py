@@ -15,6 +15,9 @@ def main():
     collect.add_argument('--plan', type=Path, required=True)
     inspect = commands.add_parser('inspect')
     inspect.add_argument('--snapshot', required=True)
+    daily_plan = commands.add_parser('plan-daily')
+    daily_plan.add_argument('--snapshot', required=True)
+    daily_plan.add_argument('--plan', type=Path, required=True)
     source_plan=commands.add_parser('plan-bootstrap-sources')
     source_plan.add_argument('--scope',type=Path,required=True)
     source_plan.add_argument('--output',type=Path,required=True)
@@ -24,6 +27,11 @@ def main():
     source_collect.add_argument('--domains',nargs='+',required=True)
     commands.add_parser('rebuild-catalog')
     args = parser.parse_args()
+    if args.operation == 'plan-daily':
+        from axiom_data.operations import plan_daily
+        print(json.dumps(plan_daily(args.data_root, args.snapshot,
+            source_requests=json.loads(args.plan.read_bytes())), ensure_ascii=False, indent=2))
+        return 0
     if args.operation=='plan-bootstrap-sources':
         from axiom_data.bootstrap_sources import plan_bootstrap_sources
         plan=plan_bootstrap_sources(**json.loads(args.scope.read_bytes()))

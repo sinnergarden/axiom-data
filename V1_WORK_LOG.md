@@ -1,3 +1,17 @@
+# Daily dry-run checkpoint — 2026-09-10
+
+206/206 tests PASS (65.571s). Public plan_daily / plan-daily CLI inspect explicit
+per-source economic windows, exact parent commits, T+1 policies and dependency
+review candidates without writing to the data root. Source availability remains
+unconfirmed until collection. This completes dry-run inspection only, not the
+daily execution/admission service. See docs/operations/daily-plan.md.
+
+Capital r1 independently validated: 8,878,683 rows / 153 partitions / 1,417.789s,
+10,720,984 KiB peak RSS. Thirteen canonical domains are validated. The remaining
+five-domain queue is executing moneyflow. Capital byte transfer to the main root
+is separate from destination closure validation; do not treat that transfer as
+admission. Full V1 terminal gates remain incomplete, stage 3/5.
+
 # Full canonical continuation — 2026-09-10
 
 205/205 tests PASS (69.885s). Public inspection now performs one complete Reader
