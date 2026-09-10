@@ -23,7 +23,9 @@ def validate_rows(domain,rows):
         if set(r['missing_reasons'])!={k for k,v in r['values'].items() if v is None}:raise MarketContractError('missing reasons mismatch')
         for k,v in r['values'].items():
             if v is None:
-                if r['missing_reasons'][k] not in {'vendor_null','not_provided','incomplete_report'}:raise MarketContractError('unknown missing reason')
+                allowed={'vendor_null','not_provided','incomplete_report'}
+                if domain=='margin_daily' and k in {'repay','lend_repay_volume'}:allowed.add('source_repayment_unresolved')
+                if r['missing_reasons'][k] not in allowed:raise MarketContractError('unknown missing reason')
             elif units[k] in {'date','fiscal_date'}:_date(k,v)
             elif units[k]=='enum':
                 if v not in {'预增','预减','扭亏','首亏','续亏','续盈','略增','略减'}:raise MarketContractError('unsupported forecast enum')
@@ -65,6 +67,14 @@ def validate_rows(domain,rows):
         for o in r['observations']:
             if o['observation_id']!=fingerprint({k:v for k,v in o.items() if k!='observation_id'}):raise MarketContractError('observation identity mismatch')
             if o['revision_id']!=r['revision_id'] or instant(o['observed_at'])<instant(r['first_observed_at']):raise MarketContractError('observation content mismatch')
+            unresolved={k for k,v in r['missing_reasons'].items() if v=='source_repayment_unresolved'}
+            if unresolved or 'source_qualification' in o:
+                q=o.get('source_qualification',{});values=q.get('negative_source_values',{})
+                mapping={'rzche':'repay','rqchl':'lend_repay_volume'}
+                if (domain!='margin_daily' or q.get('profile')!='margin_negative_repayment.v1'
+                    or not values or set(values)-set(mapping) or {mapping[k] for k in values}!=unresolved
+                    or any(isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or v>=0 for v in values.values())):
+                    raise MarketContractError('negative repayment qualification closure mismatch')
     _validate_keys(domain,frozen)
 
 

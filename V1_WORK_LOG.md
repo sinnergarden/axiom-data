@@ -1,3 +1,12 @@
+# Margin qualification checkpoint — 2026-09-10
+
+200/200 tests PASS (67.678s). Explicit negative-repayment qualification preserves
+361 source rows' signed repayment evidence, with canonical null values and
+source_repayment_unresolved. Full 4,880,379-row mapping/contract/calendar scan
+passes (204.352s). Market and financial canonical continue; moneyflow source is
+complete. Corporate-action missing ex-date input is under diagnosis. Stage 3/5
+and V1 terminal gates remain incomplete. No merge/push/default pointer move.
+
 # Identity validation checkpoint — 2026-09-10
 
 199/199 tests PASS (66.294s). Complete security schema validation now occurs

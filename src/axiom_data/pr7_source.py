@@ -86,9 +86,11 @@ def _number(value):
     return value
 
 
-def normalize(raw, domain, *, top10_qualification=None):
+def normalize(raw, domain, *, top10_qualification=None, margin_qualification=None):
     if top10_qualification is not None and (domain!='top_holders_reports' or top10_qualification!='top10_ambiguity.v1'):
         raise ArtifactError('unsupported Top10 qualification')
+    if margin_qualification is not None and (domain!='margin_daily' or margin_qualification!='margin_negative_repayment.v1'):
+        raise ArtifactError('unsupported margin qualification')
     m=raw.manifest;request=m['request'];endpoint=request.get('endpoint')
     version=m.get('source_profile_version')
     d=load_pr7_source_profile(version)['endpoints'].get(endpoint)
@@ -160,7 +162,10 @@ def normalize(raw, domain, *, top10_qualification=None):
                 elif scale=='date':value=source_date(value)
                 elif scale=='text':
                     if not isinstance(value,str) or not value:raise ArtifactError('invalid forecast type')
-                else:value=_number(value)*scale
+                else:
+                    value=_number(value)*scale
+                    if margin_qualification and field in {'rzche','rqchl'} and value<0:
+                        value=None;row['missing_reasons'][target]='source_repayment_unresolved'
                 row['values'][target]=value
         row['revision_id']=fingerprint(economic_content(row));result.append(row)
     return result
@@ -176,6 +181,11 @@ class Pr7Builder(MarketDomainBuilder):
             if domain!='top_holders_reports' or qualification!='top10_ambiguity.v1':
                 raise ArtifactError('unsupported Top10 qualification')
             config['top10_qualification_digest']=_digest(files('axiom_data.source_profiles').joinpath(qualification+'.json').read_bytes())
+        qualification=config.get('margin_qualification')
+        if qualification is not None:
+            if domain!='margin_daily' or qualification!='margin_negative_repayment.v1':
+                raise ArtifactError('unsupported margin qualification')
+            config['margin_qualification_digest']=_digest(files('axiom_data.source_profiles').joinpath(qualification+'.json').read_bytes())
         config['implementation_content']={n:_digest(files('axiom_data').joinpath(n).read_bytes()) for n in ('pr7_source.py','domains/pr7.py','pit.py','artifacts.py')}
         super().__init__(data_root,domain,builder_config=config,**kwargs)
 
@@ -185,11 +195,19 @@ class Pr7Builder(MarketDomainBuilder):
         for ref in sorted(refs-raws.keys()):raws[ref]=load_raw_batch(self.layout.root,ref)
         content={}
         for raw in sorted(raws.values(),key=lambda r:(instant(r.manifest['retrieved_at']),r.ref.raw_batch_id)):
-            for row in normalize(raw,self.domain,top10_qualification=self.builder_config.get('top10_qualification')):
+            negative={}
+            if self.builder_config.get('margin_qualification'):
+                for source in json.loads(raw.payload):
+                    values={k:source[k] for k in ('rzche','rqchl') if isinstance(source.get(k),(int,float)) and source[k]<0}
+                    if values:negative[source_date(source['trade_date'])]=values
+            for row in normalize(raw,self.domain,top10_qualification=self.builder_config.get('top10_qualification'),margin_qualification=self.builder_config.get('margin_qualification')):
                 key=(row['logical_event_key'],row['revision_id'])
                 kept=content.setdefault(key,dict(row,observations=[]))
                 o={'observed_at':raw.manifest['retrieved_at'],'source_ref':raw.ref.raw_batch_id,
                    'revision_id':row['revision_id'],'vendor_available_at':row['vendor_available_at']}
+                if row['session'] in negative:
+                    o['source_qualification']={'profile':'margin_negative_repayment.v1',
+                        'negative_source_values':negative[row['session']]}
                 o['observation_id']=fingerprint(o)
                 if o not in kept['observations']:kept['observations'].append(o)
         return [content[k] for k in sorted(content)]
