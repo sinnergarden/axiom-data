@@ -1431,6 +1431,7 @@ def validate_domain_commit_closure(
 def _checked_snapshot_commits(
     data_root: Path,
     domain_commit_ids: Mapping[str, str],
+    *, validation_cache=None,
 ) -> dict[str, DomainCommit]:
     requested_domains = set(domain_commit_ids)
     if requested_domains == _REQUIRED_SNAPSHOT_DOMAINS:
@@ -1443,8 +1444,7 @@ def _checked_snapshot_commits(
         ordered_domains = PR7_SNAPSHOT_DOMAINS
     else:
         raise ArtifactError("DataSnapshot requires exactly a registered domain set")
-    cache: dict[tuple[str, str], DomainCommit] = {}
-    raw_closure_cache: dict[tuple[str, str], frozenset[str]] = {}
+    cache, raw_closure_cache = ({}, {}) if validation_cache is None else validation_cache
     commits = {
         domain: _validate_domain_commit_closure(
             data_root,
@@ -1542,7 +1542,7 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     return _load_snapshot_with_commits(data_root, snapshot_id)[0]
 
 
-def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, checked_commits=None):
+def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, checked_commits=None, validation_cache=None):
     """Return the already checked commits from this one Snapshot validation."""
 
     layout = _layout(data_root)
@@ -1589,7 +1589,7 @@ def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, chec
     # Publication has just validated this exact composition. Validate the stored
     # Snapshot manifest against those commits without repeating all source replay.
     # Public loads supply no cache and always validate the complete closure.
-    commits = _checked_snapshot_commits(layout.root, ids) if checked_commits is None else checked_commits
+    commits = _checked_snapshot_commits(layout.root, ids, validation_cache=validation_cache) if checked_commits is None else checked_commits
     if set(commits) != set(ids):
         raise ArtifactError('checked Snapshot composition is incomplete')
     for domain in ordered_domains:
@@ -1614,8 +1614,8 @@ def _artifact_directories(root: Path, directory: Path) -> tuple[Path, ...]:
 
 
 def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
-    from axiom_data.consumption import load_qlib_view
-    from axiom_data.views import load_adjusted_price_view, load_market_replay_view
+    from axiom_data.consumption import SnapshotReader, _load_qlib_view
+    from axiom_data.views import _load_adjusted_price_view, _load_market_replay_view
 
     entries: list[CatalogEntry] = []
     closure_cache: dict[tuple[str, str], DomainCommit] = {}
@@ -1653,8 +1653,16 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
                     commit.manifest_digest,
                 )
             )
+    readers = {}
     for artifact_dir in _artifact_directories(layout.root, layout.snapshots):
-        snapshot = load_snapshot(layout.root, artifact_dir.name)
+        # Reuse only this catalog call's verified commits. Snapshot composition
+        # and every View's own files/semantics are still independently checked.
+        reader = object.__new__(SnapshotReader)
+        reader.data_root = layout.root
+        reader.snapshot, reader.commits = _load_snapshot_with_commits(
+            layout.root, artifact_dir.name, validation_cache=(closure_cache, raw_closure_cache))
+        snapshot = reader.snapshot
+        readers[snapshot.ref.snapshot_id] = reader
         entries.append(
             CatalogEntry(
                 "data_snapshot",
@@ -1665,13 +1673,24 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
                 snapshot.ref.manifest_digest,
             )
         )
+    def view_reader(artifact_dir):
+        # This read only routes to a checked Snapshot; the loader validates the
+        # complete manifest/digest and binds that Snapshot before trusting rows.
+        try:
+            routing = json.loads(_safe_path(layout.root, artifact_dir / _MANIFEST,
+                                           closure=artifact_dir).read_bytes())
+            return readers[routing['snapshot_ref']['snapshot_id']], routing['schema_version']
+        except (KeyError, TypeError, ValueError, OSError) as exc:
+            raise ArtifactError('catalog View has an invalid Snapshot ref') from exc
+
     for name, artifact_type, loader in (
-        ("adjusted_price", "adjusted_price_view", load_adjusted_price_view),
-        ("market_replay", "market_replay_view", load_market_replay_view),
+        ("adjusted_price", "adjusted_price_view", _load_adjusted_price_view),
+        ("market_replay", "market_replay_view", _load_market_replay_view),
     ):
         directory = layout.derived_commits(name)
         for artifact_dir in _artifact_directories(layout.root, directory):
-            view = loader(layout.root, artifact_dir.name)
+            reader, _ = view_reader(artifact_dir)
+            view = loader(layout.root, artifact_dir.name, checked_reader=reader)
             version = (
                 view.manifest["derived_contract"]["contract_version"]
                 if name == "adjusted_price"
@@ -1687,22 +1706,26 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
                     view.ref.manifest_digest,
                 )
             )
-    from axiom_data.pr6_views import load_pr6_fact_view
+    from axiom_data.pr6_views import _load_pr6_fact_view
     for artifact_dir in _artifact_directories(layout.root, layout.derived_commits("pr6_fact")):
-        view = load_pr6_fact_view(layout.root, artifact_dir.name)
+        reader, version = view_reader(artifact_dir)
+        view = _load_pr6_fact_view(layout.root, artifact_dir.name,
+            checked_reader=reader if version=='pr6_fact_view.v2' else None)
         for artifact_type in ("pr6_fact_view", "qlib_view"):
             entries.append(CatalogEntry(artifact_type, view.ref.view_id, "pr6_fact",
                 view.manifest["schema_version"],
                 (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(), view.ref.manifest_digest))
-    from axiom_data.pr7_views import load_pr7_fact_view
+    from axiom_data.pr7_views import _load_pr7_fact_view
     for artifact_dir in _artifact_directories(layout.root, layout.derived_commits("pr7_fact")):
-        view = load_pr7_fact_view(layout.root, artifact_dir.name)
+        reader, _ = view_reader(artifact_dir)
+        view = _load_pr7_fact_view(layout.root, artifact_dir.name, checked_reader=reader)
         for artifact_type in ("pr7_fact_view", "qlib_view"):
             entries.append(CatalogEntry(artifact_type, view.ref.view_id, "pr7_fact",
                 view.manifest["schema_version"],
                 (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(), view.ref.manifest_digest))
     for artifact_dir in _artifact_directories(layout.root, layout.qlib_exports):
-        view = load_qlib_view(layout.root, artifact_dir.name)
+        reader, _ = view_reader(artifact_dir)
+        view = _load_qlib_view(layout.root, artifact_dir.name, checked_reader=reader)
         entries.append(
             CatalogEntry(
                 "qlib_view",

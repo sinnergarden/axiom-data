@@ -1,3 +1,12 @@
+# Catalog verification checkpoint — 2026-09-10
+
+227/227 tests PASS (65.868s). Catalog rebuild shares verified closures only within
+its own call, checks every Snapshot composition and View, and preserves legacy
+PR6 dispatch. Real fixture canonical loads fall from 103 to 18 for the same 130
+entries. Mismatched fixed dependencies and later corruption fail; failed rebuild
+keeps the existing catalog. Evidence: reports/pr8/catalog_validation_reuse.
+Stage 3/5; adjustment canonical active. V1 terminal acceptance remains pending.
+
 # Valuation projection checkpoint — 2026-09-10
 
 225/225 tests PASS (65.159s). After full PR6 scope admission, valuation projection
