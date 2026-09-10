@@ -1,3 +1,12 @@
+# Market Qlib validation checkpoint — 2026-09-10
+
+222/222 tests PASS (63.461s). Market Qlib v1/v2 publication reuses its same-call
+checked Reader, including adjusted-price dependency validation. Each fresh public
+load checks a full Snapshot once; both versions reject later source corruption.
+The copied real 18-domain fixture records exactly 18 canonical loads per build
+and per public load. View schema dispatch and formulas remain unchanged.
+Stage 3/5 and the remaining full-root acceptance gates continue.
+
 # D-M1 View validation checkpoint — 2026-09-10
 
 221/221 tests PASS (64.011s). Adjusted and replay View publication reuse the

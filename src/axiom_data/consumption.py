@@ -26,7 +26,6 @@ from axiom_data.artifacts import (
     _validate_manifest_identity,
     _write_file,
     _write_manifest,
-    load_snapshot,
     _load_snapshot_with_commits,
 )
 
@@ -382,9 +381,9 @@ def build_qlib_view(
             raise ArtifactError("adjusted QlibView requires an explicit PIT policy")
         if adjusted_price_view_id is None:
             raise ArtifactError("adjusted QlibView requires an explicit Derived ref")
-        from axiom_data.views import load_adjusted_price_view
+        from axiom_data.views import _load_adjusted_price_view
 
-        adjusted = load_adjusted_price_view(data_root, adjusted_price_view_id)
+        adjusted = _load_adjusted_price_view(data_root, adjusted_price_view_id, checked_reader=reader)
         if adjusted.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
             raise ArtifactError("QlibView Derived ref belongs to another Snapshot")
         if adjusted.manifest["scope"] != {
@@ -553,11 +552,15 @@ def build_qlib_view(
         _write_manifest(candidate, manifest)
 
     _publish_directory(layout, target, prepare, identity_digest=identity_digest)
-    return load_qlib_view(layout.root, view_id).ref
+    return _load_qlib_view(layout.root, view_id, checked_reader=reader).ref
 
 
 def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
     """Verify one exact view, all files, and its source Snapshot closure."""
+    return _load_qlib_view(data_root, view_id)
+
+
+def _load_qlib_view(data_root, view_id, *, checked_reader=None):
 
     if isinstance(view_id, str) and view_id.startswith("pr7-fact-"):
         from axiom_data.pr7_views import load_pr7_fact_view
@@ -582,14 +585,16 @@ def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
         snapshot_ref.get("snapshot_id"), str
     ):
         raise ArtifactError("QlibView snapshot ref is invalid")
-    snapshot = load_snapshot(layout.root, snapshot_ref["snapshot_id"])
+    from axiom_data.views import _view_reader
+    reader = _view_reader(layout.root, snapshot_ref["snapshot_id"], checked_reader)
+    snapshot = reader.snapshot
     if snapshot_ref != {
         "snapshot_id": snapshot.ref.snapshot_id,
         "identity_digest": snapshot.manifest["identity_digest"],
     }:
         raise ArtifactError("QlibView snapshot ref does not match its artifact")
     if manifest.get("schema_version") == "qlib_view.v2":
-        from axiom_data.views import load_adjusted_price_view
+        from axiom_data.views import _load_adjusted_price_view
 
         derived_refs = manifest.get("derived_refs")
         if not isinstance(derived_refs, list) or len(derived_refs) != 1:
@@ -597,7 +602,7 @@ def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
         ref = derived_refs[0]
         if not isinstance(ref, dict) or not isinstance(ref.get("view_id"), str):
             raise ArtifactError("adjusted QlibView Derived ref is invalid")
-        adjusted = load_adjusted_price_view(layout.root, ref["view_id"])
+        adjusted = _load_adjusted_price_view(layout.root, ref["view_id"], checked_reader=reader)
         if ref != {
             "view_id": adjusted.ref.view_id,
             "identity_digest": adjusted.manifest["identity_digest"],
