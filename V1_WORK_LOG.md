@@ -1,3 +1,11 @@
+# Snapshot publication validation checkpoint — 2026-09-10
+
+207/207 tests PASS (63.815s). Snapshot publication validates domain composition
+once, then independently validates its published manifest against those checked
+refs. Public loads always validate the full closure; no cross-call cache exists.
+Exact identity and later-corruption rejection remain tested. This removes one
+redundant full source replay during baseline publication. Stage 3/5 continues.
+
 # Daily dry-run checkpoint — 2026-09-10
 
 206/206 tests PASS (65.571s). Public plan_daily / plan-daily CLI inspect explicit

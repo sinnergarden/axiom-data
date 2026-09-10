@@ -1534,7 +1534,7 @@ def create_snapshot(
         prepare,
         identity_digest=identity_digest,
     )
-    return load_snapshot(layout.root, snapshot_id).ref
+    return _load_snapshot_with_commits(layout.root, snapshot_id, checked_commits=commits)[0].ref
 
 
 def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
@@ -1542,7 +1542,7 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     return _load_snapshot_with_commits(data_root, snapshot_id)[0]
 
 
-def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str):
+def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, checked_commits=None):
     """Return the already checked commits from this one Snapshot validation."""
 
     layout = _layout(data_root)
@@ -1586,7 +1586,12 @@ def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str):
         if not isinstance(ref, dict) or not isinstance(ref.get("domain_commit_id"), str):
             raise ArtifactError("DataSnapshot domain ref is invalid")
         ids[domain] = ref["domain_commit_id"]
-    commits = _checked_snapshot_commits(layout.root, ids)
+    # Publication has just validated this exact composition. Validate the stored
+    # Snapshot manifest against those commits without repeating all source replay.
+    # Public loads supply no cache and always validate the complete closure.
+    commits = _checked_snapshot_commits(layout.root, ids) if checked_commits is None else checked_commits
+    if set(commits) != set(ids):
+        raise ArtifactError('checked Snapshot composition is incomplete')
     for domain in ordered_domains:
         if domain_refs[domain] != _commit_ref(commits[domain]):
             raise ArtifactError("DataSnapshot domain ref digest mismatch")

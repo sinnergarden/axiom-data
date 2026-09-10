@@ -8,6 +8,24 @@ from axiom_data import artifacts
 from test_pr3_vertical_slice import load_fixture,collect_fixture,build_fixture
 
 class ReaderValidationReuseTest(unittest.TestCase):
+    def test_publication_checks_composition_once_and_public_load_checks_again(self):
+        from axiom_data import create_snapshot, load_snapshot
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);fixture=load_fixture('listing_slice')
+            ids,_=collect_fixture(root,fixture);refs=build_fixture(root,fixture,ids)
+            reader=SnapshotReader(root,refs['snapshot'])
+            commits={d:c.ref.commit_id for d,c in reader.commits.items()}
+            with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as checked:
+                result=create_snapshot(root,commits)
+                self.assertEqual(checked.call_count,3)
+                self.assertEqual(result.snapshot_id,refs['snapshot'])
+                load_snapshot(root,result.snapshot_id)
+                self.assertEqual(checked.call_count,6)
+            c=reader.commits['market_daily'];p=root/'canonical/market_daily/commits'/c.ref.commit_id/'rows.json'
+            p.chmod(0o600);p.write_bytes(p.read_bytes()+b' ')
+            with self.assertRaises(ArtifactError):create_snapshot(root,commits)
+            with self.assertRaises(ArtifactError):load_snapshot(root,result.snapshot_id)
+
     def test_inspection_validates_once_without_materializing_public_facts(self):
         from axiom_data.operations import inspect_snapshot
         from axiom_data.layout import DataRootLayout
