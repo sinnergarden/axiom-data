@@ -1404,13 +1404,14 @@ def _validated_domain_commit_with_raw_closure(
 ) -> tuple[DomainCommit, frozenset[str]]:
     layout = _layout(data_root)
     domain_commit_id = _identity("domain_commit_id", domain_commit_id)
-    raw_closure_cache: dict[tuple[str, str], frozenset[str]] = {}
+    from axiom_data.verification_cache import closure_cache
+    cache, raw_closure_cache = closure_cache(layout.root)
     commit = _validate_domain_commit_closure(
         layout.root,
         domain,
         domain_commit_id,
         set(),
-        {},
+        cache,
         raw_closure_cache,
     )
     return commit, raw_closure_cache[(domain, domain_commit_id)]
@@ -1444,7 +1445,8 @@ def _checked_snapshot_commits(
         ordered_domains = PR7_SNAPSHOT_DOMAINS
     else:
         raise ArtifactError("DataSnapshot requires exactly a registered domain set")
-    cache, raw_closure_cache = ({}, {}) if validation_cache is None else validation_cache
+    from axiom_data.verification_cache import closure_cache
+    cache, raw_closure_cache = closure_cache(data_root) if validation_cache is None else validation_cache
     commits = {
         domain: _validate_domain_commit_closure(
             data_root,

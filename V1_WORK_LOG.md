@@ -413,6 +413,20 @@ Official boundary implementation follow-up:
 
 # Axiom Data V1 operational release
 
+## Candidate verification reuse checkpoint — 2026-09-10
+
+231/231 tests PASS (71.322s) in the existing full-suite log. A copied frozen
+PR7 candidate build preserves `CANDIDATE_BUILT` while canonical-load calls fall
+from 65 to 19 (0.5673211719986284s to 0.2029224029975012s). The cache is scoped
+to one writer-controlled `assemble_candidate` call and matching data root;
+later calls, another root, and fresh Readers still validate from source, and a
+failed call clears its context. Evidence is in
+`reports/pr8/candidate_validation_reuse`.
+
+This is bounded validation-reuse evidence only. Full-root performance, full
+admission and baseline acceptance remain separate gates; baseline status is
+`NOT_ACCEPTED`. Stage 3/5 continues.
+
 ## Historical SW-only pilot decision (superseded by full-union qualification)
 
 SW2021 is the formal industry candidate. Qualify index_classify and

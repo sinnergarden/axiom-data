@@ -1,5 +1,20 @@
 # axiom-data working agreement
 
+## Model allocation
+
+Follow the workspace-wide model workflow in `../AGENTS.md`. Default routine
+implementation, script execution, tests, log summaries, evidence assembly and
+existing-run monitoring to **GPT-5.6 Luna** (`gpt-5.6-luna`, reasoning `high`). **GPT-6 Astra**
+(`gpt-6-astra`) owns task direction, contract/semantic decisions, blocker
+assessment and independent final acceptance. Give Luna bounded tasks with
+explicit artifact/run identities, file ownership and acceptance checks; pass
+only the context needed for the task. Escalate semantic conflicts or scope/risk
+changes with a concise reproducer, then return routine execution to Luna after
+the decision. Test execution and final acceptance are separate responsibilities.
+Do not silently replace unavailable Luna execution with bulk Astra work.
+This allocation preserves all terminal-outcome, immutable-artifact and scope
+rules below; it does not authorize a merge or broaden PR8.
+
 ## Mission
 
 `axiom-data` publishes immutable, versioned data artifacts and snapshot-bound

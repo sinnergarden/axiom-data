@@ -7,6 +7,7 @@ from axiom_data.artifacts import (ArtifactError, _digest, _json_bytes, _identity
     _layout, _safe_path, _ensure_directory, _write_file, _fsync_directory,
     load_raw_batch, load_snapshot)
 from axiom_data.publication import writer
+from axiom_data.verification_cache import candidate_verification
 
 
 def _save(path, value):
@@ -538,6 +539,7 @@ def repair(data_root, *, run_id, snapshot_id, domain_inputs):
                               parent_snapshot_id=concrete)
 
 
+@candidate_verification
 def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=None):
     """Build explicit changed domains and an immutable candidate; never promote it.
 
