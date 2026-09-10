@@ -1,0 +1,43 @@
+{
+  "domain_rows": 9151217,
+  "full_domain_validation_seconds": 226.22871880000093,
+  "max_rss_kib": 64644,
+  "qualification": "isolated query component after full DomainCommit validation; Snapshot startup excluded; single-run cache state uncontrolled",
+  "ready_for_consumption": false,
+  "results": {
+    "full_scan_reference": {
+      "io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 6179657214,
+        "read_bytes": 2464174080,
+        "syscr": 201154,
+        "syscw": 0,
+        "wchar": 0,
+        "write_bytes": 0
+      },
+      "logical_digest": "sha256:e8a0aa494357247bb2747c365a5642398e69c354e4502031ae97b9bd97b0caa8",
+      "objects": 153,
+      "rows": 4,
+      "seconds": 46.334220346998336,
+      "selected_object_bytes": 3089796676
+    },
+    "scoped_month_read": {
+      "io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 45820348,
+        "read_bytes": 16384,
+        "syscr": 1493,
+        "syscw": 0,
+        "wchar": 0,
+        "write_bytes": 0
+      },
+      "logical_digest": "sha256:e8a0aa494357247bb2747c365a5642398e69c354e4502031ae97b9bd97b0caa8",
+      "objects": 1,
+      "rows": 4,
+      "seconds": 0.274716656000237,
+      "selected_object_bytes": 22910111
+    }
+  },
+  "stage": "QUERY_EQUIVALENCE_VALIDATED",
+  "status": "COMPLETE"
+}

@@ -84,9 +84,10 @@ def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
          max(candidates,key=lambda r:(r['announcement'] or r['session'],r['report_period'] or r['session'])) if candidates else None)
     value=row['values'][field] if row else None
     reason=row['missing_reasons'].get(field) if row else 'no_observation_at_cutoff'
+    contract_version=reader.commits[domain].ref.contract_version
     metadata={'leaf':leaf,'symbol':symbol,'target_session':target_session,'snapshot_id':reader.snapshot.ref.snapshot_id,
-        'contract_version':domain+'.v1','domain_commit_id':reader.commits[domain].ref.commit_id,
-        'value':value,'unit':load_contract(domain+'.v1')['value_units'][field],
+        'contract_version':contract_version,'domain_commit_id':reader.commits[domain].ref.commit_id,
+        'value':value,'unit':load_contract(contract_version)['value_units'][field],
         'validity':'valid' if value is not None else 'missing','missing_reason':reason,
         'pit_policy':pit_policy,'knowledge_cutoff':instant(knowledge_cutoff).isoformat(),
         'pit_qualification':row['pit_qualification'] if row else 'unknown',

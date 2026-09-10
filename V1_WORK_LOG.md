@@ -1,3 +1,11 @@
+# Contract metadata checkpoint — 2026-09-10
+
+210/210 tests PASS (63.327s). PR7 leaf metadata now uses the Snapshot domain's
+actual contract version and units, including forecast_observations.v2 and missing
+facts. Existing v1 domain output remains unchanged. Full-market query evidence
+is in reports/pr8/session_read_performance; startup validation is excluded.
+Canonical queue and all remaining V1 gates continue, stage 3/5.
+
 # Session read checkpoint — 2026-09-10
 
 209/209 tests PASS (61.971s). After complete Reader validation, bounded session

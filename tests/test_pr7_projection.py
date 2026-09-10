@@ -28,7 +28,7 @@ def report(period,value,observed,domain='holder_count_events',symbol='600000.SH'
 class Reader:
     def __init__(self,exchanges=('SSE','SZSE'),rows=(),closed=()):
         self.snapshot=SimpleNamespace(ref=SimpleNamespace(snapshot_id='snapshot-test'))
-        self.commits={d:SimpleNamespace(ref=SimpleNamespace(commit_id=d)) for d in set(LEAF_DOMAINS.values())}
+        self.commits={d:SimpleNamespace(ref=SimpleNamespace(commit_id=d,contract_version=d+'.v1')) for d in set(LEAF_DOMAINS.values())}
         self.rows=rows
         self.securities=[{'symbol':s,'exchange':e} for s,e in zip(SYMBOLS,['SSE','SZSE'])]
         self.calendar=[{'exchange':e,'session':day,'is_open':(e,day) not in closed}
@@ -48,6 +48,15 @@ class Pr7ProjectionTest(unittest.TestCase):
         return leaf_facts(reader,leaf,symbol=symbol,target_session='2025-06-04',knowledge_cutoff=cutoff,pit_policy='operational_pit_v1')
     def projection(self,reader,symbols=SYMBOLS):
         return project(reader,dict(symbols=symbols,start_session='2025-06-02',end_session='2025-06-04'), 'operational_pit_v1','2025-06-04T23:59:59+08:00')
+    def test_forecast_metadata_declares_snapshot_contract_even_when_missing(self):
+        reader=Reader()
+        for version in ['forecast_observations.v1','forecast_observations.v2']:
+            reader.commits['forecast_observations'].ref.contract_version=version
+            fact=self.fact(reader,'forecast.type')
+            self.assertEqual(fact['contract_version'],version)
+            self.assertEqual(fact['missing_reason'],'no_observation_at_cutoff')
+            payload=self.projection(reader)
+            self.assertTrue(all(row['facts']['forecast.type']['contract_version']==version for row in payload['wide']))
     def test_old_period_late_revision_cannot_replace_q1(self):
         for domain,leaf in [('holder_count_events','holder.number'),('top_holders_reports','holder.top10_ratio')]:
             with self.subTest(domain=domain):
