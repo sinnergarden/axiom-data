@@ -1,3 +1,12 @@
+# Validation applicability checkpoint — 2026-09-10
+
+reports/pr8/validation_applicability/report.json binds the actual 214-test PASS
+run, implementation and test/fixture digests, contract/profile versions, ruleset,
+semantic scope, reassessment triggers and limitations. Golden applicability is
+separate from actual coverage and does not expire solely on the next calendar day.
+This does not accept bootstrap data. Stage 3/5: limits is in terminal validation;
+the full candidate continuation and remaining V1 gates are still pending.
+
 # Scope inspection checkpoint — 2026-09-10
 
 214/214 tests PASS (64.388s). Public inspect_scope and inspect --scope report
