@@ -1,3 +1,11 @@
+# D-M1 View validation checkpoint — 2026-09-10
+
+221/221 tests PASS (64.011s). Adjusted and replay View publication reuse the
+same-call checked Reader; each new public load validates a fresh complete
+Snapshot. Real fixture identities are unchanged, and later source corruption
+still fails. Canonical-load calls drop to 18 per build/public load from 25–54.
+See reports/pr8/dm1_view_validation_reuse. Stage 3/5 and V1 gates continue.
+
 # Required View operation checkpoint — 2026-09-10
 
 220/220 tests PASS (69.117s). Public materialize_views and thin materialize-views

@@ -26,8 +26,6 @@ from axiom_data.artifacts import (
     _validate_manifest_identity,
     _write_file,
     _write_manifest,
-    load_snapshot,
-    validate_domain_commit_closure,
 )
 from axiom_data.consumption import SnapshotReader, _session, _symbols
 from axiom_data.consumption import _ordered_row
@@ -215,10 +213,21 @@ def build_adjusted_price_view(
         _write_manifest(candidate, manifest)
 
     _publish_directory(_layout(data_root), target, prepare, identity_digest=identity_digest)
-    return load_adjusted_price_view(data_root, view_id).ref
+    return _load_adjusted_price_view(data_root, view_id, checked_reader=reader).ref
 
 
 def load_adjusted_price_view(data_root: str | Path, view_id: str) -> DerivedView:
+    return _load_adjusted_price_view(data_root, view_id)
+
+
+def _view_reader(data_root, snapshot_id, checked_reader):
+    reader = checked_reader if checked_reader is not None else SnapshotReader(data_root, snapshot_id)
+    if reader.data_root != _layout(data_root).root or reader.snapshot.ref.snapshot_id != snapshot_id:
+        raise ArtifactError('checked Reader does not match View root/Snapshot')
+    return reader
+
+
+def _load_adjusted_price_view(data_root, view_id, *, checked_reader=None):
     layout = _layout(data_root)
     view_id = _identity("view_id", view_id)
     target = _view_target(data_root, "adjusted_price", view_id)
@@ -234,20 +243,17 @@ def load_adjusted_price_view(data_root: str | Path, view_id: str) -> DerivedView
     snapshot_ref = manifest.get("snapshot_ref")
     if not isinstance(snapshot_ref, dict) or not isinstance(snapshot_ref.get("snapshot_id"), str):
         raise ArtifactError("adjusted-price Snapshot ref is invalid")
-    snapshot = load_snapshot(layout.root, snapshot_ref["snapshot_id"])
+    reader = _view_reader(layout.root, snapshot_ref["snapshot_id"], checked_reader)
+    snapshot = reader.snapshot
     if snapshot_ref != {
         "snapshot_id": snapshot.ref.snapshot_id,
         "identity_digest": snapshot.manifest["identity_digest"],
     }:
         raise ArtifactError("adjusted-price Snapshot ref mismatch")
-    commits = {}
     for domain in ("market_daily", "adjustment_factors"):
         expected = _snapshot_domain_ref(snapshot, domain)
         if manifest.get("domain_refs", {}).get(domain) != expected:
             raise ArtifactError("adjusted-price domain ref mismatch")
-        commits[domain] = validate_domain_commit_closure(
-            layout.root, domain, expected["domain_commit_id"]
-        )
     contract_ref = manifest.get("derived_contract")
     output = manifest.get("output")
     if not isinstance(contract_ref, dict) or not isinstance(output, dict):
@@ -299,12 +305,12 @@ def load_adjusted_price_view(data_root: str | Path, view_id: str) -> DerivedView
     selected = set(_symbols(scope["symbols"]))
     factor_rows = {
         (row["session"], row["symbol"]): row
-        for row in commits["adjustment_factors"].rows
+        for row in reader._session_rows("adjustment_factors", start, end)
         if row["symbol"] in selected and start <= row["session"] <= end
     }
     consumed_keys = {(anchor, symbol) for symbol in selected} | {
         (row["session"], row["symbol"])
-        for row in commits["market_daily"].rows
+        for row in reader._session_rows("market_daily", start, end)
         if row["symbol"] in selected
         and start <= row["session"] <= end
         and (row["session"], row["symbol"]) in factor_rows
@@ -600,10 +606,14 @@ def build_market_replay_view(
         _write_manifest(candidate, manifest)
 
     _publish_directory(_layout(data_root), target, prepare, identity_digest=identity_digest)
-    return load_market_replay_view(data_root, view_id).ref
+    return _load_market_replay_view(data_root, view_id, checked_reader=reader).ref
 
 
 def load_market_replay_view(data_root: str | Path, view_id: str) -> DerivedView:
+    return _load_market_replay_view(data_root, view_id)
+
+
+def _load_market_replay_view(data_root, view_id, *, checked_reader=None):
     layout = _layout(data_root)
     view_id = _identity("view_id", view_id)
     target = _view_target(data_root, "market_replay", view_id)
@@ -612,7 +622,8 @@ def load_market_replay_view(data_root: str | Path, view_id: str) -> DerivedView:
     snapshot_ref = manifest.get("snapshot_ref")
     if not isinstance(snapshot_ref, dict) or not isinstance(snapshot_ref.get("snapshot_id"), str):
         raise ArtifactError("MarketReplayView Snapshot ref is invalid")
-    snapshot = load_snapshot(layout.root, snapshot_ref["snapshot_id"])
+    reader = _view_reader(layout.root, snapshot_ref["snapshot_id"], checked_reader)
+    snapshot = reader.snapshot
     if snapshot_ref != {"snapshot_id": snapshot.ref.snapshot_id, "identity_digest": snapshot.manifest["identity_digest"]}:
         raise ArtifactError("MarketReplayView Snapshot ref mismatch")
     domain_refs = manifest.get("domain_refs")
@@ -651,7 +662,6 @@ def load_market_replay_view(data_root: str | Path, view_id: str) -> DerivedView:
         or policy.get("pit_policy") != "research_non_pit"
     ):
         raise ArtifactError("MarketReplayView temporal policy is invalid")
-    reader = SnapshotReader(layout.root, snapshot.ref.snapshot_id)
     qualification_rows = [
         *reader.facts(
             "security_status",
