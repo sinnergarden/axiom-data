@@ -355,12 +355,20 @@ class FactView:
         self.reader = SnapshotReader(data_root, snapshot_id)
         self.pr6 = None
         if pr6_fact_view_id is not None:
-            from axiom_data.pr6_views import load_pr6_fact_view
-            self.pr6 = load_pr6_fact_view(data_root, pr6_fact_view_id)
+            from axiom_data.pr6_views import _load_pr6_fact_view
+            layout = _layout(data_root)
+            identity = _identity('view_id', pr6_fact_view_id)
+            manifest, _ = _load_manifest(layout.root, layout.derived_commits('pr6_fact') / identity,
+                artifact_type='pr6_fact_view', schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2'),
+                identity_field='view_id', identity=identity)
+            # v1 keeps its frozen LegacyReader projection. v2 can share the
+            # complete closure checked in this constructor invocation.
+            self.pr6 = _load_pr6_fact_view(data_root, identity,
+                checked_reader=self.reader if manifest['schema_version']=='pr6_fact_view.v2' else None)
             if self.pr6.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
                 raise ArtifactError("PR6 FactView belongs to another Snapshot")
         self.adjusted = (
-            load_adjusted_price_view(data_root, adjusted_price_view_id)
+            _load_adjusted_price_view(data_root, adjusted_price_view_id, checked_reader=self.reader)
             if adjusted_price_view_id is not None
             else None
         )

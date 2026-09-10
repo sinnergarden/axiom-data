@@ -339,10 +339,10 @@ def compare_pr7_projection(data_root, snapshot_id, view_id, *, symbols, fields, 
     """Public acceptance probe using Reader PIT facts and Qlib's public row reader."""
     import math
     from axiom_data.consumption import SnapshotReader, QlibViewReader
-    from axiom_data.pr7_views import load_pr7_fact_view, LEAF_DOMAINS
+    from axiom_data.pr7_views import _load_pr7_fact_view, LEAF_DOMAINS
     from axiom_data.pit import instant
     reader = SnapshotReader(data_root, snapshot_id)
-    view = load_pr7_fact_view(data_root, view_id)
+    view = _load_pr7_fact_view(data_root, view_id, checked_reader=reader)
     if view.manifest['snapshot_ref']['snapshot_id'] != snapshot_id:
         raise ArtifactError('View/Snapshot mismatch')
     scope = view.manifest['scope']
@@ -350,7 +350,13 @@ def compare_pr7_projection(data_root, snapshot_id, view_id, *, symbols, fields, 
         or start_session < scope['start_session'] or end_session > scope['end_session']
         or start_session > end_session):
         raise ArtifactError('comparison outside View scope')
-    actual = {(r['symbol'], r['session']): r for r in QlibViewReader(data_root, view_id).market_daily(include_missing=True)
+    # The View files and full Snapshot were checked above in this call. Decode
+    # through the existing Qlib reader without another identical closure load.
+    binary = object.__new__(QlibViewReader)
+    binary.data_root = Path(data_root)
+    binary.view = view
+    binary.path = _layout(data_root).derived_commits('pr7_fact') / view_id
+    actual = {(r['symbol'], r['session']): r for r in binary.market_daily(include_missing=True)
               if r['symbol'] in symbols and start_session <= r['session'] <= end_session}
     expected_keys = {(r['symbol'], r['session']) for r in view.rows
                      if r['symbol'] in symbols and start_session <= r['session'] <= end_session}

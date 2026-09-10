@@ -1,3 +1,19 @@
+# Acceptance read checkpoint — 2026-09-10
+
+229/229 tests PASS (76.906s). FactView construction shares its checked Snapshot
+with current PR6 and adjusted Views; published PR6 v1 keeps LegacyReader dispatch.
+The public PR7 direct/Qlib comparison also validates one complete closure per
+call and decodes the checked View through the existing Qlib reader. Real copied
+fixture calls drop to 18 canonical loads for each operation; fresh calls still
+reject subsequent Raw corruption. No artifact schema or projection changes.
+
+Stage 3/5 continues. Daily source collection resumed after a transient DNS
+failure, preserving 18,174 successful request observations. New SW reference
+collection validates all four mapping conditions again (511 taxonomy / 7,908
+membership rows). Two index-weight responses contain 800 and 1,000 August 31
+members. Incremental reference checkpoints and full daily source/revision scans
+are separate from baseline acceptance. Full V1 gates remain incomplete.
+
 # Explicit observed Raw reuse checkpoint — 2026-09-10
 
 228/228 tests PASS (72.577s). Public daily/collect_requests accept explicit
