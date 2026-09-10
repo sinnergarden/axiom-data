@@ -60,3 +60,7 @@ Run from the repository root:
 ```text
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
+
+## Review before bulk build
+
+Follow the [V1 independent review checklist](docs/operations/v1-independent-review.md): Gate A must independently approve the formal entrypoint, configs/CLI, recovery, admission, terminal validator, tests, and source-preflight plan before any new full-history collection or large build. Until then, keep `NO_BULK_BUILD`; read-only Raw inspection, small real probes, and already-authorized in-flight work may continue only to an explicit checkpoint, without duplicate starts. After Gate A, run the lightweight domain/identity/calendar preflight, then build, then require Gate B artifact review against final snapshot/view schema, 56-requirements, and 469-dependency-matrix evidence.
