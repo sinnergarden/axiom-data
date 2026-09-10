@@ -1,3 +1,12 @@
+# Required View shared validation checkpoint — 2026-09-10
+
+223/223 tests PASS (63.096s). All five View kinds share one fully checked Reader
+inside materialize_views; public single builders use the same implementation
+with a fresh Reader. The real 18-domain fixture loads 18 commits for all five
+Views together and rejects a corrupted Snapshot on resume. No selector or
+artifact version changes. Stage 3/5: status terminal validation, then adjustment;
+full-scope audit waits on candidate r2. Remaining V1 gates are incomplete.
+
 # Market Qlib validation checkpoint — 2026-09-10
 
 222/222 tests PASS (63.461s). Market Qlib v1/v2 publication reuses its same-call

@@ -168,7 +168,14 @@ def _manifest(reader, scope, policy, cutoff, payload, bundle):
 
 def build_pr6_fact_view(data_root,snapshot_id,*,symbols,start_session,end_session,universe_ids,
                         industry_system,pit_policy,knowledge_cutoff):
-    reader=SnapshotReader(data_root,snapshot_id)
+    return _build_pr6_fact_view(SnapshotReader(data_root,snapshot_id),symbols=symbols,
+        start_session=start_session,end_session=end_session,universe_ids=universe_ids,
+        industry_system=industry_system,pit_policy=pit_policy,knowledge_cutoff=knowledge_cutoff)
+
+
+def _build_pr6_fact_view(reader,*,symbols,start_session,end_session,universe_ids,
+                         industry_system,pit_policy,knowledge_cutoff):
+    data_root=reader.data_root
     scope={'symbols':list(_symbols(symbols)),'start_session':start_session,'end_session':end_session,
            'universe_ids':list(universe_ids),'industry_system':industry_system}
     payload=project(reader,scope,pit_policy,knowledge_cutoff)

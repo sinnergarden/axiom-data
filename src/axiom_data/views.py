@@ -82,7 +82,14 @@ def build_adjusted_price_view(
 ) -> DerivedViewRef:
     """Materialize the reviewed factor-ratio formula with one explicit anchor."""
 
-    reader = SnapshotReader(data_root, snapshot_id)
+    return _build_adjusted_price_view(SnapshotReader(data_root, snapshot_id),
+        symbols=symbols,start_session=start_session,end_session=end_session,anchor_session=anchor_session,
+        pit_policy=pit_policy,decision_cutoff=decision_cutoff,created_at=created_at)
+
+
+def _build_adjusted_price_view(reader, *, symbols, start_session, end_session,
+                               anchor_session, pit_policy, decision_cutoff, created_at=None):
+    data_root = reader.data_root
     snapshot = reader.snapshot
     selected = _symbols(symbols)
     start = _session(start_session, "start_session")
@@ -514,7 +521,12 @@ def build_market_replay_view(
 ) -> DerivedViewRef:
     """Materialize replay facts only; execution, cash, and positions remain absent."""
 
-    reader = SnapshotReader(data_root, snapshot_id)
+    return _build_market_replay_view(SnapshotReader(data_root, snapshot_id),
+        symbols=symbols,start_session=start_session,end_session=end_session,created_at=created_at)
+
+
+def _build_market_replay_view(reader, *, symbols, start_session, end_session, created_at=None):
+    data_root = reader.data_root
     selected = _symbols(symbols)
     start = _session(start_session, "start_session")
     end = _session(end_session, "end_session")

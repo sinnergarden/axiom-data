@@ -20,8 +20,14 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
     from axiom_data.consumption import build_qlib_view
     from axiom_data.pr6_views import build_pr6_fact_view
     from axiom_data.pr7_views import build_pr7_fact_view
+    from axiom_data.views import _build_adjusted_price_view, _build_market_replay_view
+    from axiom_data.consumption import SnapshotReader, _build_qlib_view
+    from axiom_data.pr6_views import _build_pr6_fact_view
+    from axiom_data.pr7_views import _build_pr7_fact_view
     builders={'adjusted_price':build_adjusted_price_view,'market_replay':build_market_replay_view,
               'market_qlib':build_qlib_view,'pr6_fact':build_pr6_fact_view,'pr7_fact':build_pr7_fact_view}
+    checked_builders={'adjusted_price':_build_adjusted_price_view,'market_replay':_build_market_replay_view,
+        'market_qlib':_build_qlib_view,'pr6_fact':_build_pr6_fact_view,'pr7_fact':_build_pr7_fact_view}
     concrete=_validate_identity('snapshot_id',snapshot_id);_identity('run_id',run_id)
     if not isinstance(views,dict) or not views:raise ArtifactError('explicit nonempty required View plan required')
     frozen=json.loads(_json_bytes(views))
@@ -45,10 +51,14 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
             raise ArtifactError('required View resume plan or implementation changed')
         state.update(status='RUNNING',stage='REQUIRED_VIEWS',ready_for_consumption=False,failed={})
         _save(path,state)
+        try:reader=SnapshotReader(layout.root,concrete)
+        except Exception as exc:
+            state.update(status='FAILED',failed={'snapshot':{'error_type':type(exc).__name__}})
+            _save(path,state);return state
         for label,spec in frozen.items():
             state['active_view']=label;_save(path,state);started=time.monotonic()
             try:
-                ref=builders[spec['kind']](layout.root,concrete,**spec['config'])
+                ref=checked_builders[spec['kind']](reader,**spec['config'])
                 result={'kind':spec['kind'],'view_id':ref.view_id,'manifest_digest':ref.manifest_digest}
                 old=state['published_views'].get(label)
                 if old is not None and old!=result:raise ArtifactError('required View resume result differs from frozen request')

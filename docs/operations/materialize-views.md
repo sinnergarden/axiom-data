@@ -1,7 +1,7 @@
 # Required View stage
 
 `axiom_data.materialize_views(root, run_id=..., snapshot_id=..., views=...)`
-materializes an explicit nonempty plan through the existing public View builders.
+materializes an explicit nonempty plan through the same implementations as the existing public View builders.
 Each label has `kind` and `config`. Kinds are `adjusted_price`, `market_replay`,
 `market_qlib`, `pr6_fact`, and `pr7_fact`; config uses that builder's arguments.
 Snapshot identity must be concrete. Cross-View references, such as an adjusted
@@ -23,3 +23,8 @@ VIEWS_BUILT means this stage passed and full admission remains pending;
 ready_for_consumption stays false. It does not move a pointer or accept a baseline.
 Reports include individual View build times. Full-root cost must be measured
 separately from fixture validation.
+
+One operation constructs a fully validated Reader and shares it among its View
+builds and their written-artifact checks. Individual public builders still create
+a fresh Reader. A new operation or public load revalidates the Snapshot closure;
+there is no cross-call correctness cache.

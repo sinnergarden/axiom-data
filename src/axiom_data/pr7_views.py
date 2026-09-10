@@ -169,7 +169,12 @@ def manifest_for(reader,scope,policy,cutoff,payload,bundle):
 
 
 def build_pr7_fact_view(data_root,snapshot_id,*,symbols,start_session,end_session,pit_policy,knowledge_cutoff):
-    reader=SnapshotReader(data_root,snapshot_id);scope={'symbols':list(_symbols(symbols)),'start_session':start_session,'end_session':end_session}
+    return _build_pr7_fact_view(SnapshotReader(data_root,snapshot_id),symbols=symbols,
+        start_session=start_session,end_session=end_session,pit_policy=pit_policy,knowledge_cutoff=knowledge_cutoff)
+
+
+def _build_pr7_fact_view(reader,*,symbols,start_session,end_session,pit_policy,knowledge_cutoff):
+    data_root=reader.data_root;scope={'symbols':list(_symbols(symbols)),'start_session':start_session,'end_session':end_session}
     payload=project(reader,scope,pit_policy,knowledge_cutoff)
     source=Path(str(files('axiom_data')));bundle={p.relative_to(source).as_posix():p.read_text() for p in sorted(source.rglob('*')) if p.is_file() and p.suffix in {'.py','.json'}}
     manifest=manifest_for(reader,scope,pit_policy,knowledge_cutoff,payload,bundle)

@@ -18,7 +18,7 @@ class ViewOperationTest(unittest.TestCase):
             root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
             try:
                 args=dict(run_id='required-views',snapshot_id=run['refs']['snapshot_id'],views=views)
-                with patch('axiom_data.pr7_views.build_pr7_fact_view',side_effect=ArtifactError('simulated required failure')):
+                with patch('axiom_data.pr7_views._build_pr7_fact_view',side_effect=ArtifactError('simulated required failure')):
                     failed=materialize_views(root,**args)
                 self.assertEqual(failed['status'],'FAILED');self.assertEqual(set(failed['published_views']),{'adjusted'})
                 self.assertFalse(failed['ready_for_consumption'])
@@ -40,3 +40,34 @@ class ViewOperationTest(unittest.TestCase):
             finally:
                 for p in root.rglob('*'):
                     if p.is_dir():p.chmod(0o755)
+
+    def test_all_five_view_kinds_share_one_checked_snapshot(self):
+        from axiom_data import artifacts, SnapshotReader
+        run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
+        original=Path(run['source_root'])
+        old=json.loads((original/'derived/pr6_fact/commits'/run['refs']['pr6_view_id']/'manifest.json').read_bytes())
+        common=dict(symbols=['688981.SH'],start_session='2025-06-10',end_session='2025-06-13')
+        pit=dict(pit_policy='best_effort_vendor_v1',knowledge_cutoff='2025-06-13T23:59:59+08:00')
+        plan={
+            'adjusted':dict(kind='adjusted_price',config=dict(common,anchor_session='2025-06-13',pit_policy='research_non_pit',decision_cutoff='2025-06-13')),
+            'replay':dict(kind='market_replay',config=common),
+            'qlib':dict(kind='market_qlib',config=dict(common,fields=['close'])),
+            'pr6':dict(kind='pr6_fact',config=dict(common,**pit,universe_ids=old['scope']['universe_ids'],industry_system=old['scope']['industry_system'])),
+            'pr7':dict(kind='pr7_fact',config=dict(common,**pit))}
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)/'data';shutil.copytree(original,root)
+            try:
+                with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as checked:
+                    result=materialize_views(root,run_id='five',snapshot_id=run['refs']['snapshot_id'],views=plan)
+                    self.assertEqual(result['status'],'VIEWS_BUILT',result.get('failed'))
+                    self.assertEqual(checked.call_count,18)
+                self.assertEqual(len(result['published_views']),5)
+                reader=SnapshotReader(root,run['refs']['snapshot_id'])
+                path=root/'canonical/market_daily/commits'/reader.commits['market_daily'].ref.commit_id/'rows.json'
+                path.chmod(0o600);path.write_bytes(path.read_bytes()+b' ')
+                result=materialize_views(root,run_id='five',snapshot_id=run['refs']['snapshot_id'],views=plan)
+                self.assertEqual(result['status'],'FAILED');self.assertEqual(set(result['failed']),{'snapshot'})
+                self.assertFalse(result['ready_for_consumption'])
+            finally:
+                for path in root.rglob('*'):
+                    if path.is_dir():path.chmod(0o755)

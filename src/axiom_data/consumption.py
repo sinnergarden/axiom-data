@@ -358,7 +358,16 @@ def build_qlib_view(
 ) -> QlibViewRef:
     """Atomically create one immutable Qlib binary view from an explicit Snapshot."""
 
-    reader = SnapshotReader(data_root, snapshot_id)
+    return _build_qlib_view(SnapshotReader(data_root, snapshot_id),symbols=symbols,
+        start_session=start_session,end_session=end_session,fields=fields,
+        adjusted_price_view_id=adjusted_price_view_id,price_basis=price_basis,pit_policy=pit_policy,
+        decision_cutoff=decision_cutoff,created_at=created_at)
+
+
+def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARKET_VIEW_FIELDS,
+                     adjusted_price_view_id=None, price_basis='unadjusted',pit_policy='best_effort',
+                     decision_cutoff=None,created_at=None):
+    data_root = reader.data_root
     selected = _symbols(symbols)
     start = _session(start_session, "start_session")
     end = _session(end_session, "end_session")
@@ -384,7 +393,7 @@ def build_qlib_view(
         from axiom_data.views import _load_adjusted_price_view
 
         adjusted = _load_adjusted_price_view(data_root, adjusted_price_view_id, checked_reader=reader)
-        if adjusted.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
+        if adjusted.manifest["snapshot_ref"]["snapshot_id"] != reader.snapshot.ref.snapshot_id:
             raise ArtifactError("QlibView Derived ref belongs to another Snapshot")
         if adjusted.manifest["scope"] != {
             "symbols": list(selected),
