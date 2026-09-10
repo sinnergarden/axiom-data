@@ -1,3 +1,15 @@
+# Fact publication / canonical checkpoint — 2026-09-10
+
+212/212 tests PASS (65.756s). PR6/PR7 Fact publication reuses its same-call checked
+Reader for independent written-View replay. Each public load still validates a
+fresh full Snapshot closure; real fixture tests verify one build validation,
+later-load validation and corruption rejection. Legacy version dispatch remains.
+
+Moneyflow independently validated: 8,871,536 rows / 153 partitions / 3,305.183s,
+17,133,240 KiB peak RSS. Main capital closure validated in 430.128s. Fourteen of
+18 domains validated; limits, valuation, status and adjustment remain queued.
+Stage 3/5 and all remaining V1 terminal gates continue.
+
 # Public repair checkpoint — 2026-09-10
 
 211/211 tests PASS (64.350s). Public repair API and thin CLI use the existing

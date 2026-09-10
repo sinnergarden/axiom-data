@@ -159,10 +159,14 @@ def build_pr7_fact_view(data_root,snapshot_id,*,symbols,start_session,end_sessio
             (candidate/path).parent.mkdir(parents=True,exist_ok=True);_write_file(candidate/path,content)
         _write_manifest(candidate,manifest)
     _publish_directory(layout,target,prepare,identity_digest=identity)
-    return load_pr7_fact_view(data_root,view_id).ref
+    return _load_pr7_fact_view(data_root,view_id,checked_reader=reader).ref
 
 
 def load_pr7_fact_view(data_root,view_id):
+    return _load_pr7_fact_view(data_root,view_id)
+
+
+def _load_pr7_fact_view(data_root,view_id,*,checked_reader=None):
     view_id=_identity('view_id',view_id);layout=_layout(data_root);target=layout.derived_commits('pr7_fact')/view_id
     manifest,digest=_load_manifest(layout.root,target,artifact_type='pr7_fact_view',schema_version=('pr7_fact_view.v1','pr7_fact_view.v2'),identity_field='view_id',identity=view_id)
     _validate_manifest_identity(manifest,'view_id','pr7-fact',view_id)
@@ -170,7 +174,10 @@ def load_pr7_fact_view(data_root,view_id):
         from axiom_data.pr7_views_v1 import project as projection, manifest_for as make_manifest, payload_files as make_files
     else:
         projection,make_manifest,make_files=project,manifest_for,payload_files
-    reader=SnapshotReader(data_root,manifest['snapshot_ref']['snapshot_id'])
+    reader=checked_reader or SnapshotReader(data_root,manifest['snapshot_ref']['snapshot_id'])
+    if (Path(reader.data_root).resolve()!=layout.root.resolve() or
+        reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
+        raise ArtifactError('checked Reader does not match PR7 View Snapshot')
     payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):raise ArtifactError('invalid code bundle')

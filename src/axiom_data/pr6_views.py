@@ -183,10 +183,14 @@ def build_pr6_fact_view(data_root,snapshot_id,*,symbols,start_session,end_sessio
             (candidate/path).parent.mkdir(parents=True,exist_ok=True);_write_file(candidate/path,content)
         _write_manifest(candidate,manifest)
     _publish_directory(layout,target,prepare,identity_digest=identity)
-    return load_pr6_fact_view(data_root,view_id).ref
+    return _load_pr6_fact_view(data_root,view_id,checked_reader=reader).ref
 
 
 def load_pr6_fact_view(data_root,view_id):
+    return _load_pr6_fact_view(data_root,view_id)
+
+
+def _load_pr6_fact_view(data_root,view_id,*,checked_reader=None):
     view_id=_identity('view_id',view_id)
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
     manifest,digest=_load_manifest(layout.root,target,artifact_type='pr6_fact_view',
@@ -197,7 +201,12 @@ def load_pr6_fact_view(data_root,view_id):
     else:
         LegacyReader,projection,manifest_builder,payload_files=SnapshotReader,project,_manifest,_files
     _validate_manifest_identity(manifest,'view_id','pr6-fact',view_id)
-    reader=LegacyReader(data_root,manifest['snapshot_ref']['snapshot_id'])
+    if checked_reader is not None and declared!='pr6_fact_view.v2':
+        raise ArtifactError('legacy PR6 View requires its declared Reader')
+    reader=checked_reader or LegacyReader(data_root,manifest['snapshot_ref']['snapshot_id'])
+    if (Path(reader.data_root).resolve()!=layout.root.resolve() or
+        reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
+        raise ArtifactError('checked Reader does not match PR6 View Snapshot')
     payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):
