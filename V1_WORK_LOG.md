@@ -1,3 +1,13 @@
+# Market source scan and holder canonical checkpoint — 2026-09-10
+
+192/192 tests PASS (134.099s). Full market scan found four failing security
+histories; v3 passes all four after exact issuer-qualified timing cases and
+R-event filtering before daily halt keys. Raw/older profiles unchanged.
+Holder canonical is validated: 338,076 rows / 22 partitions; exact ID and
+measurements in reports/pr8/full_scale_preparation/REPORT.md.
+Stage 3/5 continues; market v3 full canonical, all other domain canonical,
+56/469 admission, baseline and stages 4–5 remain due. No pointer/merge/push.
+
 # D-M1 materialization checkpoint — 2026-09-10
 
 190/190 tests PASS (137.532s). Six reference mappers now support bounded

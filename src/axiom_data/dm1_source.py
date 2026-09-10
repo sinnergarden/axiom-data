@@ -461,12 +461,17 @@ class TushareDm1Builder(MarketDomainBuilder):
             daily[key] = raw
         suspended: dict[tuple[str, str], RawBatch] = {}
         for row, raw in tables["suspend_d"]:
-            if 'session_suspension_policy' in self.builder_config:
-                from axiom_data.session_suspension import qualified_partial_halt
-                if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date'))),policy=self.builder_config['session_suspension_policy']):
+            if self.builder_config.get('session_suspension_policy')=='session_suspension.v3':
+                from axiom_data.session_suspension import qualified_daily_state
+                if qualified_daily_state(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date'))))!='full_day_halt':
                     continue
-            if row.get("suspend_timing") not in (None, ""):
-                raise ArtifactError("intraday suspension timing is unsupported in D-M1")
+            else:
+                if 'session_suspension_policy' in self.builder_config:
+                    from axiom_data.session_suspension import qualified_partial_halt
+                    if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date'))),policy=self.builder_config['session_suspension_policy']):
+                        continue
+                if row.get("suspend_timing") not in (None, ""):
+                    raise ArtifactError("intraday suspension timing is unsupported in D-M1")
             if row.get("suspend_type") == "S":
                 key = (_source_symbol(row.get("ts_code")), _source_date(row.get("trade_date")))
                 suspended[key] = raw

@@ -598,12 +598,21 @@ class TushareMarketBuilder(MarketDomainBuilder):
             keyed[endpoint] = {}
             for row in table.values():
                 if endpoint == "suspend_d":
-                    if partial_halts:
-                        from axiom_data.session_suspension import qualified_partial_halt
-                        if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date'))),policy=partial_halts if isinstance(partial_halts,str) else 'session_suspension.v1'):
+                    if partial_halts=='session_suspension.v3':
+                        from axiom_data.session_suspension import qualified_daily_state
+                        if qualified_daily_state(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date'))))!='full_day_halt':
                             continue
-                    if row.get('suspend_timing') not in (None,''):
-                        raise ArtifactError("unsupported non-full-day suspend_timing")
+                    else:
+                        if partial_halts:
+                            from axiom_data.session_suspension import qualified_partial_halt
+                            if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date'))),policy=partial_halts if isinstance(partial_halts,str) else 'session_suspension.v1'):
+                                continue
+                        if row.get('suspend_timing') not in (None,''):
+                            raise ArtifactError("unsupported non-full-day suspend_timing")
+                        if partial_halts=='session_suspension.v2':
+                            from axiom_data.session_suspension import is_halt_event
+                            if not is_halt_event(row):
+                                continue
                 key = in_scope(row)
                 if key is not None:
                     if key in keyed[endpoint]:

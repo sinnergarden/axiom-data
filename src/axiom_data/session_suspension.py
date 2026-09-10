@@ -9,10 +9,38 @@ from axiom_data.artifacts import ArtifactError,_digest,_json_bytes
 def bind_profile(config):
     if 'session_suspension_policy' not in config:return
     version=config['session_suspension_policy']
-    if version not in {'session_suspension.v1','session_suspension.v2'}:raise ArtifactError('unknown session suspension policy')
+    if version not in {'session_suspension.v1','session_suspension.v2','session_suspension.v3'}:raise ArtifactError('unknown session suspension policy')
     profile=json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
     config['session_suspension_profile_digest']=_digest(_json_bytes(profile))
     config['session_suspension_code']=_digest(files('axiom_data').joinpath('session_suspension.py').read_bytes())
+
+
+def is_halt_event(row):
+    """R events never assert a canonical full-day halt or a traded daily bar."""
+    if row.get('suspend_type') not in {'S','R'}:
+        raise ArtifactError('unknown suspension event type')
+    return row['suspend_type']=='S'
+
+
+def qualified_daily_state(row,daily):
+    """V3 exact, issuer-qualified cases; all other halt records use v2 rules."""
+    if not is_halt_event(row):return 'resumption'
+    profile=json.loads(files('axiom_data.source_profiles').joinpath('session_suspension.v3.json').read_bytes())
+    case=next((c for c in profile['qualified_daily_cases']
+        if (c['symbol'],c['session'])==(row.get('ts_code'),row.get('trade_date'))),None)
+    if case is not None:
+        if (row.get('suspend_timing'),row.get('suspend_type'))!=(case['source_timing'],case['source_type']):
+            raise ArtifactError('qualified suspension source signature changed')
+        if case['canonical_day_state']=='full_day_halt':
+            if daily is not None:raise ArtifactError('qualified full-day halt conflicts with daily evidence')
+            return 'full_day_halt'
+        volume=daily.get('vol') if daily else None
+        if (not daily or (daily.get('ts_code'),daily.get('trade_date'))!=(row.get('ts_code'),row.get('trade_date'))
+            or isinstance(volume,bool) or not isinstance(volume,(int,float)) or not math.isfinite(volume) or volume<=0):
+            raise ArtifactError('qualified traded halt lacks same-session positive-volume evidence')
+        return 'traded'
+    if qualified_partial_halt(row,daily,policy='session_suspension.v2'):return 'traded'
+    return 'full_day_halt'
 
 
 def qualified_partial_halt(row, daily, policy='session_suspension.v1'):

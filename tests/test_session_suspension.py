@@ -3,10 +3,42 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from axiom_data import ArtifactError,TushareMarketBuilder,TushareDm1Builder
-from axiom_data.session_suspension import qualified_partial_halt
+from axiom_data.session_suspension import qualified_partial_halt,qualified_daily_state
 
 
 class SessionSuspensionTest(unittest.TestCase):
+    def test_v3_only_applies_exact_issuer_qualified_cases(self):
+        fixture=json.loads(Path('tests/fixtures/session_suspension_v3.json').read_bytes())
+        frozen=json.dumps(fixture,sort_keys=True)
+        for item in fixture:
+            row,daily=item['row'],item['daily']
+            expected='traded' if daily else 'full_day_halt'
+            self.assertEqual(qualified_daily_state(row,daily),expected)
+            grouped={k:[] for k in ('daily','adj_factor','daily_basic','stk_limit','suspend_d')}
+            grouped.update(daily=[daily] if daily else [],suspend_d=[row])
+            result=TushareMarketBuilder._market_rows(grouped,{row['ts_code']},'2014-01-01','2026-09-08',partial_halts='session_suspension.v3')
+            self.assertEqual(len(result),1)
+            self.assertEqual(result[0]['is_suspended'],daily is None)
+            with self.assertRaises(ArtifactError):qualified_daily_state(dict(row,suspend_timing=None),daily)
+            contradictory=None if daily else {'ts_code':row['ts_code'],'trade_date':row['trade_date'],'vol':1}
+            with self.assertRaises(ArtifactError):qualified_daily_state(row,contradictory)
+            with self.assertRaises(ArtifactError):qualified_daily_state(dict(row,ts_code='600000.SH'),daily)
+        self.assertEqual(json.dumps(fixture,sort_keys=True),frozen)
+
+    def test_resumption_event_does_not_collide_with_full_day_halt_key(self):
+        rows=[{'ts_code':'002731.SZ','trade_date':'20260706','suspend_timing':None,'suspend_type':kind}
+              for kind in ('S','R')]
+        grouped={k:[] for k in ('daily','adj_factor','daily_basic','stk_limit','suspend_d')}
+        for observations in (rows,list(reversed(rows))):
+            grouped['suspend_d']=observations
+            result=TushareMarketBuilder._market_rows(grouped,{'002731.SZ'},'2014-01-01','2026-09-08',partial_halts='session_suspension.v2')
+            self.assertEqual(len(result),1)
+            self.assertTrue(result[0]['is_suspended'])
+            self.assertEqual(result[0]['volume_shares'],0)
+            self.assertIsNone(result[0]['close'])
+        grouped['suspend_d']=[rows[1]]
+        self.assertEqual(TushareMarketBuilder._market_rows(grouped,{'002731.SZ'},'2014-01-01','2026-09-08',partial_halts='session_suspension.v2'),[])
+
     def test_v2_real_multiple_intervals_and_opening_auction_boundary(self):
         fixture=json.loads(Path('tests/fixtures/session_suspension_v2.json').read_bytes())
         for item in fixture:

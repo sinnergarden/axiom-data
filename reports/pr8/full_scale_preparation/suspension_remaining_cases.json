@@ -1,0 +1,47 @@
+[
+  {
+    "raw_id": "tushare-suspend_d-fd8e8a59df046930891f78a2bef32bc08ed31474fd2e4492ba504f63cd1ed3cb",
+    "row": {
+      "suspend_timing": "13:00-9:30",
+      "suspend_type": "S",
+      "trade_date": "20260109",
+      "ts_code": "603056.SH"
+    },
+    "daily": {
+      "amount": 63988.132,
+      "change": 0.14,
+      "close": 14.04,
+      "high": 14.19,
+      "low": 13.85,
+      "open": 13.9,
+      "pct_chg": 1.0072,
+      "pre_close": 13.9,
+      "trade_date": "20260109",
+      "ts_code": "603056.SH",
+      "vol": 45364.0
+    },
+    "error": "unsupported suspension timing interval"
+  },
+  {
+    "raw_id": "tushare-suspend_d-7082b5ecb222e5c664c56188bad5b41d2b7613f9969874ae5c79f155328b87ec",
+    "row": {
+      "suspend_timing": "09:30-09:30",
+      "suspend_type": "S",
+      "trade_date": "20260116",
+      "ts_code": "688005.SH"
+    },
+    "daily": null,
+    "error": "unsupported suspension timing interval"
+  },
+  {
+    "raw_id": "tushare-suspend_d-332d57622de157e7a07200de3d00b3887f8b205e5411e1113c3542033f38bcac",
+    "row": {
+      "suspend_timing": "09:30-09:30",
+      "suspend_type": "S",
+      "trade_date": "20251126",
+      "ts_code": "688766.SH"
+    },
+    "daily": null,
+    "error": "unsupported suspension timing interval"
+  }
+]

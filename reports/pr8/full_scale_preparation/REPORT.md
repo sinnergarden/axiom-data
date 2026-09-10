@@ -66,3 +66,19 @@ full-scope provenance hashes. All six reference domains match eager mapping,
 including source gaps and empty endpoint responses; incomplete request sets
 still fail. Dependency validation is cached only inside one mapping invocation.
 Full follow-up suite: 190/190 PASS, zero skips, 137.532 seconds.
+
+Full market mapping scan: 3,601 securities inspected under the frozen v2
+mapping; 3,597 passed, with failures confined to four securities. v3 passed
+all four remaining real histories. R events now leave full-day halt key
+construction before uniqueness checks, consistent with D-M1. They do not
+assert a traded bar. Three exact timing signatures have issuer-qualified daily
+states in session_suspension.v3; there is no general reversed/equal-clock rule.
+Raw and older mapping profiles remain unchanged. Primary PDF bytes are frozen
+by digest; source signatures and contradictory daily evidence fail closed.
+Full suite: 192/192 PASS, zero skips, 134.099 seconds.
+
+Holder canonical stage is independently validated:
+`holder_count_events-d2e03d72322d6254a9b95051e09276328a1e7ff0c576b48c7c2d35091ee68457`.
+338,076 rows, 22 immutable partitions, peak RSS 861,424 KiB, 132.303 seconds.
+Its original 3,601 RawBatches were imported by exact manifest/payload identity
+into the formal data root. This is not a baseline acceptance decision.

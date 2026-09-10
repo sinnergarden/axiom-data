@@ -308,7 +308,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             raise ArtifactError('unsupported security boundary policy')
         if 'industry_source_profile' in spec['config'] and (domain!='industry_membership' or spec['config']['industry_source_profile']!='tushare_sw2021.v1'):
             raise ArtifactError('unsupported industry source profile')
-        if 'session_suspension_policy' in spec['config'] and (domain not in {'market_daily','security_status'} or spec['config']['session_suspension_policy'] not in {'session_suspension.v1','session_suspension.v2'}):
+        if 'session_suspension_policy' in spec['config'] and (domain not in {'market_daily','security_status'} or spec['config']['session_suspension_policy'] not in {'session_suspension.v1','session_suspension.v2','session_suspension.v3'}):
             raise ArtifactError('unsupported session suspension policy')
         if 'market_source_partitioning' in spec['config'] and (domain!='market_daily' or spec['config']['market_source_partitioning']!='security.v1'):
             raise ArtifactError('unsupported market source partitioning')

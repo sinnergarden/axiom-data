@@ -1,0 +1,55 @@
+{
+  "profile_version": "session_suspension.v3",
+  "source_endpoints": [
+    "daily",
+    "suspend_d"
+  ],
+  "scope": "SSE/SZSE daily market and security-status facts",
+  "full_day": "An untimed S row without a daily bar retains the existing full-day inference. An untimed S row with an actual positive-volume bar is a traded day with an unspecified halt boundary, never a proven full-day halt. Explicit intervals covering all trading opportunities conflict with a traded daily bar and fail.",
+  "partial_day": "Parse literal ordered nonoverlapping comma-separated H:MM/HH:MM intervals from 09:00 through 15:00. A halt leaving some trading opportunities may coexist with a same-security/date finite positive-volume daily bar. Preserve the daily bar and set the full-day is_suspended flag false. normal_active means an observed traded day, not uninterrupted trading.",
+  "opening_auction": "09:30-15:00 starts after the 09:25 opening match. The daily bar proves trading but does not identify intraday execution times; do not invent an auction execution assertion.",
+  "failure": "Malformed/reversed/overlapping timing, intervals covering all trading opportunities, missing daily evidence and nonpositive volume fail closed.",
+  "raw": "Supplier timing and daily payloads remain unchanged and bound through ordered Raw refs.",
+  "qualification": "best_effort terminal supplier evidence; no verified intraday PIT claim",
+  "evidence_refs": [
+    "tushare-suspend_d-9f543f39ca9f1733b20ea02cbacc2f1c9e1b540275551c1003b7b88c3fb4fdbf",
+    "tushare-daily-f12d628195345e9740a168dd79ac9146a1af3cf2d170a01e8424a7c16a25b97e",
+    "https://www.szse.cn/aboutus/research/secuities/documents/t20040106_531488.html",
+    "https://investor.szse.cn/knowledge/stock/deal/t20191204_572383.html",
+    "https://www.fangda.com/uploadfiles/%E5%A4%8D%E7%89%8C%E5%85%AC%E5%91%8A%EF%BC%882015-32%EF%BC%89.pdf"
+  ],
+  "untimed_counterexample": "000055.SZ 2015-07-06: supplier timing null, daily positive volume, issuer announcement 2015-32 explicitly confirms intraday suspension. Empty timing cannot universally prove no intraday trading.",
+  "anomaly_policy": "Only the three exact source signatures below have independently qualified daily states. Raw timing remains unchanged. Do not infer next-day/overnight duration from other reversed or equal clock intervals. Changed signatures or contradictory daily evidence fail and require a new mapping revision.",
+  "qualified_daily_cases": [
+    {
+      "symbol": "603056.SH",
+      "session": "20260109",
+      "source_timing": "13:00-9:30",
+      "source_type": "S",
+      "canonical_day_state": "traded",
+      "raw_evidence_ref": "tushare-suspend_d-fd8e8a59df046930891f78a2bef32bc08ed31474fd2e4492ba504f63cd1ed3cb",
+      "primary_evidence_url": "https://file.finance.sina.com.cn/211.154.219.97:9494/MRGG/CNSESH_STOCK/2026/2026-1/2026-01-14/11914238.PDF",
+      "primary_evidence_sha256": "a5d013b2505a8bd65d42c84b20acfe54264d7a23ba4080971bede4900b05b71b"
+    },
+    {
+      "symbol": "688005.SH",
+      "session": "20260116",
+      "source_timing": "09:30-09:30",
+      "source_type": "S",
+      "canonical_day_state": "full_day_halt",
+      "raw_evidence_ref": "tushare-suspend_d-7082b5ecb222e5c664c56188bad5b41d2b7613f9969874ae5c79f155328b87ec",
+      "primary_evidence_url": "https://star.sse.com.cn/disclosure/listedinfo/announcement/c/new/2026-01-16/688005_20260116_ZIG4.pdf",
+      "primary_evidence_sha256": "e5fbe29827e1e6411ea90984027161f336b1623d998d4d012494f64c120d37bf"
+    },
+    {
+      "symbol": "688766.SH",
+      "session": "20251126",
+      "source_timing": "09:30-09:30",
+      "source_type": "S",
+      "canonical_day_state": "full_day_halt",
+      "raw_evidence_ref": "tushare-suspend_d-332d57622de157e7a07200de3d00b3887f8b205e5411e1113c3542033f38bcac",
+      "primary_evidence_url": "https://stockmc.xueqiu.com/202511/688766_20251126_UW03.pdf",
+      "primary_evidence_sha256": "c86337fcdeb8421fb4680b4793ad0df49983ee790b54a1611e0fe9eb40be2c8a"
+    }
+  ]
+}
