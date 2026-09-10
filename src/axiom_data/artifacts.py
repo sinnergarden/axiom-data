@@ -779,6 +779,8 @@ def _validate_market_dependencies(
     calendar: DomainCommit,
     security: DomainCommit,
 ) -> None:
+    from axiom_data.domains.market import _checked_security_identity_state
+    validate_security_master_rows(security.rows)
     calendar_rows = {
         (row["exchange"], row["session"]): row for row in calendar.rows
     }
@@ -789,7 +791,7 @@ def _validate_market_dependencies(
         security_row = security_rows.get(symbol)
         if security_row is None or security_row.get("exchange") != exchange:
             raise ArtifactError(f"market symbol {symbol!r} has no matching security identity")
-        identity_state = security_identity_state(security_row, row["session"])
+        identity_state = _checked_security_identity_state(security_row, row["session"])
         if identity_state != "within_identity_interval":
             raise ArtifactError(
                 f"market row {(symbol, row['session'])!r} is outside the security "

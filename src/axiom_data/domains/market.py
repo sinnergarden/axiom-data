@@ -189,6 +189,11 @@ def security_identity_state(row: Mapping[str, object], session: str) -> str:
     """Interpret identity bounds only; this is not historical PIT eligibility."""
 
     validate_security_master_rows([row])
+    return _checked_security_identity_state(row, session)
+
+
+def _checked_security_identity_state(row: Mapping[str, object], session: str) -> str:
+    """Interval check after the caller has validated the complete identity table."""
     target = _date("session", session)
     start = _date("list_session", row["list_session"], nullable=True)
     end = _date("delist_session", row["delist_session"], nullable=True)

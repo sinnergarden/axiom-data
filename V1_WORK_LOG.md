@@ -1,3 +1,12 @@
+# Identity validation checkpoint — 2026-09-10
+
+199/199 tests PASS (66.294s). Complete security schema validation now occurs
+once per market/D-M1 cross-domain pass, followed by unchanged interval checks.
+Actual 7,202 identity/date results match, with 0.468215s → 0.011136s.
+The older market job is interrupted with Raw/objects retained; next explicit
+recovery plan reuses the already validated fixed calendar identity. Stage 3/5
+and V1 terminal gates remain incomplete. No merge/push/default pointer move.
+
 # Top10 source qualification checkpoint — 2026-09-10
 
 198/198 tests PASS (100.147s). Full 10,803-request source/row scan passes with

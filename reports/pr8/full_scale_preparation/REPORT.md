@@ -82,3 +82,18 @@ Holder canonical stage is independently validated:
 338,076 rows, 22 immutable partitions, peak RSS 861,424 KiB, 132.303 seconds.
 Its original 3,601 RawBatches were imported by exact manifest/payload identity
 into the formal data root. This is not a baseline acceptance decision.
+
+## Identity validation I/O profile
+
+The live full market build read more than 96 GB while its published partition
+bytes were about 3.1 GB. The cross-domain loop called the public single-identity
+validator per market row, which reopened both security contract projections.
+The corrected loop validates the complete security table once and applies the
+same interval function per row. D-M1 cross-validation uses the same helper.
+
+For 7,202 boundary/session pairs over the actual 3,601-security commit, outputs
+are identical; 0.468215s → 0.011136s. Invalid security tables, missing identities,
+listing/delisting boundaries, and exchange/session validation remain checked.
+This is a function-level measurement; full market recovery is still pending.
+The old run was explicitly interrupted with its diagnostic saved under the
+fixed operation identity; Raw and immutable partitions remain preserved.

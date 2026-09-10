@@ -15,7 +15,8 @@ from .market import (
     _rows,
     _symbol,
     _validate_keys,
-    security_identity_state,
+    _checked_security_identity_state,
+    validate_security_master_rows,
     validate_market_daily_rows,
 )
 
@@ -250,6 +251,8 @@ def validate_dm1_snapshot_rows(
 ) -> None:
     """Validate D-M1 relationships without inventing a generic rule engine."""
 
+    validate_security_master_rows(commits['security_master'].rows)
+
     calendar = {
         (row["exchange"], row["session"]): row
         for row in commits["trading_calendar"].rows
@@ -268,7 +271,7 @@ def validate_dm1_snapshot_rows(
         cal = calendar.get((exchange, row["session"]))
         if cal is None or (open_only and cal["is_open"] is not True):
             raise MarketContractError("D-M1 fact refers to an invalid calendar session")
-        state = security_identity_state(identity, row["session"])
+        state = _checked_security_identity_state(identity, row["session"])
         if state != "within_identity_interval":
             raise MarketContractError("D-M1 fact is outside its security identity interval")
 
@@ -280,7 +283,7 @@ def validate_dm1_snapshot_rows(
         cal = calendar.get((identity["exchange"], row["session"]))
         if cal is None or cal["is_open"] is not True:
             raise MarketContractError("security status refers to an invalid calendar session")
-        identity_state = security_identity_state(identity, row["session"])
+        identity_state = _checked_security_identity_state(identity, row["session"])
         expected_lifecycle = {
             "not_yet_listed": "not_yet_listed",
             "delisted": "delisted",
@@ -331,7 +334,7 @@ def validate_dm1_snapshot_rows(
             value = row[name]
             if value is None:
                 continue
-            state = security_identity_state(identity, value)
+            state = _checked_security_identity_state(identity, value)
             if state not in {"within_identity_interval", "unknown"}:
                 raise MarketContractError("corporate action date is outside security lifecycle")
             if (
