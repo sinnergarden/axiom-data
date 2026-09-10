@@ -77,7 +77,8 @@ source collection completion or canonical commit alone is not baseline acceptanc
 
 Required collection/build/View/admission failure prevents ready publication and
 pointer movement. Successfully published Raw and domain artifacts remain useful
-checkpoints. A no-change result requires unchanged observations/facts and unchanged
-contract/configuration/identities; a later supplier observation is not silently
-discarded just because its numeric value repeats. Daily, recovery and Notebook
+checkpoints. A no-change result requires unchanged canonical facts and unchanged
+contract/configuration/identities. Repeated observations remain immutable Raw.
+Each domain’s observation sequence or first-evidence policy determines whether
+a repeated observation changes its canonical state. Daily, recovery and Notebook
 acceptance remain explicit terminal gates in V1_WORK_LOG.md.

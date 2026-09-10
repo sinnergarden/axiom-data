@@ -1344,7 +1344,7 @@ def _validate_domain_commit_node(
                 raise ArtifactError("PR7 canonical rows differ from RawBatch mapping")
             del expected_rows
 
-        if commit.ref.contract_version in {'corporate_actions.v2', 'security_capital.v2'} or (domain == 'price_limits' and commit.manifest['builder_config'].get('limit_qualification')):
+        if commit.ref.contract_version in {'corporate_actions.v2', 'security_capital.v2'} or (domain == 'price_limits' and commit.manifest['builder_config'].get('limit_qualification')) or (domain == 'corporate_actions' and commit.manifest['builder_config'].get('corporate_action_reobservation')):
             from axiom_data.dm1_source import TushareDm1Builder
             replay=TushareDm1Builder(root,domain,builder_config=commit.manifest['builder_config'],
                 dependency_commit_ids={d:ref['domain_commit_id'] for d,ref in commit.manifest['dependency_commit_refs'].items()})

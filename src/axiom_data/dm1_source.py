@@ -319,6 +319,10 @@ class TushareDm1Builder(MarketDomainBuilder):
         if domain not in _EXPECTED_ENDPOINTS:
             raise ArtifactError("TushareDm1Builder supports only D-M1 reference domains")
         config = dict(builder_config)
+        if 'corporate_action_reobservation' in config:
+            if domain != 'corporate_actions' or config['corporate_action_reobservation'] != 'corporate_action_reobservation.v1':
+                raise ArtifactError('unsupported corporate action reobservation policy')
+            config['corporate_action_reobservation_digest'] = _digest(files('axiom_data.source_profiles').joinpath('corporate_action_reobservation.v1.json').read_bytes())
         if 'limit_qualification' in config:
             if domain != 'price_limits' or config['limit_qualification'] != 'zero_limit_pair.v1':
                 raise ArtifactError('unsupported limit qualification')
@@ -399,7 +403,25 @@ class TushareDm1Builder(MarketDomainBuilder):
             rows = self._benchmark_rows(tables, set(symbols), start, end)
         else:
             rows = self._capital_rows(tables, set(symbols), start, end)
-        return _merge_canonical(contract, parent_rows, rows)
+        return self._merge_rows(contract, parent_rows, rows)
+
+    def _merge_rows(self, contract, parent_rows, new_rows):
+        if not self.builder_config.get('corporate_action_reobservation'):
+            return _merge_canonical(contract, parent_rows, new_rows)
+        from axiom_data.pit import instant
+        rows = {}
+        for values in (parent_rows, new_rows):
+            for row in values:
+                key = tuple(row[name] for name in contract['primary_key'])
+                previous = rows.get(key)
+                if previous is not None:
+                    content = lambda value: {k:v for k,v in value.items() if k not in {'first_observed_at', 'source_ref'}}
+                    if content(previous) != content(row):
+                        raise ArtifactConflictError('corporate action revision content conflict')
+                    if (instant(previous['first_observed_at']), previous['source_ref']) <= (instant(row['first_observed_at']), row['source_ref']):
+                        continue
+                rows[key] = _json_copy(dict(row))
+        return sorted(rows.values(), key=lambda row:tuple(row[name] for name in contract['sort_order']))
 
     def _partitioned_rows(self,contract,parent_rows,raw_batches,symbols,start,end):
         from axiom_data.artifacts import RawBatches
@@ -444,7 +466,7 @@ class TushareDm1Builder(MarketDomainBuilder):
                 elif self.domain=='benchmark_daily':yield from self._benchmark_rows(tables,{symbol},start,end)
                 else:yield from self._capital_rows(tables,{symbol},start,end)
         try:
-            return _merge_canonical(contract,parent_rows,mapped())
+            return self._merge_rows(contract,parent_rows,mapped())
         finally:
             del self._row_dependency_cache
 

@@ -1,3 +1,12 @@
+# Action reobservation checkpoint — 2026-09-10
+
+208/208 tests PASS (63.154s). Explicit corporate_action_reobservation.v1 fixes
+repeated dividend scans by retaining earliest evidence for identical revisions;
+new revisions and conflicting-content rejection remain intact. Raw remains
+retained, and equal canonical state can reuse a parent. Old configs stay strict.
+See reports/pr8/action_reobservation/REPORT.md. This is a daily prerequisite,
+not completion of daily execution. Stage 3/5 and all terminal V1 gates remain.
+
 # Snapshot publication validation checkpoint — 2026-09-10
 
 207/207 tests PASS (63.815s). Snapshot publication validates domain composition
