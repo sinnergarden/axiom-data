@@ -1,3 +1,12 @@
+# Session read checkpoint — 2026-09-10
+
+209/209 tests PASS (61.971s). After complete Reader validation, bounded session
+reads select whole month objects and verify their bytes/counts before projection.
+Membership and PIT selectors are unchanged. Scoped-object corruption and new
+Reader full-closure corruption rejection are tested. Actual full-market query
+comparison is prepared; no performance number is claimed until it validates.
+Stage 3/5, moneyflow and the remaining canonical queue continue.
+
 # Action reobservation checkpoint — 2026-09-10
 
 208/208 tests PASS (63.154s). Explicit corporate_action_reobservation.v1 fixes

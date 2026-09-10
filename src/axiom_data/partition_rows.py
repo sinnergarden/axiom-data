@@ -12,6 +12,9 @@ from axiom_data.partitions import POLICY, partition_key
 
 STREAM_ROW_THRESHOLD = 100000
 WHOLE_STATE_DOMAINS = {'universe_membership', 'industry_membership', 'trading_calendar', 'security_master'}
+SESSION_PARTITION_DOMAINS = {'market_daily', 'security_status', 'price_limits',
+    'adjustment_factors', 'benchmark_daily', 'security_capital', 'valuation_daily',
+    'margin_daily', 'moneyflow_daily'}
 
 
 def rows_digest(rows):
@@ -139,7 +142,17 @@ class PartitionRows(Sequence):
                 raise ArtifactError('partition row count mismatch')
 
     def __iter__(self):
-        iterators = [self._rows(e) for e in self.entries]
+        yield from self._iter_entries(self.entries)
+
+    def sessions(self, start, end):
+        """Read complete month objects within an already validated composition."""
+        if self.domain not in SESSION_PARTITION_DOMAINS:
+            raise ArtifactError('session pruning is not supported for this domain')
+        yield from self._iter_entries([e for e in self.entries
+            if (start is None or e['key'] >= start[:7]) and (end is None or e['key'] <= end[:7])])
+
+    def _iter_entries(self, entries):
+        iterators = [self._rows(e) for e in entries]
         try:
             yield from heapq.merge(*iterators, key=self._key)
         finally:

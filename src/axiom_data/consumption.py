@@ -136,9 +136,16 @@ class SnapshotReader:
         fields = self.schema("market_daily")
         return tuple(
             _ordered_row(row, fields)
-            for row in self.commits["market_daily"].rows
+            for row in self._session_rows('market_daily', start, end)
             if row["symbol"] in selected and start <= row["session"] <= end
         )
+
+    def _session_rows(self, domain, start, end):
+        from axiom_data.partition_rows import PartitionRows, SESSION_PARTITION_DOMAINS
+        rows = self.commits[domain].rows
+        if isinstance(rows, PartitionRows) and domain in SESSION_PARTITION_DOMAINS and (start is not None or end is not None):
+            return rows.sessions(start, end)
+        return rows
 
     def leaf_fact(self, leaf, *, symbol, target_session, knowledge_cutoff, pit_policy):
         from axiom_data.pr7_views import leaf_facts
@@ -280,7 +287,7 @@ class SnapshotReader:
                 for row in self.commits[domain].rows):
                 raise ArtifactError('INSUFFICIENT_SCOPE: unresolved corporate action observations; inspect without date projection')
         rows = []
-        for row in self.commits[domain].rows:
+        for row in self._session_rows(domain, start, end):
             row_symbol = row.get("symbol")
             row_session = row.get("session", row.get("effective_date"))
             if selected_symbols is not None and row_symbol not in selected_symbols:
