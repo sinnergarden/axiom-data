@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import json
 from pathlib import Path
 from unittest.mock import patch
 from axiom_data import SnapshotReader,ArtifactError
@@ -7,6 +8,29 @@ from axiom_data import artifacts
 from test_pr3_vertical_slice import load_fixture,collect_fixture,build_fixture
 
 class ReaderValidationReuseTest(unittest.TestCase):
+    def test_inspection_validates_once_without_materializing_public_facts(self):
+        from axiom_data.operations import inspect_snapshot
+        from axiom_data.layout import DataRootLayout
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);fixture=load_fixture('listing_slice')
+            ids,_=collect_fixture(root,fixture);refs=build_fixture(root,fixture,ids)
+            pointer=DataRootLayout(root).current_pointer
+            pointer.parent.mkdir(parents=True,exist_ok=True)
+            pointer.write_text(json.dumps({'snapshot_id':refs['snapshot']}))
+            with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as checked, \
+                 patch.object(SnapshotReader,'facts',side_effect=AssertionError('inspection must stream canonical rows')):
+                a=inspect_snapshot(root,'current')
+                self.assertEqual(checked.call_count,3)
+                b=inspect_snapshot(root,refs['snapshot'])
+                self.assertEqual(checked.call_count,6)
+                self.assertEqual(a,b)
+            self.assertEqual(a['snapshot_id'],refs['snapshot'])
+            self.assertEqual(a['domains']['market_daily']['full_scope_admission'],'NOT_ASSESSED')
+            ref=a['domains']['market_daily']['commit_id']
+            p=root/'canonical/market_daily/commits'/ref/'rows.json'
+            p.chmod(0o600);p.write_bytes(p.read_bytes()+b' ')
+            with self.assertRaises(ArtifactError):inspect_snapshot(root,'current')
+
     def test_each_read_validates_once_and_rejects_later_corruption(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);fixture=load_fixture('listing_slice')

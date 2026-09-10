@@ -1,3 +1,18 @@
+# Full canonical continuation — 2026-09-10
+
+205/205 tests PASS (69.885s). Public inspection now performs one complete Reader
+validation per call and streams its inventory; repeated calls still revalidate
+and later corruption fails. It reports no full-scope admission claim.
+
+Margin r2 independently validated 4,880,379 rows / 153 partitions / 2,106.894s;
+forecast v2 69,931 rows / 15 partitions / 62.842s. Both exact refs are in the run
+progress files. Full qualified limit scan passes 9,162,373 rows (477.371s).
+Capital canonical and main-root margin import validation continue. The frozen
+canonical_tail_queue plan runs moneyflow, limits, valuation, status, adjustment
+serially after those memory-heavy prerequisites validate. Its progress is durable
+and each child performs independent closure validation. Stage 3/5 remains
+incomplete; all baseline/admission and stages 4–5 gates still apply.
+
 # Source label checkpoint — 2026-09-10
 
 204/204 tests PASS (68.509s). Explicit zero_limit_pair.v1 retains three source

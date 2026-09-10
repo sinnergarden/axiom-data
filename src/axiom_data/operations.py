@@ -18,8 +18,8 @@ def _save(path, value):
     _fsync_directory(path.parent)
 
 
-def resolve_snapshot(data_root, snapshot_id):
-    """Resolve current once at the human/service boundary, then verify a concrete ID."""
+def _resolve_snapshot_id(data_root, snapshot_id):
+    """Resolve the pointer once; the receiving Reader validates the closure."""
     layout = _layout(data_root)
     if snapshot_id == 'current':
         path = _safe_path(layout.root, layout.current_pointer)
@@ -27,22 +27,34 @@ def resolve_snapshot(data_root, snapshot_id):
             pointer = json.loads(path.read_bytes())
         except (FileNotFoundError, ValueError) as exc:
             raise ArtifactError('no valid current Snapshot pointer') from exc
+        if not isinstance(pointer, dict):
+            raise ArtifactError('no valid current Snapshot pointer')
         snapshot_id = pointer.get('snapshot_id')
-    return load_snapshot(layout.root, snapshot_id).ref.snapshot_id
+    return _identity('snapshot_id', snapshot_id)
+
+
+def resolve_snapshot(data_root, snapshot_id):
+    """Resolve current once at the human/service boundary and verify its closure."""
+    return load_snapshot(data_root, _resolve_snapshot_id(data_root, snapshot_id)).ref.snapshot_id
 
 
 def inspect_snapshot(data_root, snapshot_id):
     """Read-only quality inventory; data extents never masquerade as admission."""
     from axiom_data.consumption import SnapshotReader
-    concrete = resolve_snapshot(data_root, snapshot_id)
+    concrete = _resolve_snapshot_id(data_root, snapshot_id)
     reader = SnapshotReader(data_root, concrete)
     domains = {}
     for domain, commit in reader.commits.items():
-        rows = reader.facts(domain) if domain not in {'trading_calendar', 'security_master'} else (
-            reader.trading_calendar() if domain == 'trading_calendar' else reader.security_master())
-        dates = sorted({str(r.get('session') or r.get('report_period') or r.get('effective_from'))
-                        for r in rows if r.get('session') or r.get('report_period') or r.get('effective_from')})
-        qualifications = Counter(r.get('pit_qualification', 'unknown') for r in rows)
+        rows = commit.rows
+        first = last = None
+        qualifications = Counter()
+        for row in rows:
+            value = row.get('session') or row.get('report_period') or row.get('effective_from') or row.get('effective_date')
+            if value:
+                value = str(value)
+                first = value if first is None else min(first, value)
+                last = value if last is None else max(last, value)
+            qualifications[row.get('pit_qualification', 'unknown')] += 1
         source_qualification=[]
         for ref in commit.manifest['ordered_raw_batch_refs']:
             if ref.get('source_profile_version')=='tushare_pr7_holder.v3':
@@ -51,7 +63,7 @@ def inspect_snapshot(data_root, snapshot_id):
                 if exclusions:source_qualification.append({'raw_batch_id':ref['raw_batch_id'],'records':exclusions})
         domains[domain] = {'commit_id': commit.ref.commit_id, 'contract': commit.ref.contract_version,
             'builder': commit.manifest['builder_implementation_ref'], 'rows': len(rows),
-            'data_extent': {'first': dates[0] if dates else None, 'last': dates[-1] if dates else None},
+            'data_extent': {'first': first, 'last': last},
             'pit_qualification_counts': dict(qualifications),
             'structural_validation': commit.manifest['validation_summary'],
             'full_scope_admission': 'NOT_ASSESSED',
@@ -334,7 +346,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
         if type(spec['new_lineage']) is not bool:
             raise ArtifactError('new_lineage must be boolean')
     with writer(layout.root):
-        parent_id = resolve_snapshot(layout.root, parent_snapshot_id) if parent_snapshot_id else None
+        parent_id = _resolve_snapshot_id(layout.root, parent_snapshot_id) if parent_snapshot_id else None
         parent = SnapshotReader(layout.root, parent_id) if parent_id else None
         commits = {d: c.ref.commit_id for d, c in parent.commits.items()} if parent else {}
         if set(commits) | set(domain_inputs) != set(PR7_SNAPSHOT_DOMAINS):
