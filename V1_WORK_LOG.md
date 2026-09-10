@@ -1,3 +1,24 @@
+# Active decision — 2026-09-10
+
+Stages 1–2 validated: versioned correction, full 3,601-security canonical
+history, all 32,458 restored sessions, Snapshot/Fact/Qlib metadata and raw-only
+offline identity rebuild. 172/172 tests PASS (127.319s). Evidence is in
+reports/pr8/sw2021_canonical/REPORT.md. Proceed to stage 3/5, full-domain
+bootstrap/admission. The old source-blocker notes below are historical;
+no industry authority/code decision remains pending. V1 is still incomplete.
+
+User selected SW2021 and authorized the sole explicit taxonomy correction
+index_classify:850401.SI → canonical:850412.SI. Prior pending-code questions are
+resolved. Four automatic conditions, immutable Raw, mapping provenance and a
+new industry contract/root are required. No taxonomy_code_unresolved treatment
+for these resolved sessions. Preserve actual supplier gaps and boundary ambiguity.
+
+Current stages: (1) validate/version correction and golden cases; (2) complete
+canonical industry and View metadata; (3) full-domain bootstrap/admission;
+(4) daily/revision/no-change/offline recovery; (5) independently validate baseline,
+Notebook, every terminal artifact and final 24-item report. Original DoD below
+remains in force. Reuse completed source comparison, security master and resume.
+
 # Active source qualification (2026-09-09 latest user request)
 
 Compare SW2021 and CITIC over the explicit PR4 union of 3,601 securities,

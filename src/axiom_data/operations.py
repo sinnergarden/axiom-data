@@ -281,7 +281,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
     layout = _layout(data_root)
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
-    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy'}
+    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile'}
     for domain, spec in domain_inputs.items():
         if not isinstance(spec, dict) or set(spec) != {'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}:
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
@@ -291,6 +291,8 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             domain != 'security_master' or spec['config']['security_boundary_policy'] != 'exchange_security.v1'
         ):
             raise ArtifactError('unsupported security boundary policy')
+        if 'industry_source_profile' in spec['config'] and (domain!='industry_membership' or spec['config']['industry_source_profile']!='tushare_sw2021.v1'):
+            raise ArtifactError('unsupported industry source profile')
         from axiom_data.build import BuildRequest
         BuildRequest(None, spec['raw_batch_ids'], [], spec['contract_version'])
         if type(spec['new_lineage']) is not bool:

@@ -18,14 +18,14 @@ Data root is `/home/liuming/workspace/axiom/data`. See `V1_WORK_LOG.md` for the
 terminal gates. Resolve a default pointer once at operation entry; builders
 continue to receive only explicit immutable identities.
 
-PR8 must qualify SW2021 and CITIC across the actual 3,601-security historical
-union before choosing one industry authority. Preserve each taxonomy separately;
-stock_basic/bak_basic are comparison evidence only. Verified small source gaps
-are classification_unavailable/source_coverage_gap; uncertain out-date sessions
-may be boundary_session_ambiguous. Never synthesize an industry sentinel or fill
-across taxonomies. Use a new contract and lineage root, best_effort history, and
-close the delist boundary decision before full bootstrap. After qualification
-passes, continue the complete V1 gates without another approval pause.
+V1 industry authority is SW2021 via Tushare index_classify/index_member_all.
+Apply only the explicitly authorized, versioned 850401.SI → 850412.SI taxonomy
+anomaly after all four automatic checks in docs/decisions/pr8-sw2021-authority.md.
+Preserve Raw and mapping provenance; no general name-based aliases. CITIC remains
+qualification evidence only. Verified supplier gaps are classification_unavailable;
+out-date uncertainty is boundary_session_ambiguous. Use a new contract/root,
+honest best_effort history, and continue all original V1 gates after validation.
+The full-union comparison, official delist mapping and resume hardening are done.
 
 ## Invariants
 

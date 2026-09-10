@@ -187,6 +187,9 @@ class SnapshotReader:
         from axiom_data.pit import members
         if domain not in {"universe_membership", "industry_membership"}:
             raise ArtifactError("membership domain required")
+        if domain=='industry_membership' and self.commits[domain].ref.contract_version=='industry_membership.v3':
+            return tuple(r for r in self.industry_facts(group_id,target_session,knowledge_cutoff=knowledge_cutoff,
+                         pit_policy=pit_policy,symbols=symbols) if r['availability_state']=='classified')
         from axiom_data.pr6_coverage import membership_coverage
         membership_coverage(self,domain,group_id,target_session,target_session,pit_policy,knowledge_cutoff,symbols)
         result = members(self.facts(domain), group_id=group_id,
@@ -194,6 +197,17 @@ class SnapshotReader:
                        knowledge_cutoff=knowledge_cutoff, policy=pit_policy,
                        group_states=self.commits[domain].manifest.get("group_states"))
         return self._project_membership(domain, result, symbols)
+
+    def industry_facts(self, group_id, target_session, *, knowledge_cutoff, pit_policy, symbols=None):
+        from axiom_data.pr6_coverage import membership_coverage
+        from axiom_data.sw_industry import project_state
+        if self.commits['industry_membership'].ref.contract_version!='industry_membership.v3':
+            raise ArtifactError('industry availability states require industry_membership.v3')
+        session=_session(target_session,'target_session')
+        membership_coverage(self,'industry_membership',group_id,session,session,pit_policy,knowledge_cutoff,symbols)
+        states=self.as_of('industry_membership',knowledge_cutoff=knowledge_cutoff,pit_policy=pit_policy,symbols=symbols)
+        security={r['symbol']:r for r in self.security_master()}
+        return tuple(project_state(r,security[r['symbol']],session) for r in states)
 
     def membership_facts(self, group_id, target_session, *, knowledge_cutoff, pit_policy,
                          domain='universe_membership'):

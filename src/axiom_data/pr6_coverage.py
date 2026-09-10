@@ -17,6 +17,17 @@ def require_range(start,end,available_start,available_end):
 
 def membership_coverage(reader,domain,group,start,end,policy,cutoff,symbols=None):
     rows=reader.commits[domain].rows
+    if reader.commits[domain].ref.contract_version=='industry_membership.v3':
+        if group!='SW2021':raise ArtifactError('unknown industry classification system')
+        require_symbols(rows,symbols)
+        required=set(symbols) if symbols is not None else {r['symbol'] for r in rows}
+        selected=select_revisions(rows,policy=policy,knowledge_cutoff=cutoff)
+        selected=[r for r in selected if r['symbol'] in required]
+        if {r['symbol'] for r in selected}!=required:raise ArtifactError('INSUFFICIENT_SCOPE: industry observation not visible')
+        for row in selected:
+            if start<row['coverage_from'] or end>=row['coverage_to']:raise ArtifactError('INSUFFICIENT_SCOPE: industry dates')
+        return {'group_id':group,'symbols':sorted(required),'start_session':start,'end_session':end,
+                'classification_gaps':'explicit supplier availability states'}
     group_states=reader.commits[domain].manifest.get('group_states')
     if group_states is not None:
         from axiom_data.pit import select_group_states
@@ -91,8 +102,9 @@ def admit_view(reader,scope,policy,cutoff):
             'symbols':sorted({r['symbol'] for r in valuation}),
             'valuation_sessions':sorted({r['session'] for r in valuation}),
             'classification_intervals':[{'symbol':r['symbol'],'group_id':r['group_id'],
-                'effective_from':r['effective_from'],'effective_to':r['effective_to']}
-                for r in reader.commits['industry_membership'].rows],
+                'effective_from':span['effective_from'],'effective_to':span['effective_to']}
+                for r in reader.commits['industry_membership'].rows
+                for span in (r['membership_spans'] if 'membership_spans' in r else [r])],
             'universes':universes,'financial_report_periods':{
                 s:sorted({r['report_period'] for r in financial if r['symbol']==s}) for s in symbols}}
 

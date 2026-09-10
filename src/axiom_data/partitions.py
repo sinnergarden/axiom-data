@@ -10,6 +10,8 @@ POLICY = 'domain_time_blocks.v1'
 def partition_key(domain, row):
     if domain == 'security_master':
         return row['exchange']
+    if domain == 'industry_membership' and 'membership_spans' in row:
+        return 'security-'+row['symbol']
     if domain == 'financial_events':
         return row['endpoint'] + '-' + row['report_period'][:4]
     if domain in {'holder_count_events', 'top_holders_reports', 'forecast_observations'}:

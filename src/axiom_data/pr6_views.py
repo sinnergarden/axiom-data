@@ -35,7 +35,8 @@ def project(reader, scope, policy, cutoff):
     if not sessions:raise ArtifactError('PR6 View has no calendar coverage')
     from axiom_data.pr6_coverage import admit_view
     actual_scope=admit_view(reader,scope,policy,cutoff)
-    taxonomy=sorted({r['industry_id'] for r in reader.facts('industry_membership')})
+    sw_state=reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3'
+    taxonomy=sorted({s['industry_id'] for r in reader.facts('industry_membership') for s in r['membership_spans']}) if sw_state else sorted({r['industry_id'] for r in reader.facts('industry_membership')})
     encoding={industry:i+1 for i,industry in enumerate(taxonomy)}
     events=[];derived=[];wide=[];memberships=[];industries=[]
     for session in sessions:
@@ -50,6 +51,8 @@ def project(reader, scope, policy, cutoff):
                 memberships.append(dict(row,target_session=session))
         industry={r['symbol']:r for r in reader.members(scope['industry_system'],session,
             domain='industry_membership',knowledge_cutoff=session_cutoff,pit_policy=policy,symbols=symbols)}
+        industry_availability={r['symbol']:r for r in reader.industry_facts(scope['industry_system'],session,
+            knowledge_cutoff=session_cutoff,pit_policy=policy,symbols=symbols)} if sw_state else {}
         industries.extend(dict(r,target_session=session) for r in industry.values())
         events.extend(dict(r,target_session=session) for r in facts)
         derived.extend(dict(r,target_session=session) for r in stable)
@@ -93,6 +96,12 @@ def project(reader, scope, policy, cutoff):
                     for interval in state['intervals'] if interval['effective_from']<=session
                     and (interval['effective_to'] is None or session<interval['effective_to'])]
             metadata['industry.membership'].update(classification_system=scope['industry_system'],mapping_ref='industry_mapping')
+            if sw_state:
+                state=industry_availability[symbol]
+                metadata['industry.membership']=fact_metadata(state,values['industry.membership'],'industry.membership',reader,policy,session_cutoff)
+                metadata['industry.membership'].update(availability_state=state['availability_state'],
+                    missing_reason=state['missing_reason'],mapping_profile_digest=state['mapping_profile_digest'],
+                    mapping_provenance=state.get('mapping_provenance'),classification_system=scope['industry_system'],mapping_ref='industry_mapping')
             wide.append({'session':session,'symbol':symbol,'values':values,'provenance':refs,
                          'knowledge_cutoff':session_cutoff,'facts':metadata})
     return {'wide':wide,'events':events,'derived':derived,'memberships':memberships,'industries':industries,

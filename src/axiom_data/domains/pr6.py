@@ -21,6 +21,9 @@ def economic_content(row):
 
 
 def validate_rows(domain, rows):
+    if domain=='industry_membership' and rows and 'membership_spans' in rows[0]:
+        from axiom_data.sw_industry import validate_rows as validate_sw
+        return validate_sw(rows)
     version = "v2" if rows and "observations" in rows[0] else "v1"
     frozen = _rows(domain, rows, version)
     for row in frozen:

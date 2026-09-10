@@ -105,6 +105,11 @@ class Pr6Builder(MarketDomainBuilder):
 
     def __init__(self, data_root, domain, *, builder_config=None, **kwargs):
         config=dict(builder_config or {})
+        if domain=='industry_membership' and config.get('industry_source_profile')=='tushare_sw2021.v1':
+            from axiom_data.sw_mapping import load_mapping_profile
+            config['sw_mapping_profile']=load_mapping_profile()
+            config['sw_implementation_content']={name:_digest(files('axiom_data').joinpath(name).read_bytes())
+                for name in ('sw_mapping.py','sw_industry.py','industry_qualification.py')}
         config['implementation_content']={name:_digest(files('axiom_data').joinpath(name).read_bytes())
             for name in ('pr6_source.py','pit.py','domains/pr6.py','artifacts.py')}
         super().__init__(data_root,domain,builder_config=config,**kwargs)
@@ -197,6 +202,9 @@ class Pr6Builder(MarketDomainBuilder):
         return [by_key[k] for k in sorted(by_key)]
 
     def _build_rows(self, contract, parent_rows, raw_batches):
+        if contract['contract_version']=='industry_membership.v3':
+            from axiom_data.sw_industry import build_rows
+            return build_rows(self,contract,parent_rows,raw_batches)
         group_mode=contract['contract_version']=='universe_membership.v3'
         self.group_states=[]
         if not group_mode and not contract['contract_version'].endswith('.v2'):

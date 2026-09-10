@@ -12,7 +12,7 @@ class CoverageTest(unittest.TestCase):
         days=['2025-01-01','2025-01-02','2025-01-03'];symbol='600000.SH'
         membership=span(days[0],'2025-01-04','universe')
         industry=[span(d,'2025-01-0'+str(i+2),'industry'+d) for i,d in enumerate(days)]
-        reader=SimpleNamespace(commits={d:SimpleNamespace(rows=rows,manifest={'builder_config':{'symbols':[symbol]}}) for d,rows in {
+        reader=SimpleNamespace(commits={d:SimpleNamespace(rows=rows,ref=SimpleNamespace(contract_version=d+'.v1'),manifest={'builder_config':{'symbols':[symbol]}}) for d,rows in {
             'trading_calendar':[{'session':d,'exchange':'SSE','is_open':True} for d in days],
             'universe_membership':[membership],'industry_membership':industry,
             'valuation_daily':[{'symbol':symbol,'session':d} for d in days],

@@ -1,0 +1,91 @@
+{
+  "contract_version": "industry_membership.v3",
+  "domain": "industry_membership",
+  "primary_key": [
+    "logical_event_key",
+    "revision_id"
+  ],
+  "sort_order": [
+    "logical_event_key",
+    "revision_id"
+  ],
+  "fields": [
+    {
+      "name": "symbol",
+      "nullable": false
+    },
+    {
+      "name": "logical_event_key",
+      "nullable": false
+    },
+    {
+      "name": "revision_id",
+      "nullable": false
+    },
+    {
+      "name": "source_available_at",
+      "nullable": true
+    },
+    {
+      "name": "first_observed_at",
+      "nullable": false
+    },
+    {
+      "name": "vendor_available_at",
+      "nullable": true
+    },
+    {
+      "name": "availability_basis",
+      "nullable": false
+    },
+    {
+      "name": "pit_qualification",
+      "nullable": false
+    },
+    {
+      "name": "source_ref",
+      "nullable": false
+    },
+    {
+      "name": "group_id",
+      "nullable": false
+    },
+    {
+      "name": "observations",
+      "nullable": false
+    },
+    {
+      "name": "classification_system",
+      "nullable": false
+    },
+    {
+      "name": "membership_spans",
+      "nullable": false
+    },
+    {
+      "name": "coverage_from",
+      "nullable": false
+    },
+    {
+      "name": "coverage_to",
+      "nullable": false
+    },
+    {
+      "name": "mapping_profile_digest",
+      "nullable": false
+    }
+  ],
+  "state_semantics": "One complete supplier-history observation per security; select revision before interval projection. Zero spans is valid observed supplier unavailability, not an unclassified economic assertion.",
+  "classification_system": "SW2021",
+  "interval_semantics": "in_date inclusive; out_date is an ambiguous boundary date; dates strictly before out_date are covered. Original origins retained.",
+  "missing_semantics": [
+    "classification_unavailable/source_coverage_gap",
+    "no_observation/collection_gap",
+    "outside_security_lifetime",
+    "boundary_session_ambiguous"
+  ],
+  "source_mapping_profile": "tushare_sw2021.v1",
+  "source_mapping_revision": "sw2021-special-steel.v1",
+  "mapping_rule": "Single index_classify 850401.SI to canonical 850412.SI correction subject to all four gates; no general name alias. Raw is immutable.",
+  "historical_knowledge": "best_effort; effective dates do not prove historical knowledge"
+}
