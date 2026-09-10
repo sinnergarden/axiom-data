@@ -1,7 +1,7 @@
 # Daily collection and candidate construction
 
 `axiom_data.daily(root, run_id=..., snapshot_id=..., source_requests=...,
-domain_inputs=..., client=None)` executes the public daily plan and candidate
+domain_inputs=..., client=None, observed_raw_batch_ids=None)` executes the public daily plan and candidate
 builder. The Snapshot is explicit; `plan_daily` can resolve a human-facing
 pointer beforehand. Each request retains its own economic window and source
 availability policy. The collector records actual retrieval time independently.
@@ -20,6 +20,15 @@ domains and stage. A per-run lock rejects concurrent execution. Resume verifies
 the same plan and reuses validated successful collection results. Partial source
 failure retains Raw and stops before candidate construction. Caller mutation
 during collection cannot change the frozen build plan.
+
+For separately collected observations, `observed_raw_batch_ids` maps planned
+request IDs (from `plan_daily`) to explicit RawBatch IDs already present in this
+root. The map becomes part of the frozen run plan. Every referenced RawBatch is
+loaded and checked against its exact source request before reuse; unknown keys,
+wrong requests and substituted completed refs fail. Bound requests make no new
+supplier call and retain the original payload and retrieval timestamp. Unbound
+requests follow normal collection. This also supports no-change replay of the
+same observation without inventing a new observation time.
 
 The current successful stage is `REQUIRED_VIEWS_AND_FULL_ADMISSION`, with
 `CANDIDATE_BUILT` or `NO_CHANGE`. These results always retain

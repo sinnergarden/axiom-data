@@ -246,7 +246,7 @@ def _check_collected(raw, spec):
         raise ArtifactError('resume RawBatch/source request binding mismatch')
 
 
-def collect_requests(data_root, *, run_id, requests, client=None):
+def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_batch_ids=None):
     """Resume only exact requests and revalidated immutable refs; partial is never COMPLETE.
 
     This collection stage alone cannot accept a baseline or move a pointer.
@@ -259,10 +259,22 @@ def collect_requests(data_root, *, run_id, requests, client=None):
     _identity('run_id', run_id)
     if not isinstance(requests, list) or not requests:
         raise ArtifactError('explicit nonempty source request plan required')
+    requests=json.loads(_json_bytes(requests))
     keys = [_request(spec) for spec in requests]
     if len(set(keys)) != len(keys):
         raise ArtifactError('duplicate requests in plan')
-    plan_digest = _digest(_json_bytes({'requests': requests, 'request_keys': keys}))
+    bound={}
+    projection={'requests':requests,'request_keys':keys}
+    if observed_raw_batch_ids is not None:
+        from axiom_data.build import _validate_identity
+        if not isinstance(observed_raw_batch_ids,dict) or not set(observed_raw_batch_ids)<=set(keys):
+            raise ArtifactError('observed Raw refs must map planned request IDs')
+        bound=json.loads(_json_bytes(observed_raw_batch_ids));specs=dict(zip(keys,requests))
+        for key,identity in bound.items():
+            _validate_identity('raw_batch_id',identity)
+            _check_collected(load_raw_batch(data_root,identity),specs[key])
+        projection['observed_raw_batch_ids']=bound
+    plan_digest = _digest(_json_bytes(projection))
     layout = _layout(data_root)
     with writer(layout.root):
         directory = layout.root/'operations'/run_id
@@ -274,6 +286,15 @@ def collect_requests(data_root, *, run_id, requests, client=None):
             'stage': 'COLLECTION', 'status': 'RUNNING'}
         if state['plan_digest'] != plan_digest or state['requests'] != requests:
             raise ArtifactError('resume plan differs from frozen run plan')
+        state.update(status='RUNNING',stage='COLLECTION')
+        if observed_raw_batch_ids is not None:
+            state['observed_raw_batch_ids']=bound
+            for key,identity in bound.items():
+                if key in state['completed'] and state['completed'][key]!=identity:
+                    state.update(status='FAILED',failed={key:{'error_type':'ArtifactError'}})
+                    _save(path,state)
+                    raise ArtifactError('completed Raw ref differs from explicitly bound observation')
+                state['completed'][key]=identity
         _save(path, state)
         collectors = {'market': TushareCollector(layout.root, client),
                       'dm1': TushareDm1Collector(layout.root, client),
@@ -396,7 +417,8 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
             raise ArtifactError('new_lineage must be boolean')
 
 
-def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, client=None):
+def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, client=None,
+          observed_raw_batch_ids=None):
     """Execute the frozen source plan and build its immutable daily candidate.
 
     Requests retain independent economic windows. Each domain input lists any
@@ -416,6 +438,9 @@ def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, cli
     if not requested<=set(domain_inputs):
         raise ArtifactError('daily build inputs must cover every required source domain')
     frozen=json.loads(_json_bytes({'source_plan':planned,'domain_inputs':domain_inputs}))
+    if observed_raw_batch_ids is not None:
+        observed_raw_batch_ids=json.loads(_json_bytes(observed_raw_batch_ids))
+        frozen['observed_raw_batch_ids']=observed_raw_batch_ids
     layout=_layout(data_root);directory=layout.root/'operations'/run_id
     with writer(layout.root):
         _ensure_directory(layout.root,directory)
@@ -430,7 +455,8 @@ def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, cli
             'ready_for_consumption':False}
         _save(path,state)
         try:
-            collected=collect_requests(layout.root,run_id=run_id,requests=source_requests,client=client)
+            collected=collect_requests(layout.root,run_id=run_id,requests=source_requests,client=client,
+                                       observed_raw_batch_ids=observed_raw_batch_ids)
             state['collected_raw_batch_ids']=dict(collected['completed'])
             if collected['status']!='COMPLETE':
                 state.update(status='FAILED',failed=collected['failed'])

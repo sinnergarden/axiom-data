@@ -1,3 +1,20 @@
+# Explicit observed Raw reuse checkpoint — 2026-09-10
+
+228/228 tests PASS (72.577s). Public daily/collect_requests accept explicit
+request-ID-to-RawBatch bindings, verify them before collection, preserve actual
+observation timestamps and reject substituted resume refs. The real copied PR7
+closure passes candidate then no-change replay without supplier calls or new Raw.
+Full-root daily performance remains to be validated.
+
+Stage 3/5: all 18 canonical domains have completed terminal validation. Candidate
+r2 attempt 1 stopped before publication because execution inventory used
+commit_id for market's market_commit_id. The inventory binding is corrected and
+checks manifest row count/logical digest. Failure records are preserved; attempt
+2 has imported the frozen closure and is validating the public bootstrap
+checkpoint. Scope audit and required Views wait in sequence. The separate full
+September 9 session source capture is running against 3,601 securities. Baseline,
+full admission, daily/recovery and Notebook gates remain incomplete.
+
 # Catalog verification checkpoint — 2026-09-10
 
 227/227 tests PASS (65.868s). Catalog rebuild shares verified closures only within
