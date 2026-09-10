@@ -1,3 +1,13 @@
+# New-server reproducibility checkpoint — 2026-09-11
+
+Acceptance pending. Frozen Raw/profile/config/code/Snapshot/View restore must
+preserve `first_observed_at`, identities, and pass offline fresh-root validation;
+repo-only recollection may create new best-effort observations and lineage under
+the same scope/source/PIT inputs, but cannot backfill historical `first_observed_at`
+or upgrade verified evidence. Full baseline is failed, fresh-root recovery is
+`NOT_VALIDATED`, and the public CLI exists while full-run orchestration is not yet
+portable from the repo. See `docs/operations/reproducibility.md`.
+
 # Acceptance read checkpoint — 2026-09-10
 
 229/229 tests PASS (76.906s). FactView construction shares its checked Snapshot
