@@ -87,6 +87,7 @@ def _request(spec):
     profiles = {'market': load_tushare_source_profile(), 'dm1': load_dm1_source_profile(),
                 'pr6': load_pr6_source_profile(), 'pr6_bulk': load_pr6_source_profile('tushare_pr6.v2'), 'pr7': load_pr7_source_profile(), 'sw_pilot': sw_profile()}
     profiles['industry_qualification'] = sw_profile('tushare_industry_qualification.v1')
+    profiles['pr7_holder'] = load_pr7_source_profile('tushare_pr7_holder.v2')
     family = spec['collector']
     if family not in profiles or spec['endpoint'] not in profiles[family]['endpoints']:
         raise ArtifactError('unsupported source operation')
@@ -102,8 +103,8 @@ def _request(spec):
         raise ArtifactError('source operation domain mismatch')
     if family in {'pr6','pr6_bulk'}:
         pr6_validate(spec['endpoint'], params, [], profile_version='tushare_pr6.v2' if family=='pr6_bulk' else 'tushare_pr6.v1')
-    if family == 'pr7':
-        pr7_validate(spec['endpoint'], params, [])
+    if family in {'pr7','pr7_holder'}:
+        pr7_validate(spec['endpoint'], params, [],profile_version='tushare_pr7_holder.v2' if family=='pr7_holder' else 'tushare_pr7.v1')
     if family in {'sw_pilot','industry_qualification'}:
         sw_validate(spec['endpoint'], params, profile_version=profiles[family]['profile_version'])
     elif set(params) & {'src','level','l1_code','l2_code','l3_code','is_new','limit','offset'}:
@@ -147,8 +148,9 @@ def _source_binding(spec):
         ref = 'tushare.sw-pilot.' + endpoint
     else:
         from axiom_data.pr7_source import load_pr7_source_profile, profile_digest
-        profile = load_pr7_source_profile()
-        digest = profile_digest()
+        version='tushare_pr7_holder.v2' if family=='pr7_holder' else 'tushare_pr7.v1'
+        profile = load_pr7_source_profile(version)
+        digest = profile_digest(version)
         ref = 'tushare.pr7.' + endpoint
     return {'source_profile_ref': ref, 'source_profile_version': profile['profile_version'],
             'source_profile_digest': digest, 'fields': profile['endpoints'][endpoint]['fields']}
@@ -199,6 +201,7 @@ def collect_requests(data_root, *, run_id, requests, client=None):
                       'pr6': Pr6Collector(layout.root, client), 'pr6_bulk': Pr6Collector(layout.root, client), 'pr7': Pr7Collector(layout.root, client),
                       'sw_pilot': SwQualificationCollector(layout.root, client)}
         collectors['industry_qualification'] = IndustryQualificationCollector(layout.root, client)
+        collectors['pr7_holder'] = Pr7Collector(layout.root, client)
         consecutive_failures = 0
         for key, spec in zip(keys, requests):
             try:
@@ -209,7 +212,8 @@ def collect_requests(data_root, *, run_id, requests, client=None):
                     continue
                 collector = collectors[spec['collector']]
                 args = (spec['domain'], spec['endpoint'], spec['params']) if spec['collector'] == 'dm1' else (spec['endpoint'], spec['params'])
-                ref = collector.collect(*args, **({'profile_version':'tushare_pr6.v2'} if spec['collector']=='pr6_bulk' else {}))
+                versions={'pr6_bulk':'tushare_pr6.v2','pr7_holder':'tushare_pr7_holder.v2'}
+                ref = collector.collect(*args, **({'profile_version':versions[spec['collector']]} if spec['collector'] in versions else {}))
                 raw = load_raw_batch(layout.root, ref.raw_batch_id)
                 _check_collected(raw, spec)
                 state['completed'][key] = ref.raw_batch_id
@@ -281,7 +285,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
     layout = _layout(data_root)
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
-    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile'}
+    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy'}
     for domain, spec in domain_inputs.items():
         if not isinstance(spec, dict) or set(spec) != {'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}:
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
@@ -293,6 +297,8 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             raise ArtifactError('unsupported security boundary policy')
         if 'industry_source_profile' in spec['config'] and (domain!='industry_membership' or spec['config']['industry_source_profile']!='tushare_sw2021.v1'):
             raise ArtifactError('unsupported industry source profile')
+        if 'session_suspension_policy' in spec['config'] and (domain not in {'market_daily','security_status'} or spec['config']['session_suspension_policy']!='session_suspension.v1'):
+            raise ArtifactError('unsupported session suspension policy')
         from axiom_data.build import BuildRequest
         BuildRequest(None, spec['raw_batch_ids'], [], spec['contract_version'])
         if type(spec['new_lineage']) is not bool:

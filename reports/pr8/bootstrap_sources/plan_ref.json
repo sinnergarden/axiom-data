@@ -1,0 +1,22 @@
+{
+  "path": "/home/liuming/workspace/axiom/data/operations/v1-full-bootstrap-20260910-r1/source_plan.json",
+  "sha256": "426cd1f8c3ea5c2e9d0b6339d383f7fc1d561d4b185bd48a8a8b5fdb68bfa221",
+  "requests": {
+    "market_daily": 18005,
+    "security_status": 7202,
+    "price_limits": 3601,
+    "adjustment_factors": 3601,
+    "security_capital": 3601,
+    "corporate_actions": 3601,
+    "valuation_daily": 3601,
+    "financial_events": 43212,
+    "holder_count_events": 3601,
+    "top_holders_reports": 10803,
+    "margin_daily": 3601,
+    "moneyflow_daily": 3601,
+    "forecast_observations": 3601,
+    "benchmark_daily": 1,
+    "universe_membership": 306
+  },
+  "note": "Initial frozen plan; holder timestamp source recovery uses an explicit v2 collector plan and separate root."
+}

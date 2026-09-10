@@ -23,7 +23,10 @@ def validation_signature(reader, *, semantic_scope, ruleset_digest):
         implementation = {'ref': commit.manifest['builder_implementation_ref'],
             'semantic_code': {name: config[name] for name in (
                 'implementation_content', 'storage_implementation', 'source_profile_digest',
-                'storage_policy', 'no_change_policy') if name in config}}
+                'storage_policy', 'no_change_policy', 'industry_source_profile',
+                'sw_mapping_profile', 'sw_implementation_content',
+                'boundary_profile_digest', 'boundary_mapping_code',
+                'session_suspension_profile_digest','session_suspension_code') if name in config}}
         builders[domain][_digest(_json_bytes(implementation))] = implementation
         for raw in commit.manifest['ordered_raw_batch_refs']:
             if raw.get('schema_version') != 'raw_batch.v2':

@@ -10,16 +10,29 @@ from axiom_data.domains.pr6 import economic_content
 from axiom_data.pit import fingerprint, instant
 
 
-def load_pr7_source_profile():
-    return json.loads(files('axiom_data.source_profiles').joinpath('tushare_pr7.v1.json').read_bytes())
+def load_pr7_source_profile(version='tushare_pr7.v1'):
+    if version not in {'tushare_pr7.v1','tushare_pr7_holder.v2'}:raise ArtifactError('unsupported PR7 source version')
+    return json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
 
 
-def profile_digest():
-    return _digest(_json_bytes(load_pr7_source_profile()))
+def profile_digest(version='tushare_pr7.v1'):
+    return _digest(_json_bytes(load_pr7_source_profile(version)))
 
 
-def validate_payload(endpoint, params, records):
-    definition=load_pr7_source_profile()['endpoints'].get(endpoint)
+def announcement(value, version):
+    if version=='tushare_pr7_holder.v2' and isinstance(value,str) and len(value)==19:
+        from datetime import datetime
+        try:
+            parsed=datetime.strptime(value,'%Y-%m-%d %H:%M:%S')
+            if parsed.strftime('%Y-%m-%d %H:%M:%S')!=value:raise ValueError('noncanonical timestamp')
+        except ValueError as exc:raise ArtifactError('invalid supplier announcement timestamp') from exc
+        return parsed.date().isoformat(),parsed.isoformat()+'+08:00'
+    day=source_date(value)
+    return day,day+'T23:59:59+08:00'
+
+
+def validate_payload(endpoint, params, records, *, profile_version='tushare_pr7.v1'):
+    definition=load_pr7_source_profile(profile_version)['endpoints'].get(endpoint)
     if definition is None:raise ArtifactError('unsupported PR7 endpoint')
     if not isinstance(params,dict) or set(params)!={'ts_code','start_date','end_date'}:
         raise ArtifactError('PR7 requires a single security and explicit date bounds')
@@ -33,26 +46,28 @@ def validate_payload(endpoint, params, records):
         if not isinstance(row,dict) or set(row)-set(definition['fields']):raise ArtifactError('unexpected payload field')
         if row.get('ts_code')!=params['ts_code']:raise ArtifactError('security outside individual request')
         for field in ('trade_date',) if endpoint in {'margin_detail','moneyflow'} else ('ann_date','end_date'):
-            source_date(row.get(field))
+            if field=='ann_date':announcement(row.get(field),profile_version)
+            else:source_date(row.get(field))
         represented=row[definition['bound_field']]
+        if definition['bound_field']=='ann_date':represented=announcement(represented,profile_version)[0].replace('-','')
         if not params['start_date']<=represented<=params['end_date']:raise ArtifactError('date outside individual request')
 
 
 class Pr7Collector(TushareCollector):
     implementation_revision='tushare-pr7-collector.v1'
 
-    def collect(self, endpoint, params, *, retrieved_at=None):
-        validate_payload(endpoint,params,[])
-        definition=load_pr7_source_profile()['endpoints'][endpoint]
+    def collect(self, endpoint, params, *, retrieved_at=None, profile_version='tushare_pr7.v1'):
+        validate_payload(endpoint,params,[],profile_version=profile_version)
+        definition=load_pr7_source_profile(profile_version)['endpoints'][endpoint]
         records=_response_records(self._client().query(endpoint,fields=','.join(definition['fields']),**params))
-        validate_payload(endpoint,params,records)
+        validate_payload(endpoint,params,records,profile_version=profile_version)
         observed=_retrieved_at(retrieved_at)
         request={'endpoint':endpoint,'params':params,'fields':definition['fields']}
         payload=_json_bytes(records)
-        identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest()})
+        identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(profile_version)})
         return write_raw_batch(self.data_root,'pr7-'+identity,domain=definition['domain'],
-            source_profile='tushare.pr7.'+endpoint,source_profile_version='tushare_pr7.v1',
-            source_profile_digest=profile_digest(),request=request,retrieved_at=observed,
+            source_profile='tushare.pr7.'+endpoint,source_profile_version=profile_version,
+            source_profile_digest=profile_digest(profile_version),request=request,retrieved_at=observed,
             payload=payload,collector_code=self.implementation_revision,
             summary={'rows':len(records),'historical_availability':'best_effort','empty_response':'source_gap' if not records else None})
 
@@ -65,12 +80,13 @@ def _number(value):
 
 def normalize(raw, domain):
     m=raw.manifest;request=m['request'];endpoint=request.get('endpoint')
-    d=load_pr7_source_profile()['endpoints'].get(endpoint)
+    version=m.get('source_profile_version')
+    d=load_pr7_source_profile(version)['endpoints'].get(endpoint)
     if (d is None or d['domain']!=domain or m['domain']!=domain or m['schema_version']!='raw_batch.v2'
-        or m['source_profile_digest']!=profile_digest() or m['source_profile_version']!='tushare_pr7.v1'
+        or m['source_profile_digest']!=profile_digest(version)
         or m['source_profile_ref']!='tushare.pr7.'+endpoint or request['fields']!=d['fields']):
         raise ArtifactError('PR7 profile/domain binding mismatch')
-    records=json.loads(raw.payload);validate_payload(endpoint,request['params'],records)
+    records=json.loads(raw.payload);validate_payload(endpoint,request['params'],records,profile_version=version)
     groups=defaultdict(list)
     for source in records:
         key=(source['ts_code'],source.get('trade_date') or source['end_date'],source.get('ann_date'))
@@ -79,9 +95,9 @@ def normalize(raw, domain):
     for (symbol,period,ann),sources in sorted(groups.items()):
         session=source_date(period) if endpoint in {'margin_detail','moneyflow'} else None
         row={'symbol':symbol,'endpoint':endpoint,'session':session,
-             'report_period':None if session else source_date(period),'announcement':source_date(ann) if ann else None,
+             'report_period':None if session else source_date(period),'announcement':announcement(ann,version)[0] if ann else None,
              'source_available_at':None,'first_observed_at':m['retrieved_at'],
-             'vendor_available_at':source_date(ann or period)+'T23:59:59+08:00',
+             'vendor_available_at':announcement(ann or period,version)[1],
              'availability_basis':'terminal_history_observed','pit_qualification':'best_effort',
              'source_ref':raw.ref.raw_batch_id,'holders':[],'group_completeness':'not_applicable',
              'values':{},'missing_reasons':{}}

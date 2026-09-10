@@ -1,5 +1,13 @@
 # Active decision — 2026-09-10
 
+Full bootstrap run v1-full-bootstrap-20260910-r1 is active in stage 3/5.
+Market Raw collection, remaining domain collection, holder timestamp v2 recovery
+and Top10 checkpoint recovery have separate source roots and exclusive run
+identities. Use their explicit progress.json/collection.json records; never
+launch a duplicate active run. See reports/pr8/bootstrap_sources/REPORT.md.
+179/179 tests PASS (129.822s). Ordinary source format/temporary throttling fixes
+are implemented; full canonical/admission/baseline and stages 4–5 remain due.
+
 Stages 1–2 validated: versioned correction, full 3,601-security canonical
 history, all 32,458 restored sessions, Snapshot/Fact/Qlib metadata and raw-only
 offline identity rebuild. 172/172 tests PASS (127.319s). Evidence is in

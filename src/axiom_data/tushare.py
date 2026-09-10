@@ -376,6 +376,8 @@ class TushareMarketBuilder(MarketDomainBuilder):
         source_profile = load_tushare_source_profile()
         profile_version = source_profile.get("profile_version")
         config = dict(builder_config or {})
+        from axiom_data.session_suspension import bind_profile
+        bind_profile(config)
         configured_version = config.get("source_profile_version")
         if configured_version not in (None, profile_version):
             raise ArtifactError("Tushare builder source profile version mismatch")
@@ -428,7 +430,8 @@ class TushareMarketBuilder(MarketDomainBuilder):
             rows = self._security_rows(grouped, symbols)
         else:
             grouped = _raw_endpoint_rows(raw_batches)
-            rows = self._market_rows(grouped, set(symbols), start, end)
+            rows = self._market_rows(grouped, set(symbols), start, end,
+                                    partial_halts='session_suspension_policy' in self.builder_config)
         return _merge_canonical(contract, parent_rows, rows)
 
     @staticmethod
@@ -554,11 +557,13 @@ class TushareMarketBuilder(MarketDomainBuilder):
         symbols: set[str],
         start: str,
         end: str,
+        *, partial_halts: bool = False,
     ) -> list[dict[str, Any]]:
         allowed = {"daily", "adj_factor", "daily_basic", "stk_limit", "suspend_d"}
         if set(grouped) != allowed:
             raise ArtifactError("market_daily requires all five frozen Tushare endpoints")
         tables = {name: _source_table(name, grouped[name]) for name in allowed}
+        daily_evidence={(r['ts_code'],r['trade_date']):r for r in tables['daily'].values()} if partial_halts else {}
 
         def in_scope(row: Mapping[str, Any]) -> tuple[str, str] | None:
             symbol = _source_symbol(row.get("ts_code"))
@@ -574,6 +579,10 @@ class TushareMarketBuilder(MarketDomainBuilder):
                     None,
                     "",
                 ):
+                    if partial_halts:
+                        from axiom_data.session_suspension import qualified_partial_halt
+                        if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date')))):
+                            continue
                     raise ArtifactError("unsupported non-full-day suspend_timing")
                 key = in_scope(row)
                 if key is not None:

@@ -97,13 +97,16 @@ def admit_view(reader,scope,policy,cutoff):
     if any(not any(r['symbol']==s and r['endpoint']==e for r in financial)
            for s in symbols for e in {e for e,_ in FIELD_MAP.values()}):
         raise ArtifactError('INSUFFICIENT_SCOPE: financial endpoint/security gap')
+    industry_rows=reader.commits['industry_membership'].rows
+    if reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3':
+        industry_rows=select_revisions(industry_rows,policy=policy,knowledge_cutoff=cutoff)
     return {'fields':list(WIDE_FIELDS),
             'calendar_sessions':sorted({r['session'] for r in calendar}),
             'symbols':sorted({r['symbol'] for r in valuation}),
             'valuation_sessions':sorted({r['session'] for r in valuation}),
             'classification_intervals':[{'symbol':r['symbol'],'group_id':r['group_id'],
                 'effective_from':span['effective_from'],'effective_to':span['effective_to']}
-                for r in reader.commits['industry_membership'].rows
+                for r in industry_rows
                 for span in (r['membership_spans'] if 'membership_spans' in r else [r])],
             'universes':universes,'financial_report_periods':{
                 s:sorted({r['report_period'] for r in financial if r['symbol']==s}) for s in symbols}}

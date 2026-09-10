@@ -1,0 +1,563 @@
+{
+  "raw_ref": "holder-diagnostic-3e67b70e3a436effee6a81e5efcb3b0298f5b7c28cc28e68be0cf7ae5c22c407",
+  "rows": [
+    {
+      "ann_date": "20260815",
+      "end_date": "20260630",
+      "holder_num": 450712.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20260527",
+      "end_date": "20260527",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20260425",
+      "end_date": "20260331",
+      "holder_num": 457610.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20260327",
+      "end_date": "20260327",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20260321",
+      "end_date": "20260228",
+      "holder_num": 462824.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20260321",
+      "end_date": "20251231",
+      "holder_num": 441142.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20251231",
+      "end_date": "20251231",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20251031",
+      "end_date": "20251031",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20251025",
+      "end_date": "20250930",
+      "holder_num": 453515.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250930",
+      "end_date": "20250930",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250811",
+      "end_date": "20250811",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250823",
+      "end_date": "20250630",
+      "holder_num": 443583.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250626",
+      "end_date": "20250626",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "2025-05-12 15:09:08",
+      "end_date": "20250507",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250419",
+      "end_date": "20250331",
+      "holder_num": 504267.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250315",
+      "end_date": "20250228",
+      "holder_num": 479969.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250219",
+      "end_date": "20250219",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250117",
+      "end_date": "20250113",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250117",
+      "end_date": "20250110",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250110",
+      "end_date": "20250110",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20250315",
+      "end_date": "20241231",
+      "holder_num": 486258.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20241226",
+      "end_date": "20241226",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20241129",
+      "end_date": "20241115",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20241112",
+      "end_date": "20241112",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20241019",
+      "end_date": "20240930",
+      "holder_num": 517695.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240816",
+      "end_date": "20240630",
+      "holder_num": 546413.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240628",
+      "end_date": "20240628",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240428",
+      "end_date": "20240424",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240420",
+      "end_date": "20240331",
+      "holder_num": 567902.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240329",
+      "end_date": "20240329",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240322",
+      "end_date": "20240320",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240329",
+      "end_date": "20240320",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240315",
+      "end_date": "20240229",
+      "holder_num": 566200.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240412",
+      "end_date": "20231231",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20240315",
+      "end_date": "20231231",
+      "holder_num": 573282.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20231130",
+      "end_date": "20231129",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20231030",
+      "end_date": "20230930",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20231025",
+      "end_date": "20230930",
+      "holder_num": 530229.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20230927",
+      "end_date": "20230920",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20231008",
+      "end_date": "20230630",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20230824",
+      "end_date": "20230630",
+      "holder_num": 536701.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20230425",
+      "end_date": "20230331",
+      "holder_num": 506867.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20230615",
+      "end_date": "20230301",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20230309",
+      "end_date": "20230228",
+      "holder_num": 477304.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20230706",
+      "end_date": "20230101",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20230309",
+      "end_date": "20221231",
+      "holder_num": 487200.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20221025",
+      "end_date": "20220930",
+      "holder_num": 547735.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20220818",
+      "end_date": "20220630",
+      "holder_num": 493029.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20220427",
+      "end_date": "20220331",
+      "holder_num": 508679.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20220310",
+      "end_date": "20220228",
+      "holder_num": 506734.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20220310",
+      "end_date": "20211231",
+      "holder_num": 502716.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20231218",
+      "end_date": "20211208",
+      "holder_num": null,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20211021",
+      "end_date": "20210930",
+      "holder_num": 390490.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20210820",
+      "end_date": "20210630",
+      "holder_num": 296828.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20210421",
+      "end_date": "20210331",
+      "holder_num": 331829.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20210202",
+      "end_date": "20210129",
+      "holder_num": 290750.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20210202",
+      "end_date": "20201231",
+      "holder_num": 308724.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20210419",
+      "end_date": "20201230",
+      "holder_num": 308724.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20201022",
+      "end_date": "20200930",
+      "holder_num": 351374.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20200828",
+      "end_date": "20200630",
+      "holder_num": 431036.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20200421",
+      "end_date": "20200331",
+      "holder_num": 397399.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20200214",
+      "end_date": "20200131",
+      "holder_num": 340920.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20200214",
+      "end_date": "20191231",
+      "holder_num": 322864.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20191022",
+      "end_date": "20190930",
+      "holder_num": 299958.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20190808",
+      "end_date": "20190630",
+      "holder_num": 321929.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20190424",
+      "end_date": "20190331",
+      "holder_num": 354508.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20190307",
+      "end_date": "20190228",
+      "holder_num": 369119.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20190307",
+      "end_date": "20181231",
+      "holder_num": 429409.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20181024",
+      "end_date": "20180930",
+      "holder_num": 406242.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20180816",
+      "end_date": "20180630",
+      "holder_num": 435978.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20180420",
+      "end_date": "20180331",
+      "holder_num": 421677.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20180315",
+      "end_date": "20180228",
+      "holder_num": 392992.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20180315",
+      "end_date": "20171231",
+      "holder_num": 343994.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20171021",
+      "end_date": "20170930",
+      "holder_num": 331474.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20170811",
+      "end_date": "20170630",
+      "holder_num": 379179.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20170422",
+      "end_date": "20170331",
+      "holder_num": 371177.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20170317",
+      "end_date": "20170228",
+      "holder_num": 349253.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20170317",
+      "end_date": "20161231",
+      "holder_num": 350142.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20161021",
+      "end_date": "20160930",
+      "holder_num": 340324.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20160812",
+      "end_date": "20160630",
+      "holder_num": 340528.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20160421",
+      "end_date": "20160331",
+      "holder_num": 341525.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20160310",
+      "end_date": "20160229",
+      "holder_num": 347147.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20160310",
+      "end_date": "20151231",
+      "holder_num": 332918.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20151023",
+      "end_date": "20150930",
+      "holder_num": 358049.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20150814",
+      "end_date": "20150630",
+      "holder_num": 418294.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20150424",
+      "end_date": "20150331",
+      "holder_num": 313029.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20150313",
+      "end_date": "20150306",
+      "holder_num": 335403.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20150313",
+      "end_date": "20141231",
+      "holder_num": 275838.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20141024",
+      "end_date": "20140930",
+      "holder_num": 311571.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20140814",
+      "end_date": "20140630",
+      "holder_num": 298305.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20140424",
+      "end_date": "20140331",
+      "holder_num": 319109.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20140307",
+      "end_date": "20140228",
+      "holder_num": 310335.0,
+      "ts_code": "000001.SZ"
+    },
+    {
+      "ann_date": "20140307",
+      "end_date": "20131231",
+      "holder_num": 298070.0,
+      "ts_code": "000001.SZ"
+    }
+  ]
+}

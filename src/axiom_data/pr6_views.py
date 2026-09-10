@@ -36,7 +36,7 @@ def project(reader, scope, policy, cutoff):
     from axiom_data.pr6_coverage import admit_view
     actual_scope=admit_view(reader,scope,policy,cutoff)
     sw_state=reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3'
-    taxonomy=sorted({s['industry_id'] for r in reader.facts('industry_membership') for s in r['membership_spans']}) if sw_state else sorted({r['industry_id'] for r in reader.facts('industry_membership')})
+    taxonomy=sorted({s['industry_id'] for r in reader.as_of('industry_membership',knowledge_cutoff=cutoff,pit_policy=policy) for s in r['membership_spans']}) if sw_state else sorted({r['industry_id'] for r in reader.facts('industry_membership')})
     encoding={industry:i+1 for i,industry in enumerate(taxonomy)}
     events=[];derived=[];wide=[];memberships=[];industries=[]
     for session in sessions:
