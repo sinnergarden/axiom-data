@@ -13,6 +13,10 @@ def main():
     bootstrap = commands.add_parser('bootstrap')
     bootstrap.add_argument('--run-id', required=True)
     bootstrap.add_argument('--plan', type=Path, required=True)
+    views = commands.add_parser('materialize-views')
+    views.add_argument('--snapshot', required=True)
+    views.add_argument('--run-id', required=True)
+    views.add_argument('--plan', type=Path, required=True)
     collect = commands.add_parser('collect')
     collect.add_argument('--run-id', required=True)
     collect.add_argument('--plan', type=Path, required=True)
@@ -39,6 +43,12 @@ def main():
     source_collect.add_argument('--domains',nargs='+',required=True)
     commands.add_parser('rebuild-catalog')
     args = parser.parse_args()
+    if args.operation == 'materialize-views':
+        from axiom_data import materialize_views
+        result=materialize_views(args.data_root,run_id=args.run_id,snapshot_id=args.snapshot,
+                                 views=json.loads(args.plan.read_bytes()))
+        print(json.dumps(result,ensure_ascii=False,indent=2))
+        return 0 if result['status']=='VIEWS_BUILT' else 1
     if args.operation == 'bootstrap':
         from axiom_data.operations import bootstrap
         result=bootstrap(args.data_root,run_id=args.run_id,**json.loads(args.plan.read_bytes()))

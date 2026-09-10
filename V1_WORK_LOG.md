@@ -1,3 +1,12 @@
+# Required View operation checkpoint — 2026-09-10
+
+220/220 tests PASS (69.117s). Public materialize_views and thin materialize-views
+CLI freeze Snapshot/config/implementation inputs and execute existing View
+builders. Required failures preserve prior outputs and keep the candidate
+unready; resume replays and verifies exact results. A substituted execution-record
+View ID fails. See docs/operations/materialize-views.md. Full admission remains
+a separate gate; stage 3/5 and all V1 terminal work continue.
+
 # PR7 projection batching checkpoint — 2026-09-10
 
 219/219 tests PASS (66.642s). PR7 View selection runs once per domain/session;
