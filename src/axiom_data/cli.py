@@ -10,6 +10,9 @@ def main():
     parser = argparse.ArgumentParser(prog='axiom-data')
     parser.add_argument('--data-root', type=Path, required=True)
     commands = parser.add_subparsers(dest='operation', required=True)
+    bootstrap = commands.add_parser('bootstrap')
+    bootstrap.add_argument('--run-id', required=True)
+    bootstrap.add_argument('--plan', type=Path, required=True)
     collect = commands.add_parser('collect')
     collect.add_argument('--run-id', required=True)
     collect.add_argument('--plan', type=Path, required=True)
@@ -36,6 +39,11 @@ def main():
     source_collect.add_argument('--domains',nargs='+',required=True)
     commands.add_parser('rebuild-catalog')
     args = parser.parse_args()
+    if args.operation == 'bootstrap':
+        from axiom_data.operations import bootstrap
+        result=bootstrap(args.data_root,run_id=args.run_id,**json.loads(args.plan.read_bytes()))
+        print(json.dumps(result,ensure_ascii=False,indent=2))
+        return 0 if result['status']=='CANDIDATE_BUILT' else 1
     if args.operation == 'daily':
         from axiom_data.operations import daily
         result=daily(args.data_root,run_id=args.run_id,snapshot_id=args.snapshot,

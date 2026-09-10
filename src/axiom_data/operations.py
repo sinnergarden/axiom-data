@@ -458,6 +458,42 @@ def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, cli
             _save(path,state);raise
 
 
+def bootstrap(data_root, *, run_id, domain_inputs=None, domain_commit_ids=None):
+    """Build frozen Raw inputs or resume a complete canonical checkpoint.
+
+    Collection uses collect_bootstrap_sources. Both paths produce an ordinary
+    candidate Snapshot and leave required Views/admission outstanding.
+    """
+    if (domain_inputs is None)==(domain_commit_ids is None):
+        raise ArtifactError('bootstrap requires exactly one explicit input mode')
+    if domain_inputs is not None:
+        return assemble_candidate(data_root,run_id=run_id,domain_inputs=domain_inputs)
+    from axiom_data import create_snapshot
+    from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
+    from axiom_data.build import _validate_identity
+    _identity('run_id',run_id)
+    if not isinstance(domain_commit_ids,dict) or set(domain_commit_ids)!=set(PR7_SNAPSHOT_DOMAINS):
+        raise ArtifactError('bootstrap checkpoint requires all V1 domains')
+    ids={d:_validate_identity('domain_commit_id',i) for d,i in domain_commit_ids.items()}
+    layout=_layout(data_root)
+    with writer(layout.root):
+        directory=layout.root/'operations'/run_id;_ensure_directory(layout.root,directory)
+        path=_safe_path(layout.root,directory/'bootstrap.json')
+        if path.exists() and json.loads(path.read_bytes())['domain_commit_ids']!=ids:
+            raise ArtifactError('resume bootstrap checkpoint differs from frozen inputs')
+        state={'schema_version':'bootstrap_checkpoint_run.v1','run_id':run_id,
+            'domain_commit_ids':ids,'status':'RUNNING','stage':'CANONICAL_CHECKPOINT_VALIDATION',
+            'ready_for_consumption':False}
+        _save(path,state)
+        try:
+            ref=create_snapshot(layout.root,ids)
+            state.update(status='CANDIDATE_BUILT',stage='REQUIRED_VIEWS_AND_FULL_ADMISSION',
+                snapshot_id=ref.snapshot_id,snapshot_manifest_digest=ref.manifest_digest)
+        except Exception as exc:
+            state.update(status='FAILED',error_type=type(exc).__name__)
+        _save(path,state);return state
+
+
 def repair(data_root, *, run_id, snapshot_id, domain_inputs):
     """Rebuild frozen inputs with the installed builder into a repair candidate.
 

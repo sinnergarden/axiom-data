@@ -68,11 +68,12 @@ from .views import (
 )
 from .dm1_reconciliation import reconcile_dm1_raw_mapping
 from .evidence import validate_pr5_evidence
-from .operations import plan_daily, daily, repair, inspect_scope
+from .operations import plan_daily, daily, bootstrap, repair, inspect_scope
 
 __all__ = [
     "plan_daily",
     "daily",
+    "bootstrap",
     "repair",
     "inspect_scope",
     "ArtifactConflictError",

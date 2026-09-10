@@ -1,3 +1,11 @@
+# Public bootstrap checkpoint — 2026-09-10
+
+216/216 tests PASS (68.138s). Public bootstrap API/CLI accepts complete frozen Raw
+build inputs or 18 explicit canonical checkpoint IDs. Both use the normal
+publisher/closure validators and leave Views/admission pending. Real fixture
+resume keeps the exact Snapshot identity and rejects later corruption.
+Stage 3/5; valuation and remaining queue continue. No baseline decision yet.
+
 # Daily execution checkpoint — 2026-09-10
 
 215/215 tests PASS (65.964s). Public daily API/CLI execute per-source collection,
