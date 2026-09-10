@@ -339,6 +339,18 @@ def compare_pr7_projection(data_root, snapshot_id, view_id, *, symbols, fields, 
             'rows': len(actual), 'fields': fields, 'start_session': start_session, 'end_session': end_session}
 
 
+def repair(data_root, *, run_id, snapshot_id, domain_inputs):
+    """Rebuild frozen inputs with the installed builder into a repair candidate.
+
+    Each domain explicitly chooses incremental or clean lineage. Old artifacts
+    remain intact; the returned candidate still requires Views and admission.
+    """
+    from axiom_data.build import _validate_identity
+    concrete = _validate_identity('snapshot_id', snapshot_id)
+    return assemble_candidate(data_root, run_id=run_id, domain_inputs=domain_inputs,
+                              parent_snapshot_id=concrete)
+
+
 def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=None):
     """Build explicit changed domains and an immutable candidate; never promote it.
 

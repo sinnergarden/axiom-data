@@ -3,7 +3,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
-from axiom_data import SnapshotReader
+from axiom_data import SnapshotReader, repair
 from axiom_data.operations import assemble_candidate
 
 
@@ -18,7 +18,7 @@ class CandidateTest(unittest.TestCase):
             raw=[r['raw_batch_id'] for r in parent.commits['holder_count_events'].manifest['ordered_raw_batch_refs']]
             spec={'raw_batch_ids':raw,'contract_version':'holder_count_events.v1',
                   'config':{},'new_lineage':True}
-            result=assemble_candidate(root,run_id='candidate',parent_snapshot_id=parent.snapshot.ref.snapshot_id,
+            result=repair(root,run_id='candidate',snapshot_id=parent.snapshot.ref.snapshot_id,
                                       domain_inputs={'holder_count_events':spec})
             self.assertEqual(result['status'],'CANDIDATE_BUILT',result.get('failed'))
             self.assertFalse(result['ready_for_consumption'])
@@ -58,3 +58,11 @@ class CandidateTest(unittest.TestCase):
             for p in root.rglob('*'):
                 if p.is_dir(): p.chmod(0o755)
             shutil.rmtree(root.parent)
+
+    def test_repair_requires_explicit_snapshot_before_writing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for identity in ['current','latest',None]:
+                with self.assertRaises(ValueError):
+                    repair(root,run_id='repair',snapshot_id=identity,domain_inputs={})
+            self.assertEqual(list(root.iterdir()),[])

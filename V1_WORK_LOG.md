@@ -1,3 +1,11 @@
+# Public repair checkpoint — 2026-09-10
+
+211/211 tests PASS (64.350s). Public repair API and thin CLI use the existing
+candidate builder with explicit Snapshot and frozen Raw identities. Incremental
+and clean lineage decisions remain explicit; resume and failure checks are shared.
+Successful repair still requires Views and admission. See docs/operations/repair.md.
+Stage 3/5 continues; no baseline or pointer promotion.
+
 # Contract metadata checkpoint — 2026-09-10
 
 210/210 tests PASS (63.327s). PR7 leaf metadata now uses the Snapshot domain's

@@ -15,6 +15,10 @@ def main():
     collect.add_argument('--plan', type=Path, required=True)
     inspect = commands.add_parser('inspect')
     inspect.add_argument('--snapshot', required=True)
+    repair = commands.add_parser('repair')
+    repair.add_argument('--snapshot', required=True)
+    repair.add_argument('--run-id', required=True)
+    repair.add_argument('--plan', type=Path, required=True)
     daily_plan = commands.add_parser('plan-daily')
     daily_plan.add_argument('--snapshot', required=True)
     daily_plan.add_argument('--plan', type=Path, required=True)
@@ -27,6 +31,12 @@ def main():
     source_collect.add_argument('--domains',nargs='+',required=True)
     commands.add_parser('rebuild-catalog')
     args = parser.parse_args()
+    if args.operation == 'repair':
+        from axiom_data.operations import repair
+        result = repair(args.data_root, run_id=args.run_id, snapshot_id=args.snapshot,
+                        domain_inputs=json.loads(args.plan.read_bytes()))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result['status'] == 'CANDIDATE_BUILT' else 1
     if args.operation == 'plan-daily':
         from axiom_data.operations import plan_daily
         print(json.dumps(plan_daily(args.data_root, args.snapshot,

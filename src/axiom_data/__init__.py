@@ -68,10 +68,11 @@ from .views import (
 )
 from .dm1_reconciliation import reconcile_dm1_raw_mapping
 from .evidence import validate_pr5_evidence
-from .operations import plan_daily
+from .operations import plan_daily, repair
 
 __all__ = [
     "plan_daily",
+    "repair",
     "ArtifactConflictError",
     "ArtifactError",
     "ArtifactNotFoundError",
