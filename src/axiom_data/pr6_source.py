@@ -12,7 +12,7 @@ from axiom_data.domains.pr6 import economic_content
 
 
 def load_pr6_source_profile(version='tushare_pr6.v1'):
-    if version not in {'tushare_pr6.v1','tushare_pr6.v2'}:
+    if version not in {'tushare_pr6.v1','tushare_pr6.v2','tushare_fina_indicator.v1'}:
         raise ArtifactError('unsupported PR6 SourceProfile version')
     return json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
 
@@ -65,7 +65,8 @@ def validate_payload(endpoint, params, records, *, profile_version='tushare_pr6.
             raise ArtifactError('source security outside individual RawBatch request')
         if endpoint=='index_weight' and row.get('index_code')!=params['index_code']:
             raise ArtifactError('source index outside individual RawBatch request')
-        represented = row.get('trade_date') if endpoint in {'index_weight','bak_basic','daily_basic'} else row.get('ann_date')
+        represented = row.get(definition.get('request_bound_field','trade_date' if endpoint in {'index_weight','bak_basic','daily_basic'} else 'ann_date'))
+        if profile_version=='tushare_fina_indicator.v1':source_date(row.get('ann_date'))
         source_date(represented)
         if params.get('trade_date') and represented!=params['trade_date']:
             raise ArtifactError('source date outside RawBatch request')

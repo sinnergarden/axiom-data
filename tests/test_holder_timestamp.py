@@ -7,6 +7,24 @@ from axiom_data.pr7_source import Pr7Collector,normalize,validate_payload
 
 
 class HolderTimestampTest(unittest.TestCase):
+    def test_unkeyed_empty_records_are_explicitly_qualified_without_fake_periods(self):
+        for fixture in json.loads(Path('tests/fixtures/holder_unkeyed_empty.json').read_bytes()):
+            params={'ts_code':fixture['rows'][0]['ts_code'],'start_date':'20140101','end_date':'20260908'}
+            with self.assertRaises(ArtifactError):validate_payload('stk_holdernumber',params,fixture['rows'],profile_version='tushare_pr7_holder.v2')
+            class Client:
+                def query(self,*args,**kwargs):return fixture['rows']
+            with tempfile.TemporaryDirectory() as root:
+                ref=Pr7Collector(root,Client()).collect('stk_holdernumber',params,profile_version='tushare_pr7_holder.v3')
+                raw=load_raw_batch(root,ref.raw_batch_id)
+                self.assertEqual(json.loads(raw.payload),fixture['rows'])
+                excluded=raw.manifest['summary']['source_qualification']
+                self.assertEqual(len(excluded),1)
+                self.assertEqual(excluded[0]['reason'],'unkeyed_empty_observation')
+                rows=normalize(raw,'holder_count_events')
+                self.assertTrue(all(r['report_period'] for r in rows))
+                broken=dict(fixture['rows'][excluded[0]['row_index']],holder_num=123)
+                with self.assertRaises(ArtifactError):validate_payload('stk_holdernumber',params,[broken],profile_version='tushare_pr7_holder.v3')
+
     def test_real_supplier_timestamp_keeps_raw_and_precise_availability(self):
         fixture=json.loads(Path('tests/fixtures/holder_timestamp.json').read_bytes())
         params={'ts_code':'000001.SZ','start_date':'20140101','end_date':'20260908'}

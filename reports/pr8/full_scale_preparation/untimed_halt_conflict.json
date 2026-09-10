@@ -1,0 +1,82 @@
+[
+  {
+    "raw_id": "tushare-daily-e8603aab25fd97fb274a20daa6b167b1b409d8da11794edf6c53c0dbfbfba343",
+    "rows": [
+      {
+        "amount": 101094.5682,
+        "change": 0.06,
+        "close": 9.34,
+        "high": 10.18,
+        "low": 8.8,
+        "open": 10.18,
+        "pct_chg": 0.65,
+        "pre_close": 9.28,
+        "trade_date": "20150706",
+        "ts_code": "000055.SZ",
+        "vol": 105232.53
+      },
+      {
+        "amount": 242709.2747,
+        "change": -1.03,
+        "close": 9.28,
+        "high": 10.28,
+        "low": 9.28,
+        "open": 9.49,
+        "pct_chg": -9.99,
+        "pre_close": 10.31,
+        "trade_date": "20150703",
+        "ts_code": "000055.SZ",
+        "vol": 258547.82
+      },
+      {
+        "amount": 428700.8018,
+        "change": -1.14,
+        "close": 10.31,
+        "high": 11.75,
+        "low": 10.31,
+        "open": 11.1,
+        "pct_chg": -9.96,
+        "pre_close": 11.45,
+        "trade_date": "20150702",
+        "ts_code": "000055.SZ",
+        "vol": 411210.56
+      },
+      {
+        "amount": 243414.2344,
+        "change": -1.15,
+        "close": 11.45,
+        "high": 12.99,
+        "low": 11.34,
+        "open": 12.51,
+        "pct_chg": -9.13,
+        "pre_close": 12.6,
+        "trade_date": "20150701",
+        "ts_code": "000055.SZ",
+        "vol": 197932.29
+      }
+    ]
+  },
+  {
+    "raw_id": "tushare-suspend_d-fe4eadac67fef9f6b3a27a3c8831ebca32c503ab6254ffa902664fc4c5d84edb",
+    "rows": [
+      {
+        "suspend_timing": null,
+        "suspend_type": "S",
+        "trade_date": "20150706",
+        "ts_code": "000055.SZ"
+      },
+      {
+        "suspend_timing": null,
+        "suspend_type": "S",
+        "trade_date": "20150707",
+        "ts_code": "000055.SZ"
+      },
+      {
+        "suspend_timing": null,
+        "suspend_type": "S",
+        "trade_date": "20150708",
+        "ts_code": "000055.SZ"
+      }
+    ]
+  }
+]

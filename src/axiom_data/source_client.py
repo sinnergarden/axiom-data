@@ -1,4 +1,4 @@
-"""Bounded retries for read-only supplier queries; never retry a mapping error."""
+"""Bounded transport retries for read-only queries; never retry a mapping error."""
 import time
 
 
@@ -15,5 +15,6 @@ class PacedSourceClient:
             except Exception as exc:
                 message=str(exc).lower()
                 limited=any(marker in message for marker in ('每分钟','访问频率','rate limit','too many requests'))
-                if not limited or attempt==2:raise
-                self.sleep(61)
+                transient=isinstance(exc,(ConnectionError,TimeoutError)) or type(exc).__name__ in {'ConnectionError','Timeout','ReadTimeout','ConnectTimeout'}
+                if not (limited or transient) or attempt==2:raise
+                self.sleep(61 if limited else 5*(attempt+1))

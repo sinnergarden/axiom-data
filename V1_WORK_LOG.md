@@ -1,3 +1,13 @@
+# Active checkpoint — 2026-09-10 source/storage follow-up
+
+Stage 3/5 remains active. SW correction and industry stage are validated.
+189/189 tests PASS (138.450s). Holder v3 source collection is COMPLETE:
+3,601 requests / 339,598 Raw records. Other source jobs continue with exact
+checkpoint identities. Full baseline, admission and stages 4–5 are incomplete.
+See reports/pr8/full_scale_preparation/REPORT.md for explicit holder/indicator/
+halt source qualification, bounded partition reads and the 100-security mapper
+probe: 295,050 identical rows, 79.75% lower peak RSS. No merge/push/pointer move.
+
 # Active decision — 2026-09-10
 
 Full bootstrap run v1-full-bootstrap-20260910-r1 is active in stage 3/5.

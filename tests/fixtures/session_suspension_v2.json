@@ -1,0 +1,94 @@
+[
+  {
+    "suspension_raw_id": "tushare-suspend_d-9f543f39ca9f1733b20ea02cbacc2f1c9e1b540275551c1003b7b88c3fb4fdbf",
+    "daily_raw_id": "tushare-daily-f12d628195345e9740a168dd79ac9146a1af3cf2d170a01e8424a7c16a25b97e",
+    "suspension": {
+      "suspend_timing": "09:30-15:00",
+      "suspend_type": "S",
+      "trade_date": "20160127",
+      "ts_code": "000157.SZ"
+    },
+    "daily": {
+      "amount": 1188.33,
+      "change": 0.05,
+      "close": 4.29,
+      "high": 4.29,
+      "low": 4.29,
+      "open": 4.29,
+      "pct_chg": 1.18,
+      "pre_close": 4.24,
+      "trade_date": "20160127",
+      "ts_code": "000157.SZ",
+      "vol": 2770.0
+    }
+  },
+  {
+    "suspension_raw_id": "tushare-suspend_d-928adfd9f70dfee6b77349cb11d57a25a768314995a2305b06ebdbb06356fdd7",
+    "daily_raw_id": "tushare-daily-1bbfaed7d7ee751459ca43fa2285799734a5d0a37a8ce20320f07407c049a546",
+    "suspension": {
+      "suspend_timing": "09:30-10:30,10:30-14:57",
+      "suspend_type": "S",
+      "trade_date": "20211117",
+      "ts_code": "001267.SZ"
+    },
+    "daily": {
+      "amount": 408221.154,
+      "change": 2.11,
+      "close": 6.02,
+      "high": 8.7,
+      "low": 6.02,
+      "open": 8.7,
+      "pct_chg": 53.9642,
+      "pre_close": 3.91,
+      "trade_date": "20211117",
+      "ts_code": "001267.SZ",
+      "vol": 586825.46
+    }
+  },
+  {
+    "suspension_raw_id": "tushare-suspend_d-b94c6786621d69baa6b8f8b09f9058479ceaf92214c1c28f7f321f557517ce33",
+    "daily_raw_id": "tushare-daily-cdc262e89ebac4dff15719f777f5903543d4186441bcca9d5e6ba07116f847b0",
+    "suspension": {
+      "suspend_timing": "9:30-9:40,9:40-9:50",
+      "suspend_type": "S",
+      "trade_date": "20260608",
+      "ts_code": "600193.SH"
+    },
+    "daily": {
+      "amount": 19376.557,
+      "change": -1.98,
+      "close": 0.19,
+      "high": 1.09,
+      "low": 0.15,
+      "open": 1.09,
+      "pct_chg": -91.2442,
+      "pre_close": 2.17,
+      "trade_date": "20260608",
+      "ts_code": "600193.SH",
+      "vol": 987964.37
+    }
+  },
+  {
+    "suspension_raw_id": "tushare-suspend_d-843319c7b7f837c956015456b140be6375d8d25c1da5e5359686288445661b3d",
+    "daily_raw_id": "tushare-daily-316126e311a524e073e895b205e7c62251e35758b08f52c9ec193e6bca11fa56",
+    "suspension": {
+      "suspend_timing": "09:00-10:00",
+      "suspend_type": "S",
+      "trade_date": "20210915",
+      "ts_code": "600955.SH"
+    },
+    "daily": {
+      "amount": 80030.032,
+      "change": 13.01,
+      "close": 42.57,
+      "high": 42.57,
+      "low": 35.47,
+      "open": 35.47,
+      "pct_chg": 44.0122,
+      "pre_close": 29.56,
+      "trade_date": "20210915",
+      "ts_code": "600955.SH",
+      "vol": 18825.69
+    }
+  }
+]

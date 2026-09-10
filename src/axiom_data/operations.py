@@ -43,12 +43,19 @@ def inspect_snapshot(data_root, snapshot_id):
         dates = sorted({str(r.get('session') or r.get('report_period') or r.get('effective_from'))
                         for r in rows if r.get('session') or r.get('report_period') or r.get('effective_from')})
         qualifications = Counter(r.get('pit_qualification', 'unknown') for r in rows)
+        source_qualification=[]
+        for ref in commit.manifest['ordered_raw_batch_refs']:
+            if ref.get('source_profile_version')=='tushare_pr7_holder.v3':
+                raw=load_raw_batch(data_root,ref['raw_batch_id'])
+                exclusions=raw.manifest['summary'].get('source_qualification',[])
+                if exclusions:source_qualification.append({'raw_batch_id':ref['raw_batch_id'],'records':exclusions})
         domains[domain] = {'commit_id': commit.ref.commit_id, 'contract': commit.ref.contract_version,
             'builder': commit.manifest['builder_implementation_ref'], 'rows': len(rows),
             'data_extent': {'first': dates[0] if dates else None, 'last': dates[-1] if dates else None},
             'pit_qualification_counts': dict(qualifications),
             'structural_validation': commit.manifest['validation_summary'],
             'full_scope_admission': 'NOT_ASSESSED',
+            'source_record_qualification':source_qualification,
             'partitions': len(commit.manifest.get('partitions', commit.manifest['output_files']))}
     return {'snapshot_id': concrete, 'domains': domains,
             'note': 'Extents are not completeness; structural validation is not full-scope certification.'}
@@ -88,6 +95,8 @@ def _request(spec):
                 'pr6': load_pr6_source_profile(), 'pr6_bulk': load_pr6_source_profile('tushare_pr6.v2'), 'pr7': load_pr7_source_profile(), 'sw_pilot': sw_profile()}
     profiles['industry_qualification'] = sw_profile('tushare_industry_qualification.v1')
     profiles['pr7_holder'] = load_pr7_source_profile('tushare_pr7_holder.v2')
+    profiles['pr7_holder_v3'] = load_pr7_source_profile('tushare_pr7_holder.v3')
+    profiles['pr6_indicator'] = load_pr6_source_profile('tushare_fina_indicator.v1')
     family = spec['collector']
     if family not in profiles or spec['endpoint'] not in profiles[family]['endpoints']:
         raise ArtifactError('unsupported source operation')
@@ -101,10 +110,10 @@ def _request(spec):
         permitted = {definition['domain']}
     if spec['domain'] not in permitted:
         raise ArtifactError('source operation domain mismatch')
-    if family in {'pr6','pr6_bulk'}:
-        pr6_validate(spec['endpoint'], params, [], profile_version='tushare_pr6.v2' if family=='pr6_bulk' else 'tushare_pr6.v1')
-    if family in {'pr7','pr7_holder'}:
-        pr7_validate(spec['endpoint'], params, [],profile_version='tushare_pr7_holder.v2' if family=='pr7_holder' else 'tushare_pr7.v1')
+    if family in {'pr6','pr6_bulk','pr6_indicator'}:
+        pr6_validate(spec['endpoint'], params, [], profile_version=profiles[family]['profile_version'])
+    if family in {'pr7','pr7_holder','pr7_holder_v3'}:
+        pr7_validate(spec['endpoint'], params, [],profile_version=profiles[family]['profile_version'])
     if family in {'sw_pilot','industry_qualification'}:
         sw_validate(spec['endpoint'], params, profile_version=profiles[family]['profile_version'])
     elif set(params) & {'src','level','l1_code','l2_code','l3_code','is_new','limit','offset'}:
@@ -134,9 +143,9 @@ def _source_binding(spec):
         profile = load_dm1_source_profile()
         digest = dm1_source_profile_digest(profile)
         ref = profile['endpoints'][endpoint]['source_profile_ref']
-    elif family in {'pr6', 'pr6_bulk'}:
+    elif family in {'pr6', 'pr6_bulk', 'pr6_indicator'}:
         from axiom_data.pr6_source import load_pr6_source_profile, profile_digest
-        version = 'tushare_pr6.v2' if family == 'pr6_bulk' else 'tushare_pr6.v1'
+        version = {'pr6_bulk':'tushare_pr6.v2','pr6_indicator':'tushare_fina_indicator.v1'}.get(family,'tushare_pr6.v1')
         profile = load_pr6_source_profile(version)
         digest = profile_digest(version)
         ref = 'tushare.pr6.' + endpoint
@@ -148,7 +157,7 @@ def _source_binding(spec):
         ref = 'tushare.sw-pilot.' + endpoint
     else:
         from axiom_data.pr7_source import load_pr7_source_profile, profile_digest
-        version='tushare_pr7_holder.v2' if family=='pr7_holder' else 'tushare_pr7.v1'
+        version={'pr7_holder':'tushare_pr7_holder.v2','pr7_holder_v3':'tushare_pr7_holder.v3'}.get(family,'tushare_pr7.v1')
         profile = load_pr7_source_profile(version)
         digest = profile_digest(version)
         ref = 'tushare.pr7.' + endpoint
@@ -202,6 +211,8 @@ def collect_requests(data_root, *, run_id, requests, client=None):
                       'sw_pilot': SwQualificationCollector(layout.root, client)}
         collectors['industry_qualification'] = IndustryQualificationCollector(layout.root, client)
         collectors['pr7_holder'] = Pr7Collector(layout.root, client)
+        collectors['pr7_holder_v3'] = Pr7Collector(layout.root, client)
+        collectors['pr6_indicator'] = Pr6Collector(layout.root, client)
         consecutive_failures = 0
         for key, spec in zip(keys, requests):
             try:
@@ -212,7 +223,7 @@ def collect_requests(data_root, *, run_id, requests, client=None):
                     continue
                 collector = collectors[spec['collector']]
                 args = (spec['domain'], spec['endpoint'], spec['params']) if spec['collector'] == 'dm1' else (spec['endpoint'], spec['params'])
-                versions={'pr6_bulk':'tushare_pr6.v2','pr7_holder':'tushare_pr7_holder.v2'}
+                versions={'pr6_bulk':'tushare_pr6.v2','pr6_indicator':'tushare_fina_indicator.v1','pr7_holder':'tushare_pr7_holder.v2','pr7_holder_v3':'tushare_pr7_holder.v3'}
                 ref = collector.collect(*args, **({'profile_version':versions[spec['collector']]} if spec['collector'] in versions else {}))
                 raw = load_raw_batch(layout.root, ref.raw_batch_id)
                 _check_collected(raw, spec)
@@ -285,7 +296,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
     layout = _layout(data_root)
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
-    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy'}
+    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning'}
     for domain, spec in domain_inputs.items():
         if not isinstance(spec, dict) or set(spec) != {'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}:
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
@@ -297,8 +308,10 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             raise ArtifactError('unsupported security boundary policy')
         if 'industry_source_profile' in spec['config'] and (domain!='industry_membership' or spec['config']['industry_source_profile']!='tushare_sw2021.v1'):
             raise ArtifactError('unsupported industry source profile')
-        if 'session_suspension_policy' in spec['config'] and (domain not in {'market_daily','security_status'} or spec['config']['session_suspension_policy']!='session_suspension.v1'):
+        if 'session_suspension_policy' in spec['config'] and (domain not in {'market_daily','security_status'} or spec['config']['session_suspension_policy'] not in {'session_suspension.v1','session_suspension.v2'}):
             raise ArtifactError('unsupported session suspension policy')
+        if 'market_source_partitioning' in spec['config'] and (domain!='market_daily' or spec['config']['market_source_partitioning']!='security.v1'):
+            raise ArtifactError('unsupported market source partitioning')
         from axiom_data.build import BuildRequest
         BuildRequest(None, spec['raw_batch_ids'], [], spec['contract_version'])
         if type(spec['new_lineage']) is not bool:

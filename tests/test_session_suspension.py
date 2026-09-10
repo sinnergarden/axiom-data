@@ -7,6 +7,34 @@ from axiom_data.session_suspension import qualified_partial_halt
 
 
 class SessionSuspensionTest(unittest.TestCase):
+    def test_v2_real_multiple_intervals_and_opening_auction_boundary(self):
+        fixture=json.loads(Path('tests/fixtures/session_suspension_v2.json').read_bytes())
+        for item in fixture:
+            row,daily=item['suspension'],item['daily']
+            self.assertTrue(qualified_partial_halt(row,daily,policy='session_suspension.v2'))
+            with self.assertRaises(ArtifactError):qualified_partial_halt(row,daily)
+            with self.assertRaises(ArtifactError):qualified_partial_halt(row,None,policy='session_suspension.v2')
+            grouped={k:[] for k in ('daily','adj_factor','daily_basic','stk_limit','suspend_d')}
+            grouped.update(daily=[daily],suspend_d=[row])
+            result=TushareMarketBuilder._market_rows(grouped,{row['ts_code']},'2014-01-01','2026-09-08',partial_halts='session_suspension.v2')
+            self.assertEqual(len(result),1)
+            self.assertFalse(result[0]['is_suspended'])
+            self.assertAlmostEqual(result[0]['volume_shares'],daily['vol']*100)
+        row,daily=fixture[0]['suspension'],fixture[0]['daily']
+        for timing in ('09:15-15:00','09:15-11:30,13:00-15:00',
+                       '09:30-10:00,09:45-10:10','09:30-10:00,','9:30-9:99','10:00-09:30'):
+            with self.subTest(timing=timing), self.assertRaises(ArtifactError):
+                qualified_partial_halt(dict(row,suspend_timing=timing),daily,policy='session_suspension.v2')
+
+    def test_untimed_halt_with_traded_bar_does_not_assert_full_day(self):
+        row={'ts_code':'000055.SZ','trade_date':'20150706','suspend_type':'S','suspend_timing':None}
+        daily={'ts_code':'000055.SZ','trade_date':'20150706','vol':105232.53}
+        self.assertTrue(qualified_partial_halt(row,daily,policy='session_suspension.v2'))
+        self.assertFalse(qualified_partial_halt(row,daily))
+        self.assertFalse(qualified_partial_halt(row,None,policy='session_suspension.v2'))
+        with self.assertRaises(ArtifactError):
+            qualified_partial_halt(row,dict(daily,vol=0),policy='session_suspension.v2')
+
     def test_real_intraday_events_preserve_traded_bars_and_status(self):
         fixture=json.loads(Path('tests/fixtures/intraday_traded_bars.json').read_bytes())
         grouped={k:[] for k in ('daily','adj_factor','daily_basic','stk_limit','suspend_d')}

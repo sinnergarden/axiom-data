@@ -45,7 +45,7 @@ def plan_bootstrap_sources(*, symbols, start_session, end_session,
             for ep in ('income','balancesheet','cashflow','fina_indicator'):
                 p={'ts_code':symbol,'start_date':first,'end_date':last}
                 if ep!='fina_indicator':p['report_type']='1'
-                add('pr6','financial_events',ep,p,'revision_scan',financial_start,end)
+                add('pr6_indicator' if ep=='fina_indicator' else 'pr6','financial_events',ep,p,'revision_scan',financial_start,end)
         for domain,ep,policy in [('holder_count_events','stk_holdernumber','revision_scan'),
                                  ('top_holders_reports','top10_holders','revision_scan'),
                                  ('margin_daily','margin_detail','next_session_publication'),
@@ -55,7 +55,7 @@ def plan_bootstrap_sources(*, symbols, start_session, end_session,
             # ten rows per report. The collector still rejects an at-cap result.
             windows=_windows(start,end,5) if ep=='top10_holders' else [(bounds['start_date'],bounds['end_date'])]
             for first,last in windows:
-                add('pr7_holder' if domain=='holder_count_events' else 'pr7',domain,ep,
+                add('pr7_holder_v3' if domain=='holder_count_events' else 'pr7',domain,ep,
                     {'ts_code':symbol,'start_date':first,'end_date':last},policy)
     for symbol in benchmarks:
         add('dm1','benchmark_daily','index_daily',dict(bounds,ts_code=symbol),'session_close')

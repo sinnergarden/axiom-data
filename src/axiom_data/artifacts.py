@@ -99,13 +99,27 @@ class RawBatch:
     payload: bytes
 
 
+class RawBatches(Sequence):
+    """Exact ordered identities, loading one verified payload at a time."""
+    def __init__(self, root, identities):
+        self.root, self.identities = root, tuple(identities)
+
+    def __len__(self):
+        return len(self.identities)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return RawBatches(self.root, self.identities[index])
+        return load_raw_batch(self.root, self.identities[index])
+
+
 @dataclass(frozen=True, slots=True)
 class DomainCommit:
     ref: DomainCommitRef
     manifest_digest: str
     manifest: dict[str, Any]
     contract: dict[str, Any]
-    rows: tuple[dict[str, Any], ...]
+    rows: Sequence[dict[str, Any]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,7 +190,10 @@ def _json_bytes(value: object) -> bytes:
 
 
 def _json_copy(value: object) -> Any:
-    return json.loads(_json_bytes(value))
+    # Per-row round trips otherwise allocate another copy of every schema key.
+    # Intern only immutable dictionary keys; nested mutable values remain copied.
+    import sys
+    return json.loads(_json_bytes(value),object_pairs_hook=lambda pairs:{sys.intern(k):v for k,v in pairs})
 
 
 def _digest(content: bytes) -> str:
@@ -619,9 +636,19 @@ def _contract_content(contract_version: str) -> tuple[dict[str, Any], bytes, str
     return contract, content, _digest(content)
 
 
+def _equal_rows(left, right):
+    from itertools import zip_longest
+    missing = object()
+    return all(a == b for a, b in zip_longest(left, right, fillvalue=missing))
+
+
 def _validate_domain_rows(domain: str, rows: object) -> None:
     try:
-        _DOMAIN_VALIDATORS[domain](rows)
+        from axiom_data.partition_rows import PartitionRows
+        if isinstance(rows, PartitionRows):
+            rows.validate(_DOMAIN_VALIDATORS[domain])
+        else:
+            _DOMAIN_VALIDATORS[domain](rows)
     except MarketContractError as exc:
         raise ArtifactError(f"{domain} rows violate {domain}.v1: {exc}") from exc
 
@@ -633,7 +660,7 @@ def _validate_dm1_observation_refs(
     transitive_raw_batch_ids: frozenset[str] | set[str],
 ) -> None:
     """Resolve observed provenance within this DomainCommit's RawBatch lineage."""
-
+    evidence = {}
     for row in rows:
         if row.get("pit_qualification") != "observed" and domain not in PR6_DOMAINS + PR7_DOMAINS:
             continue
@@ -641,24 +668,29 @@ def _validate_dm1_observation_refs(
         if row.get("boundary_source_ref") is not None:
             source_refs.append(row["boundary_source_ref"])
         for source_ref in source_refs:
-            try:
-                raw = load_raw_batch(root, source_ref)  # type: ignore[arg-type]
-            except ArtifactError as exc:
-                raise ArtifactError(
-                    "observed PIT source_ref must resolve to an actual RawBatch"
-                ) from exc
-            if raw.manifest.get("domain") != domain:
+            if not isinstance(source_ref,str):
+                raise ArtifactError('observed PIT source_ref must be a RawBatch identity')
+            if source_ref not in evidence:
+                try:
+                    raw = load_raw_batch(root, source_ref)
+                except ArtifactError as exc:
+                    raise ArtifactError(
+                        "observed PIT source_ref must resolve to an actual RawBatch"
+                    ) from exc
+                # Cache verified scalar evidence within this validation call;
+                # never retain every large supplier payload or cache across reads.
+                evidence[source_ref]=(raw.manifest.get('domain'),raw.ref.raw_batch_id,
+                    datetime.fromisoformat(raw.manifest['retrieved_at'].replace('Z','+00:00')))
+            raw_domain,raw_id,retrieved_at=evidence[source_ref]
+            if raw_domain != domain:
                 raise ArtifactError("observed PIT RawBatch belongs to another domain")
-            if raw.ref.raw_batch_id not in transitive_raw_batch_ids:
+            if raw_id not in transitive_raw_batch_ids:
                 raise ArtifactError(
                     "observed PIT source_ref is outside the DomainCommit transitive "
                     "RawBatch closure"
                 )
             observed_at = datetime.fromisoformat(
                 str(row["first_observed_at"]).replace("Z", "+00:00")
-            )
-            retrieved_at = datetime.fromisoformat(
-                raw.manifest["retrieved_at"].replace("Z", "+00:00")
             )
             if observed_at < retrieved_at:
                 raise ArtifactError(
@@ -869,7 +901,7 @@ class MarketDomainBuilder:
         if contract.get("domain") != self.domain:
             raise ArtifactError("build contract does not belong to the executor domain")
 
-        raw_batches = [load_raw_batch(self.layout.root, raw_id) for raw_id in request.raw_batch_ids]
+        raw_batches = RawBatches(self.layout.root, request.raw_batch_ids)
         for raw in raw_batches:
             if raw.manifest.get("domain") != self.domain:
                 raise ArtifactError(
@@ -917,6 +949,21 @@ class MarketDomainBuilder:
             parent.rows if parent is not None else (),
             raw_batches,
         )
+        from axiom_data.partition_rows import PartitionRows, WHOLE_STATE_DOMAINS, rows_digest
+        published_partitions = None
+        rows_content = None
+        if self.builder_config.get('storage_policy') == 'domain_time_blocks.v1':
+            from axiom_data.partitions import POLICY, publish_partitions
+            logical_digest = rows_digest(rows)
+            published_partitions = publish_partitions(self.layout, self.domain, rows)
+            if self.domain not in WHOLE_STATE_DOMAINS:
+                rows = PartitionRows(self.layout, self.domain, {
+                    'partition_policy': POLICY, 'output_files': [],
+                    'partitions': published_partitions, 'logical_content_digest': logical_digest,
+                }, contract)
+        else:
+            rows_content = _json_bytes(rows)
+            logical_digest = _digest(rows_content)
         if self.domain in DM1_REFERENCE_DOMAINS + PR6_DOMAINS + PR7_DOMAINS:
             _validate_dm1_observation_refs(
                 self.layout.root,
@@ -929,15 +976,13 @@ class MarketDomainBuilder:
             from axiom_data.pr6_source import Pr6Builder
             replay = Pr6Builder(self.layout.root, self.domain, builder_config=self.builder_config)
             replay.parent_group_states = self.parent_group_states
-            if replay._build_rows(contract, parent.rows if parent else (), raw_batches) != rows:
+            if not _equal_rows(replay._build_rows(contract, parent.rows if parent else (), raw_batches), rows):
                 raise ArtifactError("PR6 staged rows differ from their source mapping")
         if self.domain in PR7_DOMAINS:
             from axiom_data.pr7_source import Pr7Builder
             replay = Pr7Builder(self.layout.root, self.domain, builder_config=self.builder_config)
-            if replay._build_rows(contract, parent.rows if parent else (), raw_batches) != rows:
+            if not _equal_rows(replay._build_rows(contract, parent.rows if parent else (), raw_batches), rows):
                 raise ArtifactError("PR7 staged rows differ from RawBatch mapping")
-        rows_content = _json_bytes(rows)
-        logical_digest = _digest(rows_content)
         builder_config_digest = _digest(_json_bytes(self.builder_config))
         builder_implementation_ref = _builder_implementation_ref(self)
         parent_ref = _commit_ref(parent) if parent is not None else None
@@ -982,7 +1027,7 @@ class MarketDomainBuilder:
             from axiom_data.partitions import POLICY, publish_partitions
             manifest['schema_version'] = 'domain_commit.v2'
             manifest['partition_policy'] = POLICY
-            manifest['partitions'] = publish_partitions(self.layout, self.domain, rows)
+            manifest['partitions'] = published_partitions
             manifest['output_files'] = []
         if request.contract_version == 'universe_membership.v3':
             if self.group_states != replay.group_states:
@@ -1003,7 +1048,9 @@ class MarketDomainBuilder:
             _write_file(candidate / "contract.json", contract_content)
             if manifest['schema_version'] == 'domain_commit.v2':
                 from axiom_data.partitions import read_partitions
-                staged_rows = read_partitions(self.layout, self.domain, manifest, contract)
+                staged_rows = (PartitionRows(self.layout, self.domain, manifest, contract)
+                    if self.domain not in WHOLE_STATE_DOMAINS else
+                    read_partitions(self.layout, self.domain, manifest, contract))
             else:
                 _write_file(candidate / "rows.json", rows_content)
                 staged_rows = json.loads((candidate / "rows.json").read_bytes())
@@ -1014,7 +1061,7 @@ class MarketDomainBuilder:
                 _validate_market_dependencies(staged_rows, calendar, security)
             if _digest((candidate / "contract.json").read_bytes()) != contract_digest:
                 raise ArtifactError("staged contract digest mismatch")
-            if _digest(_json_bytes(staged_rows)) != logical_digest:
+            if rows_digest(staged_rows) != logical_digest:
                 raise ArtifactError("staged logical content digest mismatch")
             _write_manifest(candidate, manifest)
 
@@ -1090,8 +1137,15 @@ def load_domain_commit(
         raise ArtifactError("DomainCommit uses an unsupported Phase 1 contract") from exc
 
     if manifest['schema_version'] == 'domain_commit.v2':
+        from axiom_data.partition_rows import PartitionRows, STREAM_ROW_THRESHOLD, WHOLE_STATE_DOMAINS
         from axiom_data.partitions import read_partitions
-        rows = read_partitions(layout, domain, manifest, contract)
+        partition_rows = PartitionRows(layout, domain, manifest, contract)
+        # Membership overlap/group checks and calendar predecessor checks remain
+        # whole-state validators. Other contracts have row checks plus global keys.
+        if len(partition_rows) >= STREAM_ROW_THRESHOLD and domain not in WHOLE_STATE_DOMAINS:
+            rows = partition_rows
+        else:
+            rows = read_partitions(layout, domain, manifest, contract)
     else:
         output_files = manifest.get("output_files")
         if not isinstance(output_files, list) or len(output_files) != 1:
@@ -1126,7 +1180,8 @@ def load_domain_commit(
         "cross_domain": expected_cross_domain,
     }:
         raise ArtifactError("DomainCommit validation summary is invalid")
-    return DomainCommit(ref, manifest_digest, manifest, contract, tuple(rows))
+    return DomainCommit(ref, manifest_digest, manifest, contract,
+                        tuple(rows) if isinstance(rows, list) else rows)
 
 
 def _validate_domain_commit_closure(
@@ -1258,22 +1313,24 @@ def _validate_domain_commit_node(
             replay = Pr6Builder(root, domain, builder_config=commit.manifest["builder_config"])
             replay.parent_group_states = parent.manifest.get("group_states", []) if parent_ref is not None else []
             expected_rows = replay._build_rows(commit.contract, previous_rows,
-                [load_raw_batch(root, ref["raw_batch_id"]) for ref in raw_refs])
+                RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]))
             if commit.ref.contract_version == "universe_membership.v3" and commit.manifest.get("group_states") != replay.group_states:
                 raise ArtifactError("universe group states differ from RawBatch mapping")
             if commit.ref.contract_version == "universe_membership.v3":
                 from axiom_data.domains.pr6 import validate_group_states
                 validate_group_states(commit.rows,commit.manifest["group_states"])
-            if expected_rows != list(commit.rows):
+            if not _equal_rows(expected_rows, commit.rows):
                 raise ArtifactError("PR6 canonical rows differ from their RawBatch mapping")
+            del expected_rows
 
         if domain in PR7_DOMAINS:
             from axiom_data.pr7_source import Pr7Builder
             replay = Pr7Builder(root, domain, builder_config=commit.manifest["builder_config"])
             expected_rows = replay._build_rows(commit.contract, parent.rows if parent_ref is not None else (),
-                [load_raw_batch(root, ref["raw_batch_id"]) for ref in raw_refs])
-            if expected_rows != list(commit.rows):
+                RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]))
+            if not _equal_rows(expected_rows, commit.rows):
                 raise ArtifactError("PR7 canonical rows differ from RawBatch mapping")
+            del expected_rows
 
         dependency_refs = commit.manifest.get("dependency_commit_refs")
         required = set(_DOMAIN_DEPENDENCIES[domain])

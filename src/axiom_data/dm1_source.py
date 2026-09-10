@@ -319,6 +319,8 @@ class TushareDm1Builder(MarketDomainBuilder):
         if domain not in _EXPECTED_ENDPOINTS:
             raise ArtifactError("TushareDm1Builder supports only D-M1 reference domains")
         config = dict(builder_config)
+        if domain!='security_status' and 'session_suspension_policy' in config:
+            raise ArtifactError('session suspension mapping requires security_status')
         from axiom_data.session_suspension import bind_profile
         bind_profile(config)
         profile = load_dm1_source_profile()
@@ -404,11 +406,11 @@ class TushareDm1Builder(MarketDomainBuilder):
             daily[key] = raw
         suspended: dict[tuple[str, str], RawBatch] = {}
         for row, raw in tables["suspend_d"]:
+            if 'session_suspension_policy' in self.builder_config:
+                from axiom_data.session_suspension import qualified_partial_halt
+                if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date'))),policy=self.builder_config['session_suspension_policy']):
+                    continue
             if row.get("suspend_timing") not in (None, ""):
-                if 'session_suspension_policy' in self.builder_config:
-                    from axiom_data.session_suspension import qualified_partial_halt
-                    if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date')))):
-                        continue
                 raise ArtifactError("intraday suspension timing is unsupported in D-M1")
             if row.get("suspend_type") == "S":
                 key = (_source_symbol(row.get("ts_code")), _source_date(row.get("trade_date")))

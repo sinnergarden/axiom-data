@@ -11,7 +11,7 @@ from axiom_data.pit import fingerprint, instant
 
 
 def load_pr7_source_profile(version='tushare_pr7.v1'):
-    if version not in {'tushare_pr7.v1','tushare_pr7_holder.v2'}:raise ArtifactError('unsupported PR7 source version')
+    if version not in {'tushare_pr7.v1','tushare_pr7_holder.v2','tushare_pr7_holder.v3'}:raise ArtifactError('unsupported PR7 source version')
     return json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
 
 
@@ -20,7 +20,7 @@ def profile_digest(version='tushare_pr7.v1'):
 
 
 def announcement(value, version):
-    if version=='tushare_pr7_holder.v2' and isinstance(value,str) and len(value)==19:
+    if version in {'tushare_pr7_holder.v2','tushare_pr7_holder.v3'} and isinstance(value,str) and len(value)==19:
         from datetime import datetime
         try:
             parsed=datetime.strptime(value,'%Y-%m-%d %H:%M:%S')
@@ -29,6 +29,12 @@ def announcement(value, version):
         return parsed.date().isoformat(),parsed.isoformat()+'+08:00'
     day=source_date(value)
     return day,day+'T23:59:59+08:00'
+
+
+def source_qualification(records, version):
+    if version!='tushare_pr7_holder.v3':return []
+    return [{'row_index':i,'reason':'unkeyed_empty_observation'} for i,r in enumerate(records)
+            if 'end_date' in r and 'holder_num' in r and r['end_date'] is None and r['holder_num'] is None]
 
 
 def validate_payload(endpoint, params, records, *, profile_version='tushare_pr7.v1'):
@@ -47,6 +53,7 @@ def validate_payload(endpoint, params, records, *, profile_version='tushare_pr7.
         if row.get('ts_code')!=params['ts_code']:raise ArtifactError('security outside individual request')
         for field in ('trade_date',) if endpoint in {'margin_detail','moneyflow'} else ('ann_date','end_date'):
             if field=='ann_date':announcement(row.get(field),profile_version)
+            elif field=='end_date' and source_qualification([row],profile_version):continue
             else:source_date(row.get(field))
         represented=row[definition['bound_field']]
         if definition['bound_field']=='ann_date':represented=announcement(represented,profile_version)[0].replace('-','')
@@ -69,7 +76,8 @@ class Pr7Collector(TushareCollector):
             source_profile='tushare.pr7.'+endpoint,source_profile_version=profile_version,
             source_profile_digest=profile_digest(profile_version),request=request,retrieved_at=observed,
             payload=payload,collector_code=self.implementation_revision,
-            summary={'rows':len(records),'historical_availability':'best_effort','empty_response':'source_gap' if not records else None})
+            summary={'rows':len(records),'historical_availability':'best_effort','empty_response':'source_gap' if not records else None,
+                     **({'source_qualification':source_qualification(records,profile_version)} if profile_version=='tushare_pr7_holder.v3' else {})})
 
 
 def _number(value):
@@ -87,8 +95,13 @@ def normalize(raw, domain):
         or m['source_profile_ref']!='tushare.pr7.'+endpoint or request['fields']!=d['fields']):
         raise ArtifactError('PR7 profile/domain binding mismatch')
     records=json.loads(raw.payload);validate_payload(endpoint,request['params'],records,profile_version=version)
+    excluded=source_qualification(records,version)
+    if version=='tushare_pr7_holder.v3' and m['summary'].get('source_qualification')!=excluded:
+        raise ArtifactError('holder source qualification summary mismatch')
+    excluded_indices={item['row_index'] for item in excluded}
     groups=defaultdict(list)
-    for source in records:
+    for index,source in enumerate(records):
+        if index in excluded_indices:continue
         key=(source['ts_code'],source.get('trade_date') or source['end_date'],source.get('ann_date'))
         groups[key].append(source)
     result=[]

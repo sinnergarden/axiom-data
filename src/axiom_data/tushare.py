@@ -376,6 +376,8 @@ class TushareMarketBuilder(MarketDomainBuilder):
         source_profile = load_tushare_source_profile()
         profile_version = source_profile.get("profile_version")
         config = dict(builder_config or {})
+        if domain!='market_daily' and set(config)&{'session_suspension_policy','market_source_partitioning'}:
+            raise ArtifactError('market-only source mapping configuration')
         from axiom_data.session_suspension import bind_profile
         bind_profile(config)
         configured_version = config.get("source_profile_version")
@@ -429,9 +431,29 @@ class TushareMarketBuilder(MarketDomainBuilder):
             grouped = _raw_endpoint_rows(raw_batches)
             rows = self._security_rows(grouped, symbols)
         else:
-            grouped = _raw_endpoint_rows(raw_batches)
-            rows = self._market_rows(grouped, set(symbols), start, end,
-                                    partial_halts='session_suspension_policy' in self.builder_config)
+            grouping=self.builder_config.get('market_source_partitioning')
+            if grouping is None:
+                chunks=[raw_batches]
+            elif grouping=='security.v1':
+                chunks_by_symbol={}
+                for raw in raw_batches:
+                    symbol=raw.manifest.get('request',{}).get('params',{}).get('ts_code')
+                    if symbol not in symbols:raise ArtifactError('partitioned market build requires individual scoped security requests')
+                    chunks_by_symbol.setdefault(symbol,[]).append(raw.ref.raw_batch_id)
+                if set(chunks_by_symbol)!=set(symbols):raise ArtifactError('market source requests do not cover scoped securities')
+                from axiom_data.artifacts import RawBatches
+                chunks=[RawBatches(self.layout.root,chunks_by_symbol[s]) for s in sorted(chunks_by_symbol)]
+            else:raise ArtifactError('unsupported market source partitioning')
+            def mapped_rows():
+                for chunk in chunks:
+                    grouped = _raw_endpoint_rows(chunk)
+                    if grouping is not None:
+                        expected=chunk[0].manifest['request']['params']['ts_code']
+                        if any(r.get('ts_code')!=expected for values in grouped.values() for r in values):
+                            raise ArtifactError('market payload differs from individual security request')
+                    yield from self._market_rows(grouped, set(symbols), start, end,
+                                        partial_halts=self.builder_config.get('session_suspension_policy',False))
+            rows=mapped_rows()
         return _merge_canonical(contract, parent_rows, rows)
 
     @staticmethod
@@ -575,15 +597,13 @@ class TushareMarketBuilder(MarketDomainBuilder):
         for endpoint, table in tables.items():
             keyed[endpoint] = {}
             for row in table.values():
-                if endpoint == "suspend_d" and row.get("suspend_timing") not in (
-                    None,
-                    "",
-                ):
+                if endpoint == "suspend_d":
                     if partial_halts:
                         from axiom_data.session_suspension import qualified_partial_halt
-                        if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date')))):
+                        if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date'))),policy=partial_halts if isinstance(partial_halts,str) else 'session_suspension.v1'):
                             continue
-                    raise ArtifactError("unsupported non-full-day suspend_timing")
+                    if row.get('suspend_timing') not in (None,''):
+                        raise ArtifactError("unsupported non-full-day suspend_timing")
                 key = in_scope(row)
                 if key is not None:
                     if key in keyed[endpoint]:

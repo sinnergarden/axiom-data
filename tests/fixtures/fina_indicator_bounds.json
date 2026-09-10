@@ -1,0 +1,405 @@
+{
+  "raw_ref": "financial-diagnostic-1445eb5b8121f4437fd39fffc150d173e71005c5e1fdd8a892f158713fca603a",
+  "rows": [
+    {
+      "ann_date": "20180315",
+      "current_ratio": null,
+      "debt_to_assets": 93.1644,
+      "end_date": "20171231",
+      "grossprofit_margin": null,
+      "roe": 10.9324,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20180315",
+      "current_ratio": null,
+      "debt_to_assets": 93.1644,
+      "end_date": "20171231",
+      "grossprofit_margin": null,
+      "roe": 10.9324,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20171021",
+      "current_ratio": null,
+      "debt_to_assets": 93.0482,
+      "end_date": "20170930",
+      "grossprofit_margin": null,
+      "roe": 9.1144,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20171021",
+      "current_ratio": null,
+      "debt_to_assets": 93.0482,
+      "end_date": "20170930",
+      "grossprofit_margin": null,
+      "roe": 9.1144,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20170811",
+      "current_ratio": null,
+      "debt_to_assets": 93.1616,
+      "end_date": "20170630",
+      "grossprofit_margin": null,
+      "roe": 6.0702,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20170811",
+      "current_ratio": null,
+      "debt_to_assets": 93.1616,
+      "end_date": "20170630",
+      "grossprofit_margin": null,
+      "roe": 6.0702,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20170422",
+      "current_ratio": null,
+      "debt_to_assets": 93.0896,
+      "end_date": "20170331",
+      "grossprofit_margin": null,
+      "roe": 3.0319,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20170422",
+      "current_ratio": null,
+      "debt_to_assets": 93.0896,
+      "end_date": "20170331",
+      "grossprofit_margin": null,
+      "roe": 3.0319,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20170317",
+      "current_ratio": null,
+      "debt_to_assets": 93.1547,
+      "end_date": "20161231",
+      "grossprofit_margin": null,
+      "roe": 12.4283,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20170317",
+      "current_ratio": null,
+      "debt_to_assets": 93.1547,
+      "end_date": "20161231",
+      "grossprofit_margin": null,
+      "roe": 12.4283,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20161021",
+      "current_ratio": null,
+      "debt_to_assets": 92.8982,
+      "end_date": "20160930",
+      "grossprofit_margin": null,
+      "roe": 10.4073,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20161021",
+      "current_ratio": null,
+      "debt_to_assets": 92.8982,
+      "end_date": "20160930",
+      "grossprofit_margin": null,
+      "roe": 10.4073,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20160812",
+      "current_ratio": null,
+      "debt_to_assets": 93.156,
+      "end_date": "20160630",
+      "grossprofit_margin": null,
+      "roe": 6.9604,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20160812",
+      "current_ratio": null,
+      "debt_to_assets": 93.156,
+      "end_date": "20160630",
+      "grossprofit_margin": null,
+      "roe": 6.9604,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20160421",
+      "current_ratio": null,
+      "debt_to_assets": 93.0042,
+      "end_date": "20160331",
+      "grossprofit_margin": null,
+      "roe": 3.487,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20160421",
+      "current_ratio": null,
+      "debt_to_assets": 93.0042,
+      "end_date": "20160331",
+      "grossprofit_margin": null,
+      "roe": 3.487,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20160310",
+      "current_ratio": null,
+      "debt_to_assets": 93.5584,
+      "end_date": "20151231",
+      "grossprofit_margin": null,
+      "roe": 14.953,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20160310",
+      "current_ratio": null,
+      "debt_to_assets": 93.5584,
+      "end_date": "20151231",
+      "grossprofit_margin": null,
+      "roe": 14.953,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20151023",
+      "current_ratio": null,
+      "debt_to_assets": 93.9541,
+      "end_date": "20150930",
+      "grossprofit_margin": null,
+      "roe": 12.3158,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20151023",
+      "current_ratio": null,
+      "debt_to_assets": 93.9541,
+      "end_date": "20150930",
+      "grossprofit_margin": null,
+      "roe": 12.3158,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20150814",
+      "current_ratio": null,
+      "debt_to_assets": 94.1303,
+      "end_date": "20150630",
+      "grossprofit_margin": null,
+      "roe": 8.2213,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20150814",
+      "current_ratio": null,
+      "debt_to_assets": 94.1303,
+      "end_date": "20150630",
+      "grossprofit_margin": null,
+      "roe": 8.2213,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20150424",
+      "current_ratio": null,
+      "debt_to_assets": 94.0687,
+      "end_date": "20150331",
+      "grossprofit_margin": null,
+      "roe": 4.2062,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20150424",
+      "current_ratio": null,
+      "debt_to_assets": 94.0687,
+      "end_date": "20150331",
+      "grossprofit_margin": null,
+      "roe": 4.2062,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20150313",
+      "current_ratio": null,
+      "debt_to_assets": 94.0109,
+      "end_date": "20141231",
+      "grossprofit_margin": null,
+      "roe": 16.2959,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20150313",
+      "current_ratio": null,
+      "debt_to_assets": 94.0109,
+      "end_date": "20141231",
+      "grossprofit_margin": null,
+      "roe": 16.2959,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20141024",
+      "current_ratio": null,
+      "debt_to_assets": 94.0898,
+      "end_date": "20140930",
+      "grossprofit_margin": null,
+      "roe": 13.1431,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20141024",
+      "current_ratio": null,
+      "debt_to_assets": 94.0898,
+      "end_date": "20140930",
+      "grossprofit_margin": null,
+      "roe": 13.1431,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20140814",
+      "current_ratio": null,
+      "debt_to_assets": 94.3393,
+      "end_date": "20140630",
+      "grossprofit_margin": null,
+      "roe": 8.6447,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20140814",
+      "current_ratio": null,
+      "debt_to_assets": 94.3393,
+      "end_date": "20140630",
+      "grossprofit_margin": null,
+      "roe": 8.6447,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20140424",
+      "current_ratio": null,
+      "debt_to_assets": 94.4066,
+      "end_date": "20140331",
+      "grossprofit_margin": null,
+      "roe": 4.4066,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20140424",
+      "current_ratio": null,
+      "debt_to_assets": 94.4066,
+      "end_date": "20140331",
+      "grossprofit_margin": null,
+      "roe": 4.4066,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20140307",
+      "current_ratio": null,
+      "debt_to_assets": 94.0752,
+      "end_date": "20131231",
+      "grossprofit_margin": null,
+      "roe": 15.4724,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20140307",
+      "current_ratio": null,
+      "debt_to_assets": 94.0752,
+      "end_date": "20131231",
+      "grossprofit_margin": null,
+      "roe": 15.4724,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20131023",
+      "current_ratio": null,
+      "debt_to_assets": 94.8851,
+      "end_date": "20130930",
+      "grossprofit_margin": null,
+      "roe": 13.0164,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20131023",
+      "current_ratio": null,
+      "debt_to_assets": 94.8851,
+      "end_date": "20130930",
+      "grossprofit_margin": null,
+      "roe": 13.0164,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20130823",
+      "current_ratio": null,
+      "debt_to_assets": 94.9895,
+      "end_date": "20130630",
+      "grossprofit_margin": null,
+      "roe": 8.5414,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20130823",
+      "current_ratio": null,
+      "debt_to_assets": 94.9895,
+      "end_date": "20130630",
+      "grossprofit_margin": null,
+      "roe": 8.5414,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    },
+    {
+      "ann_date": "20130424",
+      "current_ratio": null,
+      "debt_to_assets": 95.0996,
+      "end_date": "20130331",
+      "grossprofit_margin": null,
+      "roe": 4.1358,
+      "ts_code": "000001.SZ",
+      "update_flag": "1"
+    },
+    {
+      "ann_date": "20130424",
+      "current_ratio": null,
+      "debt_to_assets": 95.0996,
+      "end_date": "20130331",
+      "grossprofit_margin": null,
+      "roe": 4.1358,
+      "ts_code": "000001.SZ",
+      "update_flag": "0"
+    }
+  ]
+}
