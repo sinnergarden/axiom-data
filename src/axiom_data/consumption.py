@@ -153,12 +153,16 @@ class SnapshotReader:
                           knowledge_cutoff=knowledge_cutoff, pit_policy=pit_policy)
 
     def as_of(self, domain: str, *, knowledge_cutoff: str, pit_policy: str,
-              symbols: Sequence[str] | None = None) -> tuple[dict[str, Any], ...]:
+              symbols: Sequence[str] | None = None, start_session: str | None = None,
+              end_session: str | None = None) -> tuple[dict[str, Any], ...]:
         from axiom_data.pit import select_revisions
-        from axiom_data.domains.pr7 import PR7_DOMAINS
+        from axiom_data.domains.pr7 import PR7_DOMAINS, DAILY_DOMAINS
+        if (start_session is not None or end_session is not None) and domain not in DAILY_DOMAINS:
+            raise ArtifactError('session-bounded PIT requires a daily PR7 domain')
         if domain in PR7_DOMAINS:
             from axiom_data.pr7_source import select_pr7_revisions
-            return select_pr7_revisions(self.facts(domain,symbols=symbols),policy=pit_policy,
+            return select_pr7_revisions(self.facts(domain,symbols=symbols,
+                                        start_session=start_session,end_session=end_session),policy=pit_policy,
                                         knowledge_cutoff=knowledge_cutoff)
         universe = domain == "universe_membership"
         result = select_revisions(self.facts(domain, symbols=None if universe else symbols),

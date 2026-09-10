@@ -1,3 +1,13 @@
+# Daily PIT query checkpoint — 2026-09-10
+
+213/213 tests PASS (63.542s). Daily PR7 as_of optionally bounds economic sessions;
+margin/moneyflow leaf projection uses that bound before the unchanged revision
+selector. All revisions for the selected session stay together. Three-month
+fixture results equal full-scan results before/after a late revision, and corrupted
+selected objects fail. Financial, holder and membership bounds are rejected.
+Stage 3/5 continues. Candidate publication waits on the exact canonical queue
+in v1_candidate_r1, frozen bundle_r11; candidate validation is not admission.
+
 # Fact publication / canonical checkpoint — 2026-09-10
 
 212/212 tests PASS (65.756s). PR6/PR7 Fact publication reuses its same-call checked

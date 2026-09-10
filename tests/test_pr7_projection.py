@@ -35,7 +35,7 @@ class Reader:
                        for e in exchanges for day in ['2025-06-02','2025-06-03','2025-06-04']]
     def security_master(self):return self.securities
     def trading_calendar(self,**kwargs):return self.calendar
-    def as_of(self,domain,*,symbols,pit_policy,knowledge_cutoff):
+    def as_of(self,domain,*,symbols,pit_policy,knowledge_cutoff,start_session=None,end_session=None):
         if domain not in ('holder_count_events','top_holders_reports'):return ()
         field='number' if domain=='holder_count_events' else 'top10_ratio'
         return select_pr7_revisions([r for r in self.rows if r['symbol'] in symbols and field in r['values']],policy=pit_policy,knowledge_cutoff=knowledge_cutoff)

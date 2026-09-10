@@ -77,7 +77,8 @@ def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
     if not exchange_sessions(reader,[symbol],target_session,target_session)[symbol]['sessions']:
         raise ArtifactError('CLOSED_SESSION: '+symbol+' '+target_session)
     request_coverage(reader,domain,symbol,target_session)
-    selected=reader.as_of(domain,symbols=[symbol],pit_policy=pit_policy,knowledge_cutoff=knowledge_cutoff)
+    bounds={'start_session':target_session,'end_session':target_session} if domain in DAILY_DOMAINS else {}
+    selected=reader.as_of(domain,symbols=[symbol],pit_policy=pit_policy,knowledge_cutoff=knowledge_cutoff,**bounds)
     candidates=[r for r in selected if (r['session']==target_session if domain in DAILY_DOMAINS else
         domain=='forecast_observations' or r['report_period']<=target_session)]
     row=(select_latest_report(selected,target_session) if domain in {'holder_count_events','top_holders_reports'} else
