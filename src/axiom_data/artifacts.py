@@ -1517,6 +1517,11 @@ def create_snapshot(
 
 def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     """Load one exact snapshot and verify its fixed DomainCommit composition."""
+    return _load_snapshot_with_commits(data_root, snapshot_id)[0]
+
+
+def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str):
+    """Return the already checked commits from this one Snapshot validation."""
 
     layout = _layout(data_root)
     snapshot_id = _identity("snapshot_id", snapshot_id)
@@ -1563,7 +1568,7 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     for domain in ordered_domains:
         if domain_refs[domain] != _commit_ref(commits[domain]):
             raise ArtifactError("DataSnapshot domain ref digest mismatch")
-    return DataSnapshot(DataSnapshotRef(snapshot_id, manifest_digest), manifest)
+    return DataSnapshot(DataSnapshotRef(snapshot_id, manifest_digest), manifest), commits
 
 
 def _artifact_directories(root: Path, directory: Path) -> tuple[Path, ...]:

@@ -27,7 +27,7 @@ from axiom_data.artifacts import (
     _write_file,
     _write_manifest,
     load_snapshot,
-    validate_domain_commit_closure,
+    _load_snapshot_with_commits,
 )
 
 
@@ -84,15 +84,7 @@ class SnapshotReader:
 
     def __init__(self, data_root: str | Path, snapshot_id: str) -> None:
         self.data_root = Path(data_root)
-        self.snapshot = load_snapshot(self.data_root, snapshot_id)
-        self.commits = {
-            domain: validate_domain_commit_closure(
-                self.data_root,
-                domain,
-                self.snapshot.manifest["domain_refs"][domain]["domain_commit_id"],
-            )
-            for domain in self.snapshot.manifest["domain_refs"]
-        }
+        self.snapshot, self.commits = _load_snapshot_with_commits(self.data_root, snapshot_id)
 
     def schema(self, domain: str) -> tuple[str, ...]:
         try:
