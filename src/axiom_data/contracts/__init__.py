@@ -43,6 +43,8 @@ _CONTRACT_DOMAINS = {
 }
 _CONTRACT_FILES['corporate_actions.v2']='corporate_actions.v2.json'
 _CONTRACT_DOMAINS['corporate_actions.v2']='corporate_actions'
+_CONTRACT_FILES['security_capital.v2']='security_capital.v2.json'
+_CONTRACT_DOMAINS['security_capital.v2']='security_capital'
 
 
 PR6_CONTRACT_VERSIONS = tuple(name + ".v1" for name in ("financial_events", "valuation_daily", "universe_membership", "industry_membership"))

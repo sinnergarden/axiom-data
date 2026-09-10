@@ -1,3 +1,10 @@
+# Capital qualification checkpoint — 2026-09-10
+
+202/202 tests PASS (70.563s). security_capital.v2 explicitly retains 15 source
+conflicts as null counts with unchanged evidence; v1 stays strict. All source
+collection is now complete, including forecast 3,601 requests / 69,931 Raw rows.
+Full canonical/admission/baseline and stages 4–5 remain incomplete. No merge/push.
+
 # Corporate action observations checkpoint — 2026-09-10
 
 201/201 tests PASS (63.474s). New corporate_actions.v2 root represents undated

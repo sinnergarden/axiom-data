@@ -319,6 +319,10 @@ class TushareDm1Builder(MarketDomainBuilder):
         if domain not in _EXPECTED_ENDPOINTS:
             raise ArtifactError("TushareDm1Builder supports only D-M1 reference domains")
         config = dict(builder_config)
+        if 'capital_qualification' in config:
+            if domain != 'security_capital' or config['capital_qualification'] != 'capital_conflict.v1':
+                raise ArtifactError('unsupported capital qualification')
+            config['capital_qualification_digest'] = _digest(files('axiom_data.source_profiles').joinpath('capital_conflict.v1.json').read_bytes())
         if 'corporate_action_observations' in config:
             if domain!='corporate_actions' or config['corporate_action_observations']!='corporate_action_observations.v1':
                 raise ArtifactError('unsupported corporate action observation mapping')
@@ -370,6 +374,8 @@ class TushareDm1Builder(MarketDomainBuilder):
         raw_batches: Sequence[RawBatch],
     ) -> list[dict[str, Any]]:
         symbols, start, end = self._scope()
+        if self.domain == 'security_capital' and ((contract['contract_version'] == 'security_capital.v2') != bool(self.builder_config.get('capital_qualification'))):
+            raise ArtifactError('capital qualification requires security_capital.v2 and explicit mapping')
         if self.domain=='corporate_actions' and ((contract['contract_version']=='corporate_actions.v2') != bool(self.builder_config.get('corporate_action_observations'))):
             raise ArtifactError('corporate action observations require explicit v2 contract/mapping')
         if self.builder_config.get('dm1_source_partitioning')=='security.v1':
@@ -652,7 +658,15 @@ class TushareDm1Builder(MarketDomainBuilder):
             circulating = _scaled_float(source.get("float_share"), 10000)
             if total is None or circulating is None:
                 raise ArtifactError("security capital source fields must be present")
-            rows.append({"session": session, "symbol": symbol, "total_shares": total, "circulating_shares": circulating, **self._evidence(raw)})
+            row = {"session": session, "symbol": symbol, "total_shares": total, "circulating_shares": circulating, **self._evidence(raw)}
+            if self.builder_config.get('capital_qualification'):
+                row.update(missing_reason=None, source_conflict=None)
+                if 0 < total < circulating:
+                    row.update(total_shares=None, circulating_shares=None,
+                        missing_reason='source_capital_conflict', source_conflict={
+                            'profile': 'capital_conflict.v1',
+                            'total_share': source['total_share'], 'float_share': source['float_share']})
+            rows.append(row)
         return rows
 
 

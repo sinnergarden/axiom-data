@@ -1,0 +1,92 @@
+{
+  "contract_version": "security_capital.v2",
+  "domain": "security_capital",
+  "primary_key": [
+    "session",
+    "symbol"
+  ],
+  "sort_order": [
+    "session",
+    "symbol"
+  ],
+  "semantics": {
+    "total_shares": "all issued shares",
+    "circulating_shares": "all circulating shares, not vendor free-float",
+    "effective": "observed for the named session",
+    "source_capital_conflict": "Positive circulating shares exceed positive total shares: both canonical counts are null, source values retained; no guessing which field is wrong."
+  },
+  "fields": [
+    {
+      "name": "session",
+      "type": "date",
+      "nullable": false,
+      "unit": "Asia/Shanghai exchange session"
+    },
+    {
+      "name": "symbol",
+      "type": "string",
+      "nullable": false,
+      "unit": "canonical security code"
+    },
+    {
+      "name": "total_shares",
+      "type": "float64",
+      "nullable": true,
+      "unit": "shares"
+    },
+    {
+      "name": "circulating_shares",
+      "type": "float64",
+      "nullable": true,
+      "unit": "shares"
+    },
+    {
+      "name": "source_available_at",
+      "type": "datetime",
+      "nullable": true,
+      "unit": "timezone-aware"
+    },
+    {
+      "name": "first_observed_at",
+      "type": "datetime",
+      "nullable": false,
+      "unit": "timezone-aware"
+    },
+    {
+      "name": "availability_basis",
+      "type": "string",
+      "nullable": false,
+      "unit": null
+    },
+    {
+      "name": "pit_qualification",
+      "type": "string",
+      "nullable": false,
+      "unit": null
+    },
+    {
+      "name": "source_ref",
+      "type": "string",
+      "nullable": false,
+      "unit": null
+    },
+    {
+      "name": "missing_reason",
+      "type": "string",
+      "nullable": true,
+      "unit": null
+    },
+    {
+      "name": "source_conflict",
+      "type": "object",
+      "nullable": true,
+      "unit": "unchanged supplier values in ten-thousand shares"
+    }
+  ],
+  "validation": [
+    "share counts are finite and positive",
+    "circulating shares do not exceed total shares",
+    "session/security identity is valid",
+    "conflict requires null counts, exact qualification, and positive inconsistent source values; source mapping replay is mandatory"
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "raw_id": "tushare-security_capital-daily_basic-000676a39b288000bad69165346a9c9683fca5e3108670887fcfbaab9b4391f5",
+  "manifest_digest": "sha256:889a13a8a9d8ce01bfcb1e39f75e6064e8f0f1b8cc02796430f989f91d926e84",
+  "rows": [
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20201020",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20201019",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20201016",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20201015",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20201014",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20201013",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20201012",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20201009",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20200930",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20200929",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20200928",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20200925",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20200924",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20200923",
+      "ts_code": "603882.SH"
+    },
+    {
+      "float_share": 45948.7577,
+      "total_share": 45788.4577,
+      "trade_date": "20200922",
+      "ts_code": "603882.SH"
+    }
+  ]
+}

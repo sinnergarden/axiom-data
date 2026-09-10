@@ -188,19 +188,33 @@ def validate_benchmark_daily_rows(rows: object) -> None:
     _validate_keys("benchmark_daily", frozen)
 
 
-def validate_security_capital_rows(rows: object) -> None:
-    frozen = _rows("security_capital", rows)
+def validate_security_capital_rows(rows: object, version=None) -> None:
+    version = version or ('v2' if isinstance(rows, Sequence) and any(isinstance(row, Mapping) and 'source_conflict' in row for row in rows) else 'v1')
+    frozen = _rows("security_capital", rows, version)
     for index, row in enumerate(frozen):
         _date(f"row {index} session", row["session"])
         _symbol(row["symbol"])
         total = _number("total_shares", row["total_shares"])
         circulating = _number("circulating_shares", row["circulating_shares"])
+        if version == 'v2':
+            conflict = row['source_conflict']
+            if row['missing_reason'] == 'source_capital_conflict':
+                if total is not None or circulating is not None or not isinstance(conflict, Mapping) or set(conflict) != {'profile', 'total_share', 'float_share'} or conflict['profile'] != 'capital_conflict.v1':
+                    raise MarketContractError('capital conflict requires null values and source evidence')
+                source_total = _number('source total_share', conflict['total_share'])
+                source_float = _number('source float_share', conflict['float_share'])
+                if source_total is None or source_float is None or not 0 < source_total < source_float:
+                    raise MarketContractError('capital conflict evidence is not inconsistent')
+                _provenance(row)
+                continue
+            if row['missing_reason'] is not None or conflict is not None:
+                raise MarketContractError('unexpected capital qualification')
         if total is None or circulating is None or total <= 0 or circulating <= 0:
             raise MarketContractError("share counts must be strictly positive")
         if circulating > total:
             raise MarketContractError("circulating shares must not exceed total shares")
         _provenance(row)
-    _validate_keys("security_capital", frozen)
+    _validate_keys("security_capital", frozen, version)
 
 
 def validate_corporate_action_rows(rows: object, version=None) -> None:

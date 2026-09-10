@@ -649,6 +649,9 @@ def _validate_domain_rows(domain: str, rows: object, *, contract=None) -> None:
         if domain=='corporate_actions' and contract is not None:
             from axiom_data.domains.dm1 import validate_corporate_action_rows
             validator=lambda batch:validate_corporate_action_rows(batch,contract['contract_version'].rsplit('.',1)[1])
+        if domain=='security_capital' and contract is not None:
+            from axiom_data.domains.dm1 import validate_security_capital_rows
+            validator=lambda batch:validate_security_capital_rows(batch,contract['contract_version'].rsplit('.',1)[1])
         if isinstance(rows, PartitionRows):
             rows.validate(validator)
         else:
@@ -1338,14 +1341,14 @@ def _validate_domain_commit_node(
                 raise ArtifactError("PR7 canonical rows differ from RawBatch mapping")
             del expected_rows
 
-        if commit.ref.contract_version=='corporate_actions.v2':
+        if commit.ref.contract_version in {'corporate_actions.v2', 'security_capital.v2'}:
             from axiom_data.dm1_source import TushareDm1Builder
             replay=TushareDm1Builder(root,domain,builder_config=commit.manifest['builder_config'],
                 dependency_commit_ids={d:ref['domain_commit_id'] for d,ref in commit.manifest['dependency_commit_refs'].items()})
             expected_rows=replay._build_rows(commit.contract,parent.rows if parent_ref is not None else (),
                 RawBatches(root,[ref['raw_batch_id'] for ref in raw_refs]))
             if not _equal_rows(expected_rows,commit.rows):
-                raise ArtifactError('corporate action observations differ from RawBatch mapping')
+                raise ArtifactError('qualified D-M1 observations differ from RawBatch mapping')
             del expected_rows
 
         dependency_refs = commit.manifest.get("dependency_commit_refs")
