@@ -85,6 +85,11 @@ def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
     request_coverage(reader,domain,symbol,target_session)
     bounds={'start_session':target_session,'end_session':target_session} if domain in DAILY_DOMAINS else {}
     selected=reader.as_of(domain,symbols=[symbol],pit_policy=pit_policy,knowledge_cutoff=knowledge_cutoff,**bounds)
+    return _leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected)
+
+
+def _leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected):
+    domain=LEAF_DOMAINS[leaf];field=leaf.split('.',1)[1]
     candidates=[r for r in selected if (r['session']==target_session if domain in DAILY_DOMAINS else
         domain=='forecast_observations' or r['report_period']<=target_session)]
     row=(select_latest_report(selected,target_session) if domain in {'holder_count_events','top_holders_reports'} else
@@ -119,10 +124,20 @@ def project(reader,scope,policy,cutoff):
         raise ArtifactError('INSUFFICIENT_SCOPE: no open exchange sessions')
     if any(d not in reader.commits for d in PR7_DOMAINS):raise ArtifactError('PR7 Snapshot required')
     wide=[]
-    for symbol in symbols:
-        for session in calendars[symbol]['sessions']:
-            effective=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
-            facts={leaf:leaf_facts(reader,leaf,symbol=symbol,target_session=session,knowledge_cutoff=effective,pit_policy=policy) for leaf in LEAF_DOMAINS}
+    open_days={symbol:set(item['sessions']) for symbol,item in calendars.items()}
+    for session in sorted({day for item in calendars.values() for day in item['sessions']}):
+        active=[symbol for symbol in symbols if session in open_days[symbol]]
+        effective=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
+        selected={}
+        for domain in PR7_DOMAINS:
+            for symbol in active:request_coverage(reader,domain,symbol,session)
+            bounds={'start_session':session,'end_session':session} if domain in DAILY_DOMAINS else {}
+            groups={symbol:[] for symbol in active}
+            for row in reader.as_of(domain,symbols=active,pit_policy=policy,knowledge_cutoff=effective,**bounds):
+                groups[row['symbol']].append(row)
+            selected[domain]=groups
+        for symbol in active:
+            facts={leaf:_leaf_metadata(reader,leaf,symbol,session,effective,policy,selected[domain][symbol]) for leaf,domain in LEAF_DOMAINS.items()}
             wide.append({'symbol':symbol,'session':session,'values':{f:facts[f]['value'] for f in NUMERIC_FIELDS},'facts':facts})
     wide.sort(key=lambda r:r['session'])
     return {'wide':wide,'sessions':sorted({r['session'] for r in wide}),'symbol_calendars':calendars}

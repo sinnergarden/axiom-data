@@ -1,3 +1,11 @@
+# PR7 projection batching checkpoint — 2026-09-10
+
+219/219 tests PASS (66.642s). PR7 View selection runs once per domain/session;
+metadata is shared with direct leaf_fact. On the frozen real three-security,
+four-session fixture, as_of calls drop from 180 to 20 and the complete payload
+digest is unchanged. Both PIT policies at two cutoffs match all direct metadata.
+See reports/pr8/pr7_projection_batching. Stage 3/5 and full V1 gates continue.
+
 # Request coverage reuse checkpoint — 2026-09-10
 
 218/218 tests PASS (67.525s). Repeated PR7 scope checks reuse verified request
