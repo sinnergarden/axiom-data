@@ -319,6 +319,10 @@ class TushareDm1Builder(MarketDomainBuilder):
         if domain not in _EXPECTED_ENDPOINTS:
             raise ArtifactError("TushareDm1Builder supports only D-M1 reference domains")
         config = dict(builder_config)
+        if 'limit_qualification' in config:
+            if domain != 'price_limits' or config['limit_qualification'] != 'zero_limit_pair.v1':
+                raise ArtifactError('unsupported limit qualification')
+            config['limit_qualification_digest'] = _digest(files('axiom_data.source_profiles').joinpath('zero_limit_pair.v1.json').read_bytes())
         if 'capital_qualification' in config:
             if domain != 'security_capital' or config['capital_qualification'] != 'capital_conflict.v1':
                 raise ArtifactError('unsupported capital qualification')
@@ -553,13 +557,16 @@ class TushareDm1Builder(MarketDomainBuilder):
                 lower = _optional_float(source[0].get("down_limit")) if source else None
                 if (upper is None) != (lower is None):
                     raise ArtifactError("incomplete price-limit pair is unsupported")
+                zero_pair = self.builder_config.get('limit_qualification') == 'zero_limit_pair.v1' and upper == lower == 0
+                if zero_pair:
+                    upper = lower = None
                 rows.append({
                     "session": session,
                     "symbol": symbol,
                     "limit_state": "limited" if upper is not None else "unknown",
                     "upper_limit": upper,
                     "lower_limit": lower,
-                    "rule_ref": "tushare-observed-limit" if upper is not None else "unknown-rule",
+                    "rule_ref": "zero_limit_pair.v1" if zero_pair else "tushare-observed-limit" if upper is not None else "unknown-rule",
                     "source_available_at": None,
                     "first_observed_at": source[1].manifest["retrieved_at"] if source else observed_at,
                     "availability_basis": "terminal_history_observed",

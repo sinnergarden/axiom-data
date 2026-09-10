@@ -296,12 +296,17 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
     layout = _layout(data_root)
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
-    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition','top10_qualification','margin_qualification','corporate_action_observations'}
+    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition','top10_qualification','margin_qualification','corporate_action_observations','capital_qualification','limit_qualification','forecast_source_types'}
     for domain, spec in domain_inputs.items():
         if not isinstance(spec, dict) or set(spec) != {'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}:
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
         if not isinstance(spec['config'], dict) or set(spec['config'])-allowed_config:
             raise ArtifactError('unsupported public builder config')
+        for key, expected in {'capital_qualification': ('security_capital', 'capital_conflict.v1'),
+                              'limit_qualification': ('price_limits', 'zero_limit_pair.v1'),
+                              'forecast_source_types': ('forecast_observations', 'forecast_source_types.v1')}.items():
+            if key in spec['config'] and (domain, spec['config'][key]) != expected:
+                raise ArtifactError('unsupported source qualification: '+key)
         if 'universe_acquisition' in spec['config'] and domain!='universe_membership':
             raise ArtifactError('universe acquisition requires universe_membership')
         if 'top10_qualification' in spec['config'] and (domain!='top_holders_reports' or spec['config']['top10_qualification']!='top10_ambiguity.v1'):

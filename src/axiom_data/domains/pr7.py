@@ -10,9 +10,10 @@ PR7_DOMAINS=('holder_count_events','top_holders_reports','margin_daily','moneyfl
 DAILY_DOMAINS=('margin_daily','moneyflow_daily')
 
 
-def validate_rows(domain,rows):
-    frozen=_rows(domain,rows)
-    units=load_contract(domain+'.v1')['value_units']
+def validate_rows(domain,rows,version='v1'):
+    frozen=_rows(domain,rows,version)
+    contract=load_contract(domain+'.'+version)
+    units=contract['value_units']
     for r in frozen:
         _symbol(r['symbol']);_provenance(r);instant(r['vendor_available_at'])
         _date('session',r['session'],nullable=domain not in DAILY_DOMAINS)
@@ -28,7 +29,7 @@ def validate_rows(domain,rows):
                 if r['missing_reasons'][k] not in allowed:raise MarketContractError('unknown missing reason')
             elif units[k] in {'date','fiscal_date'}:_date(k,v)
             elif units[k]=='enum':
-                if v not in {'预增','预减','扭亏','首亏','续亏','续盈','略增','略减'}:raise MarketContractError('unsupported forecast enum')
+                if v not in contract.get('source_type_values', ['预增','预减','扭亏','首亏','续亏','续盈','略增','略减']):raise MarketContractError('unsupported forecast enum')
             elif isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v):raise MarketContractError('nonfinite canonical numeric value')
             elif domain in {'margin_daily','holder_count_events'} and v<0:raise MarketContractError('negative balance/count/volume')
         if domain=='holder_count_events' and r['values']['number'] is not None and r['values']['number']%1:
@@ -75,7 +76,7 @@ def validate_rows(domain,rows):
                     or not values or set(values)-set(mapping) or {mapping[k] for k in values}!=unresolved
                     or any(isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or v>=0 for v in values.values())):
                     raise MarketContractError('negative repayment qualification closure mismatch')
-    _validate_keys(domain,frozen)
+    _validate_keys(domain,frozen,version)
 
 
 DOMAIN_VALIDATORS={d:(lambda rows,d=d:validate_rows(d,rows)) for d in PR7_DOMAINS}

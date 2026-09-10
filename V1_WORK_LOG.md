@@ -1,3 +1,10 @@
+# Source label checkpoint — 2026-09-10
+
+204/204 tests PASS (68.509s). Explicit zero_limit_pair.v1 retains three source
+zero pairs as unknown. Forecast v2 preserves the four additional observed labels
+verbatim under a frozen 12-label contract; v1 remains unchanged. Full source is
+complete; canonical recovery and all later V1 gates remain due. Stage 3/5.
+
 # Capital qualification checkpoint — 2026-09-10
 
 202/202 tests PASS (70.563s). security_capital.v2 explicitly retains 15 source

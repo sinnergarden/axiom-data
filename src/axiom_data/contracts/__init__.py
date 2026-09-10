@@ -56,6 +56,8 @@ _CONTRACT_DOMAINS.update({v: v[:-3] for v in PR6_CONTRACT_VERSIONS})
 PR7_CONTRACT_VERSIONS = tuple(d + '.v1' for d in ('holder_count_events','top_holders_reports','margin_daily','moneyflow_daily','forecast_observations'))
 _CONTRACT_FILES.update({v:v+'.json' for v in PR7_CONTRACT_VERSIONS})
 _CONTRACT_DOMAINS.update({v:v[:-3] for v in PR7_CONTRACT_VERSIONS})
+_CONTRACT_FILES['forecast_observations.v2']='forecast_observations.v2.json'
+_CONTRACT_DOMAINS['forecast_observations.v2']='forecast_observations'
 
 def load_contract(contract_version: str) -> dict[str, Any]:
     """Load one explicit contract version; aliases and fallback are forbidden."""

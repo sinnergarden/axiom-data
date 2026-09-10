@@ -158,6 +158,8 @@ def validate_price_limits_rows(rows: object) -> None:
         else:
             raise MarketContractError("limit_state is not canonical")
         _text("rule_ref", row["rule_ref"])
+        if row['rule_ref'] == 'zero_limit_pair.v1' and state != 'unknown':
+            raise MarketContractError('zero source limits are unknown, not tradable bounds or no-limit evidence')
         _provenance(row)
     _validate_keys("price_limits", frozen)
 

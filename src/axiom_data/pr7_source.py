@@ -176,6 +176,10 @@ class Pr7Builder(MarketDomainBuilder):
 
     def __init__(self,data_root,domain,*,builder_config=None,**kwargs):
         config=dict(builder_config or {})
+        if 'forecast_source_types' in config:
+            if domain!='forecast_observations' or config['forecast_source_types']!='forecast_source_types.v1':
+                raise ArtifactError('unsupported forecast source type mapping')
+            config['forecast_source_types_digest']=_digest(files('axiom_data.source_profiles').joinpath('forecast_source_types.v1.json').read_bytes())
         qualification=config.get('top10_qualification')
         if qualification is not None:
             if domain!='top_holders_reports' or qualification!='top10_ambiguity.v1':
@@ -190,6 +194,8 @@ class Pr7Builder(MarketDomainBuilder):
         super().__init__(data_root,domain,builder_config=config,**kwargs)
 
     def _build_rows(self,contract,parent_rows,raw_batches):
+        if self.domain=='forecast_observations' and ((contract['contract_version']=='forecast_observations.v2') != bool(self.builder_config.get('forecast_source_types'))):
+            raise ArtifactError('forecast source types require explicit mapping and forecast_observations.v2')
         refs={o['source_ref'] for r in parent_rows for o in r['observations']}
         raws={r.ref.raw_batch_id:r for r in raw_batches}
         for ref in sorted(refs-raws.keys()):raws[ref]=load_raw_batch(self.layout.root,ref)
