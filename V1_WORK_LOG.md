@@ -1,3 +1,12 @@
+# Calendar incremental boundary checkpoint — 2026-09-10
+
+217/217 tests PASS (69.125s). Calendar append/overlap seeds each exchange
+predecessor from the validated parent before the incoming range. Old rows and
+Raw remain unchanged; conflicting existing open-day corrections still fail.
+The real September 9–10 calendar build r1 failed closed; r2 will use the
+corrected builder with the same frozen Raw and parent. Stage 3/5 continues;
+full baseline/admission and the remaining V1 terminal gates are pending.
+
 # Public bootstrap checkpoint — 2026-09-10
 
 216/216 tests PASS (68.138s). Public bootstrap API/CLI accepts complete frozen Raw

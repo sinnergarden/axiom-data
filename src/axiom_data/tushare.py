@@ -426,7 +426,11 @@ class TushareMarketBuilder(MarketDomainBuilder):
     ) -> list[dict[str, Any]]:
         symbols, start, end = self._scope()
         if self.domain == "trading_calendar":
-            rows = self._calendar_rows(raw_batches, symbols, start, end)
+            previous = {}
+            for row in parent_rows:
+                if row['is_open'] and row['session'] < start:
+                    previous[row['exchange']] = max(previous.get(row['exchange'], ''), row['session'])
+            rows = self._calendar_rows(raw_batches, symbols, start, end, previous_open=previous)
         elif self.domain == "security_master":
             grouped = _raw_endpoint_rows(raw_batches)
             rows = self._security_rows(grouped, symbols)
@@ -462,6 +466,7 @@ class TushareMarketBuilder(MarketDomainBuilder):
         symbols: Sequence[str],
         start: str,
         end: str,
+        *, previous_open: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         exchanges = {"SSE" if symbol.endswith(".SH") else "SZSE" for symbol in symbols}
         first = date.fromisoformat(start)
@@ -526,7 +531,7 @@ class TushareMarketBuilder(MarketDomainBuilder):
                 raise ArtifactError("Tushare trade_cal is_open must be 0 or 1")
             values.append((exchange, session, str(is_open) == "1"))
         rows: list[dict[str, Any]] = []
-        previous: dict[str, str] = {}
+        previous: dict[str, str] = dict(previous_open or {})
         for exchange, session, is_open in sorted(values, key=lambda item: (item[0], item[1])):
             rows.append(
                 {
