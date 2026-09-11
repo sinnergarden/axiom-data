@@ -42,7 +42,17 @@ def main():
     source_collect.add_argument('--plan',type=Path,required=True)
     source_collect.add_argument('--domains',nargs='+',required=True)
     commands.add_parser('rebuild-catalog')
+    recovery = commands.add_parser('verify-recovery')
+    recovery.add_argument('--snapshot', required=True)
+    recovery.add_argument('--run-id', required=True)
+    recovery.add_argument('--plan', type=Path, required=True)
     args = parser.parse_args()
+    if args.operation == 'verify-recovery':
+        from axiom_data import verify_recovery
+        result = verify_recovery(args.data_root, run_id=args.run_id,
+                                 snapshot_id=args.snapshot, **json.loads(args.plan.read_bytes()))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result['status'] == 'RECOVERY_VALIDATED' else 1
     if args.operation == 'materialize-views':
         from axiom_data import materialize_views
         result=materialize_views(args.data_root,run_id=args.run_id,snapshot_id=args.snapshot,

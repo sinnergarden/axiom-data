@@ -1,3 +1,22 @@
+# Recovery execution code checkpoint — 2026-09-11
+
+Astra owns implementation, scripts and test code; Luna high performs execution
+and evidence work. Workspace and repo working agreements now record this split.
+The new public `verify_recovery` operation and CLI validate an explicitly
+restored Snapshot/View closure offline, rebuild the catalog, and revalidate on
+resume. Published PR6 v1 uses its frozen loader. Market/adjusted Views support
+exact rebuild against declared IDs and manifest digests; PR6/PR7 require their
+original published bytes because current builders cannot pin creation time.
+The independent recovery review identified that distinction and the entrypoint
+now rejects unsupported exact rebuild requests before recording a run.
+Independent Astra recovery review approved this bounded increment after the fix.
+Luna ran the full suite: 246/246 PASS in 75.398s; `git diff --check` passed.
+Execution log: `/tmp/pr8-recovery-fullsuite-20260911.log`.
+
+Stage 3/5 remains active. This is recovery execution code, not a full-root
+recovery result or baseline admission. Full-scope admission, terminal validation
+and the remaining V1 artifact gates are outstanding; `NO_BULK_BUILD` remains.
+
 # DM1 security session scope checkpoint — 2026-09-11
 
 Added the explicit opt-in `security_session_scope=exchange_security.v1` mapping

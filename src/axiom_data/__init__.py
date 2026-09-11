@@ -70,8 +70,10 @@ from .dm1_reconciliation import reconcile_dm1_raw_mapping
 from .evidence import validate_pr5_evidence
 from .operations import plan_daily, daily, bootstrap, repair, inspect_scope
 from .view_operation import materialize_views
+from .recovery import verify_recovery
 
 __all__ = [
+    "verify_recovery",
     "materialize_views",
     "plan_daily",
     "daily",
