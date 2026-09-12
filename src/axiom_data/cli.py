@@ -46,7 +46,16 @@ def main():
     recovery.add_argument('--snapshot', required=True)
     recovery.add_argument('--run-id', required=True)
     recovery.add_argument('--plan', type=Path, required=True)
+    admission_plan = commands.add_parser('validate-admission-plan')
+    admission_plan.add_argument('--snapshot', required=True)
+    admission_plan.add_argument('--plan', type=Path, required=True)
     args = parser.parse_args()
+    if args.operation == 'validate-admission-plan':
+        from axiom_data import validate_admission_plan
+        result = validate_admission_plan(args.data_root, snapshot_id=args.snapshot,
+                                         **json.loads(args.plan.read_bytes()))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result['status'] == 'PLAN_VALIDATED' else 1
     if args.operation == 'verify-recovery':
         from axiom_data import verify_recovery
         result = verify_recovery(args.data_root, run_id=args.run_id,

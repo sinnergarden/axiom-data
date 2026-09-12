@@ -1,3 +1,22 @@
+# Admission-plan review node — 2026-09-12
+
+Astra implemented `validate_admission_plan` and its CLI. The preflight binds
+the frozen packaged registry and explicit Snapshot manifest, validates complete
+identity/calendar Raw/parent/dependency closures, and checks each View kind's
+planned scope with per-security exchange-session bitsets. It rejects geometry
+holes, duplicate overlapping work, semantic substitution, malformed manifest
+composition and impossible adjusted anchors. Source availability, actual View
+payloads and full Snapshot closure remain pending. No unavailable declaration
+waives a gap, and the result never establishes consumption readiness.
+
+Independent Astra bounded code review passed after the cited counterexamples
+were fixed; Luna targeted tests pass 9/9 in 0.250s. See
+`reports/pr8/CODE_REVIEW_NODES.md` for review paths and remaining overall gates.
+Full suite: 255/255 PASS in 75.394s, executed by Luna; `git diff --check` PASS.
+Log: `/tmp/pr8-admission-plan-fullsuite-20260912.log`.
+Stage 3/5 is still active; full V1 admission and terminal validation are not
+complete. No new bulk build or pointer update was performed.
+
 # Recovery execution code checkpoint — 2026-09-11
 
 Astra owns implementation, scripts and test code; Luna high performs execution

@@ -71,8 +71,10 @@ from .evidence import validate_pr5_evidence
 from .operations import plan_daily, daily, bootstrap, repair, inspect_scope
 from .view_operation import materialize_views
 from .recovery import verify_recovery
+from .admission_plan import validate_admission_plan
 
 __all__ = [
+    "validate_admission_plan",
     "verify_recovery",
     "materialize_views",
     "plan_daily",
