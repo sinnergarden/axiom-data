@@ -83,7 +83,9 @@ class SnapshotReader:
 
     def __init__(self, data_root: str | Path, snapshot_id: str) -> None:
         self.data_root = Path(data_root)
-        self.snapshot, self.commits = _load_snapshot_with_commits(self.data_root, snapshot_id)
+        self._verified_lineage = {}
+        self.snapshot, self.commits = _load_snapshot_with_commits(
+            self.data_root, snapshot_id, lineage_index=self._verified_lineage)
 
     def schema(self, domain: str) -> tuple[str, ...]:
         try:
