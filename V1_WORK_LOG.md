@@ -719,3 +719,10 @@ Candidate recovery follow-up:
 - Gate B retains five execution-capability gaps (full admission producer/validator,
   daily validator, Notebook producer/validator). No V1 acceptance claim. No full
   bootstrap or broad execution was performed; no merge or main update.
+
+- Final replay found a dictionary-order bug after JSON serialization. The
+  capability list now has a stable category order; the new publication/reload
+  regression reproduced the failure before fixing it. Independent Astra code
+  review approved this follow-up. Final r7 tests: 17/17 focused, 349/349 full
+  PASS in 132.886 seconds. The failed aa9a8fc replay is preserved; use only a
+  successful final validation receipt bound to the follow-up commit.

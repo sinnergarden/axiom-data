@@ -406,7 +406,7 @@ def validate_terminal_evidence_plan(plan):
                 raise ArtifactError('terminal evidence call schema invalid: ' + category)
     missing = []
     entries = {}
-    for category, spec in plan['requirements'].items():
+    for category, spec in sorted(plan['requirements'].items()):
         for role in ('producer', 'validator'):
             name = spec[role]
             try:

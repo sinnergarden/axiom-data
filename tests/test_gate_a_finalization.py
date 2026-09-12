@@ -1,4 +1,5 @@
 import copy
+import json
 import unittest
 from unittest.mock import patch
 
@@ -10,6 +11,14 @@ class GateAFinalizationTest(unittest.TestCase):
         self.plan = gate_a.make_gate_a_plan(dict(
             symbols=['688981.SH'], start_session='2014-01-01', end_session='2026-09-08',
             financial_observation_start='2013-01-01', benchmarks=['000300.SH'], universe_ids=['000906.SH']))
+
+    def test_published_plan_and_report_round_trip_preserves_readiness(self):
+        from axiom_data.artifacts import _json_bytes
+        report = gate_a.validate_gate_a(self.plan)
+        published_plan = json.loads(_json_bytes(self.plan))
+        published_report = json.loads(_json_bytes(report))
+        self.assertEqual(gate_a.validate_gate_a_report(published_report, plan=published_plan),
+                         'GATE_A_READY_FOR_BULK_BUILD')
 
     def test_readiness_does_not_claim_gate_b_or_require_future_artifacts(self):
         result = gate_a.validate_gate_a(self.plan)

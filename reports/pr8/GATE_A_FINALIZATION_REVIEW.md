@@ -113,3 +113,21 @@ Gate B still explicitly lists five missing capabilities: full-admission
 producer and validator, daily-evidence validator, Notebook smoke producer and
 validator. This does not assert V1 acceptance. No full bootstrap, baseline,
 full admission, broad daily execution or final Notebook was run in this task.
+
+## Serialized report replay follow-up
+
+The first post-commit replay at `aa9a8fc2c8131bf5a390bb164b0ae2a961775d10`
+correctly refused a report mismatch. Terminal capability discovery inherited the
+input dictionary order, which changed when the plan was serialized with sorted
+JSON keys. The capability list therefore differed despite identical semantics.
+A regression reproduced this failure before the fix. Capability iteration now
+uses a stable category order, and the regression publishes both plan and report
+through the real JSON encoder before replay. Final evidence must bind the
+follow-up commit; the failed receipt is retained without replacement.
+
+The follow-up code passed independent Astra review. Luna's final r7 focused
+suite passed 17/17 in 9.647 seconds; the full suite passed 349/349 in 132.886
+seconds. Logs: `gate_a_finalization_roundtrip_focused.log` and
+`gate_a_finalization_roundtrip_fullsuite.log`. These supersede the r6 counts for
+the final implementation. No source-policy or data-artifact bytes changed in
+this follow-up.
