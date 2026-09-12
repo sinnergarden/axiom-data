@@ -3,6 +3,7 @@ import ast
 import importlib
 import inspect
 import json
+import subprocess
 from datetime import date, datetime, timedelta
 from importlib.resources import files
 from pathlib import Path
@@ -19,7 +20,22 @@ from axiom_data.pr7_views import exchange_sessions
 
 
 def _contract():
-    return json.loads(files('axiom_data.scope').joinpath('pr8_gate_a.v1.json').read_bytes())
+    return json.loads(files('axiom_data.scope').joinpath('pr8_gate_a.v2.json').read_bytes())
+
+
+def code_identity():
+    """Bind installed executable/config bytes, including uncommitted changes."""
+    root = Path(__file__).parent
+    paths = sorted(p for p in root.rglob('*') if p.is_file() and p.suffix in {'.py', '.json'})
+    projection = {p.relative_to(root).as_posix(): _digest(p.read_bytes()) for p in paths}
+    revision = None
+    try:
+        revision = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root,
+                                  capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return {'code_revision': revision, 'implementation_digest': _digest(_json_bytes(projection)),
+            'files': projection, 'validator_version': 'gate_a_readiness.v2'}
 
 
 def _registry():
@@ -29,6 +45,27 @@ def _registry():
 
 def _profile(version):
     return json.loads(files('axiom_data.source_profiles').joinpath(version + '.json').read_bytes())
+
+
+def completeness_matrix():
+    """One row per required source binding, with every endpoint's actual policy."""
+    from axiom_data.source_completeness import validate_policy_contract
+    contract = _contract()
+    rows = []
+    for source, spec in contract['sources'].items():
+        if source not in contract['initial_completeness_gaps']:
+            continue
+        policies = {endpoint: validate_policy_contract(spec['profile'], endpoint) for endpoint in spec['endpoints']}
+        rows.append({'source': source, 'domain': spec['domain'], 'profile': spec['profile'],
+                     'status': 'PASS' if all(p['status'] == 'PASS' for p in policies.values()) else 'BLOCKED',
+                     'endpoints': policies,
+                     'requirements': sorted(leaf for leaf, binding in contract['requirements'].items()
+                                            if source in binding['sources']),
+                     'coverage_policy': spec['coverage'], 'pit_policy': spec['pit'],
+                     'source_semantics': spec['source_semantics']})
+    if len(rows) != 13:
+        raise ArtifactError('original 13 source completeness bindings changed')
+    return rows
 
 
 def _entry(name):
@@ -101,11 +138,14 @@ def _request_coverage(requests, spec, scope):
     selectors = scope['benchmarks'] if spec['domain'] == 'benchmark_daily' else (
         scope['universe_ids'] if spec['domain'] == 'universe_membership' else scope['symbols'])
     lower = scope['financial_observation_start'] if spec['domain'] == 'financial_events' else scope['start_session']
+    grouped = {}
+    for request in requests:
+        if request['domain'] == spec['domain'] and request['collector'] == spec['collector']:
+            params = request['params']
+            grouped.setdefault((request['endpoint'], params.get('ts_code', params.get('index_code'))), []).append(request)
     for endpoint in spec['endpoints']:
         for symbol in selectors:
-            matching = [r for r in requests if r['domain'] == spec['domain']
-                        and r['collector'] == spec['collector'] and r['endpoint'] == endpoint
-                        and r['params'].get('ts_code', r['params'].get('index_code')) == symbol]
+            matching = grouped.get((endpoint, symbol), [])
             if endpoint == 'dividend':
                 if not any(r['params'] == {'ts_code': symbol} for r in matching):
                     raise ArtifactError('security-wide dividend observation absent')
@@ -167,7 +207,96 @@ def _operational_routes():
         if not required <= calls:
             raise ArtifactError('public operation admission/build route absent: ' + name)
         result[name] = {'code_digest': _digest(source.encode()), 'required_calls': sorted(required)}
+    # The reviewed bodies pin actual executable paths. A call hidden in dead
+    # code or moved after publication cannot pass merely by retaining its name.
+    expected = _contract()['reviewed_admission_routes']
+    actual = admission_route_identity()
+    if actual != expected:
+        raise ArtifactError('public admission route differs from reviewed executable binding')
+    result['reviewed_binding'] = actual
     return result
+
+
+def admission_route_identity():
+    from axiom_data import operations, artifacts, build, source_coverage, source_completeness
+    entries = {name: getattr(operations, name) for name in (
+        'bootstrap', 'daily', 'repair', 'assemble_candidate', 'collect_requests',
+        '_check_collected', '_checked_collection_record', '_requalify_sources', 'inspect_scope', 'inspect_snapshot')}
+    entries.update({
+        'BuildApplication.build': build.BuildApplication.build,
+        'MarketDomainBuilder.__call__': artifacts.MarketDomainBuilder.__call__,
+        'create_snapshot': artifacts.create_snapshot,
+        'closure': artifacts._validated_domain_commit_with_raw_closure,
+        'coverage_observation': source_coverage.observation,
+        'raw_admission': source_completeness.validate_raw_completeness,
+        'raw_admission_dispatch': source_completeness._validate_raw_completeness,
+        'payload_admission': source_completeness.validate_payload_completeness,
+        'payload_admission_dispatch': source_completeness._validate_payload_completeness,
+        'policy_validation': source_completeness.validate_policy_contract,
+        'policy_rules': source_completeness._policy_issues,
+        'raw_binding': source_completeness._validate_raw_binding,
+        'payload_scope': source_completeness._validate_scoped_response,
+        'transport_result': source_completeness._validate_raw_result})
+    for name in ('axiom_data.bootstrap_sources.collect_bootstrap_sources',
+                 'axiom_data.verification_cache.candidate_verification',
+                 'axiom_data.verification_cache.current_source_cache',
+                 'axiom_data.view_operation.materialize_views',
+                 'axiom_data.admission_plan._config'):
+        entries[name] = _entry(name)
+    from axiom_data.admission_plan import _builders
+    entries.update({'view_builder:' + name: function for name, function in _builders().items()})
+    return {name: _digest(inspect.getsource(function).encode()) for name, function in entries.items()}
+
+
+def _sparse_readiness():
+    from axiom_data import historical_sparse
+    required = {'dividend', 'forecast', 'stk_holdernumber', 'top10_holders', 'index_member_all', 'stock_basic'}
+    if not required <= set(historical_sparse.ENDPOINTS):
+        raise ArtifactError('required historical sparse endpoint executor missing')
+    plan = historical_sparse.plan_historical_sparse(
+        symbols=['600036.SH'], start_session='2014-01-01', end_session='2026-09-08')
+    specs = [r for group in plan['requests_by_domain'].values() for r in group]
+    if not required <= {r['endpoint'] for r in specs} or len(specs) > 100:
+        raise ArtifactError('sparse planner misses a source or expands into daily scans')
+    functions = {name: _entry('axiom_data.historical_sparse.' + name) for name in (
+        'plan_historical_sparse', 'execute_historical_sparse', 'validate_sparse_coverage')}
+    source = inspect.getsource(functions['execute_historical_sparse'])
+    calls = {n.func.id for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    if not {'collect_bootstrap_sources', 'validate_sparse_coverage'} <= calls:
+        raise ArtifactError('historical sparse execution/revalidation route missing')
+    return {'version': historical_sparse.VERSION, 'plan_digest': plan['plan_digest'],
+            'endpoint_coverage': sorted(required), 'request_count': len(specs),
+            'entries': {name: _digest(inspect.getsource(fn).encode()) for name, fn in functions.items()},
+            'evidence_kind': 'code_plan_not_historical_source_availability'}
+
+
+def _reference_qualification(scope):
+    """Reuse the previously reviewed source decision through exact evidence refs."""
+    root = Path(__file__).resolve().parents[2]
+    refs = _contract()['reference_qualification']
+    records = {}
+    for name, ref in refs.items():
+        path = root / ref['path']
+        if root not in path.resolve().parents:
+            raise ArtifactError('reference evidence outside repository')
+        content = path.read_bytes()
+        if _digest(content) != ref['content_digest']:
+            raise ArtifactError('reviewed reference evidence digest mismatch')
+        records[name] = json.loads(content)
+    target = records['target']['scope']
+    symbols = target['symbols']
+    industry = records['industry']; identity = records['identity']
+    if (len(symbols) != 3601 or len(set(symbols)) != 3601 or not set(scope['symbols']) <= set(symbols)
+            or identity.get('status') != 'PASS' or identity.get('rows') != 3601
+            or industry.get('status') != 'PASS' or industry['proof']['automatic_conditions'] != [True] * 4
+            or industry['profile'] != _profile('tushare_sw2021.v1')):
+        raise ArtifactError('reviewed target/security/industry qualification differs')
+    return {'evidence_refs': refs, 'target_security_count': 3601,
+            'requested_security_count': len(scope['symbols']),
+            'security_commit_id': identity['security_commit_id'],
+            'industry_commit_id': identity['industry_commit_id'],
+            'authority': 'SW2021', 'automatic_anomaly_conditions': [True] * 4,
+            'evidence_kind': 'previously_reviewed_source_qualification_not_new_bulk_admission'}
 
 
 def _requirement_bindings(contract, registry):
@@ -206,7 +335,7 @@ def _coverage_readiness(contract):
         raise ArtifactError('source coverage policy/entry mismatch')
     profile = _profile('tushare_fina_indicator.v1')
     payload = b'[]'
-    manifest = {'schema_version': 'raw_batch.v2', 'status': 'success',
+    manifest = {'schema_version': 'raw_batch.v2', 'status': 'success', 'domain': 'financial_events',
                 'source_profile_ref': 'tushare.pr6.fina_indicator',
                 'source_profile_version': profile['profile_version'],
                 'source_profile_digest': _digest(_json_bytes(profile)),
@@ -262,6 +391,19 @@ def validate_terminal_evidence_plan(plan):
             or plan['scope_registry_digest'] != _registry()[1]):
         raise ArtifactError('terminal evidence requirements differ from frozen contract')
     _validated_digest('target_digest', plan['target_digest'])
+    for category, spec in plan['requirements'].items():
+        if (set(spec) != {'required', 'producer', 'validator', 'calls'}
+                or not isinstance(spec['required'], list) or not spec['required']
+                or len(set(spec['required'])) != len(spec['required'])
+                or any(not isinstance(field, str) or not field for field in spec['required'])
+                or set(spec['calls']) != {'producer', 'validator'}):
+            raise ArtifactError('terminal artifact/ref schema invalid: ' + category)
+        for role in ('producer', 'validator'):
+            call = spec['calls'][role]
+            if (not isinstance(spec[role], str) or not spec[role].startswith('axiom_data.')
+                    or set(call) != {'args', 'kwargs'} or not isinstance(call['args'], list)
+                    or not isinstance(call['kwargs'], dict)):
+                raise ArtifactError('terminal evidence call schema invalid: ' + category)
     missing = []
     entries = {}
     for category, spec in plan['requirements'].items():
@@ -277,6 +419,8 @@ def validate_terminal_evidence_plan(plan):
                 missing.append({'category': category, 'role': role, 'entry': name})
     return {'schema_version': 'terminal_evidence_plan_check.v1',
             'status': 'PLAN_DEFINED' if not missing else 'CAPABILITY_BLOCKED',
+            'schema_status': 'PLAN_DEFINED',
+            'execution_status': 'CAPABILITY_READY' if not missing else 'CAPABILITY_BLOCKED',
             'missing_capabilities': missing, 'entries': entries,
             'plan_digest': _digest(_json_bytes(plan)), 'gate_b_status': 'NOT_ASSESSED'}
 
@@ -284,7 +428,7 @@ def validate_terminal_evidence_plan(plan):
 def validate_gate_a(plan):
     """Read-only readiness; even READY requires a separate independent review."""
     findings = []
-    evidence = {}
+    evidence = {'code_identity': code_identity()}
     def check(section, operation):
         try:
             evidence[section] = operation()
@@ -319,7 +463,7 @@ def validate_gate_a(plan):
     check('reference_plan', lambda: plan_reference_sources(scope=scope))
     for name, spec in contract['sources'].items():
         def source_check(spec=spec):
-            from axiom_data.source_completeness import completeness_policy, validate_payload_completeness
+            from axiom_data.source_completeness import validate_policy_contract
             profile = _profile(spec['profile'])
             if profile['profile_version'] != spec['profile'] or not set(spec['endpoints']) <= set(profile.get('endpoints', {})):
                 raise ArtifactError('required source profile/endpoint absent')
@@ -336,21 +480,11 @@ def validate_gate_a(plan):
                 raise ArtifactError('unreviewed source coverage/PIT policy binding')
             policies = {}
             for endpoint in spec['endpoints']:
-                policy = completeness_policy(spec['profile'], endpoint)
-                if (policy.get('status') != 'established' or not policy.get('completeness_rule')
-                        or not policy.get('action') or not policy.get('authority_profile_digest')
-                        or type(policy.get('limit')) is not int or not 0 < policy['limit'] <= 100000):
-                    raise ArtifactError('source completeness policy unestablished: ' + endpoint)
-                empty = validate_payload_completeness(spec['profile'], endpoint, [])
-                if empty.get('admission') != 'complete':
-                    raise ArtifactError('shared completeness entry cannot admit empty complete response')
-                try:
-                    validate_payload_completeness(spec['profile'], endpoint, [{}] * policy['limit'])
-                except ArtifactError:
-                    pass
-                else:
-                    raise ArtifactError('shared completeness boundary accepts an unproven at-cap payload')
-                policies[endpoint] = policy
+                checked = validate_policy_contract(spec['profile'], endpoint)
+                if checked.get('status') != 'PASS':
+                    raise ArtifactError('source completeness policy unestablished: ' + endpoint + ': ' +
+                                        '; '.join(checked.get('reasons', [])))
+                policies[endpoint] = checked
             planner = _entry(spec['planner'])
             if spec['mode'] == 'collect':
                 if planner is not _entry('axiom_data.bootstrap_sources.plan_bootstrap_sources'):
@@ -377,6 +511,7 @@ def validate_gate_a(plan):
         return {'industry_profile_digest': _digest(_json_bytes(profile)),
                 'boundary_profile_digest': _digest(_json_bytes(boundary))}
     check('industry', industry_check)
+    check('reference_qualification', lambda: _reference_qualification(scope))
     check('coverage_policy', lambda: _coverage_readiness(contract))
     check('public_routes', _operational_routes)
     check('historical_executor', lambda: {
@@ -384,21 +519,47 @@ def validate_gate_a(plan):
         'code_digest': _digest(inspect.getsource(_entry('axiom_data.gate_a.plan_historical_views')).encode()),
         'policy': contract['historical_view_policy']})
     check('terminal_plan', lambda: validate_terminal_evidence_plan(plan['terminal_evidence_plan']))
-    if evidence.get('terminal_plan', {}).get('missing_capabilities'):
-        findings.append({'section': 'terminal_plan', 'reason': 'formal full-scope execution capabilities missing',
-                         'missing': evidence['terminal_plan']['missing_capabilities']})
-    # A per-security anchor policy solves disjoint identity lifetimes. Actual
-    # Fact coverage and source-backed unavailable intervals still need admission.
-    if 'axiom_data.full_admission.validate_full_admission' not in evidence.get('terminal_plan', {}).get('entries', {}):
-        findings.append({'section': 'historical_views', 'reason': 'full-range sparse-history qualification executor absent'})
+    # Gate A checks the frozen future artifact/ref contract. The missing Gate B
+    # executors remain visible and still block validate_terminal_evidence.
+    deferred = {('full_admission', 'producer'), ('full_admission', 'validator'),
+                ('daily', 'validator'), ('notebook', 'producer'), ('notebook', 'validator')}
+    missing = [entry for entry in evidence.get('terminal_plan', {}).get('missing_capabilities', [])
+               if (entry['category'], entry['role']) not in deferred]
+    if missing:
+        findings.append({'section': 'execution_entries', 'reason': 'required bulk execution entry missing',
+                         'missing': missing})
+    check('historical_sparse', _sparse_readiness)
+    generated = evidence.get('source_plan')
+    if generated is not None:
+        evidence['source_plan'] = {
+            'schema_version': generated['schema_version'], 'scope': generated['scope'],
+            'plan_digest': _digest(_json_bytes(generated)),
+            'required_reused_domains': generated['required_reused_domains'],
+            'domains': {domain: {'request_count': len(requests),
+                                'request_plan_digest': _digest(_json_bytes(requests)),
+                                'endpoints': sorted({r['endpoint'] for r in requests})}
+                        for domain, requests in generated['requests_by_domain'].items()}}
     return _gate_result(findings, evidence)
 
 
 def _gate_result(findings, evidence):
-    return {'schema_version': 'gate_a_readiness.v1',
+    result = {'schema_version': 'gate_a_readiness.v2',
             'status': 'GATE_A_BLOCKED' if findings else 'GATE_A_READY_FOR_BULK_BUILD',
             'findings': findings, 'evidence': evidence, 'external_review_required': True,
             'bulk_authorized': False, 'gate_b_status': 'NOT_ASSESSED', 'ready_for_consumption': False}
+    return dict(result, report_digest=_digest(_json_bytes(result)))
+
+
+def validate_gate_a_report(report, *, plan):
+    """An earlier PASS is usable only under the same code, policies and plan."""
+    if not isinstance(report, dict):
+        raise ArtifactError('Gate A report required')
+    content = {k: v for k, v in report.items() if k != 'report_digest'}
+    if report.get('report_digest') != _digest(_json_bytes(content)):
+        raise ArtifactError('Gate A report digest mismatch')
+    if report != validate_gate_a(plan):
+        raise ArtifactError('Gate A report no longer matches current code/contracts/plan')
+    return report['status']
 
 
 def plan_historical_views(*, target, security_rows, calendar_rows, universe_ids, knowledge_cutoff):

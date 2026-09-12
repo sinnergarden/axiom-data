@@ -852,7 +852,10 @@ class MarketDomainBuilder:
         if builder_config is not None and not isinstance(builder_config, Mapping):
             raise ArtifactError("builder_config must be a mapping")
         self.builder_config = _json_copy(builder_config or {})
-        if self.builder_config.get('coverage_state_policy') == 'source_observations.v1' or 'security_session_scope' in self.builder_config:
+        if self.builder_config.get('coverage_state_policy') == 'source_observations.v2':
+            from axiom_data.source_completeness import current_contract_binding
+            self.builder_config['source_completeness_binding'] = current_contract_binding()
+        if self.builder_config.get('coverage_state_policy') in {'source_observations.v1', 'source_observations.v2'} or 'security_session_scope' in self.builder_config:
             self.builder_config['source_admission_implementation'] = {
                 name: _digest(Path(__file__).with_name(name + '.py').read_bytes())
                 for name in ('source_completeness', 'source_coverage', 'public_source_scope')
@@ -919,10 +922,15 @@ class MarketDomainBuilder:
             raise ArtifactError("build contract does not belong to the executor domain")
 
         raw_batches = RawBatches(self.layout.root, request.raw_batch_ids)
-        coverage_enabled = self.builder_config.get('coverage_state_policy') == 'source_observations.v1'
+        coverage_policy = self.builder_config.get('coverage_state_policy')
+        coverage_enabled = coverage_policy in {'source_observations.v1', 'source_observations.v2'}
         if 'coverage_state_policy' in self.builder_config and not coverage_enabled:
             raise ArtifactError('unsupported source coverage state policy')
         coverage_observations = []
+        coverage_pages = {}
+        if coverage_policy == 'source_observations.v2' and self.domain == 'industry_membership':
+            from axiom_data.source_completeness import page_evidence
+            coverage_pages = page_evidence(raw_batches)
         for raw in raw_batches:
             if raw.manifest.get("domain") != self.domain:
                 raise ArtifactError(
@@ -932,7 +940,8 @@ class MarketDomainBuilder:
                 raise ArtifactError(f"RawBatch {raw.ref.raw_batch_id!r} is not successful")
             if coverage_enabled:
                 from axiom_data.source_coverage import observation
-                coverage_observations.append(observation(raw))
+                coverage_observations.append(observation(raw, policy=coverage_policy,
+                                                         evidence=coverage_pages.get(raw.ref.raw_batch_id)))
             else:
                 from axiom_data.source_completeness import validate_raw_completeness
                 validate_raw_completeness(raw)
@@ -969,6 +978,12 @@ class MarketDomainBuilder:
         }
         calendar = loaded_dependencies.get("trading_calendar")
         security = loaded_dependencies.get("security_master")
+        if coverage_policy == 'source_observations.v2':
+            from axiom_data.operations import _requalify_sources
+            inherited = dict(self.dependency_commit_ids)
+            if request.parent_commit is not None:
+                inherited[self.domain] = request.parent_commit
+            _requalify_sources(self.layout.root, inherited)
         if 'security_session_scope' in self.builder_config:
             from axiom_data.public_source_scope import validate_security_scope
             validate_security_scope(self.domain, self.builder_config, raw_batches, loaded_dependencies)
@@ -1019,7 +1034,7 @@ class MarketDomainBuilder:
         coverage = None
         if coverage_enabled:
             from axiom_data.source_coverage import state as coverage_state
-            coverage = coverage_state(parent, parent_raw_batch_ids, coverage_observations)
+            coverage = coverage_state(parent, parent_raw_batch_ids, coverage_observations, policy=coverage_policy)
         if (parent is not None and self.builder_config.get('no_change_policy') == 'reuse_equal_state.v1'
             and logical_digest == parent.manifest['logical_content_digest']
             and set(request.raw_batch_ids) <= parent_raw_batch_ids
@@ -1293,12 +1308,17 @@ def _validate_domain_commit_node(
         if not isinstance(raw_refs, list):
             raise ArtifactError("DomainCommit ordered raw refs are invalid")
         raw_ids: set[str] = set()
-        coverage_enabled = commit.manifest['builder_config'].get('coverage_state_policy') == 'source_observations.v1'
+        coverage_policy = commit.manifest['builder_config'].get('coverage_state_policy')
+        coverage_enabled = coverage_policy in {'source_observations.v1', 'source_observations.v2'}
         if 'coverage_state_policy' in commit.manifest['builder_config'] and not coverage_enabled:
             raise ArtifactError('unsupported coverage state policy')
         if ('source_coverage' in commit.manifest) != coverage_enabled:
             raise ArtifactError('source coverage manifest/policy mismatch')
         coverage_observations = []
+        coverage_pages = {}
+        if coverage_policy == 'source_observations.v2' and domain == 'industry_membership':
+            from axiom_data.source_completeness import page_evidence
+            coverage_pages = page_evidence(RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]))
         if 'security_session_scope' in commit.manifest['builder_config']:
             from axiom_data.dm1_source import _SECURITY_SESSION_SCOPE_DOMAINS
             if domain not in _SECURITY_SESSION_SCOPE_DOMAINS:
@@ -1314,7 +1334,8 @@ def _validate_domain_commit_node(
             raw_ids.add(raw.ref.raw_batch_id)
             if coverage_enabled:
                 from axiom_data.source_coverage import observation
-                coverage_observations.append(observation(raw))
+                coverage_observations.append(observation(raw, policy=coverage_policy,
+                                                         evidence=coverage_pages.get(raw.ref.raw_batch_id)))
             else:
                 from axiom_data.source_completeness import validate_raw_completeness
                 validate_raw_completeness(raw)
@@ -1358,7 +1379,7 @@ def _validate_domain_commit_node(
             from axiom_data.source_coverage import state as coverage_state
             expected_coverage = coverage_state(parent,
                 raw_closure_cache[(domain, parent.ref.commit_id)] if parent is not None else frozenset(),
-                coverage_observations)
+                coverage_observations, policy=coverage_policy)
             if commit.manifest['source_coverage'] != expected_coverage:
                 raise ArtifactError('source coverage differs from validated Raw lineage')
 

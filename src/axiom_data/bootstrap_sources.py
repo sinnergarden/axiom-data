@@ -35,11 +35,15 @@ def plan_truncated_raw_split(raw):
     from axiom_data.pr6_source import source_date
     from axiom_data.source_completeness import completeness_policy
     manifest=raw.manifest;request=manifest['request'];params=request['params']
-    if request.get('endpoint')!='fina_indicator':
-        raise ArtifactError('bounded split planner requires fina_indicator Raw')
-    policy=completeness_policy(manifest['source_profile_version'],'fina_indicator')
+    endpoint=request.get('endpoint')
+    if endpoint not in {'fina_indicator','income','balancesheet','cashflow','forecast','stk_holdernumber','top10_holders',
+                        'daily','daily_basic','stk_limit','adj_factor','index_daily','suspend_d','index_weight','moneyflow','margin_detail'}:
+        raise ArtifactError('endpoint has no bounded historical split executor')
+    policy=completeness_policy(manifest['source_profile_version'],endpoint)
     rows=json.loads(raw.payload)
     if (manifest.get('status')!='success' or policy['status']!='established'
+        or policy.get('action') != 'split_date_scope'
+        or isinstance(policy.get('limit'),bool) or not isinstance(policy.get('limit'),int) or policy['limit']<=0
         or not isinstance(rows,list) or len(rows)<policy['limit']):
         raise ArtifactError('scope split requires a retained response at the source cap')
     try:
@@ -48,7 +52,8 @@ def plan_truncated_raw_split(raw):
         pass
     else:
         raise ArtifactError('Raw is not rejected by source completeness admission')
-    if set(params)!={'ts_code','start_date','end_date'}:
+    if (not {'start_date','end_date'} <= set(params) or not ({'ts_code','index_code'} & set(params))
+        or set(params)-{'ts_code','index_code','start_date','end_date','report_type'}):
         raise ArtifactError('unsplittable response scope; source qualification required')
     start=date.fromisoformat(source_date(params['start_date']))
     end=date.fromisoformat(source_date(params['end_date']))
@@ -59,11 +64,15 @@ def plan_truncated_raw_split(raw):
     for first,last in ((start,middle),(middle+timedelta(days=1),end)):
         child=copy.deepcopy(params)
         child.update(start_date=first.strftime('%Y%m%d'),end_date=last.strftime('%Y%m%d'))
-        family={'tushare_pr6.v1':'pr6','tushare_fina_indicator.v1':'pr6_indicator'}.get(manifest['source_profile_version'])
+        family={'tushare_phase1.v1':'market','tushare_dm1.v1':'dm1','tushare_pr6.v1':'pr6','tushare_pr6.v2':'pr6_bulk',
+                'tushare_fina_indicator.v1':'pr6_indicator','tushare_pr7.v1':'pr7',
+                'tushare_pr7_holder.v2':'pr7_holder','tushare_pr7_holder.v3':'pr7_holder_v3'}.get(manifest['source_profile_version'])
         if family is None:raise ArtifactError('unsupported indicator split SourceProfile')
-        spec={'collector':family,'domain':'financial_events','endpoint':'fina_indicator',
+        spec={'collector':family,'domain':manifest['domain'],'endpoint':endpoint,
               'params':child,'economic_scope':{'start':child['start_date'],'end':child['end_date']},
-              'availability_policy':'revision_scan'}
+              'availability_policy':('reference_observation' if endpoint=='index_weight' else
+                  'next_session_publication' if endpoint=='margin_detail' else
+                  'session_close' if endpoint in {'daily','daily_basic','stk_limit','adj_factor','index_daily','suspend_d','moneyflow'} else 'revision_scan')}
         _request(spec);children.append(spec)
     return {'schema_version':'source_scope_split.v1','parent_raw_batch_id':raw.ref.raw_batch_id,
             'status':'NEEDS_COLLECTION','ready_for_consumption':False,'requests':children}

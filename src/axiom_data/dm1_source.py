@@ -155,7 +155,10 @@ class TushareDm1Collector:
         observed_at = _retrieved_at(retrieved_at)
         request = {"endpoint": endpoint, "params": request_params, "fields": fields_value}
         profile_digest = dm1_source_profile_digest(profile)
+        from axiom_data.source_completeness import source_profile_completeness_binding
+        completeness = source_profile_completeness_binding(profile['profile_version'], profile_digest)
         identity_fields = {
+            "source_completeness": completeness,
             "domain": domain,
             "source_profile_ref": endpoint_profile["source_profile_ref"],
             "source_profile_version": profile["profile_version"],
@@ -181,6 +184,7 @@ class TushareDm1Collector:
             payload=payload,
             collector_code=f"axiom-data.{self.implementation_revision}",
             summary={
+                "source_completeness": completeness,
                 "rows": len(records),
                 "response_fields": fields_value,
                 "represented_session_field": endpoint_profile["represented_session_field"],

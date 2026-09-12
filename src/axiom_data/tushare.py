@@ -164,6 +164,8 @@ class TushareCollector:
         source_profile = load_tushare_source_profile()
         profile = _endpoint_profile(endpoint, source_profile)
         profile_digest = tushare_source_profile_digest(source_profile)
+        from axiom_data.source_completeness import source_profile_completeness_binding
+        completeness = source_profile_completeness_binding(source_profile['profile_version'], profile_digest)
         if not isinstance(params, Mapping):
             raise ArtifactError("Tushare request params must be a mapping")
         request_params = _json_copy(dict(params))
@@ -184,6 +186,7 @@ class TushareCollector:
             "fields": fields,
         }
         identity_seed = {
+            "source_completeness": completeness,
             "source_profile_ref": profile["source_profile_ref"],
             "source_profile_version": source_profile["profile_version"],
             "source_profile_digest": profile_digest,
@@ -208,6 +211,7 @@ class TushareCollector:
             payload=payload,
             collector_code=f"axiom-data.{self.implementation_revision}",
             summary={
+                "source_completeness": completeness,
                 "rows": len(records),
                 "response_fields": fields,
                 "represented_session_field": profile["represented_session_field"],

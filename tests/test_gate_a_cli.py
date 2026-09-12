@@ -22,8 +22,8 @@ class GateACliTest(unittest.TestCase):
             plan = json.loads(output.getvalue()); self.assertEqual(plan['scope'],scope)
             path.write_text(json.dumps(plan)); output = io.StringIO()
             with patch('sys.argv',['axiom-data','--data-root',str(root),'validate-gate-a','--plan',str(path)]), contextlib.redirect_stdout(output):
-                self.assertEqual(main(),1)
+                self.assertEqual(main(),0)
             report = json.loads(output.getvalue())
-            self.assertEqual(report['status'],'GATE_A_BLOCKED')
+            self.assertEqual(report['status'],'GATE_A_READY_FOR_BULK_BUILD', report['findings'])
             self.assertEqual(len(report['evidence']['requirement_bindings']),56)
             self.assertFalse(root.exists())

@@ -1,0 +1,1223 @@
+{
+  "schema_version": "pr8_gate_a_contract.v2",
+  "scope_registry_digest": "sha256:61f62cee3eda50ad1924d6bb04bea7c892ee18a2842d25a7c0e79fab629058a8",
+  "sources": {
+    "market_daily:tushare_phase1.v1": {
+      "domain": "market_daily",
+      "profile": "tushare_phase1.v1",
+      "endpoints": [
+        "daily",
+        "adj_factor",
+        "daily_basic",
+        "stk_limit",
+        "suspend_d"
+      ],
+      "collector": "market",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "pit_classification": {
+          "retrieved_at": "the time this response was observed by Axiom Data",
+          "represented_session": "the supplier date field named by each endpoint",
+          "historical_availability": "unknown unless separate source evidence is recorded",
+          "revision_capability": "unknown/best-effort; a current terminal-history response is not verified PIT history"
+        },
+        "endpoints": {
+          "daily": {
+            "missing_row": "unknown unless another frozen endpoint provides explicit state evidence",
+            "terminal_history": "current terminal-history observation; revisions and original availability are unknown"
+          },
+          "adj_factor": {
+            "missing_row": "unknown factor",
+            "terminal_history": "current observed factor series; historical revisions are unknown"
+          },
+          "daily_basic": {
+            "missing_row": "unknown daily-basic observation",
+            "terminal_history": "current terminal-history observation; historical revisions are unknown"
+          },
+          "stk_limit": {
+            "missing_row": "unknown price-limit observation",
+            "terminal_history": "current terminal-history observation; historical revisions are unknown"
+          },
+          "suspend_d": {
+            "missing_row": "no explicit suspension evidence; it does not prove normal trading",
+            "terminal_history": "current observed suspension event history; original availability is unknown"
+          }
+        }
+      }
+    },
+    "security_status:tushare_dm1.v1": {
+      "domain": "security_status",
+      "profile": "tushare_dm1.v1",
+      "endpoints": [
+        "daily",
+        "suspend_d"
+      ],
+      "collector": "dm1",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "pit_classification": {
+          "retrieved_at": "timezone-aware time Axiom observed the response",
+          "represented_session": "the supplier date field named by the endpoint",
+          "historical_availability": "unknown unless the row carries separately verified availability evidence",
+          "revision_capability": "current terminal-history observation; revision history and original visibility are not guaranteed"
+        },
+        "endpoints": {
+          "daily": {
+            "missing_semantics": "absence is unknown unless an explicit lifecycle or suspension fact explains it",
+            "terminal_history_risk": "not verified PIT history",
+            "date_semantics": "trade_date is the represented exchange session"
+          },
+          "suspend_d": {
+            "missing_semantics": "absence is not evidence of normal trading",
+            "terminal_history_risk": "original availability and revisions unknown",
+            "date_semantics": "trade_date is the suspension event session"
+          }
+        }
+      }
+    },
+    "price_limits:tushare_dm1.v1": {
+      "domain": "price_limits",
+      "profile": "tushare_dm1.v1",
+      "endpoints": [
+        "stk_limit"
+      ],
+      "collector": "dm1",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "pit_classification": {
+          "retrieved_at": "timezone-aware time Axiom observed the response",
+          "represented_session": "the supplier date field named by the endpoint",
+          "historical_availability": "unknown unless the row carries separately verified availability evidence",
+          "revision_capability": "current terminal-history observation; revision history and original visibility are not guaranteed"
+        },
+        "endpoints": {
+          "stk_limit": {
+            "missing_semantics": "missing row or incomplete pair is unknown, not no-limit",
+            "terminal_history_risk": "historical revision availability unknown",
+            "date_semantics": "trade_date is the effective session"
+          }
+        }
+      }
+    },
+    "adjustment_factors:tushare_dm1.v1": {
+      "domain": "adjustment_factors",
+      "profile": "tushare_dm1.v1",
+      "endpoints": [
+        "adj_factor"
+      ],
+      "collector": "dm1",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "pit_classification": {
+          "retrieved_at": "timezone-aware time Axiom observed the response",
+          "represented_session": "the supplier date field named by the endpoint",
+          "historical_availability": "unknown unless the row carries separately verified availability evidence",
+          "revision_capability": "current terminal-history observation; revision history and original visibility are not guaranteed"
+        },
+        "endpoints": {
+          "adj_factor": {
+            "missing_semantics": "unknown factor; never fill 1.0",
+            "terminal_history_risk": "factor revisions and original availability unknown",
+            "date_semantics": "trade_date is the represented session"
+          }
+        }
+      }
+    },
+    "security_capital:tushare_dm1.v1": {
+      "domain": "security_capital",
+      "profile": "tushare_dm1.v1",
+      "endpoints": [
+        "daily_basic"
+      ],
+      "collector": "dm1",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "pit_classification": {
+          "retrieved_at": "timezone-aware time Axiom observed the response",
+          "represented_session": "the supplier date field named by the endpoint",
+          "historical_availability": "unknown unless the row carries separately verified availability evidence",
+          "revision_capability": "current terminal-history observation; revision history and original visibility are not guaranteed"
+        },
+        "endpoints": {
+          "daily_basic": {
+            "missing_semantics": "unknown capital observation",
+            "terminal_history_risk": "historical revision availability unknown",
+            "date_semantics": "trade_date is the represented observation session"
+          }
+        }
+      }
+    },
+    "corporate_actions:tushare_dm1.v1": {
+      "domain": "corporate_actions",
+      "profile": "tushare_dm1.v1",
+      "endpoints": [
+        "dividend"
+      ],
+      "collector": "dm1",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "pit_classification": {
+          "retrieved_at": "timezone-aware time Axiom observed the response",
+          "represented_session": "the supplier date field named by the endpoint",
+          "historical_availability": "unknown unless the row carries separately verified availability evidence",
+          "revision_capability": "current terminal-history observation; revision history and original visibility are not guaranteed"
+        },
+        "endpoints": {
+          "dividend": {
+            "missing_semantics": "only div_proc=\u5b9e\u65bd is promoted; proposals/approvals remain frozen raw observations, while an implemented row needs an explicit ex/effective date and unsupported non-zero terms block the build",
+            "terminal_history_risk": "current terminal history is observed/best_effort, not verified PIT",
+            "date_semantics": "the endpoint request is security-only and may return every div_proc state; canonical mapping separately promotes implemented rows while announcement, record, ex, pay, and listing dates remain distinct"
+          }
+        }
+      }
+    },
+    "benchmark_daily:tushare_dm1.v1": {
+      "domain": "benchmark_daily",
+      "profile": "tushare_dm1.v1",
+      "endpoints": [
+        "index_daily"
+      ],
+      "collector": "dm1",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "pit_classification": {
+          "retrieved_at": "timezone-aware time Axiom observed the response",
+          "represented_session": "the supplier date field named by the endpoint",
+          "historical_availability": "unknown unless the row carries separately verified availability evidence",
+          "revision_capability": "current terminal-history observation; revision history and original visibility are not guaranteed"
+        },
+        "endpoints": {
+          "index_daily": {
+            "missing_semantics": "unknown benchmark observation",
+            "terminal_history_risk": "historical revisions unknown",
+            "date_semantics": "trade_date is the represented exchange session"
+          }
+        }
+      }
+    },
+    "financial_events:tushare_pr6.v1": {
+      "domain": "financial_events",
+      "profile": "tushare_pr6.v1",
+      "endpoints": [
+        "income",
+        "balancesheet",
+        "cashflow"
+      ],
+      "collector": "pr6",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "fallback_policy": "supplier_field_only.v1; no cross-endpoint fallback for indicator or valuation",
+        "membership_policy": "index_weight snapshot intervals bounded by explicit next snapshot or scope end; bak_basic one represented civil day; no stock_basic industry fallback",
+        "report_type_policy": "preserve source types; do not mix cumulative/standalone/parent-company; type 1 only for first stable-derived contract",
+        "endpoints": {
+          "income": {
+            "missing_semantics": "null=vendor_null; omitted business key=not_provided; no source fallback",
+            "terminal_history_risk": "historical values fetched now are best_effort; safe/operational can use only from actual observation",
+            "date_semantics": {
+              "ann_date": "vendor announcement date",
+              "f_ann_date": "vendor actual announcement date, not revision publication evidence",
+              "update_flag": "vendor update marker, not an ordering timestamp",
+              "report_period": "end_date",
+              "report_type": "retain exact type; cumulative derivation supports consolidated type 1 only"
+            }
+          },
+          "balancesheet": {
+            "missing_semantics": "null=vendor_null; omitted business key=not_provided; no source fallback",
+            "terminal_history_risk": "historical values fetched now are best_effort; safe/operational can use only from actual observation",
+            "date_semantics": {
+              "ann_date": "vendor announcement date",
+              "f_ann_date": "vendor actual announcement date, not revision publication evidence",
+              "update_flag": "vendor update marker, not an ordering timestamp",
+              "report_period": "end_date",
+              "report_type": "retain exact type; cumulative derivation supports consolidated type 1 only"
+            }
+          },
+          "cashflow": {
+            "missing_semantics": "null=vendor_null; omitted business key=not_provided; no source fallback",
+            "terminal_history_risk": "historical values fetched now are best_effort; safe/operational can use only from actual observation",
+            "date_semantics": {
+              "ann_date": "vendor announcement date",
+              "f_ann_date": "vendor actual announcement date, not revision publication evidence",
+              "update_flag": "vendor update marker, not an ordering timestamp",
+              "report_period": "end_date",
+              "report_type": "retain exact type; cumulative derivation supports consolidated type 1 only"
+            }
+          }
+        }
+      }
+    },
+    "financial_events:tushare_fina_indicator.v1": {
+      "domain": "financial_events",
+      "profile": "tushare_fina_indicator.v1",
+      "endpoints": [
+        "fina_indicator"
+      ],
+      "collector": "pr6_indicator",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "fallback_policy": "supplier_field_only.v1; no cross-endpoint fallback for indicator or valuation",
+        "membership_policy": "index_weight snapshot intervals bounded by explicit next snapshot or scope end; bak_basic one represented civil day; no stock_basic industry fallback",
+        "report_type_policy": "preserve source types; do not mix cumulative/standalone/parent-company; type 1 only for first stable-derived contract",
+        "endpoints": {
+          "fina_indicator": {
+            "missing_semantics": "null=vendor_null; omitted business key=not_provided; no source fallback",
+            "terminal_history_risk": "historical values fetched now are best_effort; safe/operational can use only from actual observation",
+            "date_semantics": {
+              "ann_date": "vendor announcement date",
+              "f_ann_date": "vendor actual announcement date, not revision publication evidence",
+              "update_flag": "vendor update marker, not an ordering timestamp",
+              "report_period": "end_date",
+              "report_type": "retain exact type; cumulative derivation supports consolidated type 1 only"
+            },
+            "request_bound_field": "end_date"
+          }
+        }
+      }
+    },
+    "valuation_daily:tushare_pr6.v1": {
+      "domain": "valuation_daily",
+      "profile": "tushare_pr6.v1",
+      "endpoints": [
+        "daily_basic"
+      ],
+      "collector": "pr6",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "fallback_policy": "supplier_field_only.v1; no cross-endpoint fallback for indicator or valuation",
+        "membership_policy": "index_weight snapshot intervals bounded by explicit next snapshot or scope end; bak_basic one represented civil day; no stock_basic industry fallback",
+        "report_type_policy": "preserve source types; do not mix cumulative/standalone/parent-company; type 1 only for first stable-derived contract",
+        "endpoints": {
+          "daily_basic": {
+            "missing_semantics": "null=vendor_null; omitted business key=not_provided; no source fallback",
+            "terminal_history_risk": "historical values fetched now are best_effort; safe/operational can use only from actual observation",
+            "date_semantics": {
+              "ann_date": "vendor announcement date",
+              "f_ann_date": "vendor actual announcement date, not revision publication evidence",
+              "update_flag": "vendor update marker, not an ordering timestamp",
+              "report_period": "end_date",
+              "report_type": "retain exact type; cumulative derivation supports consolidated type 1 only"
+            }
+          }
+        }
+      }
+    },
+    "universe_membership:tushare_pr6.v1": {
+      "domain": "universe_membership",
+      "profile": "tushare_pr6.v1",
+      "endpoints": [
+        "index_weight"
+      ],
+      "collector": "pr6",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "fallback_policy": "supplier_field_only.v1; no cross-endpoint fallback for indicator or valuation",
+        "membership_policy": "index_weight snapshot intervals bounded by explicit next snapshot or scope end; bak_basic one represented civil day; no stock_basic industry fallback",
+        "report_type_policy": "preserve source types; do not mix cumulative/standalone/parent-company; type 1 only for first stable-derived contract",
+        "endpoints": {
+          "index_weight": {
+            "missing_semantics": "null=vendor_null; omitted business key=not_provided; no source fallback",
+            "terminal_history_risk": "historical values fetched now are best_effort; safe/operational can use only from actual observation",
+            "date_semantics": {
+              "ann_date": "vendor announcement date",
+              "f_ann_date": "vendor actual announcement date, not revision publication evidence",
+              "update_flag": "vendor update marker, not an ordering timestamp",
+              "report_period": "end_date",
+              "report_type": "retain exact type; cumulative derivation supports consolidated type 1 only"
+            }
+          }
+        }
+      }
+    },
+    "industry_membership:tushare_industry_qualification.v1": {
+      "domain": "industry_membership",
+      "profile": "tushare_industry_qualification.v1",
+      "endpoints": [
+        "index_classify",
+        "index_member_all"
+      ],
+      "collector": null,
+      "mode": "reuse",
+      "planner": "axiom_data.gate_a.plan_reference_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "historical_knowledge": "best_effort terminal observations; no inferred historical knowledge",
+        "endpoints": {
+          "index_classify": {},
+          "index_member_all": {}
+        }
+      }
+    },
+    "security_master:exchange_security.v1": {
+      "domain": "security_master",
+      "profile": "exchange_security.v1",
+      "endpoints": [
+        "SSE",
+        "SZSE"
+      ],
+      "collector": null,
+      "mode": "reuse",
+      "planner": "axiom_data.gate_a.plan_reference_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "historical_knowledge": "best_effort current source observations",
+        "boundary": "exchange official termination date is the exclusive identity end; retain supplier delist_date in its RawBatch without last-trade inference",
+        "endpoints": {
+          "SSE": {},
+          "SZSE": {}
+        }
+      }
+    },
+    "trading_calendar:tushare_phase1.v1": {
+      "domain": "trading_calendar",
+      "profile": "tushare_phase1.v1",
+      "endpoints": [
+        "trade_cal"
+      ],
+      "collector": null,
+      "mode": "reuse",
+      "planner": "axiom_data.gate_a.plan_reference_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "pit_classification": {
+          "retrieved_at": "the time this response was observed by Axiom Data",
+          "represented_session": "the supplier date field named by each endpoint",
+          "historical_availability": "unknown unless separate source evidence is recorded",
+          "revision_capability": "unknown/best-effort; a current terminal-history response is not verified PIT history"
+        },
+        "endpoints": {
+          "trade_cal": {
+            "missing_row": "unknown; absence is not a closed-day assertion",
+            "terminal_history": "may return historical calendar rows; historical revision availability is unknown"
+          }
+        }
+      }
+    },
+    "holder_count_events:tushare_pr7_holder.v3": {
+      "domain": "holder_count_events",
+      "profile": "tushare_pr7_holder.v3",
+      "endpoints": [
+        "stk_holdernumber"
+      ],
+      "collector": "pr7_holder_v3",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "historical_qualification": "best_effort",
+        "endpoints": {
+          "stk_holdernumber": {
+            "bound_field": "ann_date"
+          }
+        }
+      }
+    },
+    "top_holders_reports:tushare_pr7.v1": {
+      "domain": "top_holders_reports",
+      "profile": "tushare_pr7.v1",
+      "endpoints": [
+        "top10_holders"
+      ],
+      "collector": "pr7",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "historical_qualification": "best_effort",
+        "endpoints": {
+          "top10_holders": {
+            "bound_field": "end_date"
+          }
+        }
+      }
+    },
+    "margin_daily:tushare_pr7.v1": {
+      "domain": "margin_daily",
+      "profile": "tushare_pr7.v1",
+      "endpoints": [
+        "margin_detail"
+      ],
+      "collector": "pr7",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "historical_qualification": "best_effort",
+        "endpoints": {
+          "margin_detail": {
+            "bound_field": "trade_date"
+          }
+        }
+      }
+    },
+    "moneyflow_daily:tushare_pr7.v1": {
+      "domain": "moneyflow_daily",
+      "profile": "tushare_pr7.v1",
+      "endpoints": [
+        "moneyflow"
+      ],
+      "collector": "pr7",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "historical_qualification": "best_effort",
+        "endpoints": {
+          "moneyflow": {
+            "bound_field": "trade_date"
+          }
+        }
+      }
+    },
+    "forecast_observations:tushare_pr7.v1": {
+      "domain": "forecast_observations",
+      "profile": "tushare_pr7.v1",
+      "endpoints": [
+        "forecast"
+      ],
+      "collector": "pr7",
+      "mode": "collect",
+      "planner": "axiom_data.bootstrap_sources.plan_bootstrap_sources",
+      "coverage": "source_observations.v2",
+      "pit": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics": {
+        "historical_qualification": "best_effort",
+        "endpoints": {
+          "forecast": {
+            "bound_field": "ann_date"
+          }
+        }
+      }
+    }
+  },
+  "requirements": {
+    "adjusted_price.anchored_ohlc": {
+      "domain": "adjusted_price",
+      "public_field": "open/high/low/close",
+      "sources": [
+        "market_daily:tushare_phase1.v1",
+        "adjustment_factors:tushare_dm1.v1"
+      ]
+    },
+    "adjustment.factor": {
+      "domain": "adjustment_factors",
+      "public_field": "factor",
+      "sources": [
+        "adjustment_factors:tushare_dm1.v1"
+      ]
+    },
+    "benchmark.close": {
+      "domain": "benchmark_daily",
+      "public_field": "close",
+      "sources": [
+        "benchmark_daily:tushare_dm1.v1"
+      ]
+    },
+    "market.amount": {
+      "domain": "market_daily",
+      "public_field": "amount_cny",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "market.circ_mv": {
+      "domain": "market_daily",
+      "public_field": "circulating_market_cap_cny",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "market.close": {
+      "domain": "market_daily",
+      "public_field": "close",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "market.high": {
+      "domain": "market_daily",
+      "public_field": "high",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "market.high_limit": {
+      "domain": "price_limits",
+      "public_field": "upper_limit",
+      "sources": [
+        "price_limits:tushare_dm1.v1"
+      ]
+    },
+    "market.low": {
+      "domain": "market_daily",
+      "public_field": "low",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "market.low_limit": {
+      "domain": "price_limits",
+      "public_field": "lower_limit",
+      "sources": [
+        "price_limits:tushare_dm1.v1"
+      ]
+    },
+    "market.open": {
+      "domain": "market_daily",
+      "public_field": "open",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "market.paused": {
+      "domain": "security_status",
+      "public_field": "status",
+      "sources": [
+        "security_status:tushare_dm1.v1"
+      ]
+    },
+    "market.session": {
+      "domain": "market_daily",
+      "public_field": "session",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "market.total_mv": {
+      "domain": "market_daily",
+      "public_field": "total_market_cap_cny",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "market.turnover_rate": {
+      "domain": "market_daily",
+      "public_field": "turnover_rate",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "market.volume": {
+      "domain": "market_daily",
+      "public_field": "volume_shares",
+      "sources": [
+        "market_daily:tushare_phase1.v1"
+      ]
+    },
+    "shares.float": {
+      "domain": "security_capital",
+      "public_field": "circulating_shares",
+      "sources": [
+        "security_capital:tushare_dm1.v1"
+      ]
+    },
+    "shares.total": {
+      "domain": "security_capital",
+      "public_field": "total_shares",
+      "sources": [
+        "security_capital:tushare_dm1.v1"
+      ]
+    },
+    "balance.accounts_receivable": {
+      "domain": "financial_events",
+      "public_field": "balance.accounts_receivable",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "balance.current_assets": {
+      "domain": "financial_events",
+      "public_field": "balance.current_assets",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "balance.current_liabilities": {
+      "domain": "financial_events",
+      "public_field": "balance.current_liabilities",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "balance.equity": {
+      "domain": "financial_events",
+      "public_field": "balance.equity",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "balance.inventory": {
+      "domain": "financial_events",
+      "public_field": "balance.inventory",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "balance.total_assets": {
+      "domain": "financial_events",
+      "public_field": "balance.total_assets",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "cashflow.operating": {
+      "domain": "financial_events",
+      "public_field": "cashflow.operating",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "financial.single_quarter_oper_cost": {
+      "domain": "financial_stable_derived",
+      "public_field": "financial.single_quarter_oper_cost",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "financial.single_quarter_revenue": {
+      "domain": "financial_stable_derived",
+      "public_field": "financial.single_quarter_revenue",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "financial.ttm_net_income": {
+      "domain": "financial_stable_derived",
+      "public_field": "financial.ttm_net_income",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "financial.ttm_revenue": {
+      "domain": "financial_stable_derived",
+      "public_field": "financial.ttm_revenue",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "income.net_income": {
+      "domain": "financial_events",
+      "public_field": "income.net_income",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "income.oper_cost": {
+      "domain": "financial_events",
+      "public_field": "income.oper_cost",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "income.revenue": {
+      "domain": "financial_events",
+      "public_field": "income.revenue",
+      "sources": [
+        "financial_events:tushare_pr6.v1"
+      ]
+    },
+    "indicator.current_ratio": {
+      "domain": "financial_events",
+      "public_field": "indicator.current_ratio",
+      "sources": [
+        "financial_events:tushare_fina_indicator.v1"
+      ]
+    },
+    "indicator.debt_ratio": {
+      "domain": "financial_events",
+      "public_field": "indicator.debt_ratio",
+      "sources": [
+        "financial_events:tushare_fina_indicator.v1"
+      ]
+    },
+    "indicator.gross_margin": {
+      "domain": "financial_events",
+      "public_field": "indicator.gross_margin",
+      "sources": [
+        "financial_events:tushare_fina_indicator.v1"
+      ]
+    },
+    "indicator.roe": {
+      "domain": "financial_events",
+      "public_field": "indicator.roe",
+      "sources": [
+        "financial_events:tushare_fina_indicator.v1"
+      ]
+    },
+    "industry.membership": {
+      "domain": "industry_membership",
+      "public_field": "industry.membership",
+      "sources": [
+        "industry_membership:tushare_industry_qualification.v1"
+      ]
+    },
+    "universe.membership": {
+      "domain": "universe_membership",
+      "public_field": "universe.membership",
+      "sources": [
+        "universe_membership:tushare_pr6.v1"
+      ]
+    },
+    "valuation.pb": {
+      "domain": "valuation_daily",
+      "public_field": "valuation.pb",
+      "sources": [
+        "valuation_daily:tushare_pr6.v1"
+      ]
+    },
+    "valuation.pe": {
+      "domain": "valuation_daily",
+      "public_field": "valuation.pe",
+      "sources": [
+        "valuation_daily:tushare_pr6.v1"
+      ]
+    },
+    "valuation.ps": {
+      "domain": "valuation_daily",
+      "public_field": "valuation.ps",
+      "sources": [
+        "valuation_daily:tushare_pr6.v1"
+      ]
+    },
+    "forecast.announcement": {
+      "domain": "forecast_observations",
+      "public_field": "forecast.announcement",
+      "sources": [
+        "forecast_observations:tushare_pr7.v1"
+      ]
+    },
+    "forecast.period_end": {
+      "domain": "forecast_observations",
+      "public_field": "forecast.period_end",
+      "sources": [
+        "forecast_observations:tushare_pr7.v1"
+      ]
+    },
+    "forecast.type": {
+      "domain": "forecast_observations",
+      "public_field": "forecast.type",
+      "sources": [
+        "forecast_observations:tushare_pr7.v1"
+      ]
+    },
+    "holder.number": {
+      "domain": "holder_count_events",
+      "public_field": "holder.number",
+      "sources": [
+        "holder_count_events:tushare_pr7_holder.v3"
+      ]
+    },
+    "holder.top10_ratio": {
+      "domain": "top_holders_reports",
+      "public_field": "holder.top10_ratio",
+      "sources": [
+        "top_holders_reports:tushare_pr7.v1"
+      ]
+    },
+    "margin.balance": {
+      "domain": "margin_daily",
+      "public_field": "margin.balance",
+      "sources": [
+        "margin_daily:tushare_pr7.v1"
+      ]
+    },
+    "margin.buy": {
+      "domain": "margin_daily",
+      "public_field": "margin.buy",
+      "sources": [
+        "margin_daily:tushare_pr7.v1"
+      ]
+    },
+    "margin.lend_balance_volume": {
+      "domain": "margin_daily",
+      "public_field": "margin.lend_balance_volume",
+      "sources": [
+        "margin_daily:tushare_pr7.v1"
+      ]
+    },
+    "margin.lend_repay_volume": {
+      "domain": "margin_daily",
+      "public_field": "margin.lend_repay_volume",
+      "sources": [
+        "margin_daily:tushare_pr7.v1"
+      ]
+    },
+    "margin.lend_sell_volume": {
+      "domain": "margin_daily",
+      "public_field": "margin.lend_sell_volume",
+      "sources": [
+        "margin_daily:tushare_pr7.v1"
+      ]
+    },
+    "margin.repay": {
+      "domain": "margin_daily",
+      "public_field": "margin.repay",
+      "sources": [
+        "margin_daily:tushare_pr7.v1"
+      ]
+    },
+    "margin.total_balance": {
+      "domain": "margin_daily",
+      "public_field": "margin.total_balance",
+      "sources": [
+        "margin_daily:tushare_pr7.v1"
+      ]
+    },
+    "moneyflow.big_buy": {
+      "domain": "moneyflow_daily",
+      "public_field": "moneyflow.big_buy",
+      "sources": [
+        "moneyflow_daily:tushare_pr7.v1"
+      ]
+    },
+    "moneyflow.big_sell": {
+      "domain": "moneyflow_daily",
+      "public_field": "moneyflow.big_sell",
+      "sources": [
+        "moneyflow_daily:tushare_pr7.v1"
+      ]
+    },
+    "moneyflow.net": {
+      "domain": "moneyflow_daily",
+      "public_field": "moneyflow.net",
+      "sources": [
+        "moneyflow_daily:tushare_pr7.v1"
+      ]
+    }
+  },
+  "reference_sources": [
+    "security_master:exchange_security.v1",
+    "trading_calendar:tushare_phase1.v1",
+    "industry_membership:tushare_industry_qualification.v1"
+  ],
+  "industry_authority_profile": "tushare_sw2021.v1",
+  "security_boundary_profile": "exchange_security.v1",
+  "historical_view_policy": {
+    "anchor": "last_eligible_target_session_per_security.v1",
+    "view_kinds": [
+      "adjusted_price",
+      "market_replay",
+      "market_qlib",
+      "pr6_fact",
+      "pr7_fact"
+    ],
+    "scope": "retain_complete_requested_target; report_uncovered_intervals",
+    "gap_admission": "requires_source_evidence; no_automatic_waiver",
+    "fact_pit_policy": "best_effort_vendor_v1",
+    "qlib_price_basis": "unadjusted",
+    "adjusted_pit_policy": "research_non_pit"
+  },
+  "terminal_evidence": {
+    "baseline": {
+      "required": [
+        "snapshot_id",
+        "manifest_digest",
+        "target_digest"
+      ],
+      "producer": "axiom_data.operations.bootstrap",
+      "validator": "axiom_data.artifacts.load_snapshot",
+      "calls": {
+        "producer": {
+          "args": [
+            "$data_root"
+          ],
+          "kwargs": {
+            "run_id": "$run_id",
+            "domain_commit_ids": "$domain_commit_ids"
+          }
+        },
+        "validator": {
+          "args": [
+            "$data_root",
+            "$baseline.snapshot_id"
+          ],
+          "kwargs": {}
+        }
+      }
+    },
+    "views": {
+      "required": [
+        "snapshot_id",
+        "target_digest",
+        "refs"
+      ],
+      "producer": "axiom_data.view_operation.materialize_views",
+      "validator": "axiom_data.gate_a.validate_terminal_evidence",
+      "calls": {
+        "producer": {
+          "args": [
+            "$data_root"
+          ],
+          "kwargs": {
+            "run_id": "$run_id",
+            "snapshot_id": "$baseline.snapshot_id",
+            "views": "$view_execution_plan"
+          }
+        },
+        "validator": {
+          "args": [
+            "$data_root",
+            "$all_terminal_evidence"
+          ],
+          "kwargs": {
+            "plan": "$terminal_evidence_plan"
+          }
+        }
+      }
+    },
+    "full_admission": {
+      "required": [
+        "snapshot_id",
+        "target_digest",
+        "scope_registry_digest",
+        "requirements",
+        "features",
+        "source_evidence_refs"
+      ],
+      "producer": "axiom_data.full_admission.full_admission",
+      "validator": "axiom_data.full_admission.validate_full_admission",
+      "calls": {
+        "producer": {
+          "args": [
+            "$data_root"
+          ],
+          "kwargs": {
+            "run_id": "$run_id",
+            "snapshot_id": "$baseline.snapshot_id",
+            "plan": "$full_admission_plan"
+          }
+        },
+        "validator": {
+          "args": [
+            "$data_root",
+            "$full_admission"
+          ],
+          "kwargs": {
+            "expected_views": "$views.refs",
+            "target_digest": "$target_digest"
+          }
+        }
+      }
+    },
+    "daily": {
+      "required": [
+        "baseline_snapshot_id",
+        "cases"
+      ],
+      "producer": "axiom_data.operations.daily",
+      "validator": "axiom_data.daily_acceptance.validate_daily_evidence",
+      "calls": {
+        "producer": {
+          "args": [
+            "$data_root"
+          ],
+          "kwargs": {
+            "run_id": "$run_id",
+            "snapshot_id": "$baseline.snapshot_id",
+            "source_requests": "$source_requests",
+            "domain_inputs": "$domain_inputs"
+          }
+        },
+        "validator": {
+          "args": [
+            "$data_root",
+            "$daily"
+          ],
+          "kwargs": {
+            "expected_baseline": "$baseline.snapshot_id"
+          }
+        }
+      }
+    },
+    "recovery": {
+      "required": [
+        "snapshot_id",
+        "snapshot_manifest_digest",
+        "validated_views",
+        "blocked_external_attempts",
+        "restored_root",
+        "run_id",
+        "content_digest"
+      ],
+      "producer": "axiom_data.recovery.verify_recovery",
+      "validator": "axiom_data.gate_a.validate_terminal_evidence",
+      "calls": {
+        "producer": {
+          "args": [
+            "$restored_root"
+          ],
+          "kwargs": {
+            "run_id": "$run_id",
+            "snapshot_id": "$baseline.snapshot_id",
+            "expected_snapshot_manifest_digest": "$baseline.manifest_digest",
+            "views": "$views.refs"
+          }
+        },
+        "validator": {
+          "args": [
+            "$data_root",
+            "$all_terminal_evidence"
+          ],
+          "kwargs": {
+            "plan": "$terminal_evidence_plan"
+          }
+        }
+      }
+    },
+    "notebook": {
+      "required": [
+        "snapshot_id",
+        "view_refs",
+        "target_digest",
+        "executed_notebook_path",
+        "content_digest",
+        "parameters"
+      ],
+      "producer": "axiom_data.notebook_acceptance.execute_notebook_smoke",
+      "validator": "axiom_data.notebook_acceptance.validate_notebook_smoke",
+      "calls": {
+        "producer": {
+          "args": [
+            "$data_root"
+          ],
+          "kwargs": {
+            "snapshot_id": "$baseline.snapshot_id",
+            "views": "$views.refs",
+            "target": "$full_target",
+            "output_path": "$executed_notebook_path"
+          }
+        },
+        "validator": {
+          "args": [
+            "$data_root",
+            "$notebook"
+          ],
+          "kwargs": {
+            "expected_views": "$views.refs"
+          }
+        }
+      }
+    }
+  },
+  "daily_cases": [
+    "t_plus_1",
+    "no_change",
+    "late_data",
+    "interrupted_resume"
+  ],
+  "coverage_policy": {
+    "version": "source_observations.v2",
+    "projector": "axiom_data.source_coverage.observation",
+    "state": "axiom_data.source_coverage.state"
+  },
+  "gate_a_terminal_contract": {
+    "phase": "pre_build_code_and_source_contracts",
+    "future_evidence": "validate_frozen_artifact_ref_schema",
+    "artifact_existence_required": false,
+    "gate_b_execution_required_before_consumption": true
+  },
+  "initial_completeness_gaps": [
+    "market_daily:tushare_phase1.v1",
+    "security_status:tushare_dm1.v1",
+    "price_limits:tushare_dm1.v1",
+    "adjustment_factors:tushare_dm1.v1",
+    "security_capital:tushare_dm1.v1",
+    "corporate_actions:tushare_dm1.v1",
+    "benchmark_daily:tushare_dm1.v1",
+    "financial_events:tushare_pr6.v1",
+    "valuation_daily:tushare_pr6.v1",
+    "universe_membership:tushare_pr6.v1",
+    "industry_membership:tushare_industry_qualification.v1",
+    "security_master:exchange_security.v1",
+    "trading_calendar:tushare_phase1.v1"
+  ],
+  "reference_qualification": {
+    "target": {
+      "path": "reports/pr8/industry_authority/qualification.json",
+      "content_digest": "sha256:77b0ec3ee0679c53f02fb33ba988f8dda42d7353f8292753d41c3ee3ce39a400"
+    },
+    "industry": {
+      "path": "reports/pr8/sw2021_canonical/anomaly_validation.json",
+      "content_digest": "sha256:e6112441b38c352b463dc4badc2abf211db89adb7231eb26c14d349346a7f88f"
+    },
+    "identity": {
+      "path": "reports/pr8/sw2021_canonical/offline_validation.json",
+      "content_digest": "sha256:4ba697b02452ef74274377ff5551d43fe6f7bbee0565310dab6fc93f5dfe1929"
+    }
+  },
+  "reviewed_admission_routes": {
+    "bootstrap": "sha256:227e0de80e8a07d0e35c140ce4169b3e97020a202f300ebe77d56bac1e4e4c39",
+    "daily": "sha256:a5e9d6742a863ef8b9b33f023cb0298bbc32a7ddac8658ab5aed0a02e618ab34",
+    "repair": "sha256:4c1d5ba73170b3b72149c67134f4e38a17320bc56421414392caf6f6cc023312",
+    "assemble_candidate": "sha256:e6e20c4c92077a593ff4eace16c3c5358464ec9c3aa5b6523176f8d52195349f",
+    "collect_requests": "sha256:ef1c78c2f13bb185e17120a39f6fe04e07f07cb901e327f9415c68b731011233",
+    "_check_collected": "sha256:d60ad70fddeb79cf395a1b58dd3a076b5c2926eed7e862e5cf2a63434442bfd6",
+    "_checked_collection_record": "sha256:12fefbab31dfba7ef717c34109bbbaa26fa97ab435f0a1135482f4e50ddb3e20",
+    "_requalify_sources": "sha256:1bd5d88da027f209ae66972077a6ef8bf528c01e445631ba8af232c188b864c7",
+    "inspect_scope": "sha256:e29be1271d77a283514c94681e6f40e3dfaf9f832379269ffb7a74e3816ad4f6",
+    "inspect_snapshot": "sha256:caa820d4a95fad96c18ab1009d3e0fd0bdff3507b22be5cc42c5a3e4b625938d",
+    "BuildApplication.build": "sha256:d669e78a451a348d23ad0c305a023c4221fbf9c8638caece3034d3dd1c11b9a6",
+    "MarketDomainBuilder.__call__": "sha256:2781c24f9032ed16284b805538a8391d1ba9fd98ab32bfcc3c04465724cfc88a",
+    "create_snapshot": "sha256:40434b43f59f04e90f88685e2210341a5e697cb090e64aaad2c269b96fade97b",
+    "closure": "sha256:f1750f49e97770833a6ed82dc007173a420655f6f29d5fa48093e7b39d8bc01f",
+    "coverage_observation": "sha256:27adedb23058c1e411d64466dcd1706c3bd0c1c2a6a835981f5f86b264718c68",
+    "raw_admission": "sha256:1014835b173bd1aea3443339b5075a16bb80fec862d0da223a34d6c0c767a68d",
+    "raw_admission_dispatch": "sha256:e3584251372df32fc269b0eacdbe3491ff2f23b69e703bbbdd430cde554e13fc",
+    "payload_admission": "sha256:c430c17cefa6c30ea7f235ff8f924c8a75ade824d56392d97bc7ce710cf73edc",
+    "payload_admission_dispatch": "sha256:6d2216b0258511d836909d0a4f1ed5923c29413a4e497d13cc9fbcc8fe4962c6",
+    "policy_validation": "sha256:0f3c1ccd7bc12ebab5e116b95581ac210372ff10bed5049fe67174491fc37569",
+    "policy_rules": "sha256:2a80e30c14ecc7a2960becf0a584d9acf191cf29810f5aabde54f472ac656fbf",
+    "raw_binding": "sha256:79d89249c504170e615e7e3174e8cb7d9cc9d295682cda93beb1c7e7c24d0c27",
+    "payload_scope": "sha256:c86ae0723d63acb4ccae68cd249076cdc78b03c88c2827dc04defd355547c0be",
+    "transport_result": "sha256:ea513aac26a6b306ff25c32a07a857e478a32b480411b4d9387dee40076d7a12",
+    "axiom_data.bootstrap_sources.collect_bootstrap_sources": "sha256:b6d72e58eab2024ec38072fff88ae60ac8d6c653ac9ba555d7a6478b3efb02a0",
+    "axiom_data.verification_cache.candidate_verification": "sha256:851befd218dd87e5f5d202d1e51bc683e3c91a5a620a6b8d1d51ce2c5aa1a274",
+    "axiom_data.verification_cache.current_source_cache": "sha256:80e1da5e373cbb34dfdae23f75fdedd58e83e1c692488cb3dda55550bdaeb7e7",
+    "axiom_data.view_operation.materialize_views": "sha256:60c06e28515affaa19038c48191ea5a3f704aff59f9ff1462ffb436d1a8629b2",
+    "axiom_data.admission_plan._config": "sha256:4c1d794ee46dc41d2927dfd35b6f2c328c93beda495412ac62a06f8e3c30a3bd",
+    "view_builder:adjusted_price": "sha256:901c41299b6ae9da3c9959e4f89fe55e622cfc21cec2bacb202e9172fa6ba123",
+    "view_builder:market_replay": "sha256:74a66786d4fd46555414429fc96f654d2d6981e8057c187bc344d953165ac71d",
+    "view_builder:market_qlib": "sha256:8595e100fe7e7c565ec8899cd120bd32a42d4c8e8f5421b5f14c287ac1557642",
+    "view_builder:pr6_fact": "sha256:695bbd32e95cf8209032ff7cbb25cc73b9a31b7b8d49dadbec7b74090318ac4e",
+    "view_builder:pr7_fact": "sha256:55a521b2e192e2dace666294479e889e5399f86d524fc399a21d2b9763a3d9dc"
+  }
+}

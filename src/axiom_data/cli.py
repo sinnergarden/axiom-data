@@ -53,7 +53,12 @@ def main():
     gate_a.add_argument('--plan', type=Path, required=True)
     gate_a_plan = commands.add_parser('plan-gate-a')
     gate_a_plan.add_argument('--scope', type=Path, required=True)
+    commands.add_parser('gate-a-completeness-matrix')
     args = parser.parse_args()
+    if args.operation == 'gate-a-completeness-matrix':
+        from axiom_data.gate_a import completeness_matrix
+        print(json.dumps(completeness_matrix(), ensure_ascii=False, indent=2))
+        return 0
     if args.operation == 'plan-gate-a':
         from axiom_data import make_gate_a_plan
         print(json.dumps(make_gate_a_plan(json.loads(args.scope.read_bytes())), ensure_ascii=False, indent=2))

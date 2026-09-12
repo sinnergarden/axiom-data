@@ -53,7 +53,7 @@ class SourceCompletenessTest(unittest.TestCase):
         ref=self.raw(99);raw=load_raw_batch(self.root,ref.raw_batch_id)
         result=validate_raw_completeness(raw)
         self.assertTrue(result['complete']);self.assertEqual(result['row_count'],99)
-        self.assertEqual(result['policy_ref'],'tushare_fina_indicator.v1')
+        self.assertEqual(result['policy_ref'],'source_completeness.v1#fina_indicator')
         self.build(ref)
 
     def test_direct_payload_and_partial_raw_cannot_bypass(self):
@@ -72,7 +72,7 @@ class SourceCompletenessTest(unittest.TestCase):
                 validate_raw_completeness(load_raw_batch(self.root,ref.raw_batch_id))
             with self.assertRaises(SourceCompletenessError):self.build(ref)
 
-    def test_official_exchange_originals_keep_their_parser_and_unknown_cap(self):
+    def test_official_exchange_originals_keep_their_document_completeness_proof(self):
         from axiom_data.exchange_security import publish_termination, profile
         fixture=Path(__file__).parent/'fixtures'
         for exchange,name,count in (('SSE','sse-delist.json',159),('SZSE','szse-delist.xlsx',208)):
@@ -82,8 +82,9 @@ class SourceCompletenessTest(unittest.TestCase):
             raw=load_raw_batch(self.root,ref.raw_batch_id)
             admission=validate_raw_completeness(raw)
             self.assertEqual(admission['row_count'],count)
-            self.assertEqual(admission['qualification'],'unestablished')
-            self.assertFalse(admission['complete'])
+            self.assertEqual(admission['completeness_rule'],'official_termination_document')
+            self.assertIsNone(admission['limit'])
+            self.assertTrue(admission['complete'])
             self.assertEqual(load_raw_batch(self.root,ref.raw_batch_id).payload,payload)
             wrong=write_raw_batch(self.root,'wrong-'+exchange,domain='security_master',
                 source_profile='exchange.termination.'+exchange,source_profile_version='exchange_security.v1',
@@ -124,7 +125,7 @@ class SourceCompletenessTest(unittest.TestCase):
             plan_truncated_raw_split(load_raw_batch(self.root,ref.raw_batch_id))
 
     def test_missing_policy_and_unknown_caps_are_not_complete(self):
-        self.assertEqual(completeness_policy('tushare_pr6.v1','income')['status'],'unestablished')
+        self.assertEqual(completeness_policy('tushare_pr6.v1','income')['completeness_rule'],'documented_security_history')
         self.assertEqual(completeness_policy('fixture.v1','fina_indicator')['status'],'unestablished')
         directory=self.root/'profiles';directory.mkdir()
         (directory/'tushare_pr6.v1.json').write_bytes(_json_bytes(load_pr6_source_profile()))

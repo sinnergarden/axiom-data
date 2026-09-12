@@ -11,7 +11,7 @@ def candidate_verification(function):
     @wraps(function)
     def wrapped(data_root, *args, **kwargs):
         root=Path(data_root)
-        token=_active.set((root,({},{})))
+        token=_active.set((root,({},{}),set()))
         try:
             return function(data_root,*args,**kwargs)
         finally:
@@ -22,3 +22,9 @@ def candidate_verification(function):
 def closure_cache(root):
     current=_active.get()
     return current[1] if current is not None and current[0]==Path(root) else ({},{})
+
+
+def current_source_cache(root):
+    """Current-policy checks are reused only within this candidate invocation."""
+    current = _active.get()
+    return current[2] if current is not None and current[0] == Path(root) else set()

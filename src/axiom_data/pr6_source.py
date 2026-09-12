@@ -9,7 +9,7 @@ from axiom_data.artifacts import (ArtifactError, MarketDomainBuilder, _json_byte
 from axiom_data.tushare import TushareCollector, _response_records, _retrieved_at
 from axiom_data.pit import fingerprint, instant
 from axiom_data.domains.pr6 import economic_content
-from axiom_data.source_completeness import validate_payload_completeness
+from axiom_data.source_completeness import validate_payload_completeness, source_profile_completeness_binding
 
 
 def load_pr6_source_profile(version='tushare_pr6.v1'):
@@ -95,13 +95,15 @@ class Pr6Collector(TushareCollector):
         observed=_retrieved_at(retrieved_at)
         request={'endpoint':endpoint,'params':params,'fields':definition['fields']}
         payload=_json_bytes(records)
+        completeness=source_profile_completeness_binding(profile_version,profile_digest(profile_version))
         identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(profile_version),
-                              'membership_complete':membership_complete})
+                              'membership_complete':membership_complete,'source_completeness':completeness})
         ref=write_raw_batch(self.data_root,'pr6-'+identity,domain=definition['domain'],
             source_profile='tushare.pr6.'+endpoint,source_profile_version=profile_version,
             source_profile_digest=profile_digest(profile_version),request=request,retrieved_at=observed,
             payload=payload,collector_code=self.implementation_revision,
             summary={'rows':len(records),'historical_availability':'best_effort',
+                     'source_completeness':completeness,
                      'membership_complete':membership_complete})
         validate_payload_completeness(profile_version, endpoint, records,
             params=params, raw_batch_id=ref.raw_batch_id)

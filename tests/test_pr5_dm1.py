@@ -288,10 +288,10 @@ class Pr5Dm1Test(unittest.TestCase):
         }
         good = dict(RESPONSES["adj_factor"][0])
         cases = (
-            ("swapped", [dict(good, ts_code=SYMBOLS[1])], None, "axiom-data.tushare-dm1-collector.v1", "outside its request"),
-            ("symbol", [dict(good, ts_code="999999.SH")], None, "axiom-data.tushare-dm1-collector.v1", "outside its request"),
-            ("date", [dict(good, trade_date="20260106")], None, "axiom-data.tushare-dm1-collector.v1", "outside its request"),
-            ("fields", [good], ["ts_code", "trade_date"], "axiom-data.tushare-dm1-collector.v1", "request fields"),
+            ("swapped", [dict(good, ts_code=SYMBOLS[1])], None, "axiom-data.tushare-dm1-collector.v1", "source (row outside request selector: ts_code|date outside request bounds)"),
+            ("symbol", [dict(good, ts_code="999999.SH")], None, "axiom-data.tushare-dm1-collector.v1", "source (row outside request selector: ts_code|date outside request bounds)"),
+            ("date", [dict(good, trade_date="20260106")], None, "axiom-data.tushare-dm1-collector.v1", "source (row outside request selector: ts_code|date outside request bounds)"),
+            ("fields", [good], ["ts_code", "trade_date"], "axiom-data.tushare-dm1-collector.v1", "Raw source profile/fields binding mismatch"),
             ("collector", [good], None, "axiom-data.wrong-collector.v1", "collector revision"),
         )
         for name, rows, fields, collector, error in cases:

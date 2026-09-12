@@ -700,3 +700,22 @@ Candidate recovery follow-up:
 - Recovery-focused tests passed 18/18. The full suite passed 314/314 in 94.748 seconds. Logs: `/tmp/pr8-checkpoint-pagination-recovery-focused-20260912.log` and `reports/pr8/checkpoint_pagination_fullsuite.log`.
 - The fixed-fixture recovery probe produced `reports/pr8/legacy_checkpoint_recovery.json`; the Gate A validator produced `reports/pr8/checkpoint_pagination_gate_a.json` with `GATE_A_BLOCKED`, exit 1, `bulk_authorized=false`, and `ready_for_consumption=false`. The exact remaining source and terminal capability gaps are recorded in that report.
 - This checkpoint remains `NO_BULK_BUILD`: no real supplier collection, baseline build, or new domain work was started.
+
+## PR8 Gate A finalization — 2026-09-12
+
+- Original 13 source completeness bindings now have explicit endpoint contracts;
+  historical sparse execution reuses durable checkpoints and exact split closure.
+  Current v2 candidate admission requalifies parent/dependency sources while v1
+  immutable replay remains frozen. No supplier payload is rewritten.
+- Independent Astra approved r6 code and precommit artifact evidence. Luna ran
+  23/23 focused and 348/348 full tests (131.631s), all PASS.
+- Full target planning: 3,601 securities, 299,037 requests in 15 source groups,
+  frozen 56/469 registry bindings. Gate A returned READY with 13/13 policies and
+  no findings. A deterministic empty forecast fixture produced complete coverage
+  in a zero-row DomainCommit, with one collection and idempotent resume.
+- See reports/pr8/GATE_A_FINALIZATION_REVIEW.md, machine matrix, explicit plan,
+  sparse fixture and full test logs. Final Gate A evidence must be regenerated
+  after commit under ../review/pr8-gate-a-<full-commit-sha>/ and replay-validated.
+- Gate B retains five execution-capability gaps (full admission producer/validator,
+  daily validator, Notebook producer/validator). No V1 acceptance claim. No full
+  bootstrap or broad execution was performed; no merge or main update.

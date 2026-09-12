@@ -126,7 +126,7 @@ def collect_fixture(
     ids["market"].append(
         collector.collect(
             "suspend_d",
-            {"ts_code": symbols[0], "suspend_date": start},
+            {"ts_code": symbols[0], "start_date": start, "end_date": end},
             retrieved_at=FIXED_TIME,
         ).raw_batch_id
     )
@@ -333,6 +333,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
             "request": raw.manifest["request"],
             "retrieved_at": raw.manifest["retrieved_at"],
             "payload_digest": raw.manifest["payload_files"][0]["content_digest"],
+            "source_completeness": raw.manifest["summary"]["source_completeness"],
         }
 
         v1_id = _tushare_raw_batch_id(endpoint, "raw_batch.v1", identity_fields)
@@ -609,7 +610,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         ):
             changed_ids, _ = collect_fixture(changed_root, fixture)
             changed = build_fixture(changed_root, fixture, changed_ids)
-            with self.assertRaisesRegex(ArtifactError, "source profile mismatch"):
+            with self.assertRaisesRegex(ArtifactError, "Raw source profile/fields binding mismatch"):
                 build_fixture(self.root, fixture, ids)
 
         self.assertNotEqual(ids["market"][0], changed_ids["market"][0])
@@ -648,7 +649,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
                 ]
                 root = Path(self.temporary.name) / f"calendar-{label}"
                 ids, _ = collect_fixture(root, changed)
-                with self.assertRaisesRegex(ArtifactError, "completely cover"):
+                with self.assertRaisesRegex(ArtifactError, "incomplete civil calendar date coverage"):
                     build_fixture(root, changed, ids)
 
         root = Path(self.temporary.name) / "calendar-missing-exchange"
@@ -678,7 +679,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
             else raw_id
             for raw_id in ids["calendar"]
         ]
-        with self.assertRaisesRegex(ArtifactError, "request scope mismatch"):
+        with self.assertRaisesRegex(ArtifactError, "incomplete civil calendar date coverage"):
             build_fixture(root, fixture, ids)
 
         outside = json.loads(json.dumps(fixture))
@@ -687,7 +688,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         outside["responses"]["trade_cal"].append(extra)
         other_root = Path(self.temporary.name) / "calendar-payload-mismatch"
         other_ids, _ = collect_fixture(other_root, outside)
-        with self.assertRaisesRegex(ArtifactError, "outside the declared"):
+        with self.assertRaisesRegex(ArtifactError, "incomplete civil calendar date coverage"):
             build_fixture(other_root, outside, other_ids)
 
     def test_calendar_request_and_payload_are_validated_per_raw_batch(self) -> None:
@@ -716,7 +717,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         swapped_ids = collect_calendar_payloads(
             swapped_root, swapped, ("SSE", "SZSE"), start, end
         )
-        with self.assertRaisesRegex(ArtifactError, "exchange does not match"):
+        with self.assertRaisesRegex(ArtifactError, "source row outside request selector: exchange"):
             build_calendar_only(
                 swapped_root,
                 swapped_ids,
@@ -731,7 +732,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         mixed_ids = collect_calendar_payloads(
             mixed_root, mixed, ("SSE", "SZSE"), start, end
         )
-        with self.assertRaisesRegex(ArtifactError, "exchange does not match"):
+        with self.assertRaisesRegex(ArtifactError, "incomplete civil calendar date coverage"):
             build_calendar_only(
                 mixed_root,
                 mixed_ids,

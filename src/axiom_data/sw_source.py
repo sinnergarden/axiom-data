@@ -117,8 +117,11 @@ class SwQualificationCollector(TushareCollector):
         observed = _retrieved_at(retrieved_at)
         request = {'endpoint': endpoint, 'params': params, 'fields': definition['fields']}
         digest = profile_digest(self.profile_version)
+        from axiom_data.source_completeness import source_profile_completeness_binding
+        completeness = source_profile_completeness_binding(self.profile_version, digest)
         code = self.implementation_revision + '-' + _digest(files('axiom_data').joinpath('sw_source.py').read_bytes())[7:]
         seed = {'profile': digest, 'collector_code': code, 'request': request,
+                'source_completeness': completeness,
                 'retrieved_at': observed, 'payload_digest': _digest(payload)}
         issues = payload_issues(endpoint, params, rows, profile_version=self.profile_version)
         return write_raw_batch(self.data_root, 'sw-pilot-' + _digest(_json_bytes(seed))[7:],
@@ -126,6 +129,7 @@ class SwQualificationCollector(TushareCollector):
             source_profile_version=profile['profile_version'], source_profile_digest=digest,
             collector_code=code, request=request, retrieved_at=observed, payload=payload,
             summary={'rows': len(rows), 'qualification_issues': issues,
+                     'source_completeness': completeness,
                      'qualification': 'BLOCKED' if issues else 'STRUCTURAL_CHECKS_ONLY',
                      'canonical_admission': 'NOT_ASSESSED', 'historical_availability': 'best_effort'})
 

@@ -18,6 +18,26 @@ PROFILE = 'tushare_industry_qualification.v1'
 
 
 class PaginationSelectorsTest(unittest.TestCase):
+    def test_current_requalification_keeps_complete_series_per_commit(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from axiom_data.artifacts import _raw_ref
+        from axiom_data.operations import _requalify_sources
+        old = [self.page(0, 2), self.page(2, 1)]
+        new = [self.page(0, 2), self.page(2, 1)]
+        nodes = {
+            'old': SimpleNamespace(manifest={'ordered_raw_batch_refs': [_raw_ref(r) for r in old],
+                                            'parent_commit_ref': None}),
+            'new': SimpleNamespace(manifest={'ordered_raw_batch_refs': [_raw_ref(r) for r in new],
+                                            'parent_commit_ref': {'domain_commit_id': 'old'}})}
+        def verified(root, domain, identity):
+            return nodes[identity], frozenset()
+        with patch('axiom_data.artifacts._validated_domain_commit_with_raw_closure', side_effect=verified):
+            _requalify_sources(self.root, {'industry_membership': 'new'})
+            nodes['new'].manifest['ordered_raw_batch_refs'].pop()
+            with self.assertRaises(ArtifactError):
+                _requalify_sources(self.root, {'industry_membership': 'new'})
+
     def setUp(self):
         temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
         self.root = Path(temp.name); self.serial = 0

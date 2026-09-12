@@ -38,6 +38,13 @@ def source_qualification(records, version):
 
 
 def validate_payload(endpoint, params, records, *, profile_version='tushare_pr7.v1'):
+    _validate_payload_shape(endpoint, params, records, profile_version=profile_version)
+    definition=load_pr7_source_profile(profile_version)['endpoints'][endpoint]
+    if len(records)>=definition['limit']:
+        raise ArtifactError('payload invalid or possibly truncated; split request')
+
+
+def _validate_payload_shape(endpoint, params, records, *, profile_version='tushare_pr7.v1'):
     definition=load_pr7_source_profile(profile_version)['endpoints'].get(endpoint)
     if definition is None:raise ArtifactError('unsupported PR7 endpoint')
     if not isinstance(params,dict) or set(params)!={'ts_code','start_date','end_date'}:
@@ -46,7 +53,7 @@ def validate_payload(endpoint, params, records, *, profile_version='tushare_pr7.
     _symbol(params['ts_code'])
     source_date(params['start_date']);source_date(params['end_date'])
     if params['start_date']>params['end_date']:raise ArtifactError('reversed request bounds')
-    if not isinstance(records,list) or len(records)>=definition['limit']:
+    if not isinstance(records,list):
         raise ArtifactError('payload invalid or possibly truncated; split request')
     for row in records:
         if not isinstance(row,dict) or set(row)-set(definition['fields']):raise ArtifactError('unexpected payload field')
@@ -67,17 +74,24 @@ class Pr7Collector(TushareCollector):
         validate_payload(endpoint,params,[],profile_version=profile_version)
         definition=load_pr7_source_profile(profile_version)['endpoints'][endpoint]
         records=_response_records(self._client().query(endpoint,fields=','.join(definition['fields']),**params))
-        validate_payload(endpoint,params,records,profile_version=profile_version)
+        _validate_payload_shape(endpoint,params,records,profile_version=profile_version)
         observed=_retrieved_at(retrieved_at)
         request={'endpoint':endpoint,'params':params,'fields':definition['fields']}
         payload=_json_bytes(records)
-        identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(profile_version)})
-        return write_raw_batch(self.data_root,'pr7-'+identity,domain=definition['domain'],
+        from axiom_data.source_completeness import source_profile_completeness_binding
+        completeness=source_profile_completeness_binding(profile_version,profile_digest(profile_version))
+        identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(profile_version),'source_completeness':completeness})
+        ref=write_raw_batch(self.data_root,'pr7-'+identity,domain=definition['domain'],
             source_profile='tushare.pr7.'+endpoint,source_profile_version=profile_version,
             source_profile_digest=profile_digest(profile_version),request=request,retrieved_at=observed,
             payload=payload,collector_code=self.implementation_revision,
             summary={'rows':len(records),'historical_availability':'best_effort','empty_response':'source_gap' if not records else None,
+                     'source_completeness':completeness,
                      **({'source_qualification':source_qualification(records,profile_version)} if profile_version=='tushare_pr7_holder.v3' else {})})
+        from axiom_data.source_completeness import validate_payload_completeness
+        validate_payload_completeness(profile_version, endpoint, records,
+            params=params, raw_batch_id=ref.raw_batch_id)
+        return ref
 
 
 def _number(value):

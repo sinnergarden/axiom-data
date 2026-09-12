@@ -277,7 +277,7 @@ def _checked_collection_record(root, spec, raw_id):
                 from axiom_data.source_completeness import completeness_policy
                 policy = completeness_policy(raw.manifest['source_profile_version'],
                                              raw.manifest['request'].get('endpoint'))
-                saturated = (policy['status'] == 'established' and
+                saturated = (policy['status'] == 'established' and type(policy.get('limit')) is int and
                              len(json.loads(raw.payload)) >= policy['limit'])
                 record['state'] = 'FAILED_TERMINAL' if saturated else 'NEEDS_RETRY'
             else:
@@ -661,6 +661,40 @@ def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, cli
             _save(path,state);raise
 
 
+def _requalify_sources(data_root, domain_commit_ids):
+    """Current candidate admission is separate from frozen artifact replay."""
+    from axiom_data.artifacts import _validated_domain_commit_with_raw_closure, RawBatches
+    from axiom_data.source_completeness import validate_raw_completeness, page_evidence, current_contract_binding
+    from axiom_data.verification_cache import current_source_cache
+    binding = _digest(_json_bytes(current_contract_binding()))
+    pending = list(domain_commit_ids.items()); seen = set(); checked_raw = current_source_cache(data_root)
+    while pending:
+        domain, identity = pending.pop()
+        if (domain, identity) in seen:
+            continue
+        seen.add((domain, identity))
+        commit, _ = _validated_domain_commit_with_raw_closure(Path(data_root), domain, identity)
+        refs = commit.manifest['ordered_raw_batch_refs']
+        # One immutable commit's ordered inputs delimit its page observation.
+        # Combining all ancestors would conflate distinct offset-zero revisions.
+        pages = page_evidence(RawBatches(data_root, [ref['raw_batch_id'] for ref in refs
+            if ref.get('source_profile_version') == 'tushare_industry_qualification.v1']))
+        for ref in refs:
+            raw_id = ref['raw_batch_id']
+            key = (raw_id, ref['manifest_digest'], binding)
+            if key in checked_raw:
+                continue
+            raw = load_raw_batch(data_root, raw_id)
+            admitted = validate_raw_completeness(raw, evidence=pages.get(raw_id))
+            if admitted.get('complete') is not True:
+                raise ArtifactError('current candidate source completeness is unproven')
+            checked_raw.add(key)
+        parent = commit.manifest.get('parent_commit_ref')
+        if parent is not None:
+            pending.append((domain, parent['domain_commit_id']))
+
+
+@candidate_verification
 def bootstrap(data_root, *, run_id, domain_inputs=None, domain_commit_ids=None):
     """Build frozen Raw inputs or resume a complete canonical checkpoint.
 
@@ -689,6 +723,7 @@ def bootstrap(data_root, *, run_id, domain_inputs=None, domain_commit_ids=None):
             'ready_for_consumption':False}
         _save(path,state)
         try:
+            _requalify_sources(layout.root, ids)
             ref=create_snapshot(layout.root,ids)
             state.update(status='CANDIDATE_BUILT',stage='REQUIRED_VIEWS_AND_FULL_ADMISSION',
                 snapshot_id=ref.snapshot_id,snapshot_manifest_digest=ref.manifest_digest)
@@ -731,6 +766,8 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
         parent_id = _resolve_snapshot_id(layout.root, parent_snapshot_id) if parent_snapshot_id else None
         parent = SnapshotReader(layout.root, parent_id) if parent_id else None
         commits = {d: c.ref.commit_id for d, c in parent.commits.items()} if parent else {}
+        reused = {d: identity for d, identity in commits.items() if d not in domain_inputs}
+        _requalify_sources(layout.root, reused)
         if set(commits) | set(domain_inputs) != set(PR7_SNAPSHOT_DOMAINS):
             raise ArtifactError('V1 candidate requires the complete registered domain set')
         plan = {'parent_snapshot_id': parent_id, 'domains': domain_inputs}
@@ -755,7 +792,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             spec = domain_inputs[domain]
             try:
                 config = dict(spec['config'], storage_policy='domain_time_blocks.v1',
-                              no_change_policy='reuse_equal_state.v1', coverage_state_policy='source_observations.v1')
+                              no_change_policy='reuse_equal_state.v1', coverage_state_policy='source_observations.v2')
                 deps = {name: commits[name] for name in _DOMAIN_DEPENDENCIES[domain]}
                 if domain in {'trading_calendar','security_master','market_daily'}:
                     options = {'calendar_commit_id':deps['trading_calendar'],

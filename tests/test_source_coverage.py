@@ -12,6 +12,42 @@ from test_pr6_artifacts import Client
 
 
 class SourceCoverageTest(unittest.TestCase):
+    def test_direct_v2_build_requalifies_legacy_parent_before_inheriting_rows(self):
+        from unittest.mock import patch
+        from axiom_data import source_completeness
+        parent_raw = self.raw('20250610', [dict(ts_code='688981.SH', ann_date='20250610',
+                                              end_date='20250331', holder_num=200)])
+        parent = self.build(parent_raw)
+        incoming = self.raw('20250611', [])
+        extension = source_completeness._extension()
+        extension['endpoints']['stk_holdernumber']['limit'] = 1
+        self.config['coverage_state_policy'] = 'source_observations.v2'
+        with patch.object(source_completeness, '_extension', return_value=extension):
+            # Frozen replay remains legal, while new builds use current admission.
+            self.assertEqual(validate_domain_commit_closure(
+                self.root, 'holder_count_events', parent.commit_id).ref.commit_id, parent.commit_id)
+            self.assertTrue(source_completeness.validate_raw_completeness(
+                load_raw_batch(self.root, incoming.raw_batch_id))['complete'])
+            with self.assertRaises(ArtifactError):
+                self.build(incoming, parent.commit_id)
+
+    def test_current_bootstrap_cannot_reuse_legacy_policy_admission(self):
+        from unittest.mock import patch
+        from axiom_data import source_completeness
+        from axiom_data.operations import bootstrap
+        raw = self.raw('20250610', [])
+        commit = self.build(raw)
+        extension = source_completeness._extension()
+        extension['endpoints'].pop('stk_holdernumber')
+        with patch.object(source_completeness, '_extension', return_value=extension):
+            # Published v1 still means its frozen validation projection.
+            old = validate_domain_commit_closure(self.root, 'holder_count_events', commit.commit_id)
+            self.assertEqual(old.ref.commit_id, commit.commit_id)
+            result = bootstrap(self.root, run_id='current-policy-required',
+                               domain_commit_ids=dict(self.ids, holder_count_events=commit.commit_id))
+        self.assertEqual(result['status'], 'FAILED')
+        self.assertNotIn('snapshot_id', result)
+
     def setUp(self):
         temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
         self.directory = Path(temp.name); self.root = self.directory/'data'
@@ -115,3 +151,48 @@ class SourceCoverageTest(unittest.TestCase):
             path = base/identity/name; path.chmod(0o644); path.write_bytes(content)
         with self.assertRaisesRegex(ArtifactError,'coverage differs from validated Raw'):
             validate_domain_commit_closure(self.root,'holder_count_events',identity)
+
+
+class CoveragePolicyTransitionTest(unittest.TestCase):
+    def test_same_raw_is_revalidated_on_v1_to_v2_and_v2_replay_is_stable(self):
+        from types import SimpleNamespace
+        from axiom_data.source_coverage import state, POLICY, LEGACY_POLICY
+        from axiom_data.artifacts import _digest, _json_bytes
+        raw_id = 'same-immutable-raw'
+        legacy_observation = {'raw_ref': {'raw_batch_id': raw_id},
+                              'payload_admission': {'complete': True, 'policy_digest': 'old'}}
+        old = state(None, set(), [legacy_observation], policy=LEGACY_POLICY)
+        self.assertEqual(old['state_digest'], _digest(_json_bytes({
+            'parent_coverage_digest': None, 'observations': [legacy_observation]})))
+        parent = SimpleNamespace(manifest={'source_coverage': old})
+        revised = dict(legacy_observation, payload_admission={
+            'complete': True, 'policy_digest': 'new', 'coverage_semantics': 'bounded_date_observation'})
+        upgraded = state(parent, {raw_id}, [revised], policy=POLICY)
+        self.assertNotEqual(upgraded['state_digest'], old['state_digest'])
+        self.assertEqual(upgraded['observations'], [revised])
+        self.assertEqual(upgraded['parent_coverage_digest'], old['state_digest'])
+        different = dict(revised, payload_admission={'complete': True, 'policy_digest': 'different'})
+        self.assertNotEqual(upgraded['state_digest'], state(parent, {raw_id}, [different])['state_digest'])
+        replay = state(SimpleNamespace(manifest={'source_coverage': upgraded}), {raw_id}, [revised])
+        self.assertEqual(replay['state_digest'], upgraded['state_digest'])
+        self.assertEqual(replay['observations'], [])
+        self.assertEqual(state(parent, {raw_id}, [legacy_observation], policy=LEGACY_POLICY)['state_digest'],
+                         old['state_digest'])
+
+    def test_same_v2_raw_revalidated_when_effective_contract_changes(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from axiom_data.source_coverage import state
+        item = {'raw_ref': {'raw_batch_id': 'same-raw'},
+                'payload_admission': {'complete': True, 'policy_digest': 'revision-one'}}
+        with patch('axiom_data.source_completeness.current_contract_binding', return_value={'revision': 1}):
+            first = state(None, set(), [item])
+        parent = SimpleNamespace(manifest={'source_coverage': first})
+        revised = dict(item, payload_admission={'complete': True, 'policy_digest': 'revision-two'})
+        with patch('axiom_data.source_completeness.current_contract_binding', return_value={'revision': 2}):
+            second = state(parent, {'same-raw'}, [revised])
+            replay = state(SimpleNamespace(manifest={'source_coverage': second}), {'same-raw'}, [revised])
+        self.assertNotEqual(first['policy_binding_digest'], second['policy_binding_digest'])
+        self.assertNotEqual(first['state_digest'], second['state_digest'])
+        self.assertEqual(second['observations'], [revised])
+        self.assertEqual(second['state_digest'], replay['state_digest'])

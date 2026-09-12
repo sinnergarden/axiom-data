@@ -63,7 +63,7 @@ class PublicSourceScopeTest(unittest.TestCase):
             spec = inputs[domain]
             deps = {d:baseline.commits[d].ref.commit_id for d in _DOMAIN_DEPENDENCIES[domain]}
             config = dict(spec['config'], storage_policy='domain_time_blocks.v1',
-                          no_change_policy='reuse_equal_state.v1', coverage_state_policy='source_observations.v1')
+                          no_change_policy='reuse_equal_state.v1', coverage_state_policy='source_observations.v2')
             direct = BuildApplication(domain, TushareDm1Builder(self.root, domain,
                 builder_config=config, dependency_commit_ids=deps)).build(None, spec['raw_batch_ids'], [], spec['contract_version'])
             expected = baseline.commits[domain]
@@ -98,7 +98,7 @@ class PublicSourceScopeTest(unittest.TestCase):
             small = dict(spec['config'],symbols=[symbol])
             patch_spec = dict(spec,raw_batch_ids=[patch.raw_batch_id],config=small,new_lineage=False)
             effective = dict(small,storage_policy='domain_time_blocks.v1',no_change_policy='reuse_equal_state.v1',
-                             coverage_state_policy='source_observations.v1')
+                             coverage_state_policy='source_observations.v2')
             child = BuildApplication(domain,TushareDm1Builder(self.root,domain,builder_config=effective,
                 dependency_commit_ids=deps)).build(direct.commit_id,[patch.raw_batch_id],[],spec['contract_version'])
             fixed = repair(self.root,run_id='scope-patch-repair-'+domain,snapshot_id=result['snapshot_id'],

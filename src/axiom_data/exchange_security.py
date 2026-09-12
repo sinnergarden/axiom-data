@@ -67,10 +67,12 @@ def parse_termination(exchange, payload):
 def publish_termination(data_root, *, exchange, payload, retrieved_at):
     rows=parse_termination(exchange,payload); p=profile(); request=p['endpoints'][exchange]
     code='exchange-security-'+_digest(files('axiom_data').joinpath('exchange_security.py').read_bytes())[7:]
-    identity='exchange-termination-'+_digest(_json_bytes({'profile':p,'exchange':exchange,'payload':_digest(payload),'retrieved_at':retrieved_at,'code':code}))[7:]
+    from axiom_data.source_completeness import source_profile_completeness_binding
+    completeness=source_profile_completeness_binding(p['profile_version'],_digest(_json_bytes(p)))
+    identity='exchange-termination-'+_digest(_json_bytes({'profile':p,'exchange':exchange,'payload':_digest(payload),'retrieved_at':retrieved_at,'code':code,'source_completeness':completeness}))[7:]
     return write_raw_batch(data_root,identity,domain='security_master',source_profile='exchange.termination.'+exchange,
         source_profile_version=p['profile_version'],source_profile_digest=_digest(_json_bytes(p)),request=request,
-        retrieved_at=retrieved_at,payload=payload,collector_code=code,summary={'rows':len(rows),'historical_knowledge':'best_effort'})
+        retrieved_at=retrieved_at,payload=payload,collector_code=code,summary={'rows':len(rows),'historical_knowledge':'best_effort','source_completeness':completeness})
 
 
 class ExchangeSecurityBuilder(MarketDomainBuilder):

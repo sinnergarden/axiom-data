@@ -14,12 +14,13 @@ class GateATest(unittest.TestCase):
                           benchmarks=['000300.SH'], universe_ids=['000906.SH'])
         self.plan = gate_a.make_gate_a_plan(self.scope)
 
-    def test_current_real_readiness_is_blocked_without_claiming_future_results(self):
+    def test_current_readiness_keeps_future_execution_gaps_separate(self):
         result = gate_a.validate_gate_a(self.plan)
-        self.assertEqual(result['status'], 'GATE_A_BLOCKED')
+        self.assertEqual(result['status'], 'GATE_A_READY_FOR_BULK_BUILD', result['findings'])
         self.assertEqual(len(result['evidence']['requirement_bindings']), 56)
         self.assertEqual(result['evidence']['source_plan']['scope'], self.scope)
-        self.assertTrue(any(f['section'] == 'terminal_plan' for f in result['findings']))
+        self.assertEqual(result['evidence']['terminal_plan']['schema_status'], 'PLAN_DEFINED')
+        self.assertTrue(result['evidence']['terminal_plan']['missing_capabilities'])
         self.assertTrue(result['external_review_required'])
         self.assertFalse(result['bulk_authorized'])
         self.assertFalse(result['ready_for_consumption'])
@@ -67,7 +68,7 @@ class GateATest(unittest.TestCase):
                             and 'policy unestablished' in f['reason'] for f in result['findings']))
         with patch.object(source_completeness, 'validate_payload_completeness', return_value={'admission': 'complete'}):
             result = gate_a.validate_gate_a(self.plan)
-        self.assertTrue(any('unproven at-cap' in f['reason'] for f in result['findings']))
+        self.assertTrue(any(f['section'] == 'public_routes' for f in result['findings']))
 
     def test_registry_public_binding_and_terminal_requirements_cannot_be_weakened(self):
         contract = gate_a._contract()
