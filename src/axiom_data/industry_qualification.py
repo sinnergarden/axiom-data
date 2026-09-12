@@ -4,7 +4,7 @@ from bisect import bisect_right
 from datetime import date
 import json
 from axiom_data import ArtifactError, load_raw_batch
-from axiom_data.sw_source import load_profile, profile_digest, validate_request, payload_issues
+from axiom_data.sw_source import load_profile, profile_digest, validate_request, payload_issues, validate_raw_scope
 
 PROFILE = 'tushare_industry_qualification.v1'
 
@@ -14,12 +14,9 @@ def observation(data_root, identity):
     m = raw.manifest
     request = m['request']
     endpoint, params = request['endpoint'], request['params']
-    if (m['source_profile_version'] != PROFILE or m['source_profile_digest'] != profile_digest(PROFILE)
-            or m['source_profile_ref'] != 'tushare.sw-pilot.' + endpoint
-            or request['fields'] != load_profile(PROFILE)['endpoints'][endpoint]['fields']):
+    if m['source_profile_version'] != PROFILE:
         raise ArtifactError('industry qualification source binding mismatch')
-    validate_request(endpoint, params, profile_version=PROFILE)
-    rows = json.loads(raw.payload)
+    rows = validate_raw_scope(raw)
     issues = payload_issues(endpoint, params, rows, profile_version=PROFILE)
     if issues:
         raise ArtifactError('industry qualification payload: ' + ','.join(issues))

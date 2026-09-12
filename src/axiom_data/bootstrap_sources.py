@@ -145,7 +145,7 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
     import json
     from pathlib import Path
     from axiom_data.artifacts import _identity,_digest,_json_bytes,load_raw_batch,_layout,_ensure_directory
-    from axiom_data.operations import collect_requests,_save
+    from axiom_data.operations import collect_requests,_save,_supersede_collection_request
     _identity('run_id',run_id)
     if not domains or len(set(domains))!=len(domains) or not set(domains)<=set(plan['requests_by_domain']):
         raise ArtifactError('explicit unique planned domains required')
@@ -178,38 +178,30 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
             local['batches'].append(batch)
             for spec in specs:
                 key=_request(spec)
-                identity=result['completed'].get(key)
-                if identity is not None:
+                record=result['request_states'][key]
+                identity=record['raw_batch_id']
+                if record['state']=='VALID_COMPLETE':
                     raw=load_raw_batch(root,identity)
                     validate_raw_completeness(raw)
                     local['completed_raw_batch_ids'].append(identity)
                     state['validated_requests']+=1
                     state['validated_rows']+=len(json.loads(raw.payload))
                     continue
-                failure=result['failed'].get(key)
-                identity=(failure or {}).get('raw_batch_id')
-                if (failure or {}).get('error_type')=='SourceCompletenessError' and identity:
-                    raw=load_raw_batch(root,identity)
-                    try:
-                        split=plan_truncated_raw_split(raw)
-                    except ArtifactError:
-                        state.update(status='FAILED',failure={'kind':'possible_truncation',
-                            'raw_batch_id':identity,'batch':batch,'split_status':'UNSPLITTABLE_SOURCE_SCOPE'})
-                        return False
+                if record['state'] in {'NEEDS_SPLIT','SUPERSEDED_BY_SPLIT'}:
+                    split=record['split']
                     child_batch=run_id+'-split-'+_digest(_json_bytes({
                         'parent_batch':batch,'split':split}))[7:31]
+                    _supersede_collection_request(root,run_id=batch,key=key,split=split,child_run_id=child_batch)
                     local['splits'].append(dict(split,run_id=child_batch))
                     _save(directory/'progress.json',state)
                     if not collect_bounded(child_batch,split['requests'],local):return False
-                elif failure is None:
-                    # A capped response may trip the collector's failure circuit
-                    # before it reaches this request. Give that unattempted scope
-                    # its own deterministic checkpoint; never retry a source error.
-                    pending_batch=run_id+'-pending-'+_digest(_json_bytes({'parent_batch':batch,'request':spec}))[7:31]
-                    if not collect_bounded(pending_batch,[spec],local):return False
                 else:
+                    failure=record['failure']
                     state.update(status='FAILED',failure={'kind':'collection_incomplete',
                         'batch':batch,'failed':{key:failure}})
+                    if record['state']=='FAILED_TERMINAL' and (failure or {}).get('error_type')=='SourceCompletenessError':
+                        state['failure'].update(kind='possible_truncation',raw_batch_id=identity,
+                                                split_status='UNSPLITTABLE_SOURCE_SCOPE')
                     return False
             return True
 

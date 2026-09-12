@@ -249,6 +249,79 @@ def _check_collected(raw, spec):
     validate_raw_completeness(raw)
 
 
+
+def _collection_failure(exc, raw_id=None):
+    failure = {'error_type': type(exc).__name__}
+    if raw_id is not None:
+        failure['raw_batch_id'] = _identity('raw_batch_id', raw_id)
+    return failure
+
+
+def _checked_collection_record(root, spec, raw_id):
+    """Current Raw validation, never a historical completed flag, is authority."""
+    from axiom_data.source_completeness import SourceCompletenessError
+    raw = None
+    try:
+        raw = load_raw_batch(root, raw_id)
+        _check_collected(raw, spec)
+    except Exception as exc:
+        record = {'state': 'FAILED_TERMINAL', 'raw_batch_id': raw_id,
+                  'failure': _collection_failure(exc, raw_id), 'split': None}
+        if isinstance(exc, SourceCompletenessError) and raw is not None:
+            from axiom_data.bootstrap_sources import plan_truncated_raw_split
+            try:
+                split = plan_truncated_raw_split(raw)
+            except ArtifactError:
+                # Re-fetch an invalid response; a saturated indivisible window
+                # has no supported recovery and must stay terminal.
+                from axiom_data.source_completeness import completeness_policy
+                policy = completeness_policy(raw.manifest['source_profile_version'],
+                                             raw.manifest['request'].get('endpoint'))
+                saturated = (policy['status'] == 'established' and
+                             len(json.loads(raw.payload)) >= policy['limit'])
+                record['state'] = 'FAILED_TERMINAL' if saturated else 'NEEDS_RETRY'
+            else:
+                record.update(state='NEEDS_SPLIT', split=split)
+        return record
+    return {'state': 'VALID_COMPLETE', 'raw_batch_id': raw_id, 'failure': None, 'split': None}
+
+
+def _collection_checkpoint(plan_digest, key, record):
+    return {'schema_version': 'collection_checkpoint.v2', 'plan_digest': plan_digest,
+            'request_id': key, **record}
+
+
+def _record_collection_state(state, key, record):
+    state['request_states'][key] = record
+    state['completed'].pop(key, None)
+    state['failed'].pop(key, None)
+    if record['state'] == 'VALID_COMPLETE':
+        state['completed'][key] = record['raw_batch_id']
+    elif record['failure'] is not None:
+        state['failed'][key] = record['failure']
+
+
+def _supersede_collection_request(root, *, run_id, key, split, child_run_id):
+    """Freeze the child graph before executing it; retain the rejected parent."""
+    with writer(root):
+        directory = _safe_path(root, root/'operations'/run_id)
+        path = _safe_path(root, directory/'collection.json')
+        state = json.loads(path.read_bytes())
+        record = state['request_states'][key]
+        if record['state'] not in {'NEEDS_SPLIT', 'SUPERSEDED_BY_SPLIT'} or record['split'] != split:
+            raise ArtifactError('collection split differs from revalidated parent')
+        child_refs = {'run_id': child_run_id, 'request_ids': [_request(s) for s in split['requests']]}
+        if record.get('child_refs', child_refs) != child_refs:
+            raise ArtifactError('collection split child graph changed')
+        record = dict(record, state='SUPERSEDED_BY_SPLIT', failure=None, child_refs=child_refs)
+        checkpoint = directory/'collection-checkpoints'/(key.removeprefix('sha256:')+'.json')
+        _save(_safe_path(root, checkpoint), _collection_checkpoint(state['plan_digest'], key, record))
+        _record_collection_state(state, key, record)
+        # The parent page is superseded, never an admitted canonical input.
+        state['status'] = 'RECOVERY_REQUIRED'
+        _save(path, state)
+
+
 def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_batch_ids=None):
     """Resume only exact requests and revalidated immutable refs; partial is never COMPLETE.
 
@@ -267,6 +340,8 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
     if len(set(keys)) != len(keys):
         raise ArtifactError('duplicate requests in plan')
     bound={}
+    layout = _layout(data_root)
+    resuming = _safe_path(layout.root, layout.root/'operations'/run_id/'collection.json').exists()
     projection={'requests':requests,'request_keys':keys}
     if observed_raw_batch_ids is not None:
         from axiom_data.build import _validate_identity
@@ -275,7 +350,8 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
         bound=json.loads(_json_bytes(observed_raw_batch_ids));specs=dict(zip(keys,requests))
         for key,identity in bound.items():
             _validate_identity('raw_batch_id',identity)
-            _check_collected(load_raw_batch(data_root,identity),specs[key])
+            if not resuming:
+                _check_collected(load_raw_batch(data_root,identity),specs[key])
         projection['observed_raw_batch_ids']=bound
     plan_digest = _digest(_json_bytes(projection))
     layout = _layout(data_root)
@@ -291,41 +367,77 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
             raise ArtifactError('resume plan differs from frozen run plan')
         checkpoints = _safe_path(layout.root, directory/'collection-checkpoints')
         _ensure_directory(layout.root, checkpoints)
-        # collection.json remains the backwards-compatible start/end summary.
-        # Between summaries, each request has one durable, constant-size result.
+        # Per-request checkpoints remain the durable authority between summary
+        # writes. Upgrade legacy refs by validating them before any source call.
+        saved = {}
+        records = {}
         for key in keys:
             checkpoint = _safe_path(layout.root, checkpoints/(key.removeprefix('sha256:')+'.json'))
-            if not checkpoint.exists():
-                continue
-            result = json.loads(checkpoint.read_bytes())
-            if (set(result) != {'schema_version','plan_digest','request_id','raw_batch_id','failure'}
-                    or result['schema_version'] != 'collection_checkpoint.v1'
-                    or result['plan_digest'] != plan_digest or result['request_id'] != key):
-                raise ArtifactError('collection checkpoint binding mismatch')
-            identity = result['raw_batch_id']
-            if identity is None and result['failure'] is None:
-                raise ArtifactError('collection checkpoint has no result')
-            if identity is not None:
-                if key in state['completed'] and state['completed'][key] != identity:
-                    raise ArtifactError('collection checkpoint differs from completed Raw ref')
-                state['completed'][key] = identity
-            failure = result['failure']
-            if failure is None:
-                state['failed'].pop(key, None)
-            elif (isinstance(failure, dict) and set(failure) in ({'error_type'}, {'error_type','raw_batch_id'})
-                  and isinstance(failure['error_type'], str)):
-                state['failed'][key] = failure
+            result = json.loads(checkpoint.read_bytes()) if checkpoint.exists() else None
+            if result is not None:
+                if result.get('plan_digest') != plan_digest or result.get('request_id') != key:
+                    raise ArtifactError('collection checkpoint binding mismatch')
+                if result.get('schema_version') == 'collection_checkpoint.v1':
+                    if set(result) != {'schema_version','plan_digest','request_id','raw_batch_id','failure'}:
+                        raise ArtifactError('invalid legacy collection checkpoint')
+                    failure = result['failure']
+                    if failure is not None and (not isinstance(failure, dict) or
+                            set(failure) not in ({'error_type'}, {'error_type','raw_batch_id'}) or
+                            not isinstance(failure['error_type'], str)):
+                        raise ArtifactError('invalid collection checkpoint failure')
+                    failed_id = (failure or {}).get('raw_batch_id')
+                    identity = result['raw_batch_id'] or failed_id
+                    if identity is None and failure is None:
+                        raise ArtifactError('collection checkpoint has no result')
+                    if identity is not None and failed_id is not None and identity != failed_id:
+                        raise ArtifactError('ambiguous legacy Raw checkpoint refs')
+                    records[key] = {'state':'NEEDS_RETRY', 'raw_batch_id':identity,
+                                    'failure':failure, 'split':None}
+                elif result.get('schema_version') == 'collection_checkpoint.v2':
+                    record = {k:v for k,v in result.items() if k not in {'schema_version','plan_digest','request_id'}}
+                    if (set(record) not in ({'state','raw_batch_id','failure','split'},
+                                           {'state','raw_batch_id','failure','split','child_refs'}) or
+                            record['state'] not in {'VALID_COMPLETE','NEEDS_RETRY','NEEDS_SPLIT',
+                                                    'FAILED_TERMINAL','SUPERSEDED_BY_SPLIT'}):
+                        raise ArtifactError('invalid collection checkpoint state')
+                    records[key] = record
+                else:
+                    raise ArtifactError('unsupported collection checkpoint schema')
+                saved[key] = result
             else:
-                raise ArtifactError('invalid collection checkpoint failure')
-        state.update(status='RUNNING',stage='COLLECTION')
-        if observed_raw_batch_ids is not None:
-            state['observed_raw_batch_ids']=bound
-            for key,identity in bound.items():
-                if key in state['completed'] and state['completed'][key]!=identity:
+                failure = state['failed'].get(key)
+                identity = state['completed'].get(key) or (failure or {}).get('raw_batch_id')
+                records[key] = state.get('request_states', {}).get(key, {
+                    'state':'PENDING','raw_batch_id':identity,'failure':failure,'split':None})
+            if key in bound:
+                if ((key in state['completed'] and state['completed'][key] != bound[key]) or
+                        records[key]['raw_batch_id'] not in (None, bound[key])):
                     state.update(status='FAILED',failed={key:{'error_type':'ArtifactError'}})
+                    state['completed'].pop(key, None)
                     _save(path,state)
                     raise ArtifactError('completed Raw ref differs from explicitly bound observation')
-                state['completed'][key]=identity
+                records[key]['raw_batch_id'] = bound[key]
+        state.update(status='RUNNING',stage='COLLECTION',completed={},failed={},request_states={})
+        if observed_raw_batch_ids is not None:
+            state['observed_raw_batch_ids'] = bound
+        for key, spec in zip(keys, requests):
+            previous = records[key]
+            identity = previous['raw_batch_id']
+            if identity is not None:
+                record = _checked_collection_record(layout.root, spec, identity)
+                if previous['state'] == 'SUPERSEDED_BY_SPLIT':
+                    if record['state'] != 'NEEDS_SPLIT' or record['split'] != previous['split']:
+                        raise ArtifactError('superseded parent no longer matches frozen split')
+                    record = dict(record, state='SUPERSEDED_BY_SPLIT', failure=None,
+                                  child_refs=previous['child_refs'])
+            else:
+                record = {'state':'NEEDS_RETRY' if previous['failure'] else 'PENDING',
+                          'raw_batch_id':None,'failure':previous['failure'],'split':None}
+            _record_collection_state(state, key, record)
+            upgraded = _collection_checkpoint(plan_digest, key, record)
+            if identity is not None and saved.get(key) != upgraded:
+                checkpoint = _safe_path(layout.root, checkpoints/(key.removeprefix('sha256:')+'.json'))
+                _save(checkpoint, upgraded)
         _save(path, state)
         collectors = {'market': TushareCollector(layout.root, client),
                       'dm1': TushareDm1Collector(layout.root, client),
@@ -337,46 +449,31 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
         collectors['pr6_indicator'] = Pr6Collector(layout.root, client)
         consecutive_failures = 0
         for key, spec in zip(keys, requests):
+            record = state['request_states'][key]
+            if record['state'] not in {'PENDING','NEEDS_RETRY'} or key in bound:
+                continue
             try:
-                if key in state['completed']:
-                    raw = load_raw_batch(layout.root, state['completed'][key])
-                    _check_collected(raw, spec)
-                    state['failed'].pop(key, None)
-                    continue
-                failed_raw = state['failed'].get(key, {}).get('raw_batch_id')
-                if failed_raw is not None:
-                    raw = load_raw_batch(layout.root, failed_raw)
-                    _check_collected(raw, spec)
-                    state['completed'][key] = failed_raw
-                    state['failed'].pop(key, None)
-                    continue
                 collector = collectors[spec['collector']]
                 args = (spec['domain'], spec['endpoint'], spec['params']) if spec['collector'] == 'dm1' else (spec['endpoint'], spec['params'])
                 versions={'pr6_bulk':'tushare_pr6.v2','pr6_indicator':'tushare_fina_indicator.v1','pr7_holder':'tushare_pr7_holder.v2','pr7_holder_v3':'tushare_pr7_holder.v3'}
                 ref = collector.collect(*args, **({'profile_version':versions[spec['collector']]} if spec['collector'] in versions else {}))
-                raw = load_raw_batch(layout.root, ref.raw_batch_id)
-                _check_collected(raw, spec)
-                state['completed'][key] = ref.raw_batch_id
-                state['failed'].pop(key, None)
-                consecutive_failures = 0
+                record = _checked_collection_record(layout.root, spec, ref.raw_batch_id)
             except Exception as exc:
-                # Supplier exception text may contain request credentials or transport URLs.
-                previous_raw = state['failed'].get(key, {}).get('raw_batch_id')
-                state['failed'][key] = {'error_type': type(exc).__name__}
-                rejected_raw = getattr(exc, 'raw_batch_id', None) or previous_raw
-                if rejected_raw is not None:
-                    from axiom_data.build import _validate_identity
-                    state['failed'][key]['raw_batch_id'] = _validate_identity('raw_batch_id', rejected_raw)
-                consecutive_failures += 1
+                # Never persist supplier exception text or credential-bearing URLs.
+                rejected_raw = getattr(exc, 'raw_batch_id', None)
+                record = (_checked_collection_record(layout.root, spec, rejected_raw) if rejected_raw else
+                          {'state':'NEEDS_RETRY','raw_batch_id':None,'failure':_collection_failure(exc),'split':None})
+            _record_collection_state(state, key, record)
             state['updated_at'] = datetime.now(timezone.utc).isoformat()
             checkpoint = _safe_path(layout.root, checkpoints/(key.removeprefix('sha256:')+'.json'))
-            _save(checkpoint, {'schema_version':'collection_checkpoint.v1',
-                'plan_digest':plan_digest,'request_id':key,
-                'raw_batch_id':state['completed'].get(key),'failure':state['failed'].get(key)})
+            _save(checkpoint, _collection_checkpoint(plan_digest, key, record))
+            # A supported split is a planned recovery, not a transport failure.
+            consecutive_failures = (0 if record['state'] in {'VALID_COMPLETE','NEEDS_SPLIT'}
+                                    else consecutive_failures + 1)
             if consecutive_failures >= 3:
                 break
-        state['pending_count'] = len(requests) - len(set(state['completed']) | set(state['failed']))
-        state['status'] = 'COMPLETE' if len(state['completed']) == len(requests) and not state['failed'] else 'FAILED'
+        state['pending_count'] = sum(r['state'] == 'PENDING' for r in state['request_states'].values())
+        state['status'] = 'COMPLETE' if len(state['completed']) == len(requests) else 'FAILED'
         _save(path, state)
         return state
 

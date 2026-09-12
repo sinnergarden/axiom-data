@@ -141,7 +141,11 @@ class SourceCompletenessTest(unittest.TestCase):
         from axiom_data.sw_source import load_profile, profile_digest as sw_digest
         version='tushare_industry_qualification.v1';profile=load_profile(version)
         def page(offset,count,*,summary=None,suffix=''):
-            records=[{'ts_code':str(i)} for i in range(offset,offset+count)]
+            records=[{'ts_code':f'{i+1:06d}.SZ','name':'fixture','l1_code':'801160.SI',
+                      'l1_name':'公用事业','l2_code':'801161.SI','l2_name':'电力',
+                      'l3_code':'851161.SI','l3_name':'风力发电',
+                      'in_date':'20220124','out_date':'20250101','is_new':'N'}
+                     for i in range(offset,offset+count)]
             ref=write_raw_batch(self.root,'page-'+str(offset)+suffix,domain='industry_membership',
                 source_profile='tushare.sw-pilot.index_member_all',source_profile_version=version,
                 source_profile_digest=sw_digest(version),request={'endpoint':'index_member_all',

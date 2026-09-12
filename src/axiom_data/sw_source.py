@@ -2,7 +2,7 @@
 import json
 import re
 from importlib.resources import files
-from axiom_data.artifacts import ArtifactError, _digest, _json_bytes, write_raw_batch
+from axiom_data.artifacts import ArtifactError, _decode_rows, _digest, _json_bytes, write_raw_batch
 from axiom_data.tushare import TushareCollector, _response_records, _retrieved_at
 from axiom_data.domains.market import _symbol
 
@@ -70,6 +70,34 @@ def payload_issues(endpoint, params, records, *, profile_version='tushare_sw_pil
         if endpoint == 'stock_basic' and row.get('list_status') != params['list_status']:
             issues.append('request_scope_mismatch:list_status')
     return sorted(set(issues))
+
+
+def validate_payload_scope(endpoint, params, records, *, profile_version):
+    """Use supplier request/row rules; response caps are a separate admission."""
+    validate_request(endpoint, params, profile_version=profile_version)
+    if not isinstance(records, list) or any(not isinstance(row, dict) for row in records):
+        raise ArtifactError('industry payload must be row objects')
+    issues = [issue for issue in payload_issues(endpoint, params, records,
+        profile_version=profile_version) if issue != 'possible_truncation']
+    if issues:
+        raise ArtifactError('industry qualification payload: ' + ','.join(issues))
+
+
+def validate_raw_scope(raw):
+    """Shared profile/field/selector admission for mapping and page evidence."""
+    manifest = raw.manifest; version = manifest.get('source_profile_version')
+    profile = load_profile(version); request = manifest.get('request', {})
+    endpoint = request.get('endpoint'); definition = profile['endpoints'].get(endpoint)
+    if (definition is None or manifest.get('schema_version') != 'raw_batch.v2'
+            or manifest.get('domain') != definition['domain']
+            or manifest.get('source_profile_digest') != profile_digest(version)
+            or manifest.get('source_profile_ref') != 'tushare.sw-pilot.' + endpoint
+            or set(request) != {'endpoint','params','fields'}
+            or request.get('fields') != definition['fields']):
+        raise ArtifactError('industry qualification source binding mismatch')
+    rows = _decode_rows(raw)
+    validate_payload_scope(endpoint, request['params'], rows, profile_version=version)
+    return rows
 
 
 class SwQualificationCollector(TushareCollector):

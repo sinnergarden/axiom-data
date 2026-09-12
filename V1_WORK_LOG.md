@@ -692,3 +692,11 @@ Candidate recovery follow-up:
 - Report: reports/pr8/candidate_resume/REPORT.md. Full V1 remains incomplete,
   with industry code decision and the original bootstrap/admission/daily/
   recovery/Notebook gates outstanding.
+
+## PR8 checkpoint recovery / pagination follow-up — 2026-09-12
+
+- Legacy checkpoint recovery was normalized against current Raw admission, with durable split supersession and explicit observed Raw bindings. An invalid frozen observed Raw is rejected and cannot be replaced by a new collection.
+- Pagination selectors now reuse shared request, profile, field, payload, and selector validation on every page; selector changes, unsupported date filters, and invalid terminal pages remain fail-closed.
+- Recovery-focused tests passed 18/18. The full suite passed 314/314 in 94.748 seconds. Logs: `/tmp/pr8-checkpoint-pagination-recovery-focused-20260912.log` and `reports/pr8/checkpoint_pagination_fullsuite.log`.
+- The fixed-fixture recovery probe produced `reports/pr8/legacy_checkpoint_recovery.json`; the Gate A validator produced `reports/pr8/checkpoint_pagination_gate_a.json` with `GATE_A_BLOCKED`, exit 1, `bulk_authorized=false`, and `ready_for_consumption=false`. The exact remaining source and terminal capability gaps are recorded in that report.
+- This checkpoint remains `NO_BULK_BUILD`: no real supplier collection, baseline build, or new domain work was started.

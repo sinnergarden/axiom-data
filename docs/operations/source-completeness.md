@@ -41,3 +41,18 @@ Admission returns a stable JSON projection containing source profile, effective
 policy reference/digest, actual row count and completeness qualification. It
 never includes payload bytes. Existing immutable snapshots are not rewritten;
 new builder identities bind the completeness implementation.
+
+## Per-page selector admission
+
+Every industry page now uses `sw_source.validate_raw_scope`, also called by the
+formal industry observation/mapper path. It binds the actual profile, endpoint,
+domain, requested fields and Raw request, and reuses `validate_request` plus
+`payload_issues` for row schema and selector semantics. A response with is_new=Y
+cannot satisfy is_new=N, including a short terminal page. Security and industry
+selectors are checked for every row. Real membership endpoints do not support
+date request filters; invented start/end selectors are rejected.
+
+Only validated pages can establish a contiguous, nonduplicated series with a
+bound terminal page. A selector cannot change between pages. An invalid page
+raises SourceCompletenessError with that page's Raw ID and cannot become a
+complete request checkpoint. Collection still retains the original Raw bytes.

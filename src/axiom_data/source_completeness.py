@@ -73,6 +73,12 @@ def validate_payload_completeness(profile_version, endpoint, records, *,
         if endpoint == 'fina_indicator' and profile_version in {'tushare_pr6.v1','tushare_fina_indicator.v1'}:
             reject('required indicator completeness policy unavailable')
         return result('unestablished')
+    if params is not None and profile_version in {'tushare_sw_pilot.v1','tushare_industry_qualification.v1'}:
+        from axiom_data.sw_source import validate_payload_scope
+        try:
+            validate_payload_scope(endpoint, params, records, profile_version=profile_version)
+        except ArtifactError as exc:
+            reject(str(exc))
     params = params or {}
     paging = set(params) & {'limit', 'offset'}
     if paging and policy['pagination'] is None:
@@ -88,7 +94,7 @@ def validate_payload_completeness(profile_version, endpoint, records, *,
         for raw in evidence:
             _validate_raw_result(raw)
             manifest = raw.manifest; request = manifest['request']; page_params = request['params']
-            page = _decode_rows(raw)
+            page = _industry_raw_scope(raw)
             limit = page_params.get('limit')
             if (not str(limit).isdigit() or not 0 < int(limit) <= policy['limit']
                 or str(page_params.get('offset')) != str(offset) or terminal
@@ -128,6 +134,14 @@ def _validate_raw_result(raw):
                                       raw_batch_id=raw.ref.raw_batch_id)
 
 
+def _industry_raw_scope(raw):
+    from axiom_data.sw_source import validate_raw_scope
+    try:
+        return validate_raw_scope(raw)
+    except ArtifactError as exc:
+        raise SourceCompletenessError(str(exc), raw_batch_id=raw.ref.raw_batch_id) from exc
+
+
 def validate_raw_completeness(raw, *, evidence=None):
     """Shared pre-mapping guard. Raw loading remains an immutable byte operation."""
     _validate_raw_result(raw)
@@ -148,6 +162,8 @@ def validate_raw_completeness(raw, *, evidence=None):
         rows = list(parse_termination(exchange, raw.payload).values())
         return validate_payload_completeness('exchange_security.v1', exchange, rows,
             params=request.get('params'), raw_batch_id=raw.ref.raw_batch_id)
+    rows = (_industry_raw_scope(raw) if manifest.get('source_profile_version') in
+            {'tushare_sw_pilot.v1','tushare_industry_qualification.v1'} else _decode_rows(raw))
     return validate_payload_completeness(manifest.get('source_profile_version'),
-        request.get('endpoint'), _decode_rows(raw), params=request.get('params'),
+        request.get('endpoint'), rows, params=request.get('params'),
         raw_batch_id=raw.ref.raw_batch_id, evidence=evidence)
