@@ -15,7 +15,8 @@ class UndatedActionsTest(unittest.TestCase):
             deps={'trading_calendar':pack['calendar'].commit_id,'security_master':pack['security'].commit_id}
             cfg=dict(symbols=[source['ts_code']],start_session='2014-01-01',end_session='2026-09-08',
                 corporate_action_observations='corporate_action_observations.v1',dm1_source_partitioning='security.v1',
-                storage_policy='domain_time_blocks.v1',no_change_policy='reuse_equal_state.v1')
+                storage_policy='domain_time_blocks.v1',no_change_policy='reuse_equal_state.v1',
+                coverage_state_policy='source_observations.v1')
             def collect(row,time):
                 return TushareDm1Collector(root,Client([row])).collect('corporate_actions','dividend',
                     {'ts_code':row['ts_code']},retrieved_at=time).raw_batch_id
@@ -28,10 +29,16 @@ class UndatedActionsTest(unittest.TestCase):
                 build([again],cfg,old.commit_id)
             cfg['corporate_action_reobservation']='corporate_action_reobservation.v1'
             initial=build([first],cfg)
-            self.assertEqual(build([again],cfg,initial.commit_id),initial)
+            observed=build([again],cfg,initial.commit_id)
+            self.assertNotEqual(observed.commit_id,initial.commit_id)
+            self.assertEqual(build([again],cfg,observed.commit_id),observed)
             self.assertEqual(json.loads(load_raw_batch(root,again).payload),[source])
             clean=build([again,first],cfg)
             a=validate_domain_commit_closure(root,'corporate_actions',initial.commit_id)
+            reobserved=validate_domain_commit_closure(root,'corporate_actions',observed.commit_id)
+            self.assertEqual(a.rows,reobserved.rows)
+            self.assertNotEqual(a.manifest['source_coverage']['state_digest'],
+                                reobserved.manifest['source_coverage']['state_digest'])
             self.assertEqual(a.rows,validate_domain_commit_closure(root,'corporate_actions',clean.commit_id).rows)
             changed=dict(source,stk_co_rate=source['stk_co_rate']+0.1,stk_div=source['stk_div']+0.1)
             revision=collect(changed,'2026-09-12T00:00:00Z')

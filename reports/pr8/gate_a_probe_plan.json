@@ -1,0 +1,236 @@
+{
+  "schema_version": "gate_a_plan.v1",
+  "scope": {
+    "symbols": [
+      "688981.SH"
+    ],
+    "start_session": "2014-01-01",
+    "end_session": "2026-09-08",
+    "financial_observation_start": "2013-01-01",
+    "benchmarks": [
+      "000300.SH"
+    ],
+    "universe_ids": [
+      "000906.SH"
+    ]
+  },
+  "scope_registry_digest": "sha256:61f62cee3eda50ad1924d6bb04bea7c892ee18a2842d25a7c0e79fab629058a8",
+  "historical_view_policy": {
+    "anchor": "last_eligible_target_session_per_security.v1",
+    "view_kinds": [
+      "adjusted_price",
+      "market_replay",
+      "market_qlib",
+      "pr6_fact",
+      "pr7_fact"
+    ],
+    "scope": "retain_complete_requested_target; report_uncovered_intervals",
+    "gap_admission": "requires_source_evidence; no_automatic_waiver",
+    "fact_pit_policy": "best_effort_vendor_v1",
+    "qlib_price_basis": "unadjusted",
+    "adjusted_pit_policy": "research_non_pit"
+  },
+  "terminal_evidence_plan": {
+    "schema_version": "gate_b_evidence_plan.v1",
+    "target_digest": "sha256:1831f564dddbb4649d75dbdac8e8e393e075554f925b6c834df7493f8c6cd81e",
+    "scope_registry_digest": "sha256:61f62cee3eda50ad1924d6bb04bea7c892ee18a2842d25a7c0e79fab629058a8",
+    "requirements": {
+      "baseline": {
+        "required": [
+          "snapshot_id",
+          "manifest_digest",
+          "target_digest"
+        ],
+        "producer": "axiom_data.operations.bootstrap",
+        "validator": "axiom_data.artifacts.load_snapshot",
+        "calls": {
+          "producer": {
+            "args": [
+              "$data_root"
+            ],
+            "kwargs": {
+              "run_id": "$run_id",
+              "domain_commit_ids": "$domain_commit_ids"
+            }
+          },
+          "validator": {
+            "args": [
+              "$data_root",
+              "$baseline.snapshot_id"
+            ],
+            "kwargs": {}
+          }
+        }
+      },
+      "views": {
+        "required": [
+          "snapshot_id",
+          "target_digest",
+          "refs"
+        ],
+        "producer": "axiom_data.view_operation.materialize_views",
+        "validator": "axiom_data.gate_a.validate_terminal_evidence",
+        "calls": {
+          "producer": {
+            "args": [
+              "$data_root"
+            ],
+            "kwargs": {
+              "run_id": "$run_id",
+              "snapshot_id": "$baseline.snapshot_id",
+              "views": "$view_execution_plan"
+            }
+          },
+          "validator": {
+            "args": [
+              "$data_root",
+              "$all_terminal_evidence"
+            ],
+            "kwargs": {
+              "plan": "$terminal_evidence_plan"
+            }
+          }
+        }
+      },
+      "full_admission": {
+        "required": [
+          "snapshot_id",
+          "target_digest",
+          "scope_registry_digest",
+          "requirements",
+          "features",
+          "source_evidence_refs"
+        ],
+        "producer": "axiom_data.full_admission.full_admission",
+        "validator": "axiom_data.full_admission.validate_full_admission",
+        "calls": {
+          "producer": {
+            "args": [
+              "$data_root"
+            ],
+            "kwargs": {
+              "run_id": "$run_id",
+              "snapshot_id": "$baseline.snapshot_id",
+              "plan": "$full_admission_plan"
+            }
+          },
+          "validator": {
+            "args": [
+              "$data_root",
+              "$full_admission"
+            ],
+            "kwargs": {
+              "expected_views": "$views.refs",
+              "target_digest": "$target_digest"
+            }
+          }
+        }
+      },
+      "daily": {
+        "required": [
+          "baseline_snapshot_id",
+          "cases"
+        ],
+        "producer": "axiom_data.operations.daily",
+        "validator": "axiom_data.daily_acceptance.validate_daily_evidence",
+        "calls": {
+          "producer": {
+            "args": [
+              "$data_root"
+            ],
+            "kwargs": {
+              "run_id": "$run_id",
+              "snapshot_id": "$baseline.snapshot_id",
+              "source_requests": "$source_requests",
+              "domain_inputs": "$domain_inputs"
+            }
+          },
+          "validator": {
+            "args": [
+              "$data_root",
+              "$daily"
+            ],
+            "kwargs": {
+              "expected_baseline": "$baseline.snapshot_id"
+            }
+          }
+        }
+      },
+      "recovery": {
+        "required": [
+          "snapshot_id",
+          "snapshot_manifest_digest",
+          "validated_views",
+          "blocked_external_attempts",
+          "restored_root",
+          "run_id",
+          "content_digest"
+        ],
+        "producer": "axiom_data.recovery.verify_recovery",
+        "validator": "axiom_data.gate_a.validate_terminal_evidence",
+        "calls": {
+          "producer": {
+            "args": [
+              "$restored_root"
+            ],
+            "kwargs": {
+              "run_id": "$run_id",
+              "snapshot_id": "$baseline.snapshot_id",
+              "expected_snapshot_manifest_digest": "$baseline.manifest_digest",
+              "views": "$views.refs"
+            }
+          },
+          "validator": {
+            "args": [
+              "$data_root",
+              "$all_terminal_evidence"
+            ],
+            "kwargs": {
+              "plan": "$terminal_evidence_plan"
+            }
+          }
+        }
+      },
+      "notebook": {
+        "required": [
+          "snapshot_id",
+          "view_refs",
+          "target_digest",
+          "executed_notebook_path",
+          "content_digest",
+          "parameters"
+        ],
+        "producer": "axiom_data.notebook_acceptance.execute_notebook_smoke",
+        "validator": "axiom_data.notebook_acceptance.validate_notebook_smoke",
+        "calls": {
+          "producer": {
+            "args": [
+              "$data_root"
+            ],
+            "kwargs": {
+              "snapshot_id": "$baseline.snapshot_id",
+              "views": "$views.refs",
+              "target": "$full_target",
+              "output_path": "$executed_notebook_path"
+            }
+          },
+          "validator": {
+            "args": [
+              "$data_root",
+              "$notebook"
+            ],
+            "kwargs": {
+              "expected_views": "$views.refs"
+            }
+          }
+        }
+      }
+    },
+    "daily_cases": [
+      "t_plus_1",
+      "no_change",
+      "late_data",
+      "interrupted_resume"
+    ]
+  }
+}

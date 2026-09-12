@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from axiom_data.artifacts import ArtifactError
 from axiom_data.consumption import _symbols, _session
 from axiom_data.operations import _request
+from axiom_data.source_completeness import SourceCompletenessError, validate_raw_completeness
 
 
 def _windows(start, end, years):
@@ -11,6 +12,61 @@ def _windows(start, end, years):
         upper=min(stop,date(cursor.year+years-1,12,31))
         yield cursor.strftime('%Y%m%d'),upper.strftime('%Y%m%d')
         cursor=upper+timedelta(days=1)
+
+
+def _quarters(start, end):
+    cursor=date.fromisoformat(start);stop=date.fromisoformat(end)
+    while cursor<=stop:
+        month=((cursor.month-1)//3+1)*3
+        following=date(cursor.year+int(month==12),month%12+1,1)
+        upper=min(stop,following-timedelta(days=1))
+        yield cursor.strftime('%Y%m%d'),upper.strftime('%Y%m%d')
+        cursor=upper+timedelta(days=1)
+
+
+def plan_truncated_raw_split(raw):
+    """Return two deterministic child requests; never collect or replace the Raw.
+
+    A single-day response at the cap remains blocked because this profile has
+    no demonstrated pagination or finer supported selector.
+    """
+    import copy
+    import json
+    from axiom_data.pr6_source import source_date
+    from axiom_data.source_completeness import completeness_policy
+    manifest=raw.manifest;request=manifest['request'];params=request['params']
+    if request.get('endpoint')!='fina_indicator':
+        raise ArtifactError('bounded split planner requires fina_indicator Raw')
+    policy=completeness_policy(manifest['source_profile_version'],'fina_indicator')
+    rows=json.loads(raw.payload)
+    if (manifest.get('status')!='success' or policy['status']!='established'
+        or not isinstance(rows,list) or len(rows)<policy['limit']):
+        raise ArtifactError('scope split requires a retained response at the source cap')
+    try:
+        validate_raw_completeness(raw)
+    except SourceCompletenessError:
+        pass
+    else:
+        raise ArtifactError('Raw is not rejected by source completeness admission')
+    if set(params)!={'ts_code','start_date','end_date'}:
+        raise ArtifactError('unsplittable response scope; source qualification required')
+    start=date.fromisoformat(source_date(params['start_date']))
+    end=date.fromisoformat(source_date(params['end_date']))
+    if start>=end:
+        raise ArtifactError('unsplittable single-day response at source cap')
+    middle=start+(end-start)//2
+    children=[]
+    for first,last in ((start,middle),(middle+timedelta(days=1),end)):
+        child=copy.deepcopy(params)
+        child.update(start_date=first.strftime('%Y%m%d'),end_date=last.strftime('%Y%m%d'))
+        family={'tushare_pr6.v1':'pr6','tushare_fina_indicator.v1':'pr6_indicator'}.get(manifest['source_profile_version'])
+        if family is None:raise ArtifactError('unsupported indicator split SourceProfile')
+        spec={'collector':family,'domain':'financial_events','endpoint':'fina_indicator',
+              'params':child,'economic_scope':{'start':child['start_date'],'end':child['end_date']},
+              'availability_policy':'revision_scan'}
+        _request(spec);children.append(spec)
+    return {'schema_version':'source_scope_split.v1','parent_raw_batch_id':raw.ref.raw_batch_id,
+            'status':'NEEDS_COLLECTION','ready_for_consumption':False,'requests':children}
 
 
 def plan_bootstrap_sources(*, symbols, start_session, end_session,
@@ -42,10 +98,13 @@ def plan_bootstrap_sources(*, symbols, start_session, end_session,
         add('dm1','corporate_actions','dividend',{'ts_code':symbol},'revision_scan')
         add('pr6','valuation_daily','daily_basic',params,'session_close')
         for first,last in _windows(financial_start,end,5):
-            for ep in ('income','balancesheet','cashflow','fina_indicator'):
+            for ep in ('income','balancesheet','cashflow'):
                 p={'ts_code':symbol,'start_date':first,'end_date':last}
-                if ep!='fina_indicator':p['report_type']='1'
-                add('pr6_indicator' if ep=='fina_indicator' else 'pr6','financial_events',ep,p,'revision_scan',financial_start,end)
+                p['report_type']='1'
+                add('pr6','financial_events',ep,p,'revision_scan',financial_start,end)
+        for first,last in _quarters(financial_start,end):
+            add('pr6_indicator','financial_events','fina_indicator',
+                {'ts_code':symbol,'start_date':first,'end_date':last},'revision_scan',financial_start,end)
         for domain,ep,policy in [('holder_count_events','stk_holdernumber','revision_scan'),
                                  ('top_holders_reports','top10_holders','revision_scan'),
                                  ('margin_daily','margin_detail','next_session_publication'),
@@ -112,25 +171,56 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
         state={'run_id':run_id,'stage':'SOURCE_COLLECTION','status':'RUNNING','plan_digest':digest,
                'ready_for_consumption':False,'domains':{},'validated_requests':0,'validated_rows':0}
         _save(directory/'progress.json',state)
+
+        def collect_bounded(batch, specs, local):
+            """Revalidate checkpoints and replace only rejected cap scopes."""
+            result=collect_requests(root,run_id=batch,requests=specs,client=client)
+            local['batches'].append(batch)
+            for spec in specs:
+                key=_request(spec)
+                identity=result['completed'].get(key)
+                if identity is not None:
+                    raw=load_raw_batch(root,identity)
+                    validate_raw_completeness(raw)
+                    local['completed_raw_batch_ids'].append(identity)
+                    state['validated_requests']+=1
+                    state['validated_rows']+=len(json.loads(raw.payload))
+                    continue
+                failure=result['failed'].get(key)
+                identity=(failure or {}).get('raw_batch_id')
+                if (failure or {}).get('error_type')=='SourceCompletenessError' and identity:
+                    raw=load_raw_batch(root,identity)
+                    try:
+                        split=plan_truncated_raw_split(raw)
+                    except ArtifactError:
+                        state.update(status='FAILED',failure={'kind':'possible_truncation',
+                            'raw_batch_id':identity,'batch':batch,'split_status':'UNSPLITTABLE_SOURCE_SCOPE'})
+                        return False
+                    child_batch=run_id+'-split-'+_digest(_json_bytes({
+                        'parent_batch':batch,'split':split}))[7:31]
+                    local['splits'].append(dict(split,run_id=child_batch))
+                    _save(directory/'progress.json',state)
+                    if not collect_bounded(child_batch,split['requests'],local):return False
+                elif failure is None:
+                    # A capped response may trip the collector's failure circuit
+                    # before it reaches this request. Give that unattempted scope
+                    # its own deterministic checkpoint; never retry a source error.
+                    pending_batch=run_id+'-pending-'+_digest(_json_bytes({'parent_batch':batch,'request':spec}))[7:31]
+                    if not collect_bounded(pending_batch,[spec],local):return False
+                else:
+                    state.update(status='FAILED',failure={'kind':'collection_incomplete',
+                        'batch':batch,'failed':{key:failure}})
+                    return False
+            return True
+
         for domain in domains:
-            requests=plan['requests_by_domain'][domain];local={'status':'RUNNING','batches':[]}
+            requests=plan['requests_by_domain'][domain]
+            local={'status':'RUNNING','batches':[],'splits':[],'completed_raw_batch_ids':[]}
             state['domains'][domain]=local
             for offset in range(0,len(requests),50):
                 batch=run_id+'-'+domain+'-'+str(offset)
-                result=collect_requests(root,run_id=batch,requests=requests[offset:offset+50],client=client)
-                local['batches'].append(batch)
-                for identity in result['completed'].values():
-                    raw=load_raw_batch(root,identity);rows=json.loads(raw.payload)
-                    # Financial endpoints can cap results below the generic Raw
-                    # envelope's limit. Keep the response, but never admit it.
-                    limit=100 if domain=='financial_events' else 5000 if domain=='universe_membership' else 6000
-                    if len(rows)>=limit:
-                        state.update(status='FAILED',failure={'kind':'possible_truncation','raw_batch_id':identity,'batch':batch})
-                        _save(directory/'progress.json',state)
-                        return state
-                    state['validated_requests']+=1;state['validated_rows']+=len(rows)
-                if result['status']!='COMPLETE':
-                    state.update(status='FAILED',failure={'kind':'collection_incomplete','batch':batch,'failed':result['failed']})
+                if not collect_bounded(batch,requests[offset:offset+50],local):
+                    local['status']='FAILED'
                     _save(directory/'progress.json',state)
                     return state
                 _save(directory/'progress.json',state)

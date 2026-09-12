@@ -1,0 +1,8 @@
+{
+  "symbols": ["688981.SH"],
+  "start_session": "2014-01-01",
+  "end_session": "2026-09-08",
+  "financial_observation_start": "2013-01-01",
+  "benchmarks": ["000300.SH"],
+  "universe_ids": ["000906.SH"]
+}

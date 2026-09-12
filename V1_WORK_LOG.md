@@ -1,3 +1,23 @@
+# PR8 P1 / Gate A review node — 2026-09-12
+
+The three requested P1 fixes and minimal Gate A validator are implemented.
+Coverage identity retains empty source observations; public security-session
+scope uses the same builder/loader guards; shared profile admission blocks
+indicator truncation across manual Raw, all operations and replay. Bootstrap
+source collection deterministically splits capped indicator requests, retaining
+parents and resuming only unfinished children. Official exchange Raw parsing
+and previously accepted source/domain semantics remain.
+
+Bounded independent Astra cross-review approved the implementation by separate
+file ownership. Luna ran the full suite: 291/291 PASS in 93.744 seconds.
+`reports/pr8/P1_GATE_A_REVIEW.md` contains the review map, evidence and boundaries.
+The actual Gate A CLI probe returns GATE_A_BLOCKED: missing established source
+completeness policies and formal full-admission/daily/Notebook/sparse-history
+capabilities. It checks all 56 bindings and preserves the 469 registry; it does
+not establish full-target payload admission. Overall V1 remains Stage 3/5.
+NO_BULK_BUILD remains in force. I/O PR2 was merged only into the development
+branch at cb20745d7ac9a6946757abf4b31986fff7f53240. PR8 was not merged to main.
+
 # Admission-plan review node — 2026-09-12
 
 Astra implemented `validate_admission_plan` and its CLI. The preflight binds

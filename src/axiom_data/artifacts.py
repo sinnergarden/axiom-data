@@ -852,6 +852,11 @@ class MarketDomainBuilder:
         if builder_config is not None and not isinstance(builder_config, Mapping):
             raise ArtifactError("builder_config must be a mapping")
         self.builder_config = _json_copy(builder_config or {})
+        if self.builder_config.get('coverage_state_policy') == 'source_observations.v1' or 'security_session_scope' in self.builder_config:
+            self.builder_config['source_admission_implementation'] = {
+                name: _digest(Path(__file__).with_name(name + '.py').read_bytes())
+                for name in ('source_completeness', 'source_coverage', 'public_source_scope')
+            }
         if self.builder_config.get('storage_policy') == 'domain_time_blocks.v1':
             import inspect
             module = inspect.getmodule(type(self))
@@ -914,6 +919,10 @@ class MarketDomainBuilder:
             raise ArtifactError("build contract does not belong to the executor domain")
 
         raw_batches = RawBatches(self.layout.root, request.raw_batch_ids)
+        coverage_enabled = self.builder_config.get('coverage_state_policy') == 'source_observations.v1'
+        if 'coverage_state_policy' in self.builder_config and not coverage_enabled:
+            raise ArtifactError('unsupported source coverage state policy')
+        coverage_observations = []
         for raw in raw_batches:
             if raw.manifest.get("domain") != self.domain:
                 raise ArtifactError(
@@ -921,6 +930,12 @@ class MarketDomainBuilder:
                 )
             if raw.manifest.get("status") != "success":
                 raise ArtifactError(f"RawBatch {raw.ref.raw_batch_id!r} is not successful")
+            if coverage_enabled:
+                from axiom_data.source_coverage import observation
+                coverage_observations.append(observation(raw))
+            else:
+                from axiom_data.source_completeness import validate_raw_completeness
+                validate_raw_completeness(raw)
 
         parent = None
         parent_raw_batch_ids: frozenset[str] = frozenset()
@@ -954,6 +969,9 @@ class MarketDomainBuilder:
         }
         calendar = loaded_dependencies.get("trading_calendar")
         security = loaded_dependencies.get("security_master")
+        if 'security_session_scope' in self.builder_config:
+            from axiom_data.public_source_scope import validate_security_scope
+            validate_security_scope(self.domain, self.builder_config, raw_batches, loaded_dependencies)
 
         self.parent_group_states = parent.manifest.get("group_states", []) if parent else []
         rows = self._build_rows(
@@ -998,11 +1016,17 @@ class MarketDomainBuilder:
         builder_config_digest = _digest(_json_bytes(self.builder_config))
         builder_implementation_ref = _builder_implementation_ref(self)
         parent_ref = _commit_ref(parent) if parent is not None else None
+        coverage = None
+        if coverage_enabled:
+            from axiom_data.source_coverage import state as coverage_state
+            coverage = coverage_state(parent, parent_raw_batch_ids, coverage_observations)
         if (parent is not None and self.builder_config.get('no_change_policy') == 'reuse_equal_state.v1'
             and logical_digest == parent.manifest['logical_content_digest']
+            and set(request.raw_batch_ids) <= parent_raw_batch_ids
             and self.builder_config == parent.manifest['builder_config']
             and builder_implementation_ref == parent.manifest['builder_implementation_ref']
             and dependencies == parent.manifest['dependency_commit_refs']
+            and (not coverage_enabled or coverage['state_digest'] == parent.manifest.get('source_coverage', {}).get('state_digest'))
             and (request.contract_version != 'universe_membership.v3' or
                  self.group_states == parent.manifest['group_states'])):
             return parent.ref
@@ -1047,6 +1071,8 @@ class MarketDomainBuilder:
             from axiom_data.domains.pr6 import validate_group_states
             validate_group_states(rows,self.group_states)
             manifest['group_states'] = self.group_states
+        if coverage_enabled:
+            manifest['source_coverage'] = coverage
         identity_digest = _identity_digest(manifest, "domain_commit_id")
         commit_id = _derived_identity(self.domain, identity_digest)
         if self.expected_commit_id is not None and self.expected_commit_id != commit_id:
@@ -1267,6 +1293,16 @@ def _validate_domain_commit_node(
         if not isinstance(raw_refs, list):
             raise ArtifactError("DomainCommit ordered raw refs are invalid")
         raw_ids: set[str] = set()
+        coverage_enabled = commit.manifest['builder_config'].get('coverage_state_policy') == 'source_observations.v1'
+        if 'coverage_state_policy' in commit.manifest['builder_config'] and not coverage_enabled:
+            raise ArtifactError('unsupported coverage state policy')
+        if ('source_coverage' in commit.manifest) != coverage_enabled:
+            raise ArtifactError('source coverage manifest/policy mismatch')
+        coverage_observations = []
+        if 'security_session_scope' in commit.manifest['builder_config']:
+            from axiom_data.dm1_source import _SECURITY_SESSION_SCOPE_DOMAINS
+            if domain not in _SECURITY_SESSION_SCOPE_DOMAINS:
+                raise ArtifactError('unsupported security session scope domain')
         for raw_ref in raw_refs:
             if not isinstance(raw_ref, dict) or not isinstance(
                 raw_ref.get("raw_batch_id"), str
@@ -1276,6 +1312,12 @@ def _validate_domain_commit_node(
             if raw.manifest.get("domain") != domain or _raw_ref(raw) != raw_ref:
                 raise ArtifactError("DomainCommit raw ref does not match its artifact")
             raw_ids.add(raw.ref.raw_batch_id)
+            if coverage_enabled:
+                from axiom_data.source_coverage import observation
+                coverage_observations.append(observation(raw))
+            else:
+                from axiom_data.source_completeness import validate_raw_completeness
+                validate_raw_completeness(raw)
         if len(raw_ids) != len(raw_refs):
             raise ArtifactError("DomainCommit raw refs must not contain duplicates")
         transitive_raw_batch_ids = set(raw_ids)
@@ -1284,6 +1326,7 @@ def _validate_domain_commit_node(
             raise ArtifactError("Phase 1 PR2 DomainCommit patch refs must be empty")
 
         parent_ref = commit.manifest.get("parent_commit_ref")
+        parent = None
         if parent_ref is not None:
             if (
                 not isinstance(parent_ref, dict)
@@ -1310,6 +1353,14 @@ def _validate_domain_commit_node(
             transitive_raw_batch_ids.update(
                 raw_closure_cache[(domain, parent.ref.commit_id)]
             )
+
+        if coverage_enabled:
+            from axiom_data.source_coverage import state as coverage_state
+            expected_coverage = coverage_state(parent,
+                raw_closure_cache[(domain, parent.ref.commit_id)] if parent is not None else frozenset(),
+                coverage_observations)
+            if commit.manifest['source_coverage'] != expected_coverage:
+                raise ArtifactError('source coverage differs from validated Raw lineage')
 
         if domain in DM1_REFERENCE_DOMAINS + PR6_DOMAINS + PR7_DOMAINS:
             _validate_dm1_observation_refs(
@@ -1379,6 +1430,10 @@ def _validate_domain_commit_node(
                         f"{domain} dependency ref does not match its artifact"
                     )
                 dependencies[dependency_domain] = dependency
+            if 'security_session_scope' in commit.manifest['builder_config']:
+                from axiom_data.public_source_scope import validate_security_scope
+                validate_security_scope(domain, commit.manifest['builder_config'],
+                    RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]), dependencies)
             if domain in PR6_DOMAINS + PR7_DOMAINS:
                 _validate_pr6_dependencies(domain, commit.rows, dependencies)
             if domain == "market_daily":

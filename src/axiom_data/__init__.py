@@ -72,8 +72,14 @@ from .operations import plan_daily, daily, bootstrap, repair, inspect_scope
 from .view_operation import materialize_views
 from .recovery import verify_recovery
 from .admission_plan import validate_admission_plan
+from .gate_a import make_gate_a_plan, validate_gate_a, plan_historical_views, validate_terminal_evidence_plan, validate_terminal_evidence
 
 __all__ = [
+    "make_gate_a_plan",
+    "validate_gate_a",
+    "plan_historical_views",
+    "validate_terminal_evidence_plan",
+    "validate_terminal_evidence",
     "validate_admission_plan",
     "verify_recovery",
     "materialize_views",

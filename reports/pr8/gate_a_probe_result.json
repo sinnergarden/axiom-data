@@ -1,0 +1,4474 @@
+{
+  "schema_version": "gate_a_readiness.v1",
+  "status": "GATE_A_BLOCKED",
+  "findings": [
+    {
+      "section": "source:market_daily:tushare_phase1.v1",
+      "reason": "source completeness policy unestablished: daily",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:security_status:tushare_dm1.v1",
+      "reason": "source completeness policy unestablished: daily",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:price_limits:tushare_dm1.v1",
+      "reason": "source completeness policy unestablished: stk_limit",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:adjustment_factors:tushare_dm1.v1",
+      "reason": "source completeness policy unestablished: adj_factor",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:security_capital:tushare_dm1.v1",
+      "reason": "source completeness policy unestablished: daily_basic",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:corporate_actions:tushare_dm1.v1",
+      "reason": "source completeness policy unestablished: dividend",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:benchmark_daily:tushare_dm1.v1",
+      "reason": "source completeness policy unestablished: index_daily",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:financial_events:tushare_pr6.v1",
+      "reason": "source completeness policy unestablished: income",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:valuation_daily:tushare_pr6.v1",
+      "reason": "source completeness policy unestablished: daily_basic",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:universe_membership:tushare_pr6.v1",
+      "reason": "source completeness policy unestablished: index_weight",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:industry_membership:tushare_industry_qualification.v1",
+      "reason": "source completeness policy unestablished: index_classify",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:security_master:exchange_security.v1",
+      "reason": "source completeness policy unestablished: SSE",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "source:trading_calendar:tushare_phase1.v1",
+      "reason": "source completeness policy unestablished: trade_cal",
+      "error_type": "ArtifactError"
+    },
+    {
+      "section": "terminal_plan",
+      "reason": "formal full-scope execution capabilities missing",
+      "missing": [
+        {
+          "category": "full_admission",
+          "role": "producer",
+          "entry": "axiom_data.full_admission.full_admission"
+        },
+        {
+          "category": "full_admission",
+          "role": "validator",
+          "entry": "axiom_data.full_admission.validate_full_admission"
+        },
+        {
+          "category": "daily",
+          "role": "validator",
+          "entry": "axiom_data.daily_acceptance.validate_daily_evidence"
+        },
+        {
+          "category": "notebook",
+          "role": "producer",
+          "entry": "axiom_data.notebook_acceptance.execute_notebook_smoke"
+        },
+        {
+          "category": "notebook",
+          "role": "validator",
+          "entry": "axiom_data.notebook_acceptance.validate_notebook_smoke"
+        }
+      ]
+    },
+    {
+      "section": "historical_views",
+      "reason": "full-range sparse-history qualification executor absent"
+    }
+  ],
+  "evidence": {
+    "scope_registry_digest": "sha256:61f62cee3eda50ad1924d6bb04bea7c892ee18a2842d25a7c0e79fab629058a8",
+    "contract_digest": "sha256:893201bb65124a41caad57d5733528533cec59c271aad58a4e43ae814b12f1e0",
+    "requirement_bindings": {
+      "adjusted_price.anchored_ohlc": {
+        "domain": "adjusted_price",
+        "public_field": "open/high/low/close",
+        "sources": [
+          "market_daily:tushare_phase1.v1",
+          "adjustment_factors:tushare_dm1.v1"
+        ]
+      },
+      "adjustment.factor": {
+        "domain": "adjustment_factors",
+        "public_field": "factor",
+        "sources": [
+          "adjustment_factors:tushare_dm1.v1"
+        ]
+      },
+      "benchmark.close": {
+        "domain": "benchmark_daily",
+        "public_field": "close",
+        "sources": [
+          "benchmark_daily:tushare_dm1.v1"
+        ]
+      },
+      "market.amount": {
+        "domain": "market_daily",
+        "public_field": "amount_cny",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "market.circ_mv": {
+        "domain": "market_daily",
+        "public_field": "circulating_market_cap_cny",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "market.close": {
+        "domain": "market_daily",
+        "public_field": "close",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "market.high": {
+        "domain": "market_daily",
+        "public_field": "high",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "market.high_limit": {
+        "domain": "price_limits",
+        "public_field": "upper_limit",
+        "sources": [
+          "price_limits:tushare_dm1.v1"
+        ]
+      },
+      "market.low": {
+        "domain": "market_daily",
+        "public_field": "low",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "market.low_limit": {
+        "domain": "price_limits",
+        "public_field": "lower_limit",
+        "sources": [
+          "price_limits:tushare_dm1.v1"
+        ]
+      },
+      "market.open": {
+        "domain": "market_daily",
+        "public_field": "open",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "market.paused": {
+        "domain": "security_status",
+        "public_field": "status",
+        "sources": [
+          "security_status:tushare_dm1.v1"
+        ]
+      },
+      "market.session": {
+        "domain": "market_daily",
+        "public_field": "session",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "market.total_mv": {
+        "domain": "market_daily",
+        "public_field": "total_market_cap_cny",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "market.turnover_rate": {
+        "domain": "market_daily",
+        "public_field": "turnover_rate",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "market.volume": {
+        "domain": "market_daily",
+        "public_field": "volume_shares",
+        "sources": [
+          "market_daily:tushare_phase1.v1"
+        ]
+      },
+      "shares.float": {
+        "domain": "security_capital",
+        "public_field": "circulating_shares",
+        "sources": [
+          "security_capital:tushare_dm1.v1"
+        ]
+      },
+      "shares.total": {
+        "domain": "security_capital",
+        "public_field": "total_shares",
+        "sources": [
+          "security_capital:tushare_dm1.v1"
+        ]
+      },
+      "balance.accounts_receivable": {
+        "domain": "financial_events",
+        "public_field": "balance.accounts_receivable",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "balance.current_assets": {
+        "domain": "financial_events",
+        "public_field": "balance.current_assets",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "balance.current_liabilities": {
+        "domain": "financial_events",
+        "public_field": "balance.current_liabilities",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "balance.equity": {
+        "domain": "financial_events",
+        "public_field": "balance.equity",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "balance.inventory": {
+        "domain": "financial_events",
+        "public_field": "balance.inventory",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "balance.total_assets": {
+        "domain": "financial_events",
+        "public_field": "balance.total_assets",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "cashflow.operating": {
+        "domain": "financial_events",
+        "public_field": "cashflow.operating",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "financial.single_quarter_oper_cost": {
+        "domain": "financial_stable_derived",
+        "public_field": "financial.single_quarter_oper_cost",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "financial.single_quarter_revenue": {
+        "domain": "financial_stable_derived",
+        "public_field": "financial.single_quarter_revenue",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "financial.ttm_net_income": {
+        "domain": "financial_stable_derived",
+        "public_field": "financial.ttm_net_income",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "financial.ttm_revenue": {
+        "domain": "financial_stable_derived",
+        "public_field": "financial.ttm_revenue",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "income.net_income": {
+        "domain": "financial_events",
+        "public_field": "income.net_income",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "income.oper_cost": {
+        "domain": "financial_events",
+        "public_field": "income.oper_cost",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "income.revenue": {
+        "domain": "financial_events",
+        "public_field": "income.revenue",
+        "sources": [
+          "financial_events:tushare_pr6.v1"
+        ]
+      },
+      "indicator.current_ratio": {
+        "domain": "financial_events",
+        "public_field": "indicator.current_ratio",
+        "sources": [
+          "financial_events:tushare_fina_indicator.v1"
+        ]
+      },
+      "indicator.debt_ratio": {
+        "domain": "financial_events",
+        "public_field": "indicator.debt_ratio",
+        "sources": [
+          "financial_events:tushare_fina_indicator.v1"
+        ]
+      },
+      "indicator.gross_margin": {
+        "domain": "financial_events",
+        "public_field": "indicator.gross_margin",
+        "sources": [
+          "financial_events:tushare_fina_indicator.v1"
+        ]
+      },
+      "indicator.roe": {
+        "domain": "financial_events",
+        "public_field": "indicator.roe",
+        "sources": [
+          "financial_events:tushare_fina_indicator.v1"
+        ]
+      },
+      "industry.membership": {
+        "domain": "industry_membership",
+        "public_field": "industry.membership",
+        "sources": [
+          "industry_membership:tushare_industry_qualification.v1"
+        ]
+      },
+      "universe.membership": {
+        "domain": "universe_membership",
+        "public_field": "universe.membership",
+        "sources": [
+          "universe_membership:tushare_pr6.v1"
+        ]
+      },
+      "valuation.pb": {
+        "domain": "valuation_daily",
+        "public_field": "valuation.pb",
+        "sources": [
+          "valuation_daily:tushare_pr6.v1"
+        ]
+      },
+      "valuation.pe": {
+        "domain": "valuation_daily",
+        "public_field": "valuation.pe",
+        "sources": [
+          "valuation_daily:tushare_pr6.v1"
+        ]
+      },
+      "valuation.ps": {
+        "domain": "valuation_daily",
+        "public_field": "valuation.ps",
+        "sources": [
+          "valuation_daily:tushare_pr6.v1"
+        ]
+      },
+      "forecast.announcement": {
+        "domain": "forecast_observations",
+        "public_field": "forecast.announcement",
+        "sources": [
+          "forecast_observations:tushare_pr7.v1"
+        ]
+      },
+      "forecast.period_end": {
+        "domain": "forecast_observations",
+        "public_field": "forecast.period_end",
+        "sources": [
+          "forecast_observations:tushare_pr7.v1"
+        ]
+      },
+      "forecast.type": {
+        "domain": "forecast_observations",
+        "public_field": "forecast.type",
+        "sources": [
+          "forecast_observations:tushare_pr7.v1"
+        ]
+      },
+      "holder.number": {
+        "domain": "holder_count_events",
+        "public_field": "holder.number",
+        "sources": [
+          "holder_count_events:tushare_pr7_holder.v3"
+        ]
+      },
+      "holder.top10_ratio": {
+        "domain": "top_holders_reports",
+        "public_field": "holder.top10_ratio",
+        "sources": [
+          "top_holders_reports:tushare_pr7.v1"
+        ]
+      },
+      "margin.balance": {
+        "domain": "margin_daily",
+        "public_field": "margin.balance",
+        "sources": [
+          "margin_daily:tushare_pr7.v1"
+        ]
+      },
+      "margin.buy": {
+        "domain": "margin_daily",
+        "public_field": "margin.buy",
+        "sources": [
+          "margin_daily:tushare_pr7.v1"
+        ]
+      },
+      "margin.lend_balance_volume": {
+        "domain": "margin_daily",
+        "public_field": "margin.lend_balance_volume",
+        "sources": [
+          "margin_daily:tushare_pr7.v1"
+        ]
+      },
+      "margin.lend_repay_volume": {
+        "domain": "margin_daily",
+        "public_field": "margin.lend_repay_volume",
+        "sources": [
+          "margin_daily:tushare_pr7.v1"
+        ]
+      },
+      "margin.lend_sell_volume": {
+        "domain": "margin_daily",
+        "public_field": "margin.lend_sell_volume",
+        "sources": [
+          "margin_daily:tushare_pr7.v1"
+        ]
+      },
+      "margin.repay": {
+        "domain": "margin_daily",
+        "public_field": "margin.repay",
+        "sources": [
+          "margin_daily:tushare_pr7.v1"
+        ]
+      },
+      "margin.total_balance": {
+        "domain": "margin_daily",
+        "public_field": "margin.total_balance",
+        "sources": [
+          "margin_daily:tushare_pr7.v1"
+        ]
+      },
+      "moneyflow.big_buy": {
+        "domain": "moneyflow_daily",
+        "public_field": "moneyflow.big_buy",
+        "sources": [
+          "moneyflow_daily:tushare_pr7.v1"
+        ]
+      },
+      "moneyflow.big_sell": {
+        "domain": "moneyflow_daily",
+        "public_field": "moneyflow.big_sell",
+        "sources": [
+          "moneyflow_daily:tushare_pr7.v1"
+        ]
+      },
+      "moneyflow.net": {
+        "domain": "moneyflow_daily",
+        "public_field": "moneyflow.net",
+        "sources": [
+          "moneyflow_daily:tushare_pr7.v1"
+        ]
+      }
+    },
+    "requested_target_digest": "sha256:1831f564dddbb4649d75dbdac8e8e393e075554f925b6c834df7493f8c6cd81e",
+    "source_plan": {
+      "schema_version": "v1_bootstrap_sources.v1",
+      "scope": {
+        "symbols": [
+          "688981.SH"
+        ],
+        "start_session": "2014-01-01",
+        "end_session": "2026-09-08",
+        "financial_observation_start": "2013-01-01",
+        "benchmarks": [
+          "000300.SH"
+        ],
+        "universe_ids": [
+          "000906.SH"
+        ]
+      },
+      "requests_by_domain": {
+        "market_daily": [
+          {
+            "collector": "market",
+            "domain": "market_daily",
+            "endpoint": "daily",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          },
+          {
+            "collector": "market",
+            "domain": "market_daily",
+            "endpoint": "adj_factor",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          },
+          {
+            "collector": "market",
+            "domain": "market_daily",
+            "endpoint": "daily_basic",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          },
+          {
+            "collector": "market",
+            "domain": "market_daily",
+            "endpoint": "stk_limit",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          },
+          {
+            "collector": "market",
+            "domain": "market_daily",
+            "endpoint": "suspend_d",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          }
+        ],
+        "security_status": [
+          {
+            "collector": "dm1",
+            "domain": "security_status",
+            "endpoint": "daily",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          },
+          {
+            "collector": "dm1",
+            "domain": "security_status",
+            "endpoint": "suspend_d",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          }
+        ],
+        "price_limits": [
+          {
+            "collector": "dm1",
+            "domain": "price_limits",
+            "endpoint": "stk_limit",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          }
+        ],
+        "adjustment_factors": [
+          {
+            "collector": "dm1",
+            "domain": "adjustment_factors",
+            "endpoint": "adj_factor",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          }
+        ],
+        "security_capital": [
+          {
+            "collector": "dm1",
+            "domain": "security_capital",
+            "endpoint": "daily_basic",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          }
+        ],
+        "corporate_actions": [
+          {
+            "collector": "dm1",
+            "domain": "corporate_actions",
+            "endpoint": "dividend",
+            "params": {
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          }
+        ],
+        "valuation_daily": [
+          {
+            "collector": "pr6",
+            "domain": "valuation_daily",
+            "endpoint": "daily_basic",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "688981.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          }
+        ],
+        "financial_events": [
+          {
+            "collector": "pr6",
+            "domain": "financial_events",
+            "endpoint": "income",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20130101",
+              "end_date": "20171231",
+              "report_type": "1"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6",
+            "domain": "financial_events",
+            "endpoint": "balancesheet",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20130101",
+              "end_date": "20171231",
+              "report_type": "1"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6",
+            "domain": "financial_events",
+            "endpoint": "cashflow",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20130101",
+              "end_date": "20171231",
+              "report_type": "1"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6",
+            "domain": "financial_events",
+            "endpoint": "income",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20180101",
+              "end_date": "20221231",
+              "report_type": "1"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6",
+            "domain": "financial_events",
+            "endpoint": "balancesheet",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20180101",
+              "end_date": "20221231",
+              "report_type": "1"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6",
+            "domain": "financial_events",
+            "endpoint": "cashflow",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20180101",
+              "end_date": "20221231",
+              "report_type": "1"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6",
+            "domain": "financial_events",
+            "endpoint": "income",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20230101",
+              "end_date": "20260908",
+              "report_type": "1"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6",
+            "domain": "financial_events",
+            "endpoint": "balancesheet",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20230101",
+              "end_date": "20260908",
+              "report_type": "1"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6",
+            "domain": "financial_events",
+            "endpoint": "cashflow",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20230101",
+              "end_date": "20260908",
+              "report_type": "1"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20130101",
+              "end_date": "20130331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20130401",
+              "end_date": "20130630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20130701",
+              "end_date": "20130930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20131001",
+              "end_date": "20131231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20140101",
+              "end_date": "20140331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20140401",
+              "end_date": "20140630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20140701",
+              "end_date": "20140930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20141001",
+              "end_date": "20141231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20150101",
+              "end_date": "20150331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20150401",
+              "end_date": "20150630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20150701",
+              "end_date": "20150930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20151001",
+              "end_date": "20151231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20160101",
+              "end_date": "20160331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20160401",
+              "end_date": "20160630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20160701",
+              "end_date": "20160930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20161001",
+              "end_date": "20161231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20170101",
+              "end_date": "20170331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20170401",
+              "end_date": "20170630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20170701",
+              "end_date": "20170930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20171001",
+              "end_date": "20171231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20180101",
+              "end_date": "20180331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20180401",
+              "end_date": "20180630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20180701",
+              "end_date": "20180930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20181001",
+              "end_date": "20181231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20190101",
+              "end_date": "20190331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20190401",
+              "end_date": "20190630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20190701",
+              "end_date": "20190930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20191001",
+              "end_date": "20191231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20200101",
+              "end_date": "20200331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20200401",
+              "end_date": "20200630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20200701",
+              "end_date": "20200930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20201001",
+              "end_date": "20201231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20210101",
+              "end_date": "20210331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20210401",
+              "end_date": "20210630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20210701",
+              "end_date": "20210930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20211001",
+              "end_date": "20211231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20220101",
+              "end_date": "20220331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20220401",
+              "end_date": "20220630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20220701",
+              "end_date": "20220930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20221001",
+              "end_date": "20221231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20230101",
+              "end_date": "20230331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20230401",
+              "end_date": "20230630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20230701",
+              "end_date": "20230930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20231001",
+              "end_date": "20231231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20240101",
+              "end_date": "20240331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20240401",
+              "end_date": "20240630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20240701",
+              "end_date": "20240930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20241001",
+              "end_date": "20241231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20250101",
+              "end_date": "20250331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20250401",
+              "end_date": "20250630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20250701",
+              "end_date": "20250930"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20251001",
+              "end_date": "20251231"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20260101",
+              "end_date": "20260331"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20260401",
+              "end_date": "20260630"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr6_indicator",
+            "domain": "financial_events",
+            "endpoint": "fina_indicator",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20260701",
+              "end_date": "20260908"
+            },
+            "economic_scope": {
+              "start": "20130101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          }
+        ],
+        "holder_count_events": [
+          {
+            "collector": "pr7_holder_v3",
+            "domain": "holder_count_events",
+            "endpoint": "stk_holdernumber",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20140101",
+              "end_date": "20260908"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          }
+        ],
+        "top_holders_reports": [
+          {
+            "collector": "pr7",
+            "domain": "top_holders_reports",
+            "endpoint": "top10_holders",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20140101",
+              "end_date": "20181231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr7",
+            "domain": "top_holders_reports",
+            "endpoint": "top10_holders",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20190101",
+              "end_date": "20231231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          },
+          {
+            "collector": "pr7",
+            "domain": "top_holders_reports",
+            "endpoint": "top10_holders",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20240101",
+              "end_date": "20260908"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          }
+        ],
+        "margin_daily": [
+          {
+            "collector": "pr7",
+            "domain": "margin_daily",
+            "endpoint": "margin_detail",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20140101",
+              "end_date": "20260908"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "next_session_publication"
+          }
+        ],
+        "moneyflow_daily": [
+          {
+            "collector": "pr7",
+            "domain": "moneyflow_daily",
+            "endpoint": "moneyflow",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20140101",
+              "end_date": "20260908"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          }
+        ],
+        "forecast_observations": [
+          {
+            "collector": "pr7",
+            "domain": "forecast_observations",
+            "endpoint": "forecast",
+            "params": {
+              "ts_code": "688981.SH",
+              "start_date": "20140101",
+              "end_date": "20260908"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "revision_scan"
+          }
+        ],
+        "benchmark_daily": [
+          {
+            "collector": "dm1",
+            "domain": "benchmark_daily",
+            "endpoint": "index_daily",
+            "params": {
+              "start_date": "20140101",
+              "end_date": "20260908",
+              "ts_code": "000300.SH"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "session_close"
+          }
+        ],
+        "universe_membership": [
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20140101",
+              "end_date": "20140131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20140201",
+              "end_date": "20140228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20140301",
+              "end_date": "20140331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20140401",
+              "end_date": "20140430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20140501",
+              "end_date": "20140531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20140601",
+              "end_date": "20140630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20140701",
+              "end_date": "20140731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20140801",
+              "end_date": "20140831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20140901",
+              "end_date": "20140930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20141001",
+              "end_date": "20141031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20141101",
+              "end_date": "20141130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20141201",
+              "end_date": "20141231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20150101",
+              "end_date": "20150131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20150201",
+              "end_date": "20150228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20150301",
+              "end_date": "20150331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20150401",
+              "end_date": "20150430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20150501",
+              "end_date": "20150531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20150601",
+              "end_date": "20150630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20150701",
+              "end_date": "20150731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20150801",
+              "end_date": "20150831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20150901",
+              "end_date": "20150930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20151001",
+              "end_date": "20151031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20151101",
+              "end_date": "20151130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20151201",
+              "end_date": "20151231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20160101",
+              "end_date": "20160131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20160201",
+              "end_date": "20160229"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20160301",
+              "end_date": "20160331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20160401",
+              "end_date": "20160430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20160501",
+              "end_date": "20160531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20160601",
+              "end_date": "20160630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20160701",
+              "end_date": "20160731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20160801",
+              "end_date": "20160831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20160901",
+              "end_date": "20160930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20161001",
+              "end_date": "20161031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20161101",
+              "end_date": "20161130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20161201",
+              "end_date": "20161231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20170101",
+              "end_date": "20170131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20170201",
+              "end_date": "20170228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20170301",
+              "end_date": "20170331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20170401",
+              "end_date": "20170430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20170501",
+              "end_date": "20170531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20170601",
+              "end_date": "20170630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20170701",
+              "end_date": "20170731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20170801",
+              "end_date": "20170831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20170901",
+              "end_date": "20170930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20171001",
+              "end_date": "20171031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20171101",
+              "end_date": "20171130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20171201",
+              "end_date": "20171231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20180101",
+              "end_date": "20180131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20180201",
+              "end_date": "20180228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20180301",
+              "end_date": "20180331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20180401",
+              "end_date": "20180430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20180501",
+              "end_date": "20180531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20180601",
+              "end_date": "20180630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20180701",
+              "end_date": "20180731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20180801",
+              "end_date": "20180831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20180901",
+              "end_date": "20180930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20181001",
+              "end_date": "20181031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20181101",
+              "end_date": "20181130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20181201",
+              "end_date": "20181231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20190101",
+              "end_date": "20190131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20190201",
+              "end_date": "20190228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20190301",
+              "end_date": "20190331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20190401",
+              "end_date": "20190430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20190501",
+              "end_date": "20190531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20190601",
+              "end_date": "20190630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20190701",
+              "end_date": "20190731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20190801",
+              "end_date": "20190831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20190901",
+              "end_date": "20190930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20191001",
+              "end_date": "20191031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20191101",
+              "end_date": "20191130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20191201",
+              "end_date": "20191231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20200101",
+              "end_date": "20200131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20200201",
+              "end_date": "20200229"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20200301",
+              "end_date": "20200331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20200401",
+              "end_date": "20200430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20200501",
+              "end_date": "20200531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20200601",
+              "end_date": "20200630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20200701",
+              "end_date": "20200731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20200801",
+              "end_date": "20200831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20200901",
+              "end_date": "20200930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20201001",
+              "end_date": "20201031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20201101",
+              "end_date": "20201130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20201201",
+              "end_date": "20201231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20210101",
+              "end_date": "20210131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20210201",
+              "end_date": "20210228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20210301",
+              "end_date": "20210331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20210401",
+              "end_date": "20210430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20210501",
+              "end_date": "20210531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20210601",
+              "end_date": "20210630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20210701",
+              "end_date": "20210731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20210801",
+              "end_date": "20210831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20210901",
+              "end_date": "20210930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20211001",
+              "end_date": "20211031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20211101",
+              "end_date": "20211130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20211201",
+              "end_date": "20211231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20220101",
+              "end_date": "20220131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20220201",
+              "end_date": "20220228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20220301",
+              "end_date": "20220331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20220401",
+              "end_date": "20220430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20220501",
+              "end_date": "20220531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20220601",
+              "end_date": "20220630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20220701",
+              "end_date": "20220731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20220801",
+              "end_date": "20220831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20220901",
+              "end_date": "20220930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20221001",
+              "end_date": "20221031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20221101",
+              "end_date": "20221130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20221201",
+              "end_date": "20221231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20230101",
+              "end_date": "20230131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20230201",
+              "end_date": "20230228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20230301",
+              "end_date": "20230331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20230401",
+              "end_date": "20230430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20230501",
+              "end_date": "20230531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20230601",
+              "end_date": "20230630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20230701",
+              "end_date": "20230731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20230801",
+              "end_date": "20230831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20230901",
+              "end_date": "20230930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20231001",
+              "end_date": "20231031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20231101",
+              "end_date": "20231130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20231201",
+              "end_date": "20231231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20240101",
+              "end_date": "20240131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20240201",
+              "end_date": "20240229"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20240301",
+              "end_date": "20240331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20240401",
+              "end_date": "20240430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20240501",
+              "end_date": "20240531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20240601",
+              "end_date": "20240630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20240701",
+              "end_date": "20240731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20240801",
+              "end_date": "20240831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20240901",
+              "end_date": "20240930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20241001",
+              "end_date": "20241031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20241101",
+              "end_date": "20241130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20241201",
+              "end_date": "20241231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20250101",
+              "end_date": "20250131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20250201",
+              "end_date": "20250228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20250301",
+              "end_date": "20250331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20250401",
+              "end_date": "20250430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20250501",
+              "end_date": "20250531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20250601",
+              "end_date": "20250630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20250701",
+              "end_date": "20250731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20250801",
+              "end_date": "20250831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20250901",
+              "end_date": "20250930"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20251001",
+              "end_date": "20251031"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20251101",
+              "end_date": "20251130"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20251201",
+              "end_date": "20251231"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20260101",
+              "end_date": "20260131"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20260201",
+              "end_date": "20260228"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20260301",
+              "end_date": "20260331"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20260401",
+              "end_date": "20260430"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20260501",
+              "end_date": "20260531"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20260601",
+              "end_date": "20260630"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20260701",
+              "end_date": "20260731"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20260801",
+              "end_date": "20260831"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          },
+          {
+            "collector": "pr6",
+            "domain": "universe_membership",
+            "endpoint": "index_weight",
+            "params": {
+              "index_code": "000906.SH",
+              "start_date": "20260901",
+              "end_date": "20260908"
+            },
+            "economic_scope": {
+              "start": "20140101",
+              "end": "20260908"
+            },
+            "availability_policy": "reference_observation"
+          }
+        ]
+      },
+      "required_reused_domains": [
+        "security_master",
+        "trading_calendar",
+        "industry_membership"
+      ],
+      "ready_for_consumption": false
+    },
+    "reference_plan": [
+      {
+        "domain": "security_master",
+        "profile": "exchange_security.v1",
+        "endpoints": [
+          "SSE",
+          "SZSE"
+        ],
+        "scope": {
+          "symbols": [
+            "688981.SH"
+          ],
+          "start_session": "2014-01-01",
+          "end_session": "2026-09-08",
+          "financial_observation_start": "2013-01-01",
+          "benchmarks": [
+            "000300.SH"
+          ],
+          "universe_ids": [
+            "000906.SH"
+          ]
+        },
+        "mode": "reuse_validated",
+        "required_refs": [
+          "domain_commit_id",
+          "manifest_digest"
+        ],
+        "validator": "axiom_data.artifacts.validate_domain_commit_closure"
+      },
+      {
+        "domain": "trading_calendar",
+        "profile": "tushare_phase1.v1",
+        "endpoints": [
+          "trade_cal"
+        ],
+        "scope": {
+          "symbols": [
+            "688981.SH"
+          ],
+          "start_session": "2014-01-01",
+          "end_session": "2026-09-08",
+          "financial_observation_start": "2013-01-01",
+          "benchmarks": [
+            "000300.SH"
+          ],
+          "universe_ids": [
+            "000906.SH"
+          ]
+        },
+        "mode": "reuse_validated",
+        "required_refs": [
+          "domain_commit_id",
+          "manifest_digest"
+        ],
+        "validator": "axiom_data.artifacts.validate_domain_commit_closure"
+      },
+      {
+        "domain": "industry_membership",
+        "profile": "tushare_industry_qualification.v1",
+        "endpoints": [
+          "index_classify",
+          "index_member_all"
+        ],
+        "scope": {
+          "symbols": [
+            "688981.SH"
+          ],
+          "start_session": "2014-01-01",
+          "end_session": "2026-09-08",
+          "financial_observation_start": "2013-01-01",
+          "benchmarks": [
+            "000300.SH"
+          ],
+          "universe_ids": [
+            "000906.SH"
+          ]
+        },
+        "mode": "reuse_validated",
+        "required_refs": [
+          "domain_commit_id",
+          "manifest_digest"
+        ],
+        "validator": "axiom_data.artifacts.validate_domain_commit_closure"
+      }
+    ],
+    "source:financial_events:tushare_fina_indicator.v1": {
+      "profile_digest": "sha256:f819dfb169d7c11c05c043fa345f1786d2d3c24cce57b7c0b8973839a0ac1176",
+      "policies": {
+        "fina_indicator": {
+          "status": "established",
+          "profile_version": "tushare_fina_indicator.v1",
+          "endpoint": "fina_indicator",
+          "limit": 100,
+          "pagination": null,
+          "policy_ref": "tushare_fina_indicator.v1",
+          "policy_digest": "sha256:f819dfb169d7c11c05c043fa345f1786d2d3c24cce57b7c0b8973839a0ac1176",
+          "completeness_rule": "strictly_below_limit",
+          "action": "split_date_scope",
+          "authority_profile_version": "tushare_fina_indicator.v1",
+          "authority_profile_digest": "sha256:f819dfb169d7c11c05c043fa345f1786d2d3c24cce57b7c0b8973839a0ac1176"
+        }
+      },
+      "coverage_policy": "source_observations.v1",
+      "pit_policy": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics_digest": "sha256:6eac56a23f049633c72e62bfb7a0fc746f395dddbc8f6046200e6e8bfe0abfbf"
+    },
+    "source:holder_count_events:tushare_pr7_holder.v3": {
+      "profile_digest": "sha256:04c9e741b5a8203244573c3b910e305ea4faad246f330bcb0bdded6378725d72",
+      "policies": {
+        "stk_holdernumber": {
+          "status": "established",
+          "profile_version": "tushare_pr7_holder.v3",
+          "endpoint": "stk_holdernumber",
+          "limit": 3000,
+          "pagination": null,
+          "policy_ref": "tushare_pr7_holder.v3",
+          "policy_digest": "sha256:04c9e741b5a8203244573c3b910e305ea4faad246f330bcb0bdded6378725d72",
+          "completeness_rule": "strictly_below_limit",
+          "action": "split_date_scope",
+          "authority_profile_version": "tushare_pr7_holder.v3",
+          "authority_profile_digest": "sha256:04c9e741b5a8203244573c3b910e305ea4faad246f330bcb0bdded6378725d72"
+        }
+      },
+      "coverage_policy": "source_observations.v1",
+      "pit_policy": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics_digest": "sha256:58370991155e6b75657892c30d7d5c6d8f832c3afd79505d8f9b0c072b8cf465"
+    },
+    "source:top_holders_reports:tushare_pr7.v1": {
+      "profile_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9",
+      "policies": {
+        "top10_holders": {
+          "status": "established",
+          "profile_version": "tushare_pr7.v1",
+          "endpoint": "top10_holders",
+          "limit": 1000,
+          "pagination": null,
+          "policy_ref": "tushare_pr7.v1",
+          "policy_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9",
+          "completeness_rule": "strictly_below_limit",
+          "action": "split_date_scope",
+          "authority_profile_version": "tushare_pr7.v1",
+          "authority_profile_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9"
+        }
+      },
+      "coverage_policy": "source_observations.v1",
+      "pit_policy": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics_digest": "sha256:216a3f7cf6711a193c41866dfec4c8d92b2d3e1e74ad378fbb82bffc0672f0da"
+    },
+    "source:margin_daily:tushare_pr7.v1": {
+      "profile_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9",
+      "policies": {
+        "margin_detail": {
+          "status": "established",
+          "profile_version": "tushare_pr7.v1",
+          "endpoint": "margin_detail",
+          "limit": 6000,
+          "pagination": null,
+          "policy_ref": "tushare_pr7.v1",
+          "policy_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9",
+          "completeness_rule": "strictly_below_limit",
+          "action": "split_date_scope",
+          "authority_profile_version": "tushare_pr7.v1",
+          "authority_profile_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9"
+        }
+      },
+      "coverage_policy": "source_observations.v1",
+      "pit_policy": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics_digest": "sha256:bcb3f397d4e73c6fcf08b62a83758ad54b3802196dca759e41656129e015a4f7"
+    },
+    "source:moneyflow_daily:tushare_pr7.v1": {
+      "profile_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9",
+      "policies": {
+        "moneyflow": {
+          "status": "established",
+          "profile_version": "tushare_pr7.v1",
+          "endpoint": "moneyflow",
+          "limit": 6000,
+          "pagination": null,
+          "policy_ref": "tushare_pr7.v1",
+          "policy_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9",
+          "completeness_rule": "strictly_below_limit",
+          "action": "split_date_scope",
+          "authority_profile_version": "tushare_pr7.v1",
+          "authority_profile_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9"
+        }
+      },
+      "coverage_policy": "source_observations.v1",
+      "pit_policy": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics_digest": "sha256:adeabef29df987c5bd49ce6818db8816e2c7d624ef1bcaad12bb1d513d7f3467"
+    },
+    "source:forecast_observations:tushare_pr7.v1": {
+      "profile_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9",
+      "policies": {
+        "forecast": {
+          "status": "established",
+          "profile_version": "tushare_pr7.v1",
+          "endpoint": "forecast",
+          "limit": 3500,
+          "pagination": null,
+          "policy_ref": "tushare_pr7.v1",
+          "policy_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9",
+          "completeness_rule": "strictly_below_limit",
+          "action": "split_date_scope",
+          "authority_profile_version": "tushare_pr7.v1",
+          "authority_profile_digest": "sha256:d1df8be72dd28dc57aebe18c265cc0278c79834be38a3c6856750aa8ef9729e9"
+        }
+      },
+      "coverage_policy": "source_observations.v1",
+      "pit_policy": "best_effort_terminal_history; observation_time_is_not_historical_publication",
+      "source_semantics_digest": "sha256:676731b114a7806feeae705c6067cbdbf2f9e1e2fd3842898236fd112a753704"
+    },
+    "industry": {
+      "industry_profile_digest": "sha256:98837a3d1e4c9eccf7dee0bad4e4b210c204488a21acb4341fc3b37c2dfb55b8",
+      "boundary_profile_digest": "sha256:effa1fbf45b8f60acac2546e1c063efb17b16b1aa4f2ba9af35c3c08d1a87063"
+    },
+    "coverage_policy": {
+      "version": "source_observations.v1",
+      "projector_code_digest": "sha256:5d75270e4536a2107b8f874d402d43b85d632c0565ebe896361e894f7a64b3b9",
+      "state_code_digest": "sha256:a354463d2467e5a46350cdaec0386e1db72e4f2f9046bf91e01a57952b556128",
+      "checks": [
+        "synthetic_empty_projection",
+        "exact_replay",
+        "new_observation_identity",
+        "partial_rejection"
+      ],
+      "evidence_kind": "code_canary_not_source_availability_evidence"
+    },
+    "public_routes": {
+      "axiom_data.operations.bootstrap": {
+        "code_digest": "sha256:eec3c7d5c6b8d81697ba46119da79caccca594e2ca55714d391ea1f323684cc5",
+        "required_calls": [
+          "assemble_candidate",
+          "create_snapshot"
+        ]
+      },
+      "axiom_data.operations.daily": {
+        "code_digest": "sha256:a5e9d6742a863ef8b9b33f023cb0298bbc32a7ddac8658ab5aed0a02e618ab34",
+        "required_calls": [
+          "_validate_domain_inputs",
+          "assemble_candidate",
+          "collect_requests"
+        ]
+      },
+      "axiom_data.operations.repair": {
+        "code_digest": "sha256:4c1d5ba73170b3b72149c67134f4e38a17320bc56421414392caf6f6cc023312",
+        "required_calls": [
+          "assemble_candidate"
+        ]
+      },
+      "axiom_data.operations.assemble_candidate": {
+        "code_digest": "sha256:31c672bfe1f617816c5aac8531d893b931f899da27588f3af11b7f6cf932a90d",
+        "required_calls": [
+          "BuildApplication",
+          "_validate_domain_inputs"
+        ]
+      },
+      "axiom_data.operations.inspect_scope": {
+        "code_digest": "sha256:e29be1271d77a283514c94681e6f40e3dfaf9f832379269ffb7a74e3816ad4f6",
+        "required_calls": [
+          "session_coverage"
+        ]
+      },
+      "axiom_data.artifacts.rebuild_catalog": {
+        "code_digest": "sha256:5da8eab81140d387bfa786a3e06634427d7e7603352059742b1be1c0b483cf32",
+        "required_calls": [
+          "_catalog_entries"
+        ]
+      }
+    },
+    "historical_executor": {
+      "entry": "axiom_data.gate_a.plan_historical_views",
+      "code_digest": "sha256:859e84843d98a1a1e2fd1611abe54ea0989e617f1d74934a5812ad02f41acd1e",
+      "policy": {
+        "anchor": "last_eligible_target_session_per_security.v1",
+        "view_kinds": [
+          "adjusted_price",
+          "market_replay",
+          "market_qlib",
+          "pr6_fact",
+          "pr7_fact"
+        ],
+        "scope": "retain_complete_requested_target; report_uncovered_intervals",
+        "gap_admission": "requires_source_evidence; no_automatic_waiver",
+        "fact_pit_policy": "best_effort_vendor_v1",
+        "qlib_price_basis": "unadjusted",
+        "adjusted_pit_policy": "research_non_pit"
+      }
+    },
+    "terminal_plan": {
+      "schema_version": "terminal_evidence_plan_check.v1",
+      "status": "CAPABILITY_BLOCKED",
+      "missing_capabilities": [
+        {
+          "category": "full_admission",
+          "role": "producer",
+          "entry": "axiom_data.full_admission.full_admission"
+        },
+        {
+          "category": "full_admission",
+          "role": "validator",
+          "entry": "axiom_data.full_admission.validate_full_admission"
+        },
+        {
+          "category": "daily",
+          "role": "validator",
+          "entry": "axiom_data.daily_acceptance.validate_daily_evidence"
+        },
+        {
+          "category": "notebook",
+          "role": "producer",
+          "entry": "axiom_data.notebook_acceptance.execute_notebook_smoke"
+        },
+        {
+          "category": "notebook",
+          "role": "validator",
+          "entry": "axiom_data.notebook_acceptance.validate_notebook_smoke"
+        }
+      ],
+      "entries": {
+        "axiom_data.operations.bootstrap": {
+          "signature": "(data_root, *, run_id, domain_inputs=None, domain_commit_ids=None)",
+          "code_digest": "sha256:eec3c7d5c6b8d81697ba46119da79caccca594e2ca55714d391ea1f323684cc5"
+        },
+        "axiom_data.artifacts.load_snapshot": {
+          "signature": "(data_root: 'str | Path', snapshot_id: 'str') -> 'DataSnapshot'",
+          "code_digest": "sha256:ab16ce3193f17d525264b639a9cf3f48c173e17c2be8a124f59c79baad64d722"
+        },
+        "axiom_data.view_operation.materialize_views": {
+          "signature": "(data_root, *, run_id, snapshot_id, views)",
+          "code_digest": "sha256:60c06e28515affaa19038c48191ea5a3f704aff59f9ff1462ffb436d1a8629b2"
+        },
+        "axiom_data.gate_a.validate_terminal_evidence": {
+          "signature": "(data_root, evidence, *, plan)",
+          "code_digest": "sha256:ee992cad009da48dac3eed84970a676c3e9c969883731804417a39fa20f5dc49"
+        },
+        "axiom_data.operations.daily": {
+          "signature": "(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, client=None, observed_raw_batch_ids=None)",
+          "code_digest": "sha256:a5e9d6742a863ef8b9b33f023cb0298bbc32a7ddac8658ab5aed0a02e618ab34"
+        },
+        "axiom_data.recovery.verify_recovery": {
+          "signature": "(data_root, *, run_id, snapshot_id, expected_snapshot_manifest_digest, views, rebuild_views=None)",
+          "code_digest": "sha256:94cfb84f9b84067956ddb2821ffa51cba06df9b66580526fdd307dc9b3384fb9"
+        }
+      },
+      "plan_digest": "sha256:d7a04b4bd3aee6bfbc1f2cbae14c5025e7422edaa92340811ed3753f00aa681d",
+      "gate_b_status": "NOT_ASSESSED"
+    }
+  },
+  "external_review_required": true,
+  "bulk_authorized": false,
+  "gate_b_status": "NOT_ASSESSED",
+  "ready_for_consumption": false
+}

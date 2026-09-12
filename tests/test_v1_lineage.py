@@ -13,6 +13,7 @@ def chain(count):
     for n in range(count):
         identity = 'calendar-' + str(n)
         manifest = {'contract_digest': 'c', 'identity_digest': identity,
+                    'builder_config': {},
                     'logical_content_digest': 'l',
                     'parent_commit_ref': _commit_ref(parent) if parent else None,
                     'ordered_raw_batch_refs': [], 'ordered_patch_refs': [],

@@ -245,6 +245,8 @@ def _check_collected(raw, spec):
         or manifest['request'] != {'endpoint': spec['endpoint'], 'params': spec['params'],
                                    'fields': binding['fields']}):
         raise ArtifactError('resume RawBatch/source request binding mismatch')
+    from axiom_data.source_completeness import validate_raw_completeness
+    validate_raw_completeness(raw)
 
 
 def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_batch_ids=None):
@@ -310,7 +312,7 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
             failure = result['failure']
             if failure is None:
                 state['failed'].pop(key, None)
-            elif (isinstance(failure, dict) and set(failure) == {'error_type'}
+            elif (isinstance(failure, dict) and set(failure) in ({'error_type'}, {'error_type','raw_batch_id'})
                   and isinstance(failure['error_type'], str)):
                 state['failed'][key] = failure
             else:
@@ -341,6 +343,13 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
                     _check_collected(raw, spec)
                     state['failed'].pop(key, None)
                     continue
+                failed_raw = state['failed'].get(key, {}).get('raw_batch_id')
+                if failed_raw is not None:
+                    raw = load_raw_batch(layout.root, failed_raw)
+                    _check_collected(raw, spec)
+                    state['completed'][key] = failed_raw
+                    state['failed'].pop(key, None)
+                    continue
                 collector = collectors[spec['collector']]
                 args = (spec['domain'], spec['endpoint'], spec['params']) if spec['collector'] == 'dm1' else (spec['endpoint'], spec['params'])
                 versions={'pr6_bulk':'tushare_pr6.v2','pr6_indicator':'tushare_fina_indicator.v1','pr7_holder':'tushare_pr7_holder.v2','pr7_holder_v3':'tushare_pr7_holder.v3'}
@@ -352,7 +361,12 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
                 consecutive_failures = 0
             except Exception as exc:
                 # Supplier exception text may contain request credentials or transport URLs.
+                previous_raw = state['failed'].get(key, {}).get('raw_batch_id')
                 state['failed'][key] = {'error_type': type(exc).__name__}
+                rejected_raw = getattr(exc, 'raw_batch_id', None) or previous_raw
+                if rejected_raw is not None:
+                    from axiom_data.build import _validate_identity
+                    state['failed'][key]['raw_batch_id'] = _validate_identity('raw_batch_id', rejected_raw)
                 consecutive_failures += 1
             state['updated_at'] = datetime.now(timezone.utc).isoformat()
             checkpoint = _safe_path(layout.root, checkpoints/(key.removeprefix('sha256:')+'.json'))
@@ -411,12 +425,29 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
     from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
-    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition','top10_qualification','margin_qualification','corporate_action_observations','capital_qualification','limit_qualification','forecast_source_types','corporate_action_reobservation'}
+    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'security_session_scope', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition','top10_qualification','margin_qualification','corporate_action_observations','capital_qualification','limit_qualification','forecast_source_types','corporate_action_reobservation'}
     for domain, spec in domain_inputs.items():
         if not isinstance(spec, dict) or set(spec) != {'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}:
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
         if not isinstance(spec['config'], dict) or set(spec['config'])-allowed_config:
             raise ArtifactError('unsupported public builder config')
+        config = spec['config']
+        from axiom_data.consumption import _symbols, _session
+        from axiom_data.contracts import load_contract
+        if load_contract(spec['contract_version'])['domain'] != domain:
+            raise ArtifactError('public domain/contract mismatch')
+        if 'symbols' in config:
+            _symbols(config['symbols'])
+        for key in ('start_session', 'end_session'):
+            if key in config and _session(config[key], key) != config[key]:
+                raise ArtifactError('public scope requires canonical ISO sessions')
+        if 'start_session' in config and 'end_session' in config and config['start_session'] > config['end_session']:
+            raise ArtifactError('reversed public scope')
+        if 'security_session_scope' in config:
+            from axiom_data.dm1_source import _SECURITY_SESSION_SCOPE_DOMAINS
+            if (domain not in _SECURITY_SESSION_SCOPE_DOMAINS or config['security_session_scope'] != 'exchange_security.v1'
+                    or not {'symbols','start_session','end_session'} <= set(config)):
+                raise ArtifactError('unsupported or incomplete public security session scope')
         for key, expected in {'capital_qualification': ('security_capital', 'capital_conflict.v1'),
                               'corporate_action_reobservation': ('corporate_actions', 'corporate_action_reobservation.v1'),
                               'limit_qualification': ('price_limits', 'zero_limit_pair.v1'),
@@ -473,6 +504,17 @@ def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, cli
     planned=plan_daily(data_root,concrete,source_requests=source_requests)
     requested=set(planned['source_change_domains'])
     _validate_domain_inputs(domain_inputs,pending_domains=requested)
+    from axiom_data.public_source_scope import validate_request_envelope
+    for domain, spec in domain_inputs.items():
+        if domain in requested:
+            params = [r['params'] for r in source_requests if r['domain'] == domain]
+            if 'security_session_scope' in spec['config']:
+                for raw_id in spec['raw_batch_ids']:
+                    raw = load_raw_batch(data_root, raw_id)
+                    if raw.manifest['domain'] != domain:
+                        raise ArtifactError('source scope Raw domain mismatch')
+                    params.append(raw.manifest['request']['params'])
+            validate_request_envelope(spec['config'], params)
     if not requested<=set(domain_inputs):
         raise ArtifactError('daily build inputs must cover every required source domain')
     frozen=json.loads(_json_bytes({'source_plan':planned,'domain_inputs':domain_inputs}))
@@ -616,7 +658,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
             spec = domain_inputs[domain]
             try:
                 config = dict(spec['config'], storage_policy='domain_time_blocks.v1',
-                              no_change_policy='reuse_equal_state.v1')
+                              no_change_policy='reuse_equal_state.v1', coverage_state_policy='source_observations.v1')
                 deps = {name: commits[name] for name in _DOMAIN_DEPENDENCIES[domain]}
                 if domain in {'trading_calendar','security_master','market_daily'}:
                     options = {'calendar_commit_id':deps['trading_calendar'],

@@ -49,7 +49,20 @@ def main():
     admission_plan = commands.add_parser('validate-admission-plan')
     admission_plan.add_argument('--snapshot', required=True)
     admission_plan.add_argument('--plan', type=Path, required=True)
+    gate_a = commands.add_parser('validate-gate-a')
+    gate_a.add_argument('--plan', type=Path, required=True)
+    gate_a_plan = commands.add_parser('plan-gate-a')
+    gate_a_plan.add_argument('--scope', type=Path, required=True)
     args = parser.parse_args()
+    if args.operation == 'plan-gate-a':
+        from axiom_data import make_gate_a_plan
+        print(json.dumps(make_gate_a_plan(json.loads(args.scope.read_bytes())), ensure_ascii=False, indent=2))
+        return 0
+    if args.operation == 'validate-gate-a':
+        from axiom_data import validate_gate_a
+        result = validate_gate_a(json.loads(args.plan.read_bytes()))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result['status'] == 'GATE_A_READY_FOR_BULK_BUILD' else 1
     if args.operation == 'validate-admission-plan':
         from axiom_data import validate_admission_plan
         result = validate_admission_plan(args.data_root, snapshot_id=args.snapshot,

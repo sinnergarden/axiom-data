@@ -9,6 +9,7 @@ from axiom_data.artifacts import (ArtifactError, MarketDomainBuilder, _json_byte
 from axiom_data.tushare import TushareCollector, _response_records, _retrieved_at
 from axiom_data.pit import fingerprint, instant
 from axiom_data.domains.pr6 import economic_content
+from axiom_data.source_completeness import validate_payload_completeness
 
 
 def load_pr6_source_profile(version='tushare_pr6.v1'):
@@ -31,12 +32,15 @@ def source_date(value):
 
 
 def validate_payload(endpoint, params, records, *, profile_version='tushare_pr6.v1'):
+    _validate_payload_shape(endpoint, params, records, profile_version=profile_version)
+    validate_payload_completeness(profile_version, endpoint, records, params=params)
+
+
+def _validate_payload_shape(endpoint, params, records, *, profile_version):
     profile=load_pr6_source_profile(profile_version)
     if endpoint not in profile['endpoints']:
         raise ArtifactError('endpoint outside SourceProfile')
     definition=profile['endpoints'][endpoint]
-    if profile_version=='tushare_pr6.v2' and (not isinstance(records,list) or len(records)>=7000):
-        raise ArtifactError('possibly truncated bulk industry payload')
     allowed = {'ts_code','start_date','end_date','period','report_type','trade_date','index_code'}
     if not isinstance(params,dict) or not params or set(params)-allowed:
         raise ArtifactError('PR6 request must have bounded allowed parameters')
@@ -87,18 +91,21 @@ class Pr6Collector(TushareCollector):
             raise ArtifactError('unsupported PR6 endpoint')
         validate_payload(endpoint,params,[],profile_version=profile_version)
         records=_response_records(self._client().query(endpoint,fields=','.join(definition['fields']),**params))
-        validate_payload(endpoint,params,records,profile_version=profile_version)
+        _validate_payload_shape(endpoint,params,records,profile_version=profile_version)
         observed=_retrieved_at(retrieved_at)
         request={'endpoint':endpoint,'params':params,'fields':definition['fields']}
         payload=_json_bytes(records)
         identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(profile_version),
                               'membership_complete':membership_complete})
-        return write_raw_batch(self.data_root,'pr6-'+identity,domain=definition['domain'],
+        ref=write_raw_batch(self.data_root,'pr6-'+identity,domain=definition['domain'],
             source_profile='tushare.pr6.'+endpoint,source_profile_version=profile_version,
             source_profile_digest=profile_digest(profile_version),request=request,retrieved_at=observed,
             payload=payload,collector_code=self.implementation_revision,
             summary={'rows':len(records),'historical_availability':'best_effort',
                      'membership_complete':membership_complete})
+        validate_payload_completeness(profile_version, endpoint, records,
+            params=params, raw_batch_id=ref.raw_batch_id)
+        return ref
 
 
 class Pr6Builder(MarketDomainBuilder):
@@ -122,7 +129,7 @@ class Pr6Builder(MarketDomainBuilder):
             config['sw_implementation_content']={name:_digest(files('axiom_data').joinpath(name).read_bytes())
                 for name in ('sw_mapping.py','sw_industry.py','industry_qualification.py')}
         config['implementation_content']={name:_digest(files('axiom_data').joinpath(name).read_bytes())
-            for name in ('pr6_source.py','pit.py','domains/pr6.py','artifacts.py')}
+            for name in ('pr6_source.py','source_completeness.py','pit.py','domains/pr6.py','artifacts.py')}
         super().__init__(data_root,domain,builder_config=config,**kwargs)
 
     def _legacy_rows(self, contract, parent_rows, raw_batches):
