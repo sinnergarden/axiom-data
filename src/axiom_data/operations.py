@@ -287,6 +287,34 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
             'stage': 'COLLECTION', 'status': 'RUNNING'}
         if state['plan_digest'] != plan_digest or state['requests'] != requests:
             raise ArtifactError('resume plan differs from frozen run plan')
+        checkpoints = _safe_path(layout.root, directory/'collection-checkpoints')
+        _ensure_directory(layout.root, checkpoints)
+        # collection.json remains the backwards-compatible start/end summary.
+        # Between summaries, each request has one durable, constant-size result.
+        for key in keys:
+            checkpoint = _safe_path(layout.root, checkpoints/(key.removeprefix('sha256:')+'.json'))
+            if not checkpoint.exists():
+                continue
+            result = json.loads(checkpoint.read_bytes())
+            if (set(result) != {'schema_version','plan_digest','request_id','raw_batch_id','failure'}
+                    or result['schema_version'] != 'collection_checkpoint.v1'
+                    or result['plan_digest'] != plan_digest or result['request_id'] != key):
+                raise ArtifactError('collection checkpoint binding mismatch')
+            identity = result['raw_batch_id']
+            if identity is None and result['failure'] is None:
+                raise ArtifactError('collection checkpoint has no result')
+            if identity is not None:
+                if key in state['completed'] and state['completed'][key] != identity:
+                    raise ArtifactError('collection checkpoint differs from completed Raw ref')
+                state['completed'][key] = identity
+            failure = result['failure']
+            if failure is None:
+                state['failed'].pop(key, None)
+            elif (isinstance(failure, dict) and set(failure) == {'error_type'}
+                  and isinstance(failure['error_type'], str)):
+                state['failed'][key] = failure
+            else:
+                raise ArtifactError('invalid collection checkpoint failure')
         state.update(status='RUNNING',stage='COLLECTION')
         if observed_raw_batch_ids is not None:
             state['observed_raw_batch_ids']=bound
@@ -327,7 +355,10 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
                 state['failed'][key] = {'error_type': type(exc).__name__}
                 consecutive_failures += 1
             state['updated_at'] = datetime.now(timezone.utc).isoformat()
-            _save(path, state)
+            checkpoint = _safe_path(layout.root, checkpoints/(key.removeprefix('sha256:')+'.json'))
+            _save(checkpoint, {'schema_version':'collection_checkpoint.v1',
+                'plan_digest':plan_digest,'request_id':key,
+                'raw_batch_id':state['completed'].get(key),'failure':state['failed'].get(key)})
             if consecutive_failures >= 3:
                 break
         state['pending_count'] = len(requests) - len(set(state['completed']) | set(state['failed']))

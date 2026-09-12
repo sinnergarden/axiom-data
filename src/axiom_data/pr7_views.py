@@ -26,14 +26,11 @@ def request_coverage(reader,domain,symbol,session):
     # again; no disk cache or execution report can supply request authority.
     if not hasattr(reader,'_pr7_request_intervals'):reader._pr7_request_intervals={}
     if domain not in reader._pr7_request_intervals:
-        commit=reader.commits[domain];refs=set()
-        while commit:
-            refs.update(r['raw_batch_id'] for r in commit.manifest['ordered_raw_batch_refs'])
-            parent=commit.manifest['parent_commit_ref']
-            if parent:
-                from axiom_data.artifacts import validate_domain_commit_closure
-                commit=validate_domain_commit_closure(reader.data_root,domain,parent['domain_commit_id'])
-            else:commit=None
+        identity=reader.commits[domain].ref.commit_id;refs=set()
+        while identity:
+            node=reader._verified_lineage[(domain,identity)]
+            refs.update(node['raw_batch_ids'])
+            identity=node['parent_commit_id']
         intervals={}
         for ref in sorted(refs):
             raw=load_raw_batch(reader.data_root,ref);params=raw.manifest['request']['params']

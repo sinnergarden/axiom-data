@@ -1432,7 +1432,7 @@ def validate_domain_commit_closure(
 def _checked_snapshot_commits(
     data_root: Path,
     domain_commit_ids: Mapping[str, str],
-    *, validation_cache=None,
+    *, validation_cache=None, lineage_index=None,
 ) -> dict[str, DomainCommit]:
     requested_domains = set(domain_commit_ids)
     if requested_domains == _REQUIRED_SNAPSHOT_DOMAINS:
@@ -1484,6 +1484,22 @@ def _checked_snapshot_commits(
             validate_dm1_snapshot_rows(commits)
         except MarketContractError as exc:
             raise ArtifactError("D-M1 snapshot cross-domain validation failed") from exc
+    if lineage_index is not None:
+        # Retain only verified ancestry metadata for this Reader, not ancestor
+        # row/payload objects or a process-wide validation cache.
+        for domain in PR7_DOMAINS:
+            identity = commits[domain].ref.commit_id if domain in commits else None
+            while identity is not None:
+                key = (domain, identity)
+                if key in lineage_index:
+                    break
+                commit = cache[key]
+                parent = (commit.manifest['parent_commit_ref'] or {}).get('domain_commit_id')
+                lineage_index[key] = {
+                    'parent_commit_id': parent,
+                    'raw_batch_ids': tuple(ref['raw_batch_id'] for ref in commit.manifest['ordered_raw_batch_refs']),
+                }
+                identity = parent
     return commits
 
 
@@ -1544,7 +1560,7 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     return _load_snapshot_with_commits(data_root, snapshot_id)[0]
 
 
-def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, checked_commits=None, validation_cache=None):
+def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, checked_commits=None, validation_cache=None, lineage_index=None):
     """Return the already checked commits from this one Snapshot validation."""
 
     layout = _layout(data_root)
@@ -1591,7 +1607,8 @@ def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, chec
     # Publication has just validated this exact composition. Validate the stored
     # Snapshot manifest against those commits without repeating all source replay.
     # Public loads supply no cache and always validate the complete closure.
-    commits = _checked_snapshot_commits(layout.root, ids, validation_cache=validation_cache) if checked_commits is None else checked_commits
+    commits = _checked_snapshot_commits(layout.root, ids, validation_cache=validation_cache,
+                                      lineage_index=lineage_index) if checked_commits is None else checked_commits
     if set(commits) != set(ids):
         raise ArtifactError('checked Snapshot composition is incomplete')
     for domain in ordered_domains:
@@ -1661,8 +1678,10 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
         # and every View's own files/semantics are still independently checked.
         reader = object.__new__(SnapshotReader)
         reader.data_root = layout.root
+        reader._verified_lineage = {}
         reader.snapshot, reader.commits = _load_snapshot_with_commits(
-            layout.root, artifact_dir.name, validation_cache=(closure_cache, raw_closure_cache))
+            layout.root, artifact_dir.name, validation_cache=(closure_cache, raw_closure_cache),
+            lineage_index=reader._verified_lineage)
         snapshot = reader.snapshot
         readers[snapshot.ref.snapshot_id] = reader
         entries.append(
