@@ -27,7 +27,8 @@ reuse, full 2014-to-source-available history admission, recovery, performance an
 a read-only acceptance Notebook. Preserve the accepted 56 Data requirements and
 469 Feature dependency scope; add no Data domains or Research Features.
 Do not merge this release, change SysQ, or enter Research/Core/Trade/UI.
-Data root is `/home/liuming/workspace/axiom/data`. See `V1_WORK_LOG.md` for the
+Formal Data root is `/var/lib/axiom-data`. Legacy workspace data is retained
+forensic/unknown evidence only; it must not receive production bootstrap writes. See `V1_WORK_LOG.md` for the
 terminal gates. Resolve a default pointer once at operation entry; builders
 continue to receive only explicit immutable identities.
 

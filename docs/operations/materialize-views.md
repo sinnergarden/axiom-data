@@ -8,7 +8,7 @@ Snapshot identity must be concrete. Cross-View references, such as an adjusted
 price View supplied to Qlib, must also be explicit artifact IDs.
 
 ```sh
-PYTHONPATH=src python3 -m axiom_data.cli --data-root /home/liuming/workspace/axiom/data \
+PYTHONPATH=src python3 -m axiom_data.cli --data-root /var/lib/axiom-data \
   materialize-views --snapshot snapshot-EXPLICIT_ID --run-id REQUIRED_VIEW_RUN \
   --plan required-views.json
 ```

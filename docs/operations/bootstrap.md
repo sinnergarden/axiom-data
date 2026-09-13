@@ -22,3 +22,18 @@ validation: resuming a checkpoint validates it again and rejects later corruptio
 Validation on the real PR7 closure reuses the exact ordinary Snapshot ID, checks
 resume, rejects incomplete input modes and detects corrupted canonical bytes.
 Full suite: 216 tests PASS (68.138s).
+
+## Physical storage
+
+Use the explicit absolute root `/var/lib/axiom-data` for this V1 deployment,
+including bootstrap collection, canonical builds, daily operations and recovery.
+The CLI requires `--data-root`; the shared Layout rejects relative paths and
+symlink roots. No environment or current-directory fallback selects a root.
+The caller may provide another explicit absolute isolated root for a test or
+recovery; that does not make it the production root.
+
+Published artifacts are sealed read-only through the existing writer boundary.
+Staging and operations remain writer-owned. Legacy workspace Raw, canonical and
+operation records are retained evidence pending individual qualification; they
+are not a production baseline or an implicit resume source. Any reuse must name
+immutable IDs and pass current source admission.

@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 from axiom_data import artifacts,ArtifactError,SnapshotReader
 from axiom_data.operations import assemble_candidate
@@ -14,7 +15,7 @@ class CandidateVerificationCacheTest(unittest.TestCase):
     def test_candidate_reuses_verified_nodes_but_next_call_checks_source_again(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 parent_id=current_pr7_snapshot(root,run['refs']['snapshot_id'],['margin_daily'])
                 reader=SnapshotReader(root,parent_id);rid=reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
@@ -37,7 +38,7 @@ class CandidateVerificationCacheTest(unittest.TestCase):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
             a=Path(directory)/'a';b=Path(directory)/'b'
-            for root in [a,b]:shutil.copytree(run['source_root'],root)
+            for root in [a,b]:shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 raw=next((b/'raw/batches').iterdir());m=json.loads((raw/'manifest.json').read_bytes());relative=raw.relative_to(b)/m['payload_files'][0]['path']
                 p=b/relative;p.chmod(0o600);p.write_bytes(p.read_bytes()+b' ')

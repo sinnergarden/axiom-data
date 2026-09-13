@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, BuildApplication, SnapshotReader, create_snapshot
@@ -14,7 +15,7 @@ class DailyPitPartitionReadTest(unittest.TestCase):
     def test_daily_bounds_preserve_revisions_and_read_complete_month(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 old=SnapshotReader(root,run['refs']['snapshot_id'])
                 ids={d:c.ref.commit_id for d,c in old.commits.items()}

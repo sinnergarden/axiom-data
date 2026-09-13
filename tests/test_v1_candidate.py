@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from fixture_locations import fixture_root
 import shutil
 import tempfile
 import unittest
@@ -12,7 +13,7 @@ class CandidateTest(unittest.TestCase):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_text())
         root=Path(tempfile.mkdtemp())/'data'
         try:
-            shutil.copytree(run['source_root'],root)
+            shutil.copytree(fixture_root(run['source_root']),root)
             parent=SnapshotReader(root,run['refs']['snapshot_id'])
             old={d:c.ref.commit_id for d,c in parent.commits.items()}
             raw=[r['raw_batch_id'] for r in parent.commits['holder_count_events'].manifest['ordered_raw_batch_refs']]

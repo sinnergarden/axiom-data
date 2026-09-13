@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, plan_daily
@@ -17,7 +18,7 @@ class DailyPlanTest(unittest.TestCase):
         run = json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)/'data'
-            shutil.copytree(run['source_root'], root)
+            shutil.copytree(fixture_root(run['source_root']), root)
             pointer = DataRootLayout(root).current_pointer
             pointer.parent.mkdir(parents=True, exist_ok=True)
             pointer.write_text(json.dumps({'snapshot_id':run['refs']['snapshot_id']}))

@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 from axiom_data import FactView, ArtifactError, artifacts
 from axiom_data.operations import compare_pr7_projection
@@ -12,7 +13,7 @@ class AcceptanceReadReuseTest(unittest.TestCase):
     def test_public_acceptance_reads_validate_once_and_reject_later_corruption(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes());refs=run['refs']
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             def facts():
                 return FactView(root,refs['snapshot_id'],pr6_fact_view_id=refs['pr6_view_id'],adjusted_price_view_id=refs['adjusted_view_id'])
             def compare():

@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, SnapshotReader, rebuild_catalog, validate_domain_commit_closure
@@ -15,7 +16,7 @@ class CatalogValidationReuseTest(unittest.TestCase):
     def test_cache_is_local_and_failed_rebuild_preserves_catalog(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as loaded:
                     self.assertEqual(rebuild_catalog(root),130)
@@ -35,7 +36,7 @@ class CatalogValidationReuseTest(unittest.TestCase):
     def test_checked_commits_cannot_bypass_snapshot_fixed_dependencies(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 reader=SnapshotReader(root,run['refs']['snapshot_id'])
                 write_rows(root,'catalog-calendar','trading_calendar',reader.trading_calendar())

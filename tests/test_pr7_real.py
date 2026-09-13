@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 from axiom_data import SnapshotReader,FactView
 from axiom_data.artifacts import ArtifactError
@@ -22,7 +23,7 @@ REPORT=Path(__file__).resolve().parents[1]/'reports/pr7/run_manifest.json'
 class Pr7RealTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        report=json.loads(REPORT.read_text());cls.root=Path(report['source_root']);cls.refs=report['refs']
+        report=json.loads(REPORT.read_text());cls.root=fixture_root(report['source_root']);cls.refs=report['refs']
         cls.reader=SnapshotReader(cls.root,cls.refs['snapshot_id'])
     def query(self,leaf,symbol='688981.SH',**kwargs):
         return self.reader.leaf_fact(leaf,symbol=symbol,target_session=kwargs.pop('target_session','2025-06-13'),knowledge_cutoff=kwargs.pop('knowledge_cutoff','2025-06-13T23:59:59+08:00'),pit_policy=kwargs.pop('pit_policy','best_effort_vendor_v1'),**kwargs)
@@ -73,6 +74,7 @@ class Pr7RealTest(unittest.TestCase):
             root=Path(temporary)/'root';shutil.copytree(self.root,root)
             from axiom_data.artifacts import _layout
             path=_layout(root).derived_commits('pr7_fact')/self.refs['pr7_view_id']/'rows.json'
+            path.chmod(path.stat().st_mode | 0o200)
             data=json.loads(path.read_text());data['wide'][0]['values']['holder.number']=1;path.write_text(json.dumps(data))
             with self.assertRaises(ArtifactError):load_pr7_fact_view(root,self.refs['pr7_view_id'])
     def test_complete_subset_membership_regression(self):
@@ -83,6 +85,6 @@ class Pr7RealTest(unittest.TestCase):
         self.assertEqual(subset,tuple(r for r in all_rows if r['symbol']=='688981.SH'))
 
     def test_published_pr7_v1_view_still_loads(self):
-        old=load_pr7_fact_view(Path('/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r3/source'),'pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae')
+        old=load_pr7_fact_view(fixture_root('/home/liuming/workspace/axiom/data/forensic/pr7-dm2-20260909-r1/admission-r3/source'),'pr7-fact-bbd7326584cd74667cc3de6d964ee10cbd4e2b434cffcd94222ecee7a2aedcae')
         self.assertEqual(old.manifest['schema_version'],'pr7_fact_view.v1')
         self.assertEqual(len(old.rows),12)

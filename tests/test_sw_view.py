@@ -2,6 +2,7 @@
 import json
 import math
 from pathlib import Path
+from fixture_locations import fixture_root
 import shutil
 import tempfile
 import unittest
@@ -14,10 +15,10 @@ from axiom_data.consumption import QlibViewReader
 class SwViewTest(unittest.TestCase):
     def test_real_snapshot_fact_qlib_and_nochange(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
-        source=Path('/home/liuming/workspace/axiom/data')
+        source=fixture_root('/home/liuming/workspace/axiom/data')
         plan=json.loads((source/'operations/sw2021-canonical-20260910-r1/build_plan.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             for identity in plan['raw_batch_ids']:
                 shutil.copytree(source/'raw/batches'/identity,root/'raw/batches'/identity)
             old=SnapshotReader(root,run['refs']['snapshot_id'])

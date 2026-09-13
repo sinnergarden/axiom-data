@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 
 from axiom_data import ArtifactError, SnapshotReader, bootstrap
 
@@ -11,7 +12,7 @@ class BootstrapCheckpointTest(unittest.TestCase):
     def test_complete_checkpoint_reuses_snapshot_and_revalidates_resume(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 reader=SnapshotReader(root,run['refs']['snapshot_id'])
                 ids={d:c.ref.commit_id for d,c in reader.commits.items()}

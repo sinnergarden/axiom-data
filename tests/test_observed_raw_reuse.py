@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 
 from axiom_data import ArtifactError, SnapshotReader, daily, load_raw_batch, plan_daily
 from axiom_data.operations import collect_requests
@@ -17,7 +18,7 @@ class ObservedRawReuseTest(unittest.TestCase):
             def query(self,*args,**kwargs):
                 self.calls+=1;raise AssertionError('precollected observation must not query supplier')
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 old=SnapshotReader(root,run['refs']['snapshot_id'])
                 parent_id=current_pr7_snapshot(root,run['refs']['snapshot_id'],['margin_daily'])

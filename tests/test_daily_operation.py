@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, SnapshotReader, daily, load_raw_batch
@@ -25,7 +26,7 @@ class DailyOperationTest(unittest.TestCase):
                     return [dict(ts_code='688981.SH',trade_date='20250613',rzye=12,rzmre=2,rzche=1,rqyl=3,rqchl=1,rqmcl=1,rzrqye=20)]
                 return [dict(ts_code='688981.SH',ann_date='20250614',end_date='20250331',holder_num=12345)]
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 parent_id=current_pr7_snapshot(root,run['refs']['snapshot_id'],['holder_count_events','margin_daily'])
                 parent=SnapshotReader(root,parent_id)
