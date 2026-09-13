@@ -852,9 +852,12 @@ class MarketDomainBuilder:
         if builder_config is not None and not isinstance(builder_config, Mapping):
             raise ArtifactError("builder_config must be a mapping")
         self.builder_config = _json_copy(builder_config or {})
+        self.builder_config.setdefault('coverage_state_policy', 'source_observations.v2')
         if self.builder_config.get('coverage_state_policy') == 'source_observations.v2':
             from axiom_data.source_completeness import current_contract_binding
+            from axiom_data.contracts import writable_contracts
             self.builder_config['source_completeness_binding'] = current_contract_binding()
+            self.builder_config['writable_contracts_digest'] = _digest(_json_bytes(writable_contracts()))
         if self.builder_config.get('coverage_state_policy') in {'source_observations.v1', 'source_observations.v2'} or 'security_session_scope' in self.builder_config:
             self.builder_config['source_admission_implementation'] = {
                 name: _digest(Path(__file__).with_name(name + '.py').read_bytes())
@@ -913,6 +916,13 @@ class MarketDomainBuilder:
         return _merge_rows(self.domain, contract, parent_rows, raw_batches)
 
     def __call__(self, request: BuildRequest) -> DomainCommitRef:
+        from axiom_data.contracts import require_writable_contract, writable_contracts
+        try:
+            require_writable_contract(self.domain, request.contract_version)
+        except ValueError as exc:
+            raise ArtifactError(str(exc)) from exc
+        if self.builder_config.get('coverage_state_policy') != writable_contracts()['source_coverage']['current']:
+            raise ArtifactError('LEGACY_CONTRACT_READ_ONLY: current source coverage contract required for publication')
         if request.patch_ids:
             raise ArtifactError("Phase 1 PR2 does not support non-empty patch_ids")
         contract, contract_content, contract_digest = _contract_content(
@@ -957,6 +967,8 @@ class MarketDomainBuilder:
                 or parent.manifest.get("contract_digest") != contract_digest
             ):
                 raise ArtifactError("parent commit belongs to a different contract lineage")
+            if parent.manifest.get('source_coverage', {}).get('schema_version') != coverage_policy:
+                raise ArtifactError('LEGACY_CONTRACT_READ_ONLY: source coverage upgrade requires a new lineage')
 
         calendar = None
         security = None
@@ -1337,8 +1349,9 @@ def _validate_domain_commit_node(
                 coverage_observations.append(observation(raw, policy=coverage_policy,
                                                          evidence=coverage_pages.get(raw.ref.raw_batch_id)))
             else:
-                from axiom_data.source_completeness import validate_raw_completeness
-                validate_raw_completeness(raw)
+                # No-coverage manifests predate the writable v2 contract.
+                from axiom_data.source_completeness import validate_raw_completeness_legacy
+                validate_raw_completeness_legacy(raw)
         if len(raw_ids) != len(raw_refs):
             raise ArtifactError("DomainCommit raw refs must not contain duplicates")
         transitive_raw_batch_ids = set(raw_ids)

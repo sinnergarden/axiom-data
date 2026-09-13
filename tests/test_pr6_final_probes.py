@@ -16,10 +16,9 @@ class FinalProbes(unittest.TestCase):
         fixtures.Pr6ArtifactTest.setUp(self)
         from axiom_data import MarketDomainBuilder,write_raw_batch
         from axiom_data.artifacts import _digest,_json_bytes
-        from test_artifacts import security_row
-        raw=write_raw_batch(self.root,'second-security',domain='security_master',source_profile='fixture',
-            source_profile_version='fixture.v1',source_profile_digest=_digest(b'fixture'),request={},
-            retrieved_at='2025-01-01T00:00:00Z',payload=_json_bytes([security_row('000002.SZ')]),collector_code='fixture',summary={})
+        from test_artifacts import security_row, write_rows
+        raw=write_rows(self.root,'second-security','security_master',[security_row('000002.SZ')],
+                       retrieved_at='2025-01-01T00:00:00Z')
         self.security=BuildApplication('security_master',MarketDomainBuilder(self.root,'security_master')).build(
             self.security.commit_id,[raw.raw_batch_id],[],'security_master.v1')
 

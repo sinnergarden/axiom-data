@@ -8,10 +8,12 @@ from axiom_data import ArtifactError, BuildApplication, load_raw_batch, validate
 from axiom_data.artifacts import _validate_domain_rows
 from axiom_data.contracts import load_contract
 from axiom_data.dm1_source import TushareDm1Builder, TushareDm1Collector
-from test_artifacts import build_pack
+from axiom_data.build import BuildContractError
+from test_artifacts import build_pack, synthetic_source_fixture
 from test_pr6_artifacts import Client
 
 
+@synthetic_source_fixture
 class CapitalConflictTest(unittest.TestCase):
     def test_actual_conflict_is_explicit_null_with_unchanged_raw_and_version_dispatch(self):
         source = json.loads(Path('tests/fixtures/capital_conflict.json').read_bytes())['rows']
@@ -25,7 +27,7 @@ class CapitalConflictTest(unittest.TestCase):
             def build(version, config):
                 return BuildApplication('security_capital', TushareDm1Builder(root, 'security_capital',
                     dependency_commit_ids=deps, builder_config=config)).build(None, [raw.raw_batch_id], [], version)
-            with self.assertRaisesRegex(ArtifactError, 'circulating shares'):
+            with self.assertRaisesRegex(BuildContractError, 'LEGACY_CONTRACT_READ_ONLY'):
                 build('security_capital.v1', cfg)
             qualified = dict(cfg, capital_qualification='capital_conflict.v1')
             ref = build('security_capital.v2', qualified)
@@ -38,7 +40,7 @@ class CapitalConflictTest(unittest.TestCase):
             self.assertEqual(build('security_capital.v2', qualified).commit_id, ref.commit_id)
             with self.assertRaises(ArtifactError):
                 build('security_capital.v2', cfg)
-            with self.assertRaises(ArtifactError):
+            with self.assertRaises(BuildContractError):
                 build('security_capital.v1', qualified)
             with self.assertRaises(ArtifactError):
                 _validate_domain_rows('security_capital', commit.rows, contract=load_contract('security_capital.v1'))

@@ -7,6 +7,7 @@ from unittest.mock import patch
 from axiom_data import artifacts,ArtifactError,SnapshotReader
 from axiom_data.operations import assemble_candidate
 from axiom_data.verification_cache import candidate_verification
+from test_pr7_source import current_pr7_snapshot
 
 
 class CandidateVerificationCacheTest(unittest.TestCase):
@@ -15,9 +16,10 @@ class CandidateVerificationCacheTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
             try:
-                reader=SnapshotReader(root,run['refs']['snapshot_id']);rid=reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
+                parent_id=current_pr7_snapshot(root,run['refs']['snapshot_id'],['margin_daily'])
+                reader=SnapshotReader(root,parent_id);rid=reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
                 inputs={'margin_daily':dict(raw_batch_ids=[rid],contract_version='margin_daily.v1',config={},new_lineage=False)}
-                def build():return assemble_candidate(root,run_id='candidate',parent_snapshot_id=run['refs']['snapshot_id'],domain_inputs=inputs)
+                def build():return assemble_candidate(root,run_id='candidate',parent_snapshot_id=parent_id,domain_inputs=inputs)
                 with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as calls:
                     result=build();self.assertEqual(result['status'],'CANDIDATE_BUILT',result.get('failed'))
                     self.assertEqual(calls.call_count,19)

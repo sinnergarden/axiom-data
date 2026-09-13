@@ -519,6 +519,7 @@ def compare_pr7_projection(data_root, snapshot_id, view_id, *, symbols, fields, 
 
 
 def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
+    from axiom_data.contracts import require_writable_contract
     from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
@@ -533,6 +534,10 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
         from axiom_data.contracts import load_contract
         if load_contract(spec['contract_version'])['domain'] != domain:
             raise ArtifactError('public domain/contract mismatch')
+        try:
+            require_writable_contract(domain, spec['contract_version'])
+        except ValueError as exc:
+            raise ArtifactError(str(exc)) from exc
         if 'symbols' in config:
             _symbols(config['symbols'])
         for key in ('start_session', 'end_session'):

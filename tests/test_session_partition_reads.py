@@ -6,9 +6,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, BuildApplication, MarketDomainBuilder, SnapshotReader, create_snapshot
-from test_artifacts import market_row, security_row, write_rows
+from test_artifacts import market_row, security_row, write_rows, synthetic_source_fixture
 
 
+@synthetic_source_fixture
 class SessionPartitionReadTest(unittest.TestCase):
     def test_public_reads_prune_months_after_full_validation_and_reject_corruption(self):
         with tempfile.TemporaryDirectory() as directory:

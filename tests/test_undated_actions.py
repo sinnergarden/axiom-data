@@ -4,9 +4,11 @@ from axiom_data import BuildApplication,load_raw_batch,validate_domain_commit_cl
 from axiom_data.dm1_source import TushareDm1Builder,TushareDm1Collector
 from axiom_data.artifacts import _validate_domain_rows
 from axiom_data.contracts import load_contract
-from test_artifacts import build_pack
+from axiom_data.build import BuildContractError
+from test_artifacts import build_pack, synthetic_source_fixture
 from test_pr6_artifacts import Client
 
+@synthetic_source_fixture
 class UndatedActionsTest(unittest.TestCase):
     def test_repeated_action_scan_retains_first_evidence_and_real_revisions(self):
         source=json.loads(Path('tests/fixtures/undated_corporate_actions.json').read_bytes())[0]['row']
@@ -16,7 +18,7 @@ class UndatedActionsTest(unittest.TestCase):
             cfg=dict(symbols=[source['ts_code']],start_session='2014-01-01',end_session='2026-09-08',
                 corporate_action_observations='corporate_action_observations.v1',dm1_source_partitioning='security.v1',
                 storage_policy='domain_time_blocks.v1',no_change_policy='reuse_equal_state.v1',
-                coverage_state_policy='source_observations.v1')
+                coverage_state_policy='source_observations.v2')
             def collect(row,time):
                 return TushareDm1Collector(root,Client([row])).collect('corporate_actions','dividend',
                     {'ts_code':row['ts_code']},retrieved_at=time).raw_batch_id
@@ -59,7 +61,7 @@ class UndatedActionsTest(unittest.TestCase):
                 retrieved_at='2026-09-10T00:00:00Z') for row in source]
             deps={'trading_calendar':pack['calendar'].commit_id,'security_master':pack['security'].commit_id}
             cfg=dict(symbols=[r['ts_code'] for r in source],start_session='2014-01-01',end_session='2026-09-08',storage_policy='domain_time_blocks.v1')
-            with self.assertRaisesRegex(ArtifactError,'requires ex_date'):
+            with self.assertRaisesRegex(BuildContractError,'LEGACY_CONTRACT_READ_ONLY'):
                 BuildApplication('corporate_actions',TushareDm1Builder(root,'corporate_actions',dependency_commit_ids=deps,builder_config=cfg)).build(None,[r.raw_batch_id for r in raw],[],'corporate_actions.v1')
             cfg['corporate_action_observations']='corporate_action_observations.v1'
             def build(parent=None,version='corporate_actions.v2'):
@@ -74,7 +76,7 @@ class UndatedActionsTest(unittest.TestCase):
             with self.assertRaisesRegex(ArtifactError,'INSUFFICIENT_SCOPE'):
                 reader.facts('corporate_actions',symbols=[source[0]['ts_code']],start_session='2025-01-01',end_session='2025-01-31')
             with self.assertRaises(ArtifactError):_validate_domain_rows('corporate_actions',commit.rows,contract=load_contract('corporate_actions.v1'))
-            with self.assertRaises(ArtifactError):build(version='corporate_actions.v1')
+            with self.assertRaises(BuildContractError):build(version='corporate_actions.v1')
             # Rebuilding this explicit root never substitutes a record/share date.
             self.assertEqual(build().commit_id,ref.commit_id)
             # Separate synthetic dated input verifies the version boundary.
@@ -83,7 +85,10 @@ class UndatedActionsTest(unittest.TestCase):
                 {'ts_code':dated['ts_code']},retrieved_at='2026-09-10T01:00:00Z')
             old_cfg={k:v for k,v in cfg.items() if k!='corporate_action_observations'}
             old_cfg['symbols']=[dated['ts_code']]
-            legacy=BuildApplication('corporate_actions',TushareDm1Builder(root,'corporate_actions',
-                dependency_commit_ids=deps,builder_config=old_cfg)).build(None,[dated_raw.raw_batch_id],[],'corporate_actions.v1')
-            with self.assertRaises(ArtifactError):build(parent=legacy.commit_id)
-            self.assertNotIn('observation_state',validate_domain_commit_closure(root,'corporate_actions',legacy.commit_id).rows[0])
+            with self.assertRaisesRegex(BuildContractError,'LEGACY_CONTRACT_READ_ONLY'):
+                BuildApplication('corporate_actions',TushareDm1Builder(root,'corporate_actions',
+                    dependency_commit_ids=deps,builder_config=old_cfg)).build(None,[dated_raw.raw_batch_id],[],'corporate_actions.v1')
+            frozen=json.loads(Path('reports/pr6/run_manifest.json').read_bytes())
+            legacy_id=frozen['artifact_refs']['domain_commits']['corporate_actions']['domain_commit_id']
+            legacy=validate_domain_commit_closure(frozen['data_root'],'corporate_actions',legacy_id)
+            self.assertNotIn('observation_state',legacy.rows[0])

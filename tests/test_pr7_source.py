@@ -7,24 +7,45 @@ from axiom_data.artifacts import _digest,_json_bytes,load_raw_batch,ArtifactErro
 from axiom_data.pr7_source import Pr7Collector,Pr7Builder,normalize,validate_payload
 from axiom_data.domains.pr7 import validate_rows
 from axiom_data.pit import select_revisions
-from test_artifacts import security_row
+from test_artifacts import security_row, write_rows, synthetic_source_fixture
 from test_pr6_artifacts import Client
 
 PARAMS={'ts_code':'000001.SZ','start_date':'20240101','end_date':'20260101'}
 def holders(count=10):
     return [dict(ts_code='000001.SZ',ann_date='20250401',end_date='20241231',holder_name='holder'+str(i),holder_type='institution',hold_amount=100+i,hold_ratio=1+i/100) for i in range(count)]
 
+
+def current_pr7_snapshot(root, snapshot_id, domains):
+    """Rebuild only requested PR7 domains from their immutable full Raw closure."""
+    from axiom_data import SnapshotReader, create_snapshot
+    from axiom_data.artifacts import _DOMAIN_DEPENDENCIES, _validated_domain_commit_with_raw_closure
+    reader=SnapshotReader(root,snapshot_id)
+    ids={domain:commit.ref.commit_id for domain,commit in reader.commits.items()}
+    for domain in domains:
+        old,raw_ids=_validated_domain_commit_with_raw_closure(root,domain,ids[domain])
+        builder=Pr7Builder(root,domain,builder_config=old.manifest['builder_config'],
+            dependency_commit_ids={dependency:ids[dependency] for dependency in _DOMAIN_DEPENDENCIES[domain]})
+        ref=BuildApplication(domain,builder).build(None,sorted(raw_ids),[],old.ref.contract_version)
+        current=validate_domain_commit_closure(root,domain,ref.commit_id)
+        if current.rows != old.rows:
+            raise AssertionError('current fixture lineage changed canonical values')
+        ids[domain]=ref.commit_id
+    return create_snapshot(root,ids).snapshot_id
+
+@synthetic_source_fixture
 class Pr7SourceTest(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name)
-        r=write_raw_batch(self.root,'security-fixture',domain='security_master',source_profile='fixture',source_profile_version='fixture.v1',source_profile_digest=_digest(b'fixture'),request={},retrieved_at='2025-01-01T00:00:00Z',payload=_json_bytes([security_row()]),collector_code='fixture',summary={})
+        r=write_rows(self.root,'security-fixture','security_master',[security_row()], retrieved_at='2025-01-01T00:00:00Z')
         self.security=BuildApplication('security_master',MarketDomainBuilder(self.root,'security_master')).build(None,[r.raw_batch_id],[],'security_master.v1')
     def raw(self,endpoint,rows,when='2025-04-02T00:00:00Z'):
         ref=Pr7Collector(self.root,Client(rows)).collect(endpoint,PARAMS,retrieved_at=when)
         return load_raw_batch(self.root,ref.raw_batch_id)
     def build(self,raws,domain='top_holders_reports',parent=None):
-        b=Pr7Builder(self.root,domain,dependency_commit_ids={'security_master':self.security.commit_id})
-        ref=BuildApplication(domain,b).build(parent,[r.ref.raw_batch_id for r in raws],[],domain+'.v1')
+        config = {'forecast_source_types':'forecast_source_types.v1'} if domain == 'forecast_observations' else {}
+        b=Pr7Builder(self.root,domain,dependency_commit_ids={'security_master':self.security.commit_id}, builder_config=config)
+        version = 'forecast_observations.v2' if domain == 'forecast_observations' else domain+'.v1'
+        ref=BuildApplication(domain,b).build(parent,[r.ref.raw_batch_id for r in raws],[],version)
         return validate_domain_commit_closure(self.root,domain,ref.commit_id)
     def select(self,c,t='2025-09-01T00:00:00Z'):
         return select_revisions(c.rows,policy='operational_pit_v1',knowledge_cutoff=t)

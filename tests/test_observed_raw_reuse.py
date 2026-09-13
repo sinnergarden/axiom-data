@@ -6,6 +6,7 @@ from pathlib import Path
 
 from axiom_data import ArtifactError, SnapshotReader, daily, load_raw_batch, plan_daily
 from axiom_data.operations import collect_requests
+from test_pr7_source import current_pr7_snapshot
 
 
 class ObservedRawReuseTest(unittest.TestCase):
@@ -19,15 +20,16 @@ class ObservedRawReuseTest(unittest.TestCase):
             root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
             try:
                 old=SnapshotReader(root,run['refs']['snapshot_id'])
+                parent_id=current_pr7_snapshot(root,run['refs']['snapshot_id'],['margin_daily'])
                 ids=[v['raw_batch_id'] for v in old.commits['margin_daily'].manifest['ordered_raw_batch_refs']]
                 raw=load_raw_batch(root,ids[0]);m=raw.manifest;params=m['request']['params']
                 spec=dict(collector='pr7',domain='margin_daily',endpoint='margin_detail',params=params,
                     economic_scope=dict(start=params['start_date'],end=params['end_date']),availability_policy='next_session_publication')
-                planned=plan_daily(root,run['refs']['snapshot_id'],source_requests=[spec]);key=planned['source_requests'][0]['request_id']
+                planned=plan_daily(root,parent_id,source_requests=[spec]);key=planned['source_requests'][0]['request_id']
                 observed={key:ids[0]};client=NoSource();count=len(list((root/'raw/batches').iterdir()))
                 args=dict(source_requests=[spec],domain_inputs={'margin_daily':dict(raw_batch_ids=[],contract_version='margin_daily.v1',config={},new_lineage=False)},
                           observed_raw_batch_ids=observed,client=client)
-                result=daily(root,run_id='observed-daily',snapshot_id=run['refs']['snapshot_id'],**args)
+                result=daily(root,run_id='observed-daily',snapshot_id=parent_id,**args)
                 self.assertEqual(result['status'],'CANDIDATE_BUILT',result.get('failed'))
                 self.assertEqual(result['collected_raw_batch_ids'],observed)
                 same=daily(root,run_id='observed-no-change',snapshot_id=result['snapshot_id'],**args)

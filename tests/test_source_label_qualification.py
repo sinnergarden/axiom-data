@@ -7,10 +7,12 @@ from pathlib import Path
 from axiom_data import ArtifactError, BuildApplication, load_raw_batch, validate_domain_commit_closure
 from axiom_data.dm1_source import TushareDm1Builder, TushareDm1Collector
 from axiom_data.pr7_source import Pr7Builder, Pr7Collector
-from test_artifacts import build_pack, build_commit, security_row, write_rows
+from axiom_data.build import BuildContractError
+from test_artifacts import build_pack, build_commit, security_row, write_rows, synthetic_source_fixture
 from test_pr6_artifacts import Client
 
 
+@synthetic_source_fixture
 class SourceLabelQualificationTest(unittest.TestCase):
     def test_actual_zero_pairs_are_unknown_and_other_invalid_pairs_fail(self):
         source = [x['row'] for x in json.loads(Path('tests/fixtures/zero_limit_pairs.json').read_bytes())]
@@ -61,7 +63,7 @@ class SourceLabelQualificationTest(unittest.TestCase):
             def build(version, config):
                 return BuildApplication('forecast_observations', Pr7Builder(root, 'forecast_observations',
                     dependency_commit_ids={'security_master':security.commit_id}, builder_config=config)).build(None, [r.raw_batch_id for r in raw], [], version)
-            with self.assertRaisesRegex(ArtifactError, 'unsupported forecast enum'): build('forecast_observations.v1', {})
+            with self.assertRaisesRegex(BuildContractError, 'LEGACY_CONTRACT_READ_ONLY'): build('forecast_observations.v1', {})
             cfg = dict(forecast_source_types='forecast_source_types.v1')
             ref = build('forecast_observations.v2', cfg)
             commit = validate_domain_commit_closure(root, 'forecast_observations', ref.commit_id)
@@ -69,7 +71,7 @@ class SourceLabelQualificationTest(unittest.TestCase):
             self.assertEqual(json.loads(load_raw_batch(root, raw[0].raw_batch_id).payload), [source[0]])
             self.assertEqual(build('forecast_observations.v2', cfg).commit_id, ref.commit_id)
             with self.assertRaises(ArtifactError): build('forecast_observations.v2', {})
-            with self.assertRaises(ArtifactError): build('forecast_observations.v1', cfg)
+            with self.assertRaises(BuildContractError): build('forecast_observations.v1', cfg)
             unknown = dict(source[0], type='unrecognized-new-label')
             raw[0] = Pr7Collector(root, Client([unknown])).collect('forecast',
                 dict(ts_code=unknown['ts_code'], start_date='20140101', end_date='20260908'), retrieved_at='2026-09-10T01:00:00Z')

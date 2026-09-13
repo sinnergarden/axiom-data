@@ -36,9 +36,10 @@ def fixture_probe(root):
     raw_id = observation['raw_ref']['raw_batch_id']
     parent = reader.commits['forecast_observations']
     builder = Pr7Builder(root, 'forecast_observations', builder_config={
-        **parent.manifest['builder_config'], 'coverage_state_policy': 'source_observations.v2'},
+        **parent.manifest['builder_config'], 'coverage_state_policy': 'source_observations.v2',
+        'forecast_source_types': 'forecast_source_types.v1'},
         dependency_commit_ids={'security_master': reader.commits['security_master'].ref.commit_id})
-    ref = BuildApplication('forecast_observations', builder).build(None, [raw_id], [], parent.ref.contract_version)
+    ref = BuildApplication('forecast_observations', builder).build(None, [raw_id], [], 'forecast_observations.v2')
     commit = validate_domain_commit_closure(root, 'forecast_observations', ref.commit_id)
     coverage = commit.manifest['source_coverage']
     if (coverage['schema_version'] != 'source_observations.v2' or len(commit.rows) != 0

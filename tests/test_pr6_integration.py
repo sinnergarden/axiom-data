@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,8 +10,33 @@ from axiom_data.pr6_views import build_pr6_fact_view
 from axiom_data.consumption import QlibViewReader
 from test_pr5_dm1 import build_all,collect_all
 from test_pr6_artifacts import Client
+from test_artifacts import synthetic_source_fixture
 
 
+def build_industry(root, security_commit, *, empty=False):
+    """Small SW history with the existing real taxonomy and source validators."""
+    from axiom_data.sw_source import IndustryQualificationCollector
+    fixture=json.loads(Path('tests/fixtures/sw2021_golden.json').read_bytes())
+    members=list(fixture['members'])
+    examples=[next(row for row in members if row['l3_code']==code) for code in ('850412.SI','850531.SI')]
+    if not empty:
+        members += [dict(examples[0],ts_code='600000.SH',in_date='20260105',out_date='20260106',is_new='N'),
+                    dict(examples[1],ts_code='600000.SH',in_date='20260107',out_date=None,is_new='Y')]
+    class IndustryClient:
+        def query(self, endpoint, *, fields, **params):
+            return ([row for row in fixture['taxonomy'] if row['level']==params['level']]
+                    if endpoint=='index_classify' else [row for row in members if row['is_new']==params['is_new']])
+    collector=IndustryQualificationCollector(root,IndustryClient())
+    requests=[('index_classify',{'src':'SW2021','level':level}) for level in ('L1','L2','L3')]
+    requests += [('index_member_all',{'is_new':mode,'limit':'1000','offset':'0'}) for mode in ('Y','N')]
+    raws=[collector.collect(endpoint,params,retrieved_at='2026-09-01T00:00:00Z').raw_batch_id for endpoint,params in requests]
+    builder=Pr6Builder(root,'industry_membership',dependency_commit_ids={'security_master':security_commit},
+        builder_config={'symbols':['600000.SH'],'start_session':'2026-01-05','end_session':'2026-01-07',
+                        'industry_source_profile':'tushare_sw2021.v1'})
+    return BuildApplication('industry_membership',builder).build(None,raws,[],'industry_membership.v3').commit_id
+
+
+@synthetic_source_fixture
 class Pr6IntegrationTest(unittest.TestCase):
     def test_snapshot_read_union_cohort_industry_and_qlib(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -20,8 +46,6 @@ class Pr6IntegrationTest(unittest.TestCase):
               'universe_membership': [('index_weight',{'index_code':'000906.SH','start_date':'20260101','end_date':'20260107'},[
                 {'index_code':'000906.SH','con_code':symbol,'trade_date':day,'weight':1}
                 for day,symbol in [('20260101','600002.SH'),('20260105','600000.SH'),('20260106','600002.SH'),('20260107','600000.SH')]])],
-              'industry_membership': [('bak_basic',{'ts_code':'600000.SH','trade_date':day},[
-                {'ts_code':'600000.SH','trade_date':day,'industry':industry}]) for day,industry in [('20260105','bank'),('20260107','industry')]],
               'financial_events': [('income',{'ts_code':'600000.SH','period':'20250331'},[
                 {'ts_code':'600000.SH','ann_date':'20250401','f_ann_date':'20250401','end_date':'20250331','report_type':'1','update_flag':'1','revenue':100,'oper_cost':60,'n_income':10}])],
               'valuation_daily': [('daily_basic',{'ts_code':'600000.SH','trade_date':'20260105'},[
@@ -35,7 +59,9 @@ class Pr6IntegrationTest(unittest.TestCase):
                 refs=[Pr6Collector(root,Client(rows)).collect(endpoint,params,retrieved_at='2026-09-01T00:00:00Z').raw_batch_id for endpoint,params,rows in jobs]
                 config={'membership_end_exclusive':'2026-01-08'} if domain=='universe_membership' else {}
                 builder=Pr6Builder(root,domain,builder_config=config,dependency_commit_ids={d:commits[d] for d in _DOMAIN_DEPENDENCIES[domain]})
-                commits[domain]=BuildApplication(domain,builder).build(None,refs,[],domain+'.v2').commit_id
+                version=domain+('.v3' if domain=='universe_membership' else '.v2')
+                commits[domain]=BuildApplication(domain,builder).build(None,refs,[],version).commit_id
+            commits['industry_membership']=build_industry(root,commits['security_master'])
             snapshot=create_snapshot(root,commits);reader=SnapshotReader(root,snapshot.snapshot_id)
             args={'pit_policy':'best_effort_vendor_v1','knowledge_cutoff':'2026-09-02T00:00:00Z'}
             union=reader.historical_union('000906.SH','2026-01-05','2026-01-07','2026-01-02',**args)
@@ -45,22 +71,22 @@ class Pr6IntegrationTest(unittest.TestCase):
             self.assertNotIn('600000.SH',[r['symbol'] for r in reader.members('000906.SH','2026-01-02',**args)])
             for day,expected in [('2026-01-05',True),('2026-01-06',False),('2026-01-07',True)]:
                 self.assertEqual('600000.SH' in [r['symbol'] for r in reader.members('000906.SH',day,**args)],expected)
-            for day,expected in [('2026-01-05','bank'),('2026-01-07','industry')]:
-                self.assertEqual(reader.members('tushare_bak_basic',day,domain='industry_membership',**args)[0]['industry_id'],expected)
-            view=build_pr6_fact_view(root,snapshot.snapshot_id,symbols=['600000.SH'],start_session='2026-01-05',end_session='2026-01-05',universe_ids=['000906.SH'],industry_system='tushare_bak_basic',**args)
+            for day,expected in [('2026-01-05','850412.SI'),('2026-01-07','850531.SI')]:
+                self.assertEqual(reader.members('SW2021',day,domain='industry_membership',**args)[0]['industry_id'],expected)
+            view=build_pr6_fact_view(root,snapshot.snapshot_id,symbols=['600000.SH'],start_session='2026-01-05',end_session='2026-01-05',universe_ids=['000906.SH'],industry_system='SW2021',**args)
             fact_view=FactView(root,snapshot.snapshot_id,pr6_fact_view_id=view.view_id)
             result=fact_view.read('pr6');direct=result['rows']
             missing=result['facts'][0]['fields']['financial.ttm_revenue']
             self.assertIsNone(missing['value']);self.assertEqual(missing['missing_reason'],'missing_quarter')
             self.assertTrue(missing['component_revision_refs']);self.assertTrue(missing['derived_ref'])
             self.assertEqual(missing['unit'],'CNY');self.assertEqual(missing['quality_state'],'BLOCKED')
-            self.assertEqual(result['industry_mapping']['code_to_industry']['1'],'bank')
+            self.assertEqual(result['industry_mapping']['code_to_industry']['1'],'850412.SI')
             self.assertEqual(QlibViewReader(root,view.view_id).fact_metadata()['rows'],result['facts'])
             from axiom_data.artifacts import ArtifactError
             for kwargs in [{'start_session':'2020-01-01'},{'end_session':'2026-01-07'},{'symbols':['600002.SH']},{'fields':['unknown']}]:
                 with self.assertRaises(ArtifactError):fact_view.read('pr6',**kwargs)
-            build_args=dict(symbols=['600000.SH'],start_session='2026-01-05',end_session='2026-01-05',universe_ids=['000906.SH'],industry_system='tushare_bak_basic',**args)
-            for change,code in [({'start_session':'2020-01-01'},'INSUFFICIENT_SCOPE'),({'end_session':'2026-01-07'},'INSUFFICIENT_SCOPE'),({'universe_ids':['unknown']},'UNKNOWN_UNIVERSE'),({'industry_system':'unknown'},'UNKNOWN_CLASSIFICATION'),({'symbols':['600002.SH']},'INSUFFICIENT_SCOPE')]:
+            build_args=dict(symbols=['600000.SH'],start_session='2026-01-05',end_session='2026-01-05',universe_ids=['000906.SH'],industry_system='SW2021',**args)
+            for change,code in [({'start_session':'2020-01-01'},'INSUFFICIENT_SCOPE'),({'end_session':'2026-01-07'},'INSUFFICIENT_SCOPE'),({'universe_ids':['unknown']},'UNKNOWN_UNIVERSE'),({'industry_system':'unknown'},'unknown industry classification system'),({'symbols':['600002.SH']},'INSUFFICIENT_SCOPE')]:
                 with self.assertRaisesRegex(ArtifactError,code):build_pr6_fact_view(root,snapshot.snapshot_id,**dict(build_args,**change))
             with self.assertRaisesRegex(ArtifactError,'UNKNOWN_UNIVERSE'):reader.members('unknown','2026-01-05',**args)
             with self.assertRaisesRegex(ArtifactError,'INSUFFICIENT_SCOPE'):reader.as_of('financial_events',symbols=['600002.SH'],**args)
@@ -85,13 +111,13 @@ class Pr6IntegrationTest(unittest.TestCase):
             root=Path(directory);baseline=build_all(root,collect_all(root));commits={d:baseline[d] for d in DM1_SNAPSHOT_DOMAINS}
             # Explicit empty source observations permit a financial-only Snapshot.
             requests={'universe_membership':('index_weight',{'index_code':'000906.SH','start_date':'20260105','end_date':'20260105'}),
-                'industry_membership':('bak_basic',{'ts_code':'600000.SH','trade_date':'20260105'}),
                 'valuation_daily':('daily_basic',{'ts_code':'600000.SH','trade_date':'20260105'})}
             for domain,(endpoint,params) in requests.items():
                 ref=Pr6Collector(root,Client([])).collect(endpoint,params,retrieved_at='2026-01-06T00:00:00Z',membership_complete=domain=='universe_membership')
                 version=domain+('.v3' if domain=='universe_membership' else '.v2')
                 builder=Pr6Builder(root,domain,builder_config={'membership_end_exclusive':'2026-01-06'} if domain=='universe_membership' else {},dependency_commit_ids={d:commits[d] for d in _DOMAIN_DEPENDENCIES[domain]})
                 commits[domain]=BuildApplication(domain,builder).build(None,[ref.raw_batch_id],[],version).commit_id
+            commits['industry_membership']=build_industry(root,commits['security_master'],empty=True)
             def raw(period,value,observed):
                 return Pr6Collector(root,Client([{'ts_code':'600000.SH','ann_date':'20250401','f_ann_date':'20250401',
                     'end_date':period,'report_type':'1','update_flag':'1','revenue':value,'oper_cost':value/2,'n_income':value/10}])).collect(

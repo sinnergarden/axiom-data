@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, SnapshotReader, daily, load_raw_batch
+from test_pr7_source import current_pr7_snapshot
 
 
 class DailyOperationTest(unittest.TestCase):
@@ -26,7 +27,8 @@ class DailyOperationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
             try:
-                parent=SnapshotReader(root,run['refs']['snapshot_id'])
+                parent_id=current_pr7_snapshot(root,run['refs']['snapshot_id'],['holder_count_events','margin_daily'])
+                parent=SnapshotReader(root,parent_id)
                 requests=[]
                 for domain,endpoint,start,end,policy in [
                     ('holder_count_events','stk_holdernumber','20250101','20250614','revision_scan'),

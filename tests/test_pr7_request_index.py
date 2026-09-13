@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from axiom_data import ArtifactError, SnapshotReader, load_raw_batch
 from axiom_data import pr7_views
+from test_pr7_source import current_pr7_snapshot
 
 
 class RequestCoverageIndexTest(unittest.TestCase):
@@ -19,7 +20,8 @@ class RequestCoverageIndexTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
             try:
-                initial=SnapshotReader(root,run['refs']['snapshot_id'])
+                parent_id=current_pr7_snapshot(root,run['refs']['snapshot_id'],['holder_count_events'])
+                initial=SnapshotReader(root,parent_id)
                 ids={d:c.ref.commit_id for d,c in initial.commits.items()}
                 domain='holder_count_events'
                 old=initial.commits[domain]

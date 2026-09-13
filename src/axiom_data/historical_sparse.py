@@ -72,6 +72,13 @@ def _check_children(parent, children):
 
 def validate_sparse_coverage(data_root, *, run_id, plan, domains):
     """Rebuild coverage from current checkpoint bindings and immutable Raw bytes."""
+    from axiom_data.bootstrap_sources import plan_truncated_raw_split
+    return _validate_sparse_coverage(data_root, run_id=run_id, plan=plan, domains=domains,
+                                     split_resolver=plan_truncated_raw_split)
+
+
+def _validate_sparse_coverage(data_root, *, run_id, plan, domains, split_resolver):
+    """Shared aggregate body; public callers always use the real split resolver."""
     from axiom_data.source_coverage import observation
     expected = plan_historical_sparse(**plan['scope'])
     if plan != expected:
@@ -124,14 +131,13 @@ def validate_sparse_coverage(data_root, *, run_id, plan, domains):
                 checked_source_scope=admission.get('scope'))
         elif record['state'] == 'SUPERSEDED_BY_SPLIT':
             split = record['split']
-            from axiom_data.bootstrap_sources import plan_truncated_raw_split
             parent_raw = load_raw_batch(root, record['raw_batch_id'])
             binding = _source_binding(spec)
             if (parent_raw.manifest['domain'] != spec['domain']
                 or any(parent_raw.manifest[k] != binding[k] for k in ('source_profile_version','source_profile_digest','source_profile_ref'))
                 or parent_raw.manifest['request'] != {'endpoint': spec['endpoint'], 'params': spec['params'], 'fields': binding['fields']}):
                 raise ArtifactError('sparse parent Raw request binding mismatch')
-            if split != plan_truncated_raw_split(parent_raw):
+            if split != split_resolver(parent_raw):
                 raise ArtifactError('sparse split differs from retained parent Raw')
             if record['child_refs']['request_ids'] != [_request(c) for c in split['requests']]:
                 raise ArtifactError('sparse child request identity mismatch')

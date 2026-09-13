@@ -1195,8 +1195,8 @@
     "_requalify_sources": "sha256:1bd5d88da027f209ae66972077a6ef8bf528c01e445631ba8af232c188b864c7",
     "inspect_scope": "sha256:e29be1271d77a283514c94681e6f40e3dfaf9f832379269ffb7a74e3816ad4f6",
     "inspect_snapshot": "sha256:caa820d4a95fad96c18ab1009d3e0fd0bdff3507b22be5cc42c5a3e4b625938d",
-    "BuildApplication.build": "sha256:d669e78a451a348d23ad0c305a023c4221fbf9c8638caece3034d3dd1c11b9a6",
-    "MarketDomainBuilder.__call__": "sha256:2781c24f9032ed16284b805538a8391d1ba9fd98ab32bfcc3c04465724cfc88a",
+    "BuildApplication.build": "sha256:59fab6277abb05515fa8415a731c08bd31a0b7bbba615ceb7be1a4df9118d4a7",
+    "MarketDomainBuilder.__call__": "sha256:bfdd221f53794801f92637739c67b582d2d11b45c8970da53cbcb39112f8a308",
     "create_snapshot": "sha256:40434b43f59f04e90f88685e2210341a5e697cb090e64aaad2c269b96fade97b",
     "closure": "sha256:f1750f49e97770833a6ed82dc007173a420655f6f29d5fa48093e7b39d8bc01f",
     "coverage_observation": "sha256:27adedb23058c1e411d64466dcd1706c3bd0c1c2a6a835981f5f86b264718c68",
@@ -1210,6 +1210,8 @@
     "payload_scope": "sha256:c86ae0723d63acb4ccae68cd249076cdc78b03c88c2827dc04defd355547c0be",
     "transport_result": "sha256:ea513aac26a6b306ff25c32a07a857e478a32b480411b4d9387dee40076d7a12",
     "axiom_data.bootstrap_sources.collect_bootstrap_sources": "sha256:b6d72e58eab2024ec38072fff88ae60ac8d6c653ac9ba555d7a6478b3efb02a0",
+    "axiom_data.contracts.require_writable_contract": "sha256:1d8bb2d6ee315901d86c284fd71e04e8631c4023de14336b87c305fa08e6e680",
+    "axiom_data.contracts.writable_contracts": "sha256:6d02fc521361e9297e794059d113feaccfe9c8cfbff831fe4dacbcee9b7c835c",
     "axiom_data.verification_cache.candidate_verification": "sha256:851befd218dd87e5f5d202d1e51bc683e3c91a5a620a6b8d1d51ce2c5aa1a274",
     "axiom_data.verification_cache.current_source_cache": "sha256:80e1da5e373cbb34dfdae23f75fdedd58e83e1c692488cb3dda55550bdaeb7e7",
     "axiom_data.view_operation.materialize_views": "sha256:60c06e28515affaa19038c48191ea5a3f704aff59f9ff1462ffb436d1a8629b2",
@@ -1219,5 +1221,6 @@
     "view_builder:market_qlib": "sha256:8595e100fe7e7c565ec8899cd120bd32a42d4c8e8f5421b5f14c287ac1557642",
     "view_builder:pr6_fact": "sha256:695bbd32e95cf8209032ff7cbb25cc73b9a31b7b8d49dadbec7b74090318ac4e",
     "view_builder:pr7_fact": "sha256:55a521b2e192e2dace666294479e889e5399f86d524fc399a21d2b9763a3d9dc"
-  }
+  },
+  "writable_contracts_digest": "sha256:85576cb9bb24eb8aa1806789c8e13113483fc297404b3be71f125fdb58be37df"
 }

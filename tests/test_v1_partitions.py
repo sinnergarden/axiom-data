@@ -4,20 +4,19 @@ import unittest
 from pathlib import Path
 from axiom_data import (ArtifactError, BuildApplication, MarketDomainBuilder,
                         load_domain_commit, write_raw_batch)
+from test_artifacts import write_rows, synthetic_source_fixture
 
 
+@synthetic_source_fixture
 class PartitionTest(unittest.TestCase):
     def test_daily_reuses_complete_unchanged_objects_and_old_schema(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             def raw(identity, session):
-                return write_raw_batch(root, identity, domain='trading_calendar',
-                    source_profile='fixture', source_profile_version='fixture.v1',
-                    source_profile_digest='sha256:' + 'a' * 64, request={'session': session},
-                    retrieved_at='2026-09-09T00:00:00+00:00',
-                    payload=json.dumps([{'exchange': 'SSE', 'session': session,
-                      'is_open': True, 'previous_open_session': '2025-01-31' if identity == 'feb' else None}]).encode(),
-                    collector_code='fixture').raw_batch_id
+                return write_rows(root, identity, 'trading_calendar',
+                    [{'exchange': 'SSE', 'session': session, 'is_open': True,
+                      'previous_open_session': '2025-01-31' if identity == 'feb' else None}],
+                    retrieved_at='2026-09-09T00:00:00+00:00').raw_batch_id
             first = raw('jan', '2025-01-31')
             second = raw('feb', '2025-02-01')
             legacy = BuildApplication('trading_calendar', MarketDomainBuilder(root, 'trading_calendar')).build(None, [first], [], 'trading_calendar.v1')

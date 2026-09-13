@@ -12,12 +12,52 @@ from test_pr6_artifacts import Client
 
 
 class SourceCoverageTest(unittest.TestCase):
+    def test_frozen_v1_coverage_manifest_remains_readable_but_cannot_be_extended(self):
+        import copy
+        from unittest.mock import patch
+        from axiom_data import source_completeness
+        from axiom_data.artifacts import _digest, _json_bytes, _identity_digest, _derived_identity
+        from axiom_data.source_coverage import observation, state, LEGACY_POLICY
+        from test_artifacts import rewrite_manifest
+
+        raw_ref = self.raw('20250610', [])
+        current_ref = self.build(raw_ref)
+        current = validate_domain_commit_closure(self.root, 'holder_count_events', current_ref.commit_id)
+        raw = load_raw_batch(self.root, raw_ref.raw_batch_id)
+        # Materialize the frozen schema in the test fixture only. Public builders
+        # never receive a request to create a legacy coverage artifact.
+        manifest = copy.deepcopy(current.manifest)
+        manifest['builder_config']['coverage_state_policy'] = LEGACY_POLICY
+        for key in ('source_completeness_binding', 'writable_contracts_digest'):
+            manifest['builder_config'].pop(key, None)
+        manifest['builder_config_digest'] = _digest(_json_bytes(manifest['builder_config']))
+        manifest['source_coverage'] = state(None, set(), [observation(raw, policy=LEGACY_POLICY)], policy=LEGACY_POLICY)
+        manifest['identity_digest'] = _identity_digest(manifest, 'domain_commit_id')
+        identity = _derived_identity('holder_count_events', manifest['identity_digest'])
+        manifest['domain_commit_id'] = identity
+        base = self.root/'canonical/holder_count_events/commits'
+        target = base/identity
+        shutil.copytree(base/current_ref.commit_id, target)
+        for name in ('manifest.json', 'manifest.sha256'):
+            (target/name).chmod(0o644)
+        rewrite_manifest(target, manifest)
+        frozen_bytes = (target/'manifest.json').read_bytes()
+        legacy = validate_domain_commit_closure(self.root, 'holder_count_events', identity)
+        self.assertEqual(legacy.manifest['source_coverage'], manifest['source_coverage'])
+        self.assertEqual(legacy.rows, current.rows)
+        extension = source_completeness._extension()
+        extension['endpoints'].pop('stk_holdernumber')
+        with patch.object(source_completeness, '_extension', return_value=extension):
+            self.assertEqual(validate_domain_commit_closure(self.root, 'holder_count_events', identity).manifest,
+                             legacy.manifest)
+        self.assertEqual((target/'manifest.json').read_bytes(), frozen_bytes)
+        with self.assertRaisesRegex(ArtifactError, 'source coverage upgrade requires a new lineage'):
+            self.build(raw_ref, identity)
+
     def test_direct_v2_build_requalifies_legacy_parent_before_inheriting_rows(self):
         from unittest.mock import patch
         from axiom_data import source_completeness
-        parent_raw = self.raw('20250610', [dict(ts_code='688981.SH', ann_date='20250610',
-                                              end_date='20250331', holder_num=200)])
-        parent = self.build(parent_raw)
+        parent = self.reader.commits['holder_count_events'].ref
         incoming = self.raw('20250611', [])
         extension = source_completeness._extension()
         extension['endpoints']['stk_holdernumber']['limit'] = 1
@@ -28,19 +68,21 @@ class SourceCoverageTest(unittest.TestCase):
                 self.root, 'holder_count_events', parent.commit_id).ref.commit_id, parent.commit_id)
             self.assertTrue(source_completeness.validate_raw_completeness(
                 load_raw_batch(self.root, incoming.raw_batch_id))['complete'])
-            with self.assertRaises(ArtifactError):
+            from axiom_data.operations import _requalify_sources
+            with self.assertRaisesRegex(ArtifactError, 'possibly truncated source payload'):
+                _requalify_sources(self.root, {'holder_count_events': parent.commit_id})
+            with self.assertRaisesRegex(ArtifactError, 'source coverage upgrade requires a new lineage'):
                 self.build(incoming, parent.commit_id)
 
     def test_current_bootstrap_cannot_reuse_legacy_policy_admission(self):
         from unittest.mock import patch
         from axiom_data import source_completeness
         from axiom_data.operations import bootstrap
-        raw = self.raw('20250610', [])
-        commit = self.build(raw)
+        commit = self.reader.commits['holder_count_events'].ref
         extension = source_completeness._extension()
         extension['endpoints'].pop('stk_holdernumber')
         with patch.object(source_completeness, '_extension', return_value=extension):
-            # Published v1 still means its frozen validation projection.
+            # The published fixture retains its frozen validation projection.
             old = validate_domain_commit_closure(self.root, 'holder_count_events', commit.commit_id)
             self.assertEqual(old.ref.commit_id, commit.commit_id)
             result = bootstrap(self.root, run_id='current-policy-required',
@@ -57,7 +99,7 @@ class SourceCoverageTest(unittest.TestCase):
         self.reader = SnapshotReader(self.root, run['refs']['snapshot_id'])
         self.ids = {d:c.ref.commit_id for d,c in self.reader.commits.items()}
         self.config = dict(self.reader.commits['holder_count_events'].manifest['builder_config'],
-                           no_change_policy='reuse_equal_state.v1', coverage_state_policy='source_observations.v1')
+                           no_change_policy='reuse_equal_state.v1', coverage_state_policy='source_observations.v2')
 
     def writable(self):
         for p in self.directory.rglob('*'):

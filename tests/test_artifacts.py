@@ -6,7 +6,10 @@ import shutil
 import tempfile
 import time
 import unittest
+from contextlib import contextmanager
+from functools import wraps
 from pathlib import Path
+from unittest.mock import patch
 
 from axiom_data import (
     ArtifactConflictError,
@@ -27,6 +30,66 @@ from axiom_data import (
 
 
 FIXED_TIME = "2026-09-05T09:00:00+08:00"
+
+
+@contextmanager
+def synthetic_source_profiles():
+    """Admit only this helper's bounded, payload-bound synthetic test sources."""
+    from axiom_data import source_completeness as completeness
+
+    domains = (
+        "trading_calendar", "security_master", "market_daily", "security_status",
+        "price_limits", "corporate_actions", "adjustment_factors", "benchmark_daily",
+        "security_capital", "financial_events", "valuation_daily", "universe_membership",
+        "industry_membership", "holder_count_events", "top_holders_reports",
+        "margin_daily", "moneyflow_daily", "forecast_observations",
+    )
+    profiles = {f"fixture-{domain}.v1": domain for domain in domains}
+    original_policy = completeness.completeness_policy
+    original_binding = completeness._validate_raw_binding
+
+    def policy(version, endpoint):
+        if profiles.get(version) != endpoint or version not in profiles:
+            return original_policy(version, endpoint)
+        return dict(status="established", profile_version=version, endpoint=endpoint,
+            limit=1_000_000, pagination=None, completeness_rule="strictly_below_limit",
+            action="fail_closed_unsplittable", policy_ref="synthetic_test_source.v1#" + endpoint,
+            policy_digest=fixture_profile_digest(version),
+            historical_completeness="request_complete_best_effort",
+            historical_limitations="Synthetic rows establish only the explicit fixture observation.",
+            documentation="tests/test_artifacts.py::write_rows",
+            evidence="The fixture writer serializes the complete supplied list below its fixed row cap.",
+            coverage_semantics="current_snapshot", empty_result_semantics="unknown_observation")
+
+    def binding(raw):
+        version = raw.manifest.get("source_profile_version")
+        if version not in profiles:
+            return original_binding(raw)
+        manifest = raw.manifest
+        rows = json.loads(raw.payload)
+        proof = {"schema_version": "synthetic_test_source.v1", "rows": len(rows),
+                 "payload_digest": "sha256:" + hashlib.sha256(raw.payload).hexdigest()}
+        if (not isinstance(rows, list) or manifest.get("domain") != profiles[version]
+                or manifest.get("source_profile_ref") != version
+                or manifest.get("source_profile_digest") != fixture_profile_digest(version)
+                or manifest.get("request") != {"fixture": raw.ref.raw_batch_id, "endpoint": profiles[version],
+                    "params": {"start_date": "19000101", "end_date": "21001231"}}
+                or manifest.get("summary", {}).get("synthetic_source_proof") != proof):
+            raise completeness.SourceCompletenessError("invalid synthetic source proof", raw_batch_id=raw.ref.raw_batch_id)
+
+    with patch.object(completeness, 'completeness_policy', policy), patch.object(
+            completeness, '_validate_raw_binding', binding):
+        yield
+
+
+def synthetic_source_fixture(test_class):
+    original = test_class.setUp
+    @wraps(original)
+    def setUp(self):
+        self.enterContext(synthetic_source_profiles())
+        original(self)
+    test_class.setUp = setUp
+    return test_class
 
 
 def fixture_profile_digest(profile: str) -> str:
@@ -126,20 +189,26 @@ def write_rows(
     raw_batch_id: str,
     domain: str,
     rows: list[dict[str, object]],
-) -> None:
+    *,
+    retrieved_at: str = FIXED_TIME,
+) -> object:
     profile = f"fixture-{domain}.v1"
-    write_raw_batch(
+    payload = json_payload(rows)
+    return write_raw_batch(
         root,
         raw_batch_id,
         domain=domain,
         source_profile=profile,
         source_profile_version=profile,
         source_profile_digest=fixture_profile_digest(profile),
-        request={"fixture": raw_batch_id},
-        retrieved_at=FIXED_TIME,
-        payload=json_payload(rows),
+        request={"fixture": raw_batch_id, "endpoint": domain,
+                 "params": {"start_date": "19000101", "end_date": "21001231"}},
+        retrieved_at=retrieved_at,
+        payload=payload,
         collector_code="fixture-writer.v1",
-        summary={"rows": len(rows)},
+        summary={"rows": len(rows), "synthetic_source_proof": {
+            "schema_version": "synthetic_test_source.v1", "rows": len(rows),
+            "payload_digest": "sha256:" + hashlib.sha256(payload).hexdigest()}},
     )
 
 
@@ -253,6 +322,23 @@ def build_pack(root: Path) -> dict[str, object]:
     }
 
 
+class SyntheticSourceIsolationTest(unittest.TestCase):
+    def test_scope_restores_production_callables_even_after_failure(self):
+        from axiom_data import source_completeness as completeness
+        original_policy = completeness.completeness_policy
+        original_binding = completeness._validate_raw_binding
+        self.assertEqual(original_policy.__module__, 'axiom_data.source_completeness')
+        self.assertEqual(original_binding.__module__, 'axiom_data.source_completeness')
+        with self.assertRaisesRegex(RuntimeError, 'fixture failure'):
+            with synthetic_source_profiles():
+                self.assertIsNot(completeness.completeness_policy, original_policy)
+                self.assertIsNot(completeness._validate_raw_binding, original_binding)
+                raise RuntimeError('fixture failure')
+        self.assertIs(completeness.completeness_policy, original_policy)
+        self.assertIs(completeness._validate_raw_binding, original_binding)
+
+
+@synthetic_source_fixture
 class ArtifactTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -260,6 +346,23 @@ class ArtifactTest(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
+
+    def test_synthetic_source_proof_is_payload_bound_and_legacy_projection_unchanged(self) -> None:
+        from axiom_data.source_completeness import validate_raw_completeness, validate_raw_completeness_legacy
+
+        write_rows(self.root, "proof", "security_master", [security_row()])
+        raw = load_raw_batch(self.root, "proof")
+        self.assertTrue(validate_raw_completeness(raw)["complete"])
+        self.assertFalse(validate_raw_completeness_legacy(raw)["complete"])
+        manifest = raw.manifest
+        forged = write_raw_batch(self.root, "forged-proof", domain="security_master",
+            source_profile=manifest["source_profile_ref"], source_profile_version=manifest["source_profile_version"],
+            source_profile_digest=manifest["source_profile_digest"],
+            request=dict(manifest["request"], fixture="forged-proof"), retrieved_at=FIXED_TIME,
+            payload=json_payload([security_row("000002.SZ")]), collector_code="fixture-writer.v1",
+            summary=manifest["summary"])
+        with self.assertRaisesRegex(ArtifactError, "invalid synthetic source proof"):
+            validate_raw_completeness(load_raw_batch(self.root, forged.raw_batch_id))
 
     def test_raw_batch_is_append_only_and_offline_readable(self) -> None:
         original_payload = b'{"supplier_rows":[{"symbol":"000001.SZ"}]}'
@@ -300,7 +403,7 @@ class ArtifactTest(unittest.TestCase):
             )
         self.assertEqual(load_raw_batch(self.root, "raw-001").payload, original_payload)
 
-    def test_pr2_raw_batch_v1_remains_loadable_in_closure_and_catalog(self) -> None:
+    def test_pr2_raw_batch_v1_remains_loadable_in_catalog_but_requires_current_proof(self) -> None:
         write_legacy_v1_rows(
             self.root,
             "raw-pr2-security",
@@ -312,17 +415,9 @@ class ArtifactTest(unittest.TestCase):
         self.assertEqual(raw.manifest["schema_version"], "raw_batch.v1")
         self.assertNotIn("source_profile_version", raw.manifest)
         self.assertNotIn("source_profile_digest", raw.manifest)
-        commit_ref = build_commit(
-            self.root, "security_master", ["raw-pr2-security"]
-        )
-        commit = validate_domain_commit_closure(
-            self.root, "security_master", commit_ref.commit_id
-        )
-        self.assertEqual(
-            set(commit.manifest["ordered_raw_batch_refs"][0]),
-            {"raw_batch_id", "manifest_digest", "payload_digest"},
-        )
-        self.assertEqual(rebuild_catalog(self.root), 2)
+        with self.assertRaisesRegex(ArtifactError, "complete source evidence"):
+            build_commit(self.root, "security_master", ["raw-pr2-security"])
+        self.assertEqual(rebuild_catalog(self.root), 1)
         self.assertEqual(
             lookup_catalog(self.root, "raw_batch", "raw-pr2-security").artifact_id,
             "raw-pr2-security",
@@ -404,8 +499,12 @@ class ArtifactTest(unittest.TestCase):
             manifest["builder_implementation_ref"]["implementation"],
             "axiom_data.artifacts.MarketDomainBuilder",
         )
+        self.assertEqual(manifest['builder_config']['format'], 'canonical-json')
+        self.assertEqual(manifest['builder_config']['coverage_state_policy'], 'source_observations.v2')
+        self.assertIn('source_completeness_binding', manifest['builder_config'])
+        self.assertIn('writable_contracts_digest', manifest['builder_config'])
         expected_config = json.dumps(
-            {"format": "canonical-json"},
+            manifest['builder_config'],
             sort_keys=True,
             separators=(",", ":"),
         ).encode()

@@ -31,10 +31,27 @@ class PublicSourceScopeTest(unittest.TestCase):
         # source profile fields are installed by the same public builder classes.
         keys = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive'}
         result = {}
+        from axiom_data.contracts import writable_contracts
+        versions = writable_contracts()['domains']
         for domain, commit in self.old.commits.items():
             result[domain] = dict(raw_batch_ids=[r['raw_batch_id'] for r in commit.manifest['ordered_raw_batch_refs']],
-                contract_version=commit.ref.contract_version, new_lineage=True,
+                contract_version=versions[domain]['current'], new_lineage=True,
                 config={k:v for k,v in commit.manifest['builder_config'].items() if k in keys})
+        result['corporate_actions']['config']['corporate_action_observations'] = 'corporate_action_observations.v1'
+        result['security_capital']['config']['capital_qualification'] = 'capital_conflict.v1'
+        result['forecast_observations']['config']['forecast_source_types'] = 'forecast_source_types.v1'
+        # Current industry writes use the same frozen SW source plan as the
+        # dedicated real-source integration, with this fixture's eight securities.
+        source = Path('/home/liuming/workspace/axiom/data')
+        sw_plan = json.loads((source/'operations/sw2021-canonical-20260910-r1/build_plan.json').read_bytes())
+        for raw_id in sw_plan['raw_batch_ids']:
+            target = self.root/'raw/batches'/raw_id
+            if not target.exists():
+                shutil.copytree(source/'raw/batches'/raw_id, target)
+        result['industry_membership'].update(raw_batch_ids=sw_plan['raw_batch_ids'],
+            config=dict(symbols=[row['symbol'] for row in self.old.security_master()],
+                        start_session=sw_plan['config']['start_session'], end_session=sw_plan['config']['end_session'],
+                        industry_source_profile='tushare_sw2021.v1'))
         for domain in ('adjustment_factors', 'security_capital'):
             result[domain]['config']['security_session_scope'] = 'exchange_security.v1'
             result[domain]['config']['dm1_source_partitioning'] = 'security.v1'

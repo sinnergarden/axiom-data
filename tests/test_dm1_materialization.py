@@ -8,6 +8,10 @@ from axiom_data.dm1_source import _EXPECTED_ENDPOINTS
 from test_pr5_dm1 import collect_all,build_all,FixtureClient,SYMBOLS,BENCHMARKS,START,END
 
 
+from test_artifacts import synthetic_source_fixture
+
+
+@synthetic_source_fixture
 class Dm1MaterializationTest(unittest.TestCase):
     def test_every_reference_mapper_preserves_values_provenance_and_full_scope(self):
         with tempfile.TemporaryDirectory() as directory:

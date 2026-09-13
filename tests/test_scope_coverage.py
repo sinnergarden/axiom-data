@@ -5,9 +5,10 @@ from pathlib import Path
 
 from axiom_data import ArtifactError, SnapshotReader, create_snapshot, inspect_scope
 from axiom_data.scope_coverage import session_coverage
-from test_artifacts import build_commit, market_row, security_row, write_rows
+from test_artifacts import build_commit, market_row, security_row, write_rows, synthetic_source_fixture
 
 
+@synthetic_source_fixture
 class ScopeCoverageTest(unittest.TestCase):
     def test_interior_gap_null_zero_and_exchange_scope_remain_distinct(self):
         with tempfile.TemporaryDirectory() as directory:

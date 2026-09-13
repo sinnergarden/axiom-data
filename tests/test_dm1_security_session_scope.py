@@ -10,6 +10,7 @@ from axiom_data.artifacts import _DOMAIN_DEPENDENCIES
 from axiom_data.dm1_source import TushareDm1Builder
 from test_pr5_dm1 import END as FULL_END
 from test_pr5_dm1 import FixtureClient, START as FULL_START, SYMBOLS, build_all, collect_all
+from test_artifacts import synthetic_source_fixture
 
 
 POLICY = "exchange_security.v1"
@@ -68,6 +69,7 @@ def _source_rows():
     ]
 
 
+@synthetic_source_fixture
 class Dm1SecuritySessionScopeTest(unittest.TestCase):
     def test_factor_and_capital_filter_identity_bounds_and_match_single_symbol_mapping(self):
         factor_sources = _source_rows()

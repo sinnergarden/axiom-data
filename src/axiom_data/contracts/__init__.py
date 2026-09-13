@@ -74,6 +74,25 @@ def load_contract(contract_version: str) -> dict[str, Any]:
     return contract
 
 
+def writable_contracts() -> dict[str, Any]:
+    """Explicit publication policy; registered historical contracts stay readable."""
+    policy = json.loads(files(__package__).joinpath('writable_contracts.v1.json').read_bytes())
+    if policy.get('schema_version') != 'writable_contracts.v1' or set(policy['domains']) != set(_CONTRACT_DOMAINS.values()):
+        raise ValueError('writable contract registry is incomplete')
+    for domain, versions in policy['domains'].items():
+        accepted = {versions['current'], *versions['legacy_read_only']}
+        if (versions['current'] in versions['legacy_read_only'] or
+                accepted != {v for v, d in _CONTRACT_DOMAINS.items() if d == domain}):
+            raise ValueError('writable contract policy does not classify all registered versions')
+    return policy
+
+
+def require_writable_contract(domain: str, contract_version: str) -> None:
+    current = writable_contracts()['domains'].get(domain, {}).get('current')
+    if contract_version != current:
+        raise ValueError(f'LEGACY_CONTRACT_READ_ONLY: {contract_version}; current writable contract is {current}')
+
+
 __all__ = [
     "ADJUSTMENT_FACTORS_CONTRACT_VERSION",
     "BENCHMARK_DAILY_CONTRACT_VERSION",

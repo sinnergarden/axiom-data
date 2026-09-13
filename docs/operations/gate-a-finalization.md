@@ -48,3 +48,22 @@ bootstrap/repair. Paginated observations are validated within each commit's
 ordered input group, so separate historical revisions cannot supply each other's
 missing pages. Successful current-policy checks are reused only within one
 candidate invocation and data root; a fresh invocation verifies them again.
+
+Writable contracts are explicitly frozen in `contracts/writable_contracts.v1.json`.
+Superseded domain versions and `source_observations.v1` remain readable but
+cannot publish new DomainCommits. The shared public build boundary enforces the
+domain policy, and the actual publisher requires current complete v2 coverage,
+including when called directly. Bootstrap, daily, repair and resumed build plans
+use the same admission. Versions still declared current, such as
+`market_daily.v1`, remain writable. A domain or coverage-contract upgrade requires
+a new lineage; a same-v2 completeness-policy revision retains current revalidation.
+
+Sparse readiness now executes an offline behavioral pack through the public
+planner, executor, aggregation and admission paths. Evidence records expected
+and actual outcomes for exact child closure and destructive missing, gap,
+truncated, partial, selector, overlap and wrong-scope cases. A separate controlled
+split-provenance isolation checks the same aggregate body's interval guard.
+Fixture setup errors block readiness. Function digests record execution identity;
+they do not substitute for these behavioral results. Complete empty coverage
+means a particular source/request returned empty under its declared contract,
+not proof that the economic world never had an event.

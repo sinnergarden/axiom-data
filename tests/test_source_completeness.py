@@ -10,7 +10,7 @@ from axiom_data.bootstrap_sources import plan_truncated_raw_split
 from axiom_data.pr6_source import Pr6Builder, Pr6Collector, load_pr6_source_profile, profile_digest, validate_payload
 from axiom_data.source_completeness import (SourceCompletenessError, completeness_policy,
                                           validate_raw_completeness)
-from test_artifacts import security_row
+from test_artifacts import security_row, write_rows, synthetic_source_profiles
 
 
 class SourceCompletenessTest(unittest.TestCase):
@@ -31,10 +31,11 @@ class SourceCompletenessTest(unittest.TestCase):
             status=status,summary={'rows':count,**(summary or {})})
 
     def build(self, ref):
-        security_raw=write_raw_batch(self.root,'security',domain='security_master',
-            source_profile='fixture',source_profile_version='fixture.v1',source_profile_digest=_digest(b'fixture'),
-            request={},retrieved_at='2025-01-01T00:00:00Z',payload=_json_bytes([security_row()]),
-            collector_code='fixture',summary={})
+        if not getattr(self, '_synthetic_sources_active', False):
+            self.enterContext(synthetic_source_profiles())
+            self._synthetic_sources_active = True
+        security_raw=write_rows(self.root,'security','security_master',[security_row()],
+                                retrieved_at='2025-01-01T00:00:00Z')
         security=BuildApplication('security_master',MarketDomainBuilder(self.root,'security_master')).build(
             None,[security_raw.raw_batch_id],[],'security_master.v1')
         return BuildApplication('financial_events',Pr6Builder(self.root,'financial_events',

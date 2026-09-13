@@ -14,6 +14,7 @@ from axiom_data.pr7_views import load_pr7_fact_view,build_pr7_fact_view
 from axiom_data.consumption import QlibViewReader
 from axiom_data.offline_guard import deny_external_data
 from test_pr6_artifacts import Client
+from test_pr7_source import current_pr7_snapshot
 
 REPORT=Path(__file__).resolve().parents[1]/'reports/pr7/run_manifest.json'
 
@@ -52,13 +53,14 @@ class Pr7RealTest(unittest.TestCase):
     def test_shareholder_only_extension_preserves_other_domains_and_prefix(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary)/'root';shutil.copytree(self.root,root)
-            before=SnapshotReader(root,self.refs['snapshot_id'])
+            parent_id=current_pr7_snapshot(root,self.refs['snapshot_id'],['holder_count_events'])
+            before=SnapshotReader(root,parent_id)
             visible=before.as_of('holder_count_events',symbols=['688981.SH'],pit_policy='best_effort_vendor_v1',knowledge_cutoff='2025-06-13T23:59:59+08:00')
             old=max(visible,key=lambda r:r['report_period'])
             source={'ts_code':old['symbol'],'ann_date':old['announcement'].replace('-',''),'end_date':old['report_period'].replace('-',''),'holder_num':1}
             raw=Pr7Collector(root,Client([source])).collect('stk_holdernumber',{'ts_code':'688981.SH','start_date':'20240101','end_date':'20250613'},retrieved_at='2026-09-10T00:00:00Z')
             with patch.object(Pr7Collector,'collect',side_effect=AssertionError('extension must not recollect')):
-                snapshot=extend_snapshot(root,self.refs['snapshot_id'],'holder_count_events',[raw.raw_batch_id])
+                snapshot=extend_snapshot(root,parent_id,'holder_count_events',[raw.raw_batch_id])
             after=SnapshotReader(root,snapshot.snapshot_id)
             for domain,c in before.commits.items():
                 if domain!='holder_count_events':self.assertEqual(c.ref.commit_id,after.commits[domain].ref.commit_id)

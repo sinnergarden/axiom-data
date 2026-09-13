@@ -7,9 +7,10 @@ from unittest.mock import patch
 
 from axiom_data import ArtifactError, SnapshotReader, rebuild_catalog, validate_domain_commit_closure
 from axiom_data import artifacts
-from test_artifacts import write_rows, build_commit
+from test_artifacts import write_rows, build_commit, synthetic_source_fixture
 
 
+@synthetic_source_fixture
 class CatalogValidationReuseTest(unittest.TestCase):
     def test_cache_is_local_and_failed_rebuild_preserves_catalog(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())

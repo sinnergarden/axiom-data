@@ -238,6 +238,8 @@ def admission_route_identity():
         'payload_scope': source_completeness._validate_scoped_response,
         'transport_result': source_completeness._validate_raw_result})
     for name in ('axiom_data.bootstrap_sources.collect_bootstrap_sources',
+                 'axiom_data.contracts.require_writable_contract',
+                 'axiom_data.contracts.writable_contracts',
                  'axiom_data.verification_cache.candidate_verification',
                  'axiom_data.verification_cache.current_source_cache',
                  'axiom_data.view_operation.materialize_views',
@@ -250,6 +252,7 @@ def admission_route_identity():
 
 def _sparse_readiness():
     from axiom_data import historical_sparse
+    from axiom_data.sparse_conformance import run_sparse_conformance
     required = {'dividend', 'forecast', 'stk_holdernumber', 'top10_holders', 'index_member_all', 'stock_basic'}
     if not required <= set(historical_sparse.ENDPOINTS):
         raise ArtifactError('required historical sparse endpoint executor missing')
@@ -258,16 +261,23 @@ def _sparse_readiness():
     specs = [r for group in plan['requests_by_domain'].values() for r in group]
     if not required <= {r['endpoint'] for r in specs} or len(specs) > 100:
         raise ArtifactError('sparse planner misses a source or expands into daily scans')
-    functions = {name: _entry('axiom_data.historical_sparse.' + name) for name in (
-        'plan_historical_sparse', 'execute_historical_sparse', 'validate_sparse_coverage')}
-    source = inspect.getsource(functions['execute_historical_sparse'])
-    calls = {n.func.id for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
-    if not {'collect_bootstrap_sources', 'validate_sparse_coverage'} <= calls:
-        raise ArtifactError('historical sparse execution/revalidation route missing')
     return {'version': historical_sparse.VERSION, 'plan_digest': plan['plan_digest'],
             'endpoint_coverage': sorted(required), 'request_count': len(specs),
-            'entries': {name: _digest(inspect.getsource(fn).encode()) for name, fn in functions.items()},
-            'evidence_kind': 'code_plan_not_historical_source_availability'}
+            'execution_module_digest': _digest(Path(historical_sparse.__file__).read_bytes()),
+            'behavioral_conformance': run_sparse_conformance(),
+            'evidence_kind': 'offline_behavior_not_historical_source_availability'}
+
+
+def _writable_readiness():
+    from axiom_data.contracts import writable_contracts
+    policy = writable_contracts()
+    digest = _digest(_json_bytes(policy))
+    if digest != _contract()['writable_contracts_digest']:
+        raise ArtifactError('writable contract policy differs from reviewed version')
+    return {'policy': policy, 'policy_digest': digest,
+            'publication_paths': ['BuildApplication.build', 'MarketDomainBuilder.__call__',
+                                  'operations._validate_domain_inputs'],
+            'legacy_semantics': 'read_only; contract_upgrade_requires_new_lineage'}
 
 
 def _reference_qualification(scope):
@@ -529,6 +539,11 @@ def validate_gate_a(plan):
         findings.append({'section': 'execution_entries', 'reason': 'required bulk execution entry missing',
                          'missing': missing})
     check('historical_sparse', _sparse_readiness)
+    behavior = evidence.get('historical_sparse', {}).get('behavioral_conformance', {})
+    if behavior.get('status') != 'PASS':
+        findings.append({'section': 'historical_sparse',
+                         'reason': 'sparse behavioral conformance did not pass'})
+    check('writable_contracts', _writable_readiness)
     generated = evidence.get('source_plan')
     if generated is not None:
         evidence['source_plan'] = {

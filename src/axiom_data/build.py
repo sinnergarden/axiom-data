@@ -150,6 +150,11 @@ class BuildApplication:
         _, contract_domain = _registered_contract("contract_version", request.contract_version)
         if contract_domain != self.domain:
             raise BuildContractError("contract version does not belong to the build domain")
+        from axiom_data.contracts import require_writable_contract
+        try:
+            require_writable_contract(self.domain, request.contract_version)
+        except ValueError as exc:
+            raise BuildContractError(str(exc)) from exc
         result = self.executor(request)
         if not isinstance(result, DomainCommitRef):
             raise BuildContractError("executor must return DomainCommitRef")

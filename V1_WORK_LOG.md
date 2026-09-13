@@ -726,3 +726,16 @@ Candidate recovery follow-up:
   review approved this follow-up. Final r7 tests: 17/17 focused, 349/349 full
   PASS in 132.886 seconds. The failed aa9a8fc replay is preserved; use only a
   successful final validation receipt bound to the follow-up commit.
+
+## PR8 writable admission and sparse behavioral gate
+
+- Enforce explicit current writable domain and coverage contracts at public build,
+  operation preflight and publisher. Historical loaders retain frozen validation.
+  Coverage/domain contract upgrades require a new lineage.
+- Gate A executes public sparse planning, recovery and admission against fixed
+  valid/destructive cases; a separately labeled gap isolation checks redundancy.
+  Always-COMPLETE and removed completeness/gap guards cause BLOCKED.
+- Independent Astra r2 code review APPROVE; Luna affected 134/134 and full
+  366/366 PASS (164.602s full). See P1_WRITE_BEHAVIOR_REVIEW.md and test logs
+  in reports/pr8. Commit-bound Gate A replay is the remaining delivery check.
+- NO_BULK_BUILD; no merge or main update.

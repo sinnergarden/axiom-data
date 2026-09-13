@@ -60,20 +60,8 @@ def _profile_digest(name: str) -> str:
 
 
 def _write_rows(root: Path, raw_id: str, domain: str, rows: list[dict[str, object]]) -> None:
-    profile = f"fixture-{domain}.v1"
-    write_raw_batch(
-        root,
-        raw_id,
-        domain=domain,
-        source_profile=profile,
-        source_profile_version=profile,
-        source_profile_digest=_profile_digest(profile),
-        request={"fixture": raw_id},
-        retrieved_at=FIXED_TIME,
-        payload=_json_bytes(rows),
-        collector_code="fixture-pr5.v1",
-        summary={"rows": len(rows)},
-    )
+    from test_artifacts import write_rows
+    write_rows(root, raw_id, domain, rows, retrieved_at=FIXED_TIME)
 
 
 def _base_rows() -> dict[str, list[dict[str, object]]]:
@@ -234,7 +222,14 @@ def build_all(root: Path, ids: dict[str, list[str]]) -> dict[str, str]:
     for domain in dependency_map:
         symbols = list(BENCHMARKS if domain == "benchmark_daily" else SYMBOLS)
         config = {"symbols": symbols, "start_session": START, "end_session": END, "pit_qualification": "best_effort"}
-        ref = BuildApplication(domain, TushareDm1Builder(root, domain, dependency_commit_ids=dependency_map[domain], builder_config=config, created_at=FIXED_TIME)).build(None, ids[domain], [], f"{domain}.v1")
+        version = f"{domain}.v1"
+        if domain == "corporate_actions":
+            version = "corporate_actions.v2"
+            config["corporate_action_observations"] = "corporate_action_observations.v1"
+        elif domain == "security_capital":
+            version = "security_capital.v2"
+            config["capital_qualification"] = "capital_conflict.v1"
+        ref = BuildApplication(domain, TushareDm1Builder(root, domain, dependency_commit_ids=dependency_map[domain], builder_config=config, created_at=FIXED_TIME)).build(None, ids[domain], [], version)
         commits[domain] = ref.commit_id
     snapshot = create_snapshot(root, commits, created_at=FIXED_TIME)
     adjusted = build_adjusted_price_view(root, snapshot.snapshot_id, symbols=ADJUSTED_SYMBOLS, start_session=START, end_session=END, anchor_session=END, pit_policy="research_non_pit", decision_cutoff=END, created_at=FIXED_TIME)
@@ -243,6 +238,10 @@ def build_all(root: Path, ids: dict[str, list[str]]) -> dict[str, str]:
     return {**commits, "snapshot": snapshot.snapshot_id, "adjusted": adjusted.view_id, "replay": replay.view_id, "qlib": qlib.view_id}
 
 
+from test_artifacts import synthetic_source_fixture
+
+
+@synthetic_source_fixture
 class Pr5Dm1Test(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -355,7 +354,7 @@ class Pr5Dm1Test(unittest.TestCase):
         with patch.dict(RESPONSES, {"dividend": unsupported}):
             action_raw = TushareDm1Collector(self.root, FixtureClient()).collect("corporate_actions", "dividend", {"ts_code": ",".join(SYMBOLS)}, retrieved_at="2026-09-06T13:00:00+08:00")
         with self.assertRaisesRegex(ArtifactError, "unsupported stock terms"):
-            BuildApplication("corporate_actions", TushareDm1Builder(self.root, "corporate_actions", dependency_commit_ids={name: artifacts[name] for name in ("trading_calendar", "security_master")}, builder_config={"symbols": list(SYMBOLS), "start_session": START, "end_session": END})).build(None, [action_raw.raw_batch_id], [], "corporate_actions.v1")
+            BuildApplication("corporate_actions", TushareDm1Builder(self.root, "corporate_actions", dependency_commit_ids={name: artifacts[name] for name in ("trading_calendar", "security_master")}, builder_config={"symbols": list(SYMBOLS), "start_session": START, "end_session": END, "corporate_action_observations": "corporate_action_observations.v1"})).build(None, [action_raw.raw_batch_id], [], "corporate_actions.v2")
 
     def test_dm1_snapshot_views_and_classification(self) -> None:
         artifacts = build_all(self.root, self.ids)
@@ -413,14 +412,17 @@ class Pr5Dm1Test(unittest.TestCase):
                 ids = collect_all(root)
                 with patch.object(TushareDm1Builder, method, replacement):
                     artifacts = build_all(root, ids)
-                report = reconcile_dm1_raw_mapping(
-                    str(root),
-                    artifacts["snapshot"],
-                    ids,
-                    symbols=SYMBOLS,
-                    start_session=START,
-                    end_session=END,
-                )
+                    faulted_reader = SnapshotReader(root, artifacts['snapshot'])
+                if expected_domain == 'corporate_actions':
+                    with self.assertRaisesRegex(ArtifactError, 'qualified D-M1 observations differ from RawBatch mapping'):
+                        SnapshotReader(root, artifacts['snapshot'])
+                # The independent row checker also detects the faulty values
+                # already captured while the deliberately broken mapper ran.
+                with patch('axiom_data.dm1_reconciliation.SnapshotReader', return_value=faulted_reader):
+                    report = reconcile_dm1_raw_mapping(
+                        str(root), artifacts["snapshot"], ids,
+                        symbols=SYMBOLS, start_session=START, end_session=END,
+                    )
                 self.assertEqual(report["status"], "FAIL")
                 self.assertIn(expected_domain, {row["domain"] for row in report["mismatches"]})
 

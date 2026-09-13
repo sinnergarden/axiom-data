@@ -7,7 +7,7 @@ from axiom_data import BuildApplication, MarketDomainBuilder, write_raw_batch, v
 from axiom_data.artifacts import ArtifactError, _digest, _json_bytes
 from axiom_data.pr6_source import Pr6Collector, Pr6Builder
 from axiom_data.pit import select_revisions
-from test_artifacts import security_row
+from test_artifacts import security_row, write_rows, synthetic_source_fixture
 
 
 class Client:
@@ -21,15 +21,13 @@ def income(value=100):
             'revenue':value,'oper_cost':60,'n_income':10}
 
 
+@synthetic_source_fixture
 class Pr6ArtifactTest(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name)
-        raw=write_raw_batch(self.root,'security-fixture',domain='security_master',
-            source_profile='fixture',source_profile_version='fixture.v1',
-            source_profile_digest=_digest(b'fixture'),request={},
-            retrieved_at='2025-01-01T00:00:00Z',payload=_json_bytes([security_row()]),
-            collector_code='fixture',summary={})
+        raw=write_rows(self.root,'security-fixture','security_master',[security_row()],
+                       retrieved_at='2025-01-01T00:00:00Z')
         self.security=BuildApplication('security_master',MarketDomainBuilder(self.root,'security_master')).build(
             None,[raw.raw_batch_id],[],'security_master.v1')
 
@@ -85,7 +83,8 @@ class Pr6ArtifactTest(unittest.TestCase):
         def collect(start,end,days,observed):
             rows=[{'index_code':'000906.SH','con_code':'000001.SZ','trade_date':day,'weight':1} for day in days]
             return Pr6Collector(self.root,Client(rows)).collect('index_weight',
-                {'index_code':'000906.SH','start_date':start,'end_date':end},retrieved_at=observed)
+                {'index_code':'000906.SH','start_date':start,'end_date':end},retrieved_at=observed,
+                membership_complete=True)
         first=collect('20250101','20250101',['20250101'],'2025-01-02T00:00:00Z')
         exit_raw=collect('20250601','20250601',[],'2025-06-02T00:00:00Z')
         enter=collect('20250801','20250801',['20250801'],'2025-08-02T00:00:00Z')
@@ -95,18 +94,18 @@ class Pr6ArtifactTest(unittest.TestCase):
             builder_config={'membership_end_exclusive':None}))
         prior=None;states=[]
         for raw in (first,exit_raw,enter,correction):
-            ref=app.build(prior,[raw.raw_batch_id],[],'universe_membership.v2')
+            ref=app.build(prior,[raw.raw_batch_id],[],'universe_membership.v3')
             prior=ref.commit_id;states.append(validate_domain_commit_closure(self.root,'universe_membership',prior))
         self.assertIsNone(states[0].rows[0]['effective_to'])
-        selected=select_revisions(states[1].rows,policy='operational_pit_v1',knowledge_cutoff='2025-06-03T00:00:00Z')
+        selected=select_revisions(states[1].rows,policy='operational_pit_v1',knowledge_cutoff='2025-06-03T00:00:00Z',group_states=states[1].manifest['group_states'])
         self.assertEqual([(r['effective_from'],r['effective_to']) for r in selected],[('2025-01-01','2025-06-01')])
-        rebuilt=app.build(None,[r.raw_batch_id for r in (correction,first,enter,exit_raw)],[],'universe_membership.v2')
+        rebuilt=app.build(None,[r.raw_batch_id for r in (correction,first,enter,exit_raw)],[],'universe_membership.v3')
         self.assertEqual(states[-1].rows,validate_domain_commit_closure(self.root,'universe_membership',rebuilt.commit_id).rows)
         for policy in ('operational_pit_v1','best_effort_vendor_v1'):
             args=dict(policy=policy,knowledge_cutoff='2025-10-01T00:00:00Z',group_id='000906.SH')
             for day,count in [('2024-12-31',0),('2025-02-01',1),('2025-06-01',0),('2025-07-14',0),('2025-07-15',1),('2025-08-02',1)]:
-                self.assertEqual(len(members(states[-1].rows,target_session=day,**args)),count)
-        early=select_revisions(states[-1].rows,policy='operational_pit_v1',knowledge_cutoff='2025-01-03T00:00:00Z')
+                self.assertEqual(len(members(states[-1].rows,target_session=day,group_states=states[-1].manifest['group_states'],**args)),count)
+        early=select_revisions(states[-1].rows,policy='operational_pit_v1',knowledge_cutoff='2025-01-03T00:00:00Z',group_states=states[-1].manifest['group_states'])
         self.assertIsNone(early[0]['effective_to'])
 
     def test_individual_batch_request_rejects_other_security_and_period(self):
@@ -145,21 +144,20 @@ class Pr6ArtifactTest(unittest.TestCase):
         app=BuildApplication('universe_membership',Pr6Builder(self.root,'universe_membership',
             dependency_commit_ids={'security_master':self.security.commit_id},
             builder_config={'membership_end_exclusive':'2025-08-01'}))
-        old=app.build(None,[first.raw_batch_id],[],'universe_membership.v2')
-        new=app.build(old.commit_id,[first.raw_batch_id,later.raw_batch_id],[],'universe_membership.v2')
+        old=app.build(None,[first.raw_batch_id],[],'universe_membership.v3')
+        new=app.build(old.commit_id,[first.raw_batch_id,later.raw_batch_id],[],'universe_membership.v3')
         before=validate_domain_commit_closure(self.root,'universe_membership',old.commit_id)
         after=validate_domain_commit_closure(self.root,'universe_membership',new.commit_id)
         args={'policy':'operational_pit_v1','knowledge_cutoff':'2025-06-15T00:00:00Z'}
-        self.assertEqual(select_revisions(before.rows,**args),select_revisions(after.rows,**args))
+        self.assertEqual(select_revisions(before.rows,group_states=before.manifest['group_states'],**args),select_revisions(after.rows,group_states=after.manifest['group_states'],**args))
         changed=[r for r in after.rows if r['boundary_source_ref'] is not None]
         self.assertEqual(changed[0]['first_observed_at'],'2025-07-01T00:00:00Z')
         self.assertEqual(changed[0]['boundary_source_ref'],later.raw_batch_id)
 
     def test_valuation_requires_an_open_calendar_session(self):
         from test_artifacts import calendar_rows
-        raw=write_raw_batch(self.root,'calendar-fixture',domain='trading_calendar',
-            source_profile='fixture',source_profile_version='fixture.v1',source_profile_digest=_digest(b'fixture'),
-            request={},retrieved_at='2026-01-01T00:00:00Z',payload=_json_bytes(calendar_rows()),collector_code='fixture',summary={})
+        raw=write_rows(self.root,'calendar-fixture','trading_calendar',calendar_rows(),
+                       retrieved_at='2026-01-01T00:00:00Z')
         cal=BuildApplication('trading_calendar',MarketDomainBuilder(self.root,'trading_calendar')).build(None,[raw.raw_batch_id],[],'trading_calendar.v1')
         source=Pr6Collector(self.root,Client([{'ts_code':'000001.SZ','trade_date':'20260103','pe':1,'pb':1,'ps':1}])).collect('daily_basic',{'ts_code':'000001.SZ','trade_date':'20260103'})
         builder=Pr6Builder(self.root,'valuation_daily',dependency_commit_ids={'security_master':self.security.commit_id,'trading_calendar':cal.commit_id})

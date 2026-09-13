@@ -12,6 +12,10 @@ from axiom_data.partition_rows import PartitionRows, array_rows
 from axiom_data.partitions import POLICY, publish_partitions
 
 
+from test_artifacts import synthetic_source_fixture
+
+
+@synthetic_source_fixture
 class PartitionStreamTest(unittest.TestCase):
     def test_published_v2_loader_dispatch_and_exact_legacy_values(self):
         from test_artifacts import build_pack

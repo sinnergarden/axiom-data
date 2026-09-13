@@ -311,7 +311,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
             load_raw_batch(self.root, ids["calendar"][0]).manifest["schema_version"],
             "raw_batch.v1",
         )
-        with self.assertRaisesRegex(ArtifactError, "profile-bound raw_batch.v2"):
+        with self.assertRaisesRegex(ArtifactError, "complete source evidence required for coverage"):
             build_calendar_only(
                 self.root,
                 ids["calendar"],
