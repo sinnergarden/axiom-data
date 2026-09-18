@@ -63,8 +63,14 @@ def bootstrap_references(data_root, *, run_id, parent_run_id, source_plan_path, 
     common = {key: scope[key] for key in ('symbols', 'start_session', 'end_session')}
     common.update(storage_policy='domain_time_blocks.v1',
                   no_change_policy='reuse_equal_state.v1', coverage_state_policy='source_observations.v2')
+    calendar_symbols = list(scope['symbols'])
+    for benchmark in scope['benchmarks']:
+        exchange = 'SSE' if benchmark.endswith('.SH') else 'SZSE'
+        if exchange not in exchanges:
+            calendar_symbols.append(benchmark)
     builds = {
-        'trading_calendar': {'contract_version': 'trading_calendar.v1', 'config': dict(common)},
+        'trading_calendar': {'contract_version': 'trading_calendar.v1',
+                             'config': dict(common, symbols=calendar_symbols)},
         'security_master': {'contract_version': 'security_master.v1',
                             'config': dict(common, security_boundary_policy='exchange_security.v1')},
         'industry_membership': {'contract_version': 'industry_membership.v3',

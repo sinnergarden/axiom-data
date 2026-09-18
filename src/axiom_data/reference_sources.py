@@ -29,9 +29,11 @@ def plan_reference_requests(scope, page_size=1000):
         return result
 
     exchanges = sorted({'SSE' if s.endswith('.SH') else 'SZSE' for s in scope['symbols']})
+    calendar_exchanges = sorted(set(exchanges) | {
+        'SSE' if s.endswith('.SH') else 'SZSE' for s in scope['benchmarks']})
     requests = [spec('market', 'trading_calendar', 'trade_cal',
                      dict(exchange=e, start_date=economic['start'], end_date=economic['end']))
-                for e in exchanges]
+                for e in calendar_exchanges]
     requests += [spec('market', 'security_master', 'stock_basic',
                       dict(exchange=e, list_status=status))
                  for e in exchanges for status in ('L', 'D', 'P')]
