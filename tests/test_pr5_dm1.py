@@ -7,6 +7,7 @@ import socket
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 from copy import deepcopy
 
@@ -812,6 +813,7 @@ class Pr5Dm1Test(unittest.TestCase):
         corrupt_root = Path(self.temporary.name) / "d01-corrupt-old"
         shutil.copytree(self.root, corrupt_root)
         old_manifest = corrupt_root / "snapshots" / old.ref.snapshot_id / "manifest.json"
+        old_manifest.chmod(old_manifest.stat().st_mode | 0o200)
         old_manifest.write_bytes(old_manifest.read_bytes() + b"corrupt")
         corrupt = deepcopy(evidence)
         corrupt["validation_root"] = str(corrupt_root)
@@ -870,7 +872,13 @@ class Pr5Dm1Test(unittest.TestCase):
                 "dm1_acceptance_matrix",
             )
         }
-        data_root = Path(reports["run_manifest"]["forensic_closure"]["path"])
+        data_root = fixture_root(reports["run_manifest"]["forensic_closure"]["path"])
+        # Validators receive explicit relocated locations in an in-memory copy;
+        # committed evidence continues to record its original publication paths.
+        reports = deepcopy(reports)
+        for evidence in (reports['run_manifest']['d01_snapshot_coexistence'],
+                         reports['dm1_acceptance_matrix']['gates']['D01']['evidence']):
+            evidence['validation_root'] = str(fixture_root(evidence['validation_root']))
         validate_pr5_evidence(data_root, *reports.values())
 
         def coordinated(old: str, new: str) -> dict[str, object]:
@@ -935,6 +943,7 @@ class Pr5Dm1Test(unittest.TestCase):
             / d01["old_snapshot"]["snapshot_id"]
             / "manifest.json"
         )
+        old_manifest.chmod(old_manifest.stat().st_mode | 0o200)
         old_manifest.write_bytes(old_manifest.read_bytes() + b"corrupt")
         with self.assertRaisesRegex(ArtifactError, "digest"):
             validate_pr5_evidence(data_root, *changed.values())
@@ -947,6 +956,7 @@ class Pr5Dm1Test(unittest.TestCase):
             / refs["adjusted_price_view"]["view_id"]
             / "rows.json"
         )
+        adjusted_rows.chmod(adjusted_rows.stat().st_mode | 0o200)
         adjusted_rows.write_bytes(adjusted_rows.read_bytes() + b"corrupt")
         with self.assertRaisesRegex(ArtifactError, "digest"):
             validate_pr5_evidence(corrupt_root, *reports.values())

@@ -1,5 +1,6 @@
 import json,tempfile,unittest,shutil
 from pathlib import Path
+from fixture_locations import fixture_root
 from axiom_data import BuildApplication,load_raw_batch,validate_domain_commit_closure,SnapshotReader,ArtifactError
 from axiom_data.dm1_source import TushareDm1Builder,TushareDm1Collector
 from axiom_data.artifacts import _validate_domain_rows
@@ -90,5 +91,5 @@ class UndatedActionsTest(unittest.TestCase):
                     dependency_commit_ids=deps,builder_config=old_cfg)).build(None,[dated_raw.raw_batch_id],[],'corporate_actions.v1')
             frozen=json.loads(Path('reports/pr6/run_manifest.json').read_bytes())
             legacy_id=frozen['artifact_refs']['domain_commits']['corporate_actions']['domain_commit_id']
-            legacy=validate_domain_commit_closure(frozen['data_root'],'corporate_actions',legacy_id)
+            legacy=validate_domain_commit_closure(fixture_root(frozen['data_root']),'corporate_actions',legacy_id)
             self.assertNotIn('observation_state',legacy.rows[0])

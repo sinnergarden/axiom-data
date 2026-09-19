@@ -1,83 +1,30 @@
 # axiom-data
 
-`axiom-data` is the data publication boundary for the Axiom project family. It
-turns frozen supplier inputs into immutable market domain commits and composes
-fixed data snapshots. Phase 1 PR3 adds one bounded Snapshot-bound consumption
-and export proof.
+Axiom Data 将供应商响应整理成不可变的数据版本，提供行情、成分与行业、财务、股东、
+融资融券、资金流和业绩预告，以及绑定数据版本的查询和导出。
 
-This branch contains the Phase 1 PR3 market vertical slice:
+先读 **[架构、数据与使用示例](docs/overview.md)**：一页了解数据从哪里来、怎样形成版本、
+历史查询如何选择数据，以及如何用 Python 读取。
 
-- explicit `trading_calendar.v1`, `security_master.v1`, and
-  `market_daily.v1` schemas;
-- append-only RawBatch artifacts under an explicit data root;
-- a public build application port with the stable argument shape
-  `build(parent_commit, raw_batch_ids, patch_ids, contract_version)`;
-- immutable market DomainCommits with contract and input provenance;
-- immutable three-domain DataSnapshots;
-- full parent/raw/dependency closure validation for formal resolution;
-- a disposable SQLite catalog rebuilt from manifests;
-- an allow-listed Tushare adapter and frozen endpoint SourceProfile;
-- a Snapshot-bound read-only market Reader;
-- an immutable Qlib-compatible day-frequency binary view;
-- direct/view equivalence, production-independent frozen-raw/Qsys
-  reconciliation, and RawBatch-only offline rebuild evidence;
-- SourceProfile semantic digests bound through RawBatch and DomainCommit
-  identities, plus exact calendar request-scope coverage validation;
-- standard-library contract and artifact tests.
+## 文档入口
 
-PR3 remains a fixed 20-security, one-year proof. It does not add a general
-supplier framework, non-empty patches, mutable pointers, legacy dual-write,
-research Features, or any post-market data domain.
+- [首次构建](docs/operations/bootstrap.md) / [每日增量](docs/operations/daily.md)
+- [生成 Views](docs/operations/materialize-views.md) / [数据修复](docs/operations/repair.md)
+- [离线恢复](docs/operations/recovery.md) / [独立验收](docs/operations/v1-independent-review.md)
+- [目录布局](docs/operations/physical-layout.md)
+- [股东人数缺少报告期时的处理](docs/operations/holder-source-admission.md)
 
-The committed reports under `reports/pr3/` record the reviewed real run without
-committing its full RawBatch payloads. `tests/fixtures/` contains only the small
-real listing/suspension samples needed for offline tests. Live collection reads
-the Tushare credential from `TUSHARE_TOKEN` or Tushare's existing local secure
-configuration; no credential is stored in this repository.
+代码位于 `src/axiom_data/`，测试位于 `tests/`。本机正式数据根为 `/var/lib/axiom-data`；
+旧 workspace `data/` 仅作历史证据留存。仓库里的 `reports/` 是各次验证记录，不是完整生产数据。
+供应商凭据通过运行环境或既有安全配置读取，不写入仓库。
 
-The full real closure named in the run report is retained under the external
-read-only `/home/liuming/workspace/axiom/data/forensic/` area. It is validation
-evidence only; no production `current` pointer is created or changed.
+## 运行测试
 
-The reviewed run is reproducible with `scripts/run_pr3_market_slice.py`; it
-requires two nonexistent temporary data-root paths, the frozen Qsys parquet
-path, and a report output directory. Collection is the only networked stage.
-The script copies only the resulting `raw/batches` closure into the second root
-before rebuilding every downstream artifact offline.
+在仓库根目录执行：
 
-## Data root
-
-The logical layout is:
-
-```text
-/home/liuming/workspace/axiom/data/
-  raw/batches/
-  raw/objects/
-  canonical/<domain>/commits/
-  canonical/<domain>/objects/
-  derived/<name>/commits/
-  derived/<name>/objects/
-  snapshots/
-  exports/qlib/
-  patches/
-  build_provenance/
-  staging/
-  reports/
-  current.json
-  catalog.sqlite
-```
-
-`DataRootLayout` only derives these paths; it does not create or mutate them.
-
-## Validate Phase 1
-
-```text
+```sh
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-## PR6 PIT and financial facts
-
-PR6 scope and contracts are documented in [ADR 0005](docs/adr/0005-pr6-pit-financial.md).
-The Snapshot Reader exposes as-of revisions, membership, historical union and financial
-derivations. PR6 Fact/Qlib materialization is explicit and snapshot-bound.
-PR7 leaves and D-M2 total acceptance remain deferred.
+支持的代码能力与某个数据版本是否通过验收是两件事。使用数据时指定具体 Snapshot ID，
+并检查该版本的范围、质量和验收结果。

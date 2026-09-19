@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from types import SimpleNamespace
 
 from axiom_data import (ArtifactError, BuildApplication, SnapshotReader, bootstrap, daily,
@@ -19,7 +20,7 @@ class PublicSourceScopeTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)/'data'
         run = json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
-        shutil.copytree(run['source_root'], self.root); self.addCleanup(self.writable)
+        shutil.copytree(fixture_root(run['source_root']), self.root); self.addCleanup(self.writable)
         self.old = SnapshotReader(self.root, run['refs']['snapshot_id'])
 
     def writable(self):
@@ -42,7 +43,7 @@ class PublicSourceScopeTest(unittest.TestCase):
         result['forecast_observations']['config']['forecast_source_types'] = 'forecast_source_types.v1'
         # Current industry writes use the same frozen SW source plan as the
         # dedicated real-source integration, with this fixture's eight securities.
-        source = Path('/home/liuming/workspace/axiom/data')
+        source = fixture_root('/home/liuming/workspace/axiom/data')
         sw_plan = json.loads((source/'operations/sw2021-canonical-20260910-r1/build_plan.json').read_bytes())
         for raw_id in sw_plan['raw_batch_ids']:
             target = self.root/'raw/batches'/raw_id

@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import (ArtifactError, BuildApplication, BuildContractError, BuildRequest,
@@ -27,7 +28,7 @@ class WritableContractsTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name) / 'data'
         self.run = json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
-        shutil.copytree(self.run['source_root'], self.root)
+        shutil.copytree(fixture_root(self.run['source_root']), self.root)
         self.addCleanup(self.cleanup)
         self.reader = SnapshotReader(self.root, self.run['refs']['snapshot_id'])
         self.security = self.reader.commits['security_master'].ref.commit_id

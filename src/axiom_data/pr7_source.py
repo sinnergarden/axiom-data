@@ -37,6 +37,25 @@ def source_qualification(records, version):
             if 'end_date' in r and 'holder_num' in r and r['end_date'] is None and r['holder_num'] is None]
 
 
+def holder_admission(records, version, endpoint):
+    """Row usability, independent of supplier completeness and PIT qualification."""
+    rejected=[]
+    if version=='tushare_pr7_holder.v3' and endpoint=='stk_holdernumber':
+        rejected=[{'row_index':i,'row_fingerprint':fingerprint(row),
+                   'status':'unmaterializable','reason':'MISSING_REPORT_DATE',
+                   'affected_field':'end_date'} for i,row in enumerate(records)
+                  if 'end_date' in row and row['end_date'] is None]
+    return {'source_rows':len(records),'unmaterializable_count':len(rejected),
+            'materializable_rows':len(records)-len(rejected),'rejected_rows':rejected}
+
+
+def canonicalization_report(raw):
+    """Traceable admission result for an immutable supplier response."""
+    report=holder_admission(json.loads(raw.payload),raw.manifest['source_profile_version'],
+                            raw.manifest['request']['endpoint'])
+    return dict(report,raw_ref=raw.ref.raw_batch_id)
+
+
 def validate_payload(endpoint, params, records, *, profile_version='tushare_pr7.v1'):
     _validate_payload_shape(endpoint, params, records, profile_version=profile_version)
     definition=load_pr7_source_profile(profile_version)['endpoints'][endpoint]
@@ -60,7 +79,7 @@ def _validate_payload_shape(endpoint, params, records, *, profile_version='tusha
         if row.get('ts_code')!=params['ts_code']:raise ArtifactError('security outside individual request')
         for field in ('trade_date',) if endpoint in {'margin_detail','moneyflow'} else ('ann_date','end_date'):
             if field=='ann_date':announcement(row.get(field),profile_version)
-            elif field=='end_date' and source_qualification([row],profile_version):continue
+            elif field=='end_date' and holder_admission([row],profile_version,endpoint)['unmaterializable_count']:continue
             else:source_date(row.get(field))
         represented=row[definition['bound_field']]
         if definition['bound_field']=='ann_date':represented=announcement(represented,profile_version)[0].replace('-','')
@@ -87,6 +106,9 @@ class Pr7Collector(TushareCollector):
             payload=payload,collector_code=self.implementation_revision,
             summary={'rows':len(records),'historical_availability':'best_effort','empty_response':'source_gap' if not records else None,
                      'source_completeness':completeness,
+                     **({'canonical_admission':holder_admission(records,profile_version,endpoint)}
+                        if profile_version=='tushare_pr7_holder.v3' and endpoint=='stk_holdernumber'
+                        and any(r.get('end_date') is None and r.get('holder_num') is not None for r in records) else {}),
                      **({'source_qualification':source_qualification(records,profile_version)} if profile_version=='tushare_pr7_holder.v3' else {})})
         from axiom_data.source_completeness import validate_payload_completeness
         validate_payload_completeness(profile_version, endpoint, records,
@@ -117,6 +139,10 @@ def normalize(raw, domain, *, top10_qualification=None, margin_qualification=Non
     if version=='tushare_pr7_holder.v3' and m['summary'].get('source_qualification')!=excluded:
         raise ArtifactError('holder source qualification summary mismatch')
     excluded_indices={item['row_index'] for item in excluded}
+    admission=holder_admission(records,version,endpoint)
+    if 'canonical_admission' in m['summary'] and m['summary']['canonical_admission']!=admission:
+        raise ArtifactError('holder canonical admission summary mismatch')
+    excluded_indices.update(item['row_index'] for item in admission['rejected_rows'])
     groups=defaultdict(list)
     for index,source in enumerate(records):
         if index in excluded_indices:continue

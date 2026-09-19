@@ -6,6 +6,7 @@ import socket
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, BuildContractError, verify_recovery
@@ -18,7 +19,7 @@ class RecoveryOperationTest(unittest.TestCase):
         self.run = json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name) / 'restored'
-        shutil.copytree(self.run['source_root'], self.root)
+        shutil.copytree(fixture_root(self.run['source_root']), self.root)
         self.snapshot_id = self.run['refs']['snapshot_id']
 
     def tearDown(self):
@@ -140,7 +141,7 @@ class RecoveryOperationTest(unittest.TestCase):
     def test_published_pr6_v1_is_read_with_its_original_contract(self):
         old = json.loads(Path('reports/pr6/run_manifest.json').read_bytes())
         root = Path(self.temp.name) / 'legacy'
-        shutil.copytree(old['data_root'], root)
+        shutil.copytree(fixture_root(old['data_root']), root)
         try:
             snapshot_id = old['artifact_refs']['snapshot']['snapshot_id']
             view_id = old['artifact_refs']['view']['view_id']

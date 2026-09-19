@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from importlib.resources import files
 from pathlib import Path
+from fixture_locations import fixture_root
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -18,7 +19,7 @@ from axiom_data.consumption import MARKET_VIEW_FIELDS
 class AdmissionPlanTest(unittest.TestCase):
     def setUp(self):
         run = json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
-        self.root = Path(run['source_root'])
+        self.root = fixture_root(run['source_root'])
         self.snapshot = run['refs']['snapshot_id']
         old = json.loads((self.root / 'derived/pr6_fact/commits' / run['refs']['pr6_view_id'] / 'manifest.json').read_bytes())
         target = dict(symbols=['688981.SH', '000401.SZ'], start_session='2025-06-10', end_session='2025-06-13')

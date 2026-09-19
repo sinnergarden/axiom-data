@@ -2,6 +2,7 @@
 import json
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from axiom_data import BuildApplication, validate_domain_commit_closure
 from axiom_data.pr6_source import Pr6Builder, Pr6Collector
 from axiom_data.pit import financial_derived, members
@@ -100,34 +101,37 @@ class FinalProbes(unittest.TestCase):
 
     def test_real_old_view(self):
         report=json.loads((Path(__file__).resolve().parents[1]/'reports/pr6/run_manifest.json').read_text())
+        root=fixture_root(report['data_root'])
         ref=report['artifact_refs']['view']
-        view=load_pr6_fact_view(report['data_root'],ref['view_id'])
+        view=load_pr6_fact_view(root,ref['view_id'])
         self.assertEqual(view.manifest['schema_version'],'pr6_fact_view.v1')
         self.assertEqual(len(view.rows),8)
-        target=Path(report['data_root'])/'derived/pr6_fact/commits'/ref['view_id']
+        target=root/'derived/pr6_fact/commits'/ref['view_id']
         original=json.loads((target/'rows.json').read_text())
         self.assertEqual(view.rows,tuple(original['wide']))
         self.assertEqual(view.manifest['identity_digest'],ref['identity_digest'])
         from axiom_data.views import FactView
-        result=FactView(report['data_root'],report['artifact_refs']['snapshot']['snapshot_id'],pr6_fact_view_id=ref['view_id']).read('pr6')
+        result=FactView(root,report['artifact_refs']['snapshot']['snapshot_id'],pr6_fact_view_id=ref['view_id']).read('pr6')
         self.assertEqual(len(result['rows']),8)
         from axiom_data.consumption import QlibViewReader
-        self.assertEqual(len(QlibViewReader(report['data_root'],ref['view_id']).market_daily(include_missing=True)),8)
+        self.assertEqual(len(QlibViewReader(root,ref['view_id']).market_daily(include_missing=True)),8)
         # Tamper a copied real artifact, never its published original.
         import shutil,tempfile
         from axiom_data.artifacts import ArtifactError
         with tempfile.TemporaryDirectory() as directory:
             for name in ('raw','canonical','snapshots','derived'):
-                shutil.copytree(Path(report['data_root'])/name,Path(directory)/name)
+                shutil.copytree(root/name,Path(directory)/name)
             manifest_path=Path(directory)/'derived/pr6_fact/commits'/ref['view_id']/'manifest.json'
+            manifest_path.chmod(manifest_path.stat().st_mode | 0o200)
             valid=manifest_path.read_bytes();broken=json.loads(valid)
             broken['schema_version']='pr6_fact_view.v2';manifest_path.write_text(json.dumps(broken))
             with self.assertRaises(ArtifactError):load_pr6_fact_view(directory,ref['view_id'])
             manifest_path.write_bytes(valid)
             data_path=manifest_path.parent/'rows.json';data=json.loads(data_path.read_text())
+            data_path.chmod(data_path.stat().st_mode | 0o200)
             data['wide'][0]['values']['income.revenue']=123;data_path.write_text(json.dumps(data))
             with self.assertRaises(ArtifactError):load_pr6_fact_view(directory,ref['view_id'])
         v2=json.loads((Path(__file__).resolve().parents[1]/'reports/pr6-review/run_manifest.json').read_text())
-        newer=load_pr6_fact_view(v2['data_root'],v2['artifact_refs']['view']['view_id'])
+        newer=load_pr6_fact_view(fixture_root(v2['data_root']),v2['artifact_refs']['view']['view_id'])
         self.assertEqual(newer.manifest['schema_version'],'pr6_fact_view.v2')
         self.assertNotEqual(newer.ref.view_id,view.ref.view_id)

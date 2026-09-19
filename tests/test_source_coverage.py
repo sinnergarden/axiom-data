@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 
 from axiom_data import (ArtifactError, BuildApplication, SnapshotReader, create_snapshot,
                         load_raw_batch, validate_domain_commit_closure, write_raw_batch)
@@ -94,7 +95,7 @@ class SourceCoverageTest(unittest.TestCase):
         temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
         self.directory = Path(temp.name); self.root = self.directory/'data'
         run = json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
-        shutil.copytree(run['source_root'], self.root)
+        shutil.copytree(fixture_root(run['source_root']), self.root)
         self.addCleanup(self.writable)
         self.reader = SnapshotReader(self.root, run['refs']['snapshot_id'])
         self.ids = {d:c.ref.commit_id for d,c in self.reader.commits.items()}

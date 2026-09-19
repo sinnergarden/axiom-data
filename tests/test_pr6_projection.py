@@ -1,6 +1,7 @@
 """Validate complete membership state before any security projection."""
 import copy
 import unittest
+from fixture_locations import fixture_root
 from dataclasses import replace
 
 from axiom_data import SnapshotReader, validate_domain_commit_closure
@@ -8,7 +9,7 @@ from axiom_data.artifacts import ArtifactError
 from axiom_data.domains.market import MarketContractError
 import test_pr6_final_probes as fixtures
 
-ROOT='/home/liuming/workspace/axiom/data/forensic/pr6-empty-prefix-compat-20260908-r4/source'
+ROOT=fixture_root('/home/liuming/workspace/axiom/data/forensic/pr6-empty-prefix-compat-20260908-r4/source')
 SNAPSHOT='snapshot-8bc43796731f5fd14961d6beff78d74b46eacfb158999e12bf38ce859407548e'
 ARGS={'pit_policy':'best_effort_vendor_v1','knowledge_cutoff':'2025-07-01T00:00:00Z'}
 DOMAIN='universe_membership'

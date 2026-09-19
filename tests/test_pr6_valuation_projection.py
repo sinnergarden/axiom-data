@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, BuildApplication, SnapshotReader, create_snapshot
@@ -15,7 +16,7 @@ class ValuationProjectionTest(unittest.TestCase):
     def test_scoped_selection_keeps_future_and_aba_revisions(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 old=SnapshotReader(root,run['refs']['snapshot_id']);ids={d:c.ref.commit_id for d,c in old.commits.items()}
                 source=[dict(ts_code='688981.SH',trade_date=d,pe=3,pb=2,ps=1) for d in ['20250610','20250701','20250801']]
@@ -44,7 +45,7 @@ class ValuationProjectionTest(unittest.TestCase):
                     if p.is_dir():p.chmod(0o755)
 
     def test_projection_still_requires_complete_scope_admission(self):
-        run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes());root=Path(run['source_root'])
+        run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes());root=fixture_root(run['source_root'])
         manifest=json.loads((root/'derived/pr6_fact/commits'/run['refs']['pr6_view_id']/'manifest.json').read_bytes())
         reader=SnapshotReader(root,run['refs']['snapshot_id'])
         # A month with no valuation rows cannot be bypassed by the scoped selector.

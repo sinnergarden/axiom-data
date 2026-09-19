@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, SnapshotReader, load_raw_batch
@@ -18,7 +19,7 @@ class RequestCoverageIndexTest(unittest.TestCase):
         from test_pr6_artifacts import Client
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 parent_id=current_pr7_snapshot(root,run['refs']['snapshot_id'],['holder_count_events'])
                 initial=SnapshotReader(root,parent_id)
@@ -56,7 +57,7 @@ class RequestCoverageIndexTest(unittest.TestCase):
     def test_reader_local_intervals_keep_scope_and_new_reader_integrity(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 reader=SnapshotReader(root,run['refs']['snapshot_id'])
                 domain='margin_daily'

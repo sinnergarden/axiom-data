@@ -11,12 +11,17 @@ from axiom_data.historical_sparse import plan_historical_sparse, execute_histori
 from axiom_data.pr7_source import Pr7Builder
 
 
-def fixture_probe(root):
+def fixture_probe(root, source_root):
     root = Path(root)
     if root.exists():
         raise ValueError('fixture evidence root already exists; validate retained output before reuse')
     source = json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
-    shutil.copytree(source['source_root'], root)
+    source_root = Path(source_root)
+    if not source_root.is_absolute() or source_root.is_symlink():
+        raise ValueError('explicit absolute fixture source root required')
+    # Frozen report records historical location; IDs remain its authority.
+    SnapshotReader(source_root, source['refs']['snapshot_id'])
+    shutil.copytree(source_root, root)
     reader = SnapshotReader(root, source['refs']['snapshot_id'])
     class EmptySource:
         calls = 0
@@ -56,7 +61,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--fixture-root', type=Path)
+    parser.add_argument('--fixture-source-root', type=Path)
     args = parser.parse_args()
+    if (args.fixture_root is None) != (args.fixture_source_root is None):
+        parser.error('--fixture-root and --fixture-source-root must be supplied together')
     if args.output.exists():
         raise ValueError('explicit evidence output already exists')
     args.output.mkdir(parents=True)
@@ -69,7 +77,7 @@ def main():
     # validate_gate_a_report; do not run the full planner twice in this producer.
     outputs = {'plan.json': plan, 'gate_a.json': report, 'completeness_matrix.json': completeness_matrix()}
     if args.fixture_root is not None:
-        outputs['sparse_empty.json'] = fixture_probe(args.fixture_root)
+        outputs['sparse_empty.json'] = fixture_probe(args.fixture_root, args.fixture_source_root)
     for name, value in outputs.items():
         (args.output / name).write_bytes(_json_bytes(value))
     print(json.dumps({'status': report['status'], 'code_revision': report['evidence']['code_identity']['code_revision'],

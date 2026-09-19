@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, BuildContractError, materialize_views
@@ -15,7 +16,7 @@ class ViewOperationTest(unittest.TestCase):
         views={'adjusted':{'kind':'adjusted_price','config':dict(common,anchor_session='2025-06-13',pit_policy='research_non_pit',decision_cutoff='2025-06-13')},
                'facts':{'kind':'pr7_fact','config':dict(common,pit_policy='best_effort_vendor_v1',knowledge_cutoff='2025-06-13T23:59:59+08:00')}}
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory)/'data';shutil.copytree(run['source_root'],root)
+            root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 args=dict(run_id='required-views',snapshot_id=run['refs']['snapshot_id'],views=views)
                 with patch('axiom_data.pr7_views._build_pr7_fact_view',side_effect=ArtifactError('simulated required failure')):
@@ -44,7 +45,7 @@ class ViewOperationTest(unittest.TestCase):
     def test_all_five_view_kinds_share_one_checked_snapshot(self):
         from axiom_data import artifacts, SnapshotReader
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
-        original=Path(run['source_root'])
+        original=fixture_root(run['source_root'])
         old=json.loads((original/'derived/pr6_fact/commits'/run['refs']['pr6_view_id']/'manifest.json').read_bytes())
         common=dict(symbols=['688981.SH'],start_session='2025-06-10',end_session='2025-06-13')
         pit=dict(pit_policy='best_effort_vendor_v1',knowledge_cutoff='2025-06-13T23:59:59+08:00')
