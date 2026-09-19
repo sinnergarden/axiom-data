@@ -20,14 +20,14 @@ def economic_content(row):
     return {k:v for k,v in row.items() if k not in excluded}
 
 
-def validate_rows(domain, rows):
+def validate_rows(domain, rows, version=None):
     if domain=='industry_membership' and rows and 'membership_spans' in rows[0]:
         from axiom_data.sw_industry import validate_rows as validate_sw
         return validate_sw(rows)
-    version = "v2" if rows and "observations" in rows[0] else "v1"
+    version = version or ("v2" if rows and "observations" in rows[0] else "v1")
     frozen = _rows(domain, rows, version)
     for row in frozen:
-        if version == 'v2':
+        if version in {'v2', 'v3'}:
             observations=row['observations']
             if not isinstance(observations,list) or not observations:
                 raise MarketContractError('observation lineage required')

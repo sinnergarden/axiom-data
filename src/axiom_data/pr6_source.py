@@ -110,10 +110,27 @@ class Pr6Collector(TushareCollector):
         return ref
 
 
+def _indicator_revision_winners(records):
+    """Resolve supplier flags inside one Raw response; never infer PIT times."""
+    groups = defaultdict(dict)
+    for row in records:
+        flag = row.get('update_flag')
+        if not isinstance(flag, str) or flag not in {'0', '1'}:
+            raise ArtifactError('ambiguous simultaneous revisions: unknown fina_indicator update_flag')
+        key = (row['ts_code'], row['end_date'], row['ann_date'])
+        prior = groups[key].get(flag)
+        if prior is not None and prior != row:
+            raise ArtifactError('ambiguous simultaneous revisions: conflicting fina_indicator update_flag ' + flag)
+        groups[key][flag] = row
+    return [flags['1'] if '1' in flags else flags['0'] for _, flags in sorted(groups.items())]
+
+
 class Pr6Builder(MarketDomainBuilder):
     implementation_revision='tushare-pr6-builder.v1'
 
     def __init__(self, data_root, domain, *, builder_config=None, **kwargs):
+        if domain=='financial_events':
+            self.implementation_revision='tushare-financial-builder.v2'
         config=dict(builder_config or {})
         acquisition=config.get('universe_acquisition')
         if acquisition is not None:
@@ -149,6 +166,8 @@ class Pr6Builder(MarketDomainBuilder):
                 raise ArtifactError('PR6 source profile binding mismatch')
             records=json.loads(raw.payload)
             validate_payload(endpoint,request['params'],records,profile_version=version)
+            if contract['contract_version']=='financial_events.v3' and endpoint=='fina_indicator':
+                records=_indicator_revision_winners(records)
             if endpoint=='index_weight':
                 for source in records:
                     weights[source['index_code']].append((source,raw))
@@ -230,7 +249,7 @@ class Pr6Builder(MarketDomainBuilder):
         if acquisition and not group_mode:
             raise ArtifactError('complete bootstrap requires universe_membership.v3')
         self.group_states=[]
-        if not group_mode and not contract['contract_version'].endswith('.v2'):
+        if not group_mode and contract['contract_version']!='financial_events.v3' and not contract['contract_version'].endswith('.v2'):
             return self._legacy_rows(contract, parent_rows, raw_batches)
         # Parent is immutable; replay only its explicit raw lineage plus new inputs.
         from axiom_data.artifacts import load_raw_batch

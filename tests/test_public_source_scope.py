@@ -216,7 +216,7 @@ class PublicSourceScopeTest(unittest.TestCase):
         # This helper writes immutable Raw directly, bypassing every collector.
         ref = SourceCompletenessTest.raw(self, 100)
         raw = load_raw_batch(self.root, ref.raw_batch_id)
-        spec = dict(raw_batch_ids=[ref.raw_batch_id], contract_version='financial_events.v2',
+        spec = dict(raw_batch_ids=[ref.raw_batch_id], contract_version='financial_events.v3',
                     config={}, new_lineage=True)
         before = set((self.root/'canonical/financial_events/commits').iterdir())
         inputs = self.inputs(); inputs['financial_events'] = spec
