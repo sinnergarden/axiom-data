@@ -1,0 +1,85 @@
+{
+  "contract_version": "financial_events.v3",
+  "domain": "financial_events",
+  "primary_key": [
+    "logical_event_key",
+    "revision_id"
+  ],
+  "sort_order": [
+    "logical_event_key",
+    "revision_id"
+  ],
+  "fields": [
+    {
+      "name": "symbol",
+      "nullable": false
+    },
+    {
+      "name": "logical_event_key",
+      "nullable": false
+    },
+    {
+      "name": "revision_id",
+      "nullable": false
+    },
+    {
+      "name": "source_available_at",
+      "nullable": true
+    },
+    {
+      "name": "first_observed_at",
+      "nullable": false
+    },
+    {
+      "name": "vendor_available_at",
+      "nullable": true
+    },
+    {
+      "name": "availability_basis",
+      "nullable": false
+    },
+    {
+      "name": "pit_qualification",
+      "nullable": false
+    },
+    {
+      "name": "source_ref",
+      "nullable": false
+    },
+    {
+      "name": "endpoint",
+      "nullable": false
+    },
+    {
+      "name": "report_period",
+      "nullable": false
+    },
+    {
+      "name": "report_type",
+      "nullable": false
+    },
+    {
+      "name": "values",
+      "nullable": false
+    },
+    {
+      "name": "missing_reasons",
+      "nullable": false
+    },
+    {
+      "name": "observations",
+      "nullable": false
+    }
+  ],
+  "revision_semantics": "Content fingerprint excludes observations. Ordered source observations retain recurrence and source lineage; earliest content observation is preserved. Before normalization, the versioned fina_indicator source policy selects corrected flag 1 over initial flag 0 within one observation group.",
+  "availability_semantics": "operational selects last actual observation; vendor selects vendor time then observation time, tied incompatible content fails. Universe selects a complete reconstructed state.",
+  "missing_semantics": "null retains explicit missing reason; no forward fill across revisions",
+  "source_revision_policy": {
+    "contract_version": "tushare_fina_indicator_revision.v1",
+    "endpoint": "fina_indicator",
+    "observation_group": "one immutable RawBatch, same ts_code/end_date/ann_date",
+    "initial_flag": "0",
+    "preferred_flag": "1",
+    "conflict_semantics": "Unknown flags or differing payloads within the same flag fail. Across observation groups retain normal PIT ordering. Raw payload remains unchanged."
+  }
+}

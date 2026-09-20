@@ -49,7 +49,7 @@ _CONTRACT_DOMAINS['security_capital.v2']='security_capital'
 
 PR6_CONTRACT_VERSIONS = tuple(name + ".v1" for name in ("financial_events", "valuation_daily", "universe_membership", "industry_membership"))
 PR6_CONTRACT_VERSIONS += tuple(v.replace(".v1", ".v2") for v in PR6_CONTRACT_VERSIONS)
-PR6_CONTRACT_VERSIONS += ("universe_membership.v3", "industry_membership.v3")
+PR6_CONTRACT_VERSIONS += ("universe_membership.v3", "industry_membership.v3", "financial_events.v3")
 _CONTRACT_FILES.update({v: v + ".json" for v in PR6_CONTRACT_VERSIONS})
 _CONTRACT_DOMAINS.update({v: v[:-3] for v in PR6_CONTRACT_VERSIONS})
 

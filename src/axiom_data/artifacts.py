@@ -646,6 +646,9 @@ def _validate_domain_rows(domain: str, rows: object, *, contract=None) -> None:
     try:
         from axiom_data.partition_rows import PartitionRows
         validator=_DOMAIN_VALIDATORS[domain]
+        if domain=='financial_events' and contract is not None:
+            from axiom_data.domains.pr6 import validate_rows
+            validator=lambda batch:validate_rows(domain,batch,contract['contract_version'].rsplit('.',1)[1])
         if domain=='forecast_observations' and contract is not None:
             from axiom_data.domains.pr7 import validate_rows
             validator=lambda batch:validate_rows(domain,batch,contract['contract_version'].rsplit('.',1)[1])

@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -21,7 +22,8 @@ class SourceCompletenessTest(unittest.TestCase):
     def raw(self, count, *, version='tushare_fina_indicator.v1', status='success', identity=None,
             params=None, summary=None):
         params=params or {'ts_code':'000001.SZ','start_date':'20250101','end_date':'20250630'}
-        rows=[{'ts_code':'000001.SZ','ann_date':'20250401','end_date':'20250331',
+        rows=[{'ts_code':'000001.SZ','ann_date':'20250401',
+               'end_date':(date(2025,1,1)+timedelta(days=i)).strftime('%Y%m%d'), 'update_flag':'1',
                'current_ratio':i+1} for i in range(count)]
         return write_raw_batch(self.root,identity or version+'-'+str(count),domain='financial_events',
             source_profile='tushare.pr6.fina_indicator',source_profile_version=version,
@@ -40,7 +42,7 @@ class SourceCompletenessTest(unittest.TestCase):
             None,[security_raw.raw_batch_id],[],'security_master.v1')
         return BuildApplication('financial_events',Pr6Builder(self.root,'financial_events',
             dependency_commit_ids={'security_master':security.commit_id})).build(
-                None,[ref.raw_batch_id],[],'financial_events.v2')
+                None,[ref.raw_batch_id],[],'financial_events.v3')
 
     def test_direct_public_builder_rejects_100_raw_for_current_and_legacy_profiles(self):
         for version in ('tushare_fina_indicator.v1','tushare_pr6.v1'):
