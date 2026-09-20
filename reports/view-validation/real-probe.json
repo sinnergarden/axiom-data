@@ -1,0 +1,58 @@
+{
+  "snapshot": "snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786",
+  "config": {
+    "symbols": [
+      "688981.SH"
+    ],
+    "start_session": "2025-06-10",
+    "end_session": "2025-06-13",
+    "pit_policy": "best_effort_vendor_v1",
+    "knowledge_cutoff": "2025-06-13T23:59:59+08:00"
+  },
+  "logical_equal": true,
+  "results": {
+    "full": {
+      "initialization_seconds": 0.2347042199689895,
+      "domain_loads": 18,
+      "domains": [
+        "adjustment_factors",
+        "benchmark_daily",
+        "corporate_actions",
+        "financial_events",
+        "forecast_observations",
+        "holder_count_events",
+        "industry_membership",
+        "margin_daily",
+        "market_daily",
+        "moneyflow_daily",
+        "price_limits",
+        "security_capital",
+        "security_master",
+        "security_status",
+        "top_holders_reports",
+        "trading_calendar",
+        "universe_membership",
+        "valuation_daily"
+      ]
+    },
+    "scoped": {
+      "initialization_seconds": 0.07278340996708721,
+      "domain_loads": 7,
+      "domains": [
+        "forecast_observations",
+        "holder_count_events",
+        "margin_daily",
+        "moneyflow_daily",
+        "security_master",
+        "top_holders_reports",
+        "trading_calendar"
+      ]
+    },
+    "reused": {
+      "initialization_seconds": 0.005419963039457798,
+      "domain_loads": 0,
+      "domains": []
+    }
+  },
+  "limitation": "small real forensic Snapshot, warm OS caches; no production-scale latency claim"
+}
