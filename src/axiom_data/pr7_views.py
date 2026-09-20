@@ -10,6 +10,7 @@ from axiom_data.views import DerivedView,DerivedViewRef
 from axiom_data.domains.pr7 import PR7_DOMAINS,DAILY_DOMAINS
 from axiom_data.contracts import load_contract
 from axiom_data.pit import instant,fingerprint
+from axiom_data.pr7_source import select_pr7_revisions
 
 LEAF_DOMAINS={**{'holder.'+f:d for f,d in [('number','holder_count_events'),('top10_ratio','top_holders_reports')]},
     **{'margin.'+f:'margin_daily' for f in load_contract('margin_daily.v1')['value_units']},
@@ -120,7 +121,7 @@ def project(reader,scope,policy,cutoff):
     if not any(item['sessions'] for item in calendars.values()):
         raise ArtifactError('INSUFFICIENT_SCOPE: no open exchange sessions')
     if any(d not in reader.commits for d in PR7_DOMAINS):raise ArtifactError('PR7 Snapshot required')
-    wide=[]
+    wide=[];event_history={}
     open_days={symbol:set(item['sessions']) for symbol,item in calendars.items()}
     for session in sorted({day for item in calendars.values() for day in item['sessions']}):
         active=[symbol for symbol in symbols if session in open_days[symbol]]
@@ -130,7 +131,17 @@ def project(reader,scope,policy,cutoff):
             for symbol in active:request_coverage(reader,domain,symbol,session)
             bounds={'start_session':session,'end_session':session} if domain in DAILY_DOMAINS else {}
             groups={symbol:[] for symbol in active}
-            for row in reader.as_of(domain,symbols=active,pit_policy=policy,knowledge_cutoff=effective,**bounds):
+            if domain in DAILY_DOMAINS:
+                selected_rows=reader.as_of(domain,symbols=active,pit_policy=policy,knowledge_cutoff=effective,**bounds)
+            else:
+                # Coverage checks remain above preparation. Histories are scoped
+                # to requested securities and released when this View returns.
+                if domain not in event_history:
+                    event_history[domain]=reader.facts(domain,symbols=symbols)
+                selected_rows=select_pr7_revisions(
+                    [row for row in event_history[domain] if row['symbol'] in groups],
+                    policy=policy,knowledge_cutoff=effective)
+            for row in selected_rows:
                 groups[row['symbol']].append(row)
             selected[domain]=groups
         for symbol in active:

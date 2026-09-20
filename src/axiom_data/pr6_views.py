@@ -46,11 +46,14 @@ def project(reader, scope, policy, cutoff):
     sw_state=reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3'
     taxonomy=sorted({s['industry_id'] for r in reader.as_of('industry_membership',knowledge_cutoff=cutoff,pit_policy=policy) for s in r['membership_spans']}) if sw_state else sorted({r['industry_id'] for r in reader.facts('industry_membership')})
     encoding={industry:i+1 for i,industry in enumerate(taxonomy)}
+    # Full-scope admission above must finish before security projection. Retain
+    # only this View's requested history, for this projection call's lifetime.
+    financial_history=reader.facts('financial_events',symbols=symbols)
     events=[];derived=[];wide=[];memberships=[];industries=[]
     for session in sessions:
         session_cutoff=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
-        facts=reader.as_of('financial_events',knowledge_cutoff=session_cutoff,pit_policy=policy,symbols=symbols)
-        stable=reader.financial_derived(symbols=symbols,pit_policy=policy,knowledge_cutoff=session_cutoff)
+        facts=select_revisions(financial_history,knowledge_cutoff=session_cutoff,policy=policy)
+        stable=financial_derived(financial_history,policy=policy,knowledge_cutoff=session_cutoff)
         valuation=_valuation_at(reader,symbols,session,policy,session_cutoff)
         membership={}
         for group in scope['universe_ids']:

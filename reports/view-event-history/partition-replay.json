@@ -1,0 +1,100 @@
+{
+  "base_commit": "a95239eeee08ace3f6e9845363442d8aea0c7eed",
+  "snapshot": "snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786",
+  "symbol": "688981.SH",
+  "scope": {
+    "end_session": "2025-06-13",
+    "industry_system": "tushare_bak_basic",
+    "start_session": "2025-06-10",
+    "symbols": [
+      "688981.SH"
+    ],
+    "universe_ids": [
+      "000906.SH",
+      "000852.SH"
+    ]
+  },
+  "policy": "best_effort_vendor_v1",
+  "cutoff": "2025-06-13T15:59:59+00:00",
+  "logical_equal": true,
+  "sessions": 4,
+  "results": {
+    "baseline": {
+      "seconds": 0.05877208209130913,
+      "histories": {
+        "financial_events": {
+          "rows": 29,
+          "canonical_scans": 19,
+          "rows_visited": 551,
+          "facts_calls": 8,
+          "partition_reads": 160,
+          "partition_bytes": 619080
+        },
+        "holder_count_events": {
+          "rows": 67,
+          "canonical_scans": 4,
+          "rows_visited": 268,
+          "facts_calls": 4,
+          "partition_reads": 12,
+          "partition_bytes": 286396
+        },
+        "top_holders_reports": {
+          "rows": 15,
+          "canonical_scans": 4,
+          "rows_visited": 60,
+          "facts_calls": 4,
+          "partition_reads": 8,
+          "partition_bytes": 208412
+        },
+        "forecast_observations": {
+          "rows": 3,
+          "canonical_scans": 4,
+          "rows_visited": 12,
+          "facts_calls": 4,
+          "partition_reads": 8,
+          "partition_bytes": 13256
+        }
+      }
+    },
+    "prepared": {
+      "seconds": 0.03262766799889505,
+      "histories": {
+        "financial_events": {
+          "rows": 29,
+          "canonical_scans": 5,
+          "rows_visited": 145,
+          "facts_calls": 1,
+          "partition_reads": 48,
+          "partition_bytes": 185724
+        },
+        "holder_count_events": {
+          "rows": 67,
+          "canonical_scans": 1,
+          "rows_visited": 67,
+          "facts_calls": 1,
+          "partition_reads": 3,
+          "partition_bytes": 71599
+        },
+        "top_holders_reports": {
+          "rows": 15,
+          "canonical_scans": 1,
+          "rows_visited": 15,
+          "facts_calls": 1,
+          "partition_reads": 2,
+          "partition_bytes": 52103
+        },
+        "forecast_observations": {
+          "rows": 3,
+          "canonical_scans": 1,
+          "rows_visited": 3,
+          "facts_calls": 1,
+          "partition_reads": 2,
+          "partition_bytes": 3314
+        }
+      }
+    }
+  },
+  "validation": "full small forensic Snapshot and full-scope View admission; no production Snapshot initialization",
+  "storage": "isolated existing-format partitions of the same validated real rows; formal artifacts unchanged",
+  "measurement": "whole projection time excludes Reader initialization and replay preparation; scans include admission; partition_bytes counts full object traversals, not physical device traffic"
+}
