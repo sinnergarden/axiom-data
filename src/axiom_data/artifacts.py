@@ -173,6 +173,8 @@ def _safe_path(root: Path, path: Path, *, closure: Path | None = None) -> Path:
             raise ArtifactError(f"artifact path component must not be a symlink: {component}")
         if component == Path(component.anchor):
             break
+    from axiom_data.verification_cache import observe_validation_path
+    observe_validation_path(root, path)
     return path
 
 
@@ -1524,7 +1526,7 @@ def validate_domain_commit_closure(
 def _checked_snapshot_commits(
     data_root: Path,
     domain_commit_ids: Mapping[str, str],
-    *, validation_cache=None, lineage_index=None,
+    *, validation_cache=None, lineage_index=None, required_domains=None,
 ) -> dict[str, DomainCommit]:
     requested_domains = set(domain_commit_ids)
     if requested_domains == _REQUIRED_SNAPSHOT_DOMAINS:
@@ -1537,6 +1539,13 @@ def _checked_snapshot_commits(
         ordered_domains = PR7_SNAPSHOT_DOMAINS
     else:
         raise ArtifactError("DataSnapshot requires exactly a registered domain set")
+    if required_domains is not None:
+        selected = set(required_domains)
+        if not selected or not selected <= requested_domains:
+            raise ArtifactError('View dependencies are absent from Snapshot')
+        if any(not set(_DOMAIN_DEPENDENCIES[d]) <= selected for d in selected):
+            raise ArtifactError('View dependency set is not closed')
+        ordered_domains = tuple(d for d in ordered_domains if d in selected)
     from axiom_data.verification_cache import closure_cache
     cache, raw_closure_cache = closure_cache(data_root) if validation_cache is None else validation_cache
     commits = {
@@ -1550,13 +1559,14 @@ def _checked_snapshot_commits(
         )
         for domain in ordered_domains
     }
-    market_dependencies = commits["market_daily"].manifest.get("dependency_commit_refs")
-    expected_dependencies = {
-        "trading_calendar": _commit_ref(commits["trading_calendar"]),
-        "security_master": _commit_ref(commits["security_master"]),
-    }
-    if market_dependencies != expected_dependencies:
-        raise ArtifactError("snapshot domain refs do not match market_daily fixed dependencies")
+    if 'market_daily' in commits:
+        market_dependencies = commits["market_daily"].manifest.get("dependency_commit_refs")
+        expected_dependencies = {
+            "trading_calendar": _commit_ref(commits["trading_calendar"]),
+            "security_master": _commit_ref(commits["security_master"]),
+        }
+        if market_dependencies != expected_dependencies:
+            raise ArtifactError("snapshot domain refs do not match market_daily fixed dependencies")
     for domain in ordered_domains:
         expected = {
             dependency: _commit_ref(commits[dependency])
@@ -1566,11 +1576,12 @@ def _checked_snapshot_commits(
             raise ArtifactError(
                 f"snapshot domain refs do not match {domain} fixed dependencies"
             )
-    _validate_market_dependencies(
-        commits["market_daily"].rows,
-        commits["trading_calendar"],
-        commits["security_master"],
-    )
+    if "market_daily" in commits:
+        _validate_market_dependencies(
+            commits["market_daily"].rows,
+            commits["trading_calendar"],
+            commits["security_master"],
+        )
     if set(DM1_SNAPSHOT_DOMAINS).issubset(ordered_domains):
         try:
             validate_dm1_snapshot_rows(commits)
@@ -1652,7 +1663,7 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     return _load_snapshot_with_commits(data_root, snapshot_id)[0]
 
 
-def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, checked_commits=None, validation_cache=None, lineage_index=None):
+def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, checked_commits=None, validation_cache=None, lineage_index=None, required_domains=None):
     """Return the already checked commits from this one Snapshot validation."""
 
     layout = _layout(data_root)
@@ -1681,8 +1692,8 @@ def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, chec
         PR7_SNAPSHOT_DOMAINS if schema_version == "data_snapshot.v4" else
         PR6_SNAPSHOT_DOMAINS if schema_version == "data_snapshot.v3" else DM1_SNAPSHOT_DOMAINS
     )
-    required_domains = frozenset(ordered_domains)
-    if not isinstance(domain_refs, dict) or set(domain_refs) != required_domains:
+    registered_domains = frozenset(ordered_domains)
+    if not isinstance(domain_refs, dict) or set(domain_refs) != registered_domains:
         raise ArtifactError("DataSnapshot manifest has incomplete domain refs")
     if manifest.get("validation_summary") != {
         "status": "PASS",
@@ -1700,10 +1711,11 @@ def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, chec
     # Snapshot manifest against those commits without repeating all source replay.
     # Public loads supply no cache and always validate the complete closure.
     commits = _checked_snapshot_commits(layout.root, ids, validation_cache=validation_cache,
-                                      lineage_index=lineage_index) if checked_commits is None else checked_commits
-    if set(commits) != set(ids):
+                                      lineage_index=lineage_index, required_domains=required_domains) if checked_commits is None else checked_commits
+    expected_domains = set(ids) if required_domains is None else set(required_domains)
+    if set(commits) != expected_domains:
         raise ArtifactError('checked Snapshot composition is incomplete')
-    for domain in ordered_domains:
+    for domain in commits:
         if domain_refs[domain] != _commit_ref(commits[domain]):
             raise ArtifactError("DataSnapshot domain ref digest mismatch")
     return DataSnapshot(DataSnapshotRef(snapshot_id, manifest_digest), manifest), commits
