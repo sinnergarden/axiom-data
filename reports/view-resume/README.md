@@ -28,7 +28,10 @@ growth. No journal, database or new workflow framework is introduced.
 
 ## Validation
 
-13 tests PASS in 11.810s, no skips:
+The initial revision passed 13 tests in 11.810s. The review correction adds two
+public-entrypoint Qlib regressions to the same targeted suite:
+
+Review correction: **15/15 PASS**, 14.219s, no skips.
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:tests timeout 120s python3 -m unittest -v \
@@ -40,6 +43,12 @@ Snapshot corruption rejection, missing/corrupt output, wrong input artifact,
 implementation mismatch, interruption with one remaining item, legacy checkpoint
 upgrade, plan write counts, and existing offline recovery tests. Formal data was
 not modified; tests use disposable copies of the small real forensic fixture.
+
+Qlib reuse and first build now share input admission. Qlib v1's intrinsic price
+basis is unadjusted even though its manifest omits that field. An adjusted request
+without a valid Derived input stays FAILED and enters the builder rather than
+being skipped. A valid adjusted request rejects a substituted v1 artifact;
+exact-compatible adjusted and unadjusted completion still skip the builder.
 
 ## Small real probe
 

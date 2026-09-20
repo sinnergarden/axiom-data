@@ -94,3 +94,53 @@ class ViewResumeTest(unittest.TestCase):
             with self.assertRaisesRegex(ArtifactError,'resume plan or implementation changed'):
                 self.run_views()
         self.assertEqual(builder.call_count,0)
+
+    def test_qlib_v1_cannot_satisfy_invalid_adjusted_request(self):
+        from axiom_data.consumption import _build_qlib_view
+        from axiom_data.artifacts import _digest, _json_bytes
+        config=dict(self.args['views']['first']['config'],fields=['close'])
+        self.args['views']={'qlib':dict(kind='market_qlib',config=config)}
+        valid=self.run_views()
+        self.assertEqual(valid['status'],'VIEWS_BUILT')
+        with patch('axiom_data.consumption._build_qlib_view',wraps=_build_qlib_view) as builder:
+            self.assertEqual(self.run_views()['status'],'VIEWS_BUILT')
+        self.assertEqual(builder.call_count,0)
+        # Bind the invalid request into the frozen checkpoint, so the public
+        # entrypoint must check input legality, not merely plan equality.
+        config.update(price_basis='anchor_adjusted',pit_policy='research_non_pit',
+                      decision_cutoff='2025-06-13')
+        plan_path=self.path.with_name('views-plan.json')
+        plan=json.loads(plan_path.read_bytes());plan['views']=self.args['views']
+        plan_path.write_bytes(_json_bytes(plan))
+        state=json.loads(self.path.read_bytes());state['plan_digest']=_digest(_json_bytes(plan))
+        self.path.write_bytes(_json_bytes(state))
+        with patch('axiom_data.consumption._build_qlib_view',wraps=_build_qlib_view) as builder:
+            rejected=self.run_views()
+        self.assertEqual(rejected['status'],'FAILED')
+        self.assertEqual(builder.call_count,1)
+        self.assertNotIn('qlib',rejected['published_views'])
+
+    def test_qlib_adjusted_exact_resume_and_v1_substitution(self):
+        from axiom_data import build_adjusted_price_view, build_qlib_view
+        from axiom_data.consumption import _build_qlib_view
+        config=dict(self.args['views']['first']['config'],fields=['close'])
+        unadjusted=build_qlib_view(self.root,self.args['snapshot_id'],**config)
+        adjusted=build_adjusted_price_view(self.root,self.args['snapshot_id'],
+            **{k:v for k,v in config.items() if k!='fields'},anchor_session='2025-06-13',
+            pit_policy='research_non_pit',decision_cutoff='2025-06-13')
+        config.update(price_basis='anchor_adjusted',adjusted_price_view_id=adjusted.view_id,
+                      pit_policy='research_non_pit',decision_cutoff='2025-06-13')
+        self.args['views']={'qlib':dict(kind='market_qlib',config=config)}
+        expected=self.run_views()
+        self.assertEqual(expected['status'],'VIEWS_BUILT')
+        with patch('axiom_data.consumption._build_qlib_view',wraps=_build_qlib_view) as builder:
+            self.assertEqual(self.run_views()['published_views'],expected['published_views'])
+        self.assertEqual(builder.call_count,0)
+        state=json.loads(self.path.read_bytes())
+        state['published_views']['qlib']=dict(kind='market_qlib',view_id=unadjusted.view_id,
+                                            manifest_digest=unadjusted.manifest_digest)
+        self.path.write_text(json.dumps(state))
+        with patch('axiom_data.consumption._build_qlib_view',wraps=_build_qlib_view) as builder:
+            restored=self.run_views()
+        self.assertEqual(builder.call_count,1)
+        self.assertEqual(restored['published_views'],expected['published_views'])

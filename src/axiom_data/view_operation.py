@@ -23,6 +23,13 @@ def _completed_view(reader, spec, record, builder, loader, code):
     args = inspect.signature(builder).bind(reader.data_root, reader.snapshot.ref.snapshot_id, **spec['config'])
     args.apply_defaults()
     config = args.arguments
+    if spec['kind'] == 'market_qlib':
+        from axiom_data.consumption import _validate_qlib_inputs
+        _validate_qlib_inputs(reader, **{k:v for k,v in config.items() if k not in {'data_root','snapshot_id'}})
+        actual_basis = ('unadjusted' if manifest['schema_version'] == 'qlib_view.v1'
+                        else manifest['price_basis'])
+        if actual_basis != config['price_basis']:
+            raise ArtifactError('completed Qlib View price basis mismatch')
     scope = manifest['scope']
     for key in ('symbols', 'start_session', 'end_session', 'universe_ids', 'industry_system'):
         if key in config:

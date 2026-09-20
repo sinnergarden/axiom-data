@@ -418,9 +418,10 @@ def build_qlib_view(
         decision_cutoff=decision_cutoff,created_at=created_at)
 
 
-def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARKET_VIEW_FIELDS,
-                     adjusted_price_view_id=None, price_basis='unadjusted',pit_policy='best_effort',
-                     decision_cutoff=None,created_at=None):
+def _validate_qlib_inputs(reader, *, symbols, start_session, end_session, fields=MARKET_VIEW_FIELDS,
+                          adjusted_price_view_id=None, price_basis='unadjusted', pit_policy='best_effort',
+                          decision_cutoff=None, created_at=None):
+    """Shared request admission for first publication and completed-View reuse."""
     data_root = reader.data_root
     selected = _symbols(symbols)
     start = _session(start_session, "start_session")
@@ -466,6 +467,21 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
             raise ArtifactError("QlibView PIT policy/cutoff differs from its Derived view")
     elif adjusted_price_view_id is not None:
         raise ArtifactError("unadjusted QlibView must not carry an adjusted Derived ref")
+
+    return selected, start, end, view_fields, adjusted
+
+
+def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARKET_VIEW_FIELDS,
+                     adjusted_price_view_id=None, price_basis='unadjusted',pit_policy='best_effort',
+                     decision_cutoff=None,created_at=None):
+    selected, start, end, view_fields, adjusted = _validate_qlib_inputs(reader,
+        symbols=symbols, start_session=start_session, end_session=end_session, fields=fields,
+        adjusted_price_view_id=adjusted_price_view_id, price_basis=price_basis,
+        pit_policy=pit_policy, decision_cutoff=decision_cutoff, created_at=created_at)
+    data_root = reader.data_root
+
+    if adjusted is not None:
+        cutoff = adjusted.manifest['decision_cutoff']
 
     calendar = sorted(
         {
