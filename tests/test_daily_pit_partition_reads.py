@@ -39,7 +39,7 @@ class DailyPitPartitionReadTest(unittest.TestCase):
                         with patch.object(parts,'_rows',wraps=parts._rows) as opened:
                             result=reader.as_of('moneyflow_daily',start_session='2025-06-10',end_session='2025-06-10',**query)
                             self.assertEqual(result,expected)
-                            self.assertEqual([c.args[0]['key'] for c in opened.call_args_list],['2025-06'])
+                            self.assertEqual(opened.call_count,0)  # Complete-month projection already verified above.
                         self.assertEqual(result[0]['values']['big_buy'] if result else None,value)
                     for domain in ['financial_events','universe_membership','holder_count_events']:
                         with self.assertRaisesRegex(ArtifactError,'daily PR7'):
