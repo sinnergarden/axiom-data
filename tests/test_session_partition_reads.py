@@ -17,6 +17,36 @@ class UncachedReader(SnapshotReader):
 
 @synthetic_source_fixture
 class SessionPartitionReadTest(unittest.TestCase):
+    def test_public_benchmark_facts_preserve_symbol_filter_behavior(self):
+        from collections import OrderedDict
+        from types import SimpleNamespace
+        from axiom_data.contracts import load_contract
+        from axiom_data.layout import DataRootLayout
+        from axiom_data.partition_rows import PartitionRows
+        from axiom_data.partitions import publish_partitions, POLICY
+        with tempfile.TemporaryDirectory() as directory:
+            layout=DataRootLayout(Path(directory))
+            source=[dict(session='2024-02-01',benchmark='000300.SH',close=3500.,
+                source_available_at=None,first_observed_at='2024-02-02T00:00:00Z',
+                availability_basis='terminal_history_observed',pit_qualification='best_effort',source_ref='fixture')]
+            contract=load_contract('benchmark_daily.v1')
+            entries=publish_partitions(layout,'benchmark_daily',source)
+            rows=PartitionRows(layout,'benchmark_daily',dict(partition_policy=POLICY,
+                output_files=[],partitions=entries),contract)
+            commit=SimpleNamespace(rows=rows,contract=contract)
+            reader=SnapshotReader.__new__(SnapshotReader)
+            reader.commits={'benchmark_daily':commit}
+            reader._security_projection=OrderedDict();reader._security_projection_bytes=0
+            baseline=UncachedReader.__new__(UncachedReader);baseline.commits=reader.commits
+            for bounds in ({},dict(start_session='2024-02-01',end_session='2024-02-01')):
+                for symbols in (['000001.SZ'],['000300.SH']):
+                    with self.subTest(symbols=symbols,bounds=bounds):
+                        actual=reader.facts('benchmark_daily',symbols=symbols,**bounds)
+                        self.assertEqual(actual,())
+                        self.assertEqual(actual,baseline.facts('benchmark_daily',symbols=symbols,**bounds))
+                self.assertEqual(reader.facts('benchmark_daily',**bounds),tuple(source))
+            self.assertFalse(reader._security_projection)
+
     def test_public_reads_prune_months_after_full_validation_and_reject_corruption(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

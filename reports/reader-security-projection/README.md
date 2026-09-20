@@ -13,6 +13,10 @@ storage is capped at 128 entries and 8 MiB of encoded row payload per Reader.
 Oversized projections use the complete read path without cache retention; larger
 security sets and unfiltered reads use the original path.
 
+`benchmark_daily` is excluded: its identity field is `benchmark`, not `symbol`.
+Its existing public `facts(symbols=...)` behavior remains an empty result; this
+optimization does not introduce benchmark-selector semantics.
+
 On a miss, the complete month is read using existing digest, byte-count,
 partition-key, ordering and row-count checks. The iterator is exhausted before
 projected rows are exposed or cached. Initial full Snapshot validation is
@@ -36,8 +40,8 @@ candidate Snapshot; all returned rows compare equal.
 | Complete partition reads | 10 | 1 |
 | Partition bytes traversed | 241,254,980 | 24,125,498 |
 | Digest plus parse logical bytes | 482,509,960 | 48,250,996 |
-| Ten-query elapsed seconds | 2.9051 | 0.2848 |
-| First-query seconds | 0.2951 | 0.2830 |
+| Ten-query elapsed seconds | 2.9217 | 0.2864 |
+| First-query seconds | 0.2889 | 0.2847 |
 | Retained payload bytes | 0 | 7,375 |
 
 Both paths start with an empty application cache. OS page cache was **not**
@@ -80,3 +84,12 @@ caller mutation isolation, complete-input count rejection, unrequested-security
 corruption, same-size tampering with restored mtime, cache bounds, and new Reader
 full validation. Full suite, production Snapshot startup and full Views were not
 run under this bounded ticket.
+
+## PR review correction
+
+Excluded benchmark_daily from the symbol projection cache and added a public
+Reader.facts regression covering bounded/unbounded symbol filtering and normal
+benchmark reads. The original 16 tests plus this counterexample passed: 17 tests
+in 6.916 seconds. The real probe was rerun after the fix; real-query.json and
+the table above contain the updated measurements. Values remain equal and full
+partition reads remain 10 versus 1. No other domain semantics changed.

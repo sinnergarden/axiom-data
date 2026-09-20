@@ -24,16 +24,16 @@
   "logical_equal": true,
   "rows": 10,
   "baseline": {
-    "seconds": 2.9050640650093555,
-    "first_query_seconds": 0.2950955090345815,
+    "seconds": 2.921655050944537,
+    "first_query_seconds": 0.28887556691188365,
     "partition_reads": 10,
     "partition_bytes": 241254980,
     "digest_plus_parse_bytes": 482509960,
     "cache_payload_bytes": 0
   },
   "optimized": {
-    "seconds": 0.2847623929847032,
-    "first_query_seconds": 0.283031505998224,
+    "seconds": 0.28635562991257757,
+    "first_query_seconds": 0.2846813410287723,
     "partition_reads": 1,
     "partition_bytes": 24125498,
     "digest_plus_parse_bytes": 48250996,

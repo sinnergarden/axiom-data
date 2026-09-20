@@ -150,7 +150,8 @@ class SnapshotReader:
     def _session_rows(self, domain, start, end, symbols=None):
         from axiom_data.partition_rows import PartitionRows, SESSION_PARTITION_DOMAINS
         rows = self.commits[domain].rows
-        if isinstance(rows, PartitionRows) and domain in SESSION_PARTITION_DOMAINS and symbols and len(symbols) <= 64:
+        if (isinstance(rows, PartitionRows) and domain in SESSION_PARTITION_DOMAINS
+                and domain != 'benchmark_daily' and symbols and len(symbols) <= 64):
             return self._security_session_rows(rows, start, end, symbols)
         if isinstance(rows, PartitionRows) and domain in SESSION_PARTITION_DOMAINS and (start is not None or end is not None):
             return rows.sessions(start, end)
