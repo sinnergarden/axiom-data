@@ -50,7 +50,8 @@ Only one checked closure is retained per session. Its key binds root, concrete
 Snapshot ID, View kind, complete config and package Python/JSON content digests.
 The Snapshot digest check binds concrete DomainCommit identities. During initial
 validation, existing safe-path checks record every accessed artifact path and its
-parent directories. Reuse compares device, inode, mode, size and nanosecond ctime;
+parent directories through the filesystem root, matching `_safe_path` exactly.
+Reuse compares device, inode, mode, size and nanosecond ctime;
 it does not use mtime or current/latest to select identities. Missing, replaced,
 changed or symlinked inputs invalidate reuse. State is checked before reuse and
 again when leaving the context; changes during use raise an error.
@@ -92,3 +93,11 @@ These are warm-cache small-fixture timings, not a measurement of the production
 Snapshot. The reported 94-minute initialization was not rerun. Formal data,
 bulk state and historical review/benchmark evidence remain unchanged.
 Independent review pending.
+
+PR review correction: ancestor replacement is checked both before reuse and on
+context exit, including ancestors above data root. The public regression moves
+the original directory and replaces it with a symlink to that same directory,
+so descendant file identities remain unchanged. Both data-root and above-root
+replacement must be rejected; ordinary unchanged reuse still loads zero domains.
+After this correction: original 54 tests plus the new four-subcase regression,
+**55/55 PASS** in 19.254s, no skips.

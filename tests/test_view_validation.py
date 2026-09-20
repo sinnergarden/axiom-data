@@ -134,3 +134,37 @@ class ViewValidationTest(unittest.TestCase):
         path.chmod(0o600);path.write_bytes(path.read_bytes()+b' ')
         with self.assertRaises(ArtifactError):
             with self.session.inputs('market_qlib',config):pass
+
+    def test_ancestor_symlink_replacement_rejected_on_reuse_and_exit(self):
+        from axiom_data.layout import LayoutError
+        ancestor=self.root.parent/'ancestor'
+        ancestor.mkdir()
+        nested=ancestor/'data'
+        self.root.rename(nested)
+        self.root=nested
+        self.session=ViewValidationSession(self.root,self.snapshot)
+        for target in (self.root,ancestor):
+            for during_use in (False,True):
+                with self.subTest(target=target.name,during_use=during_use):
+                    moved=target.with_name(target.name+'-moved')
+                    def redirect():
+                        target.rename(moved)
+                        target.symlink_to(moved,target_is_directory=True)
+                    try:
+                        with self.session.inputs('pr7_fact',self.config):pass
+                        if during_use:
+                            with self.assertRaisesRegex(ArtifactError,'changed during use'):
+                                with self.session.inputs('pr7_fact',self.config):redirect()
+                        else:
+                            redirect()
+                            # Leaf files and the data root inode remain unchanged
+                            # when only an ancestor above the root is replaced.
+                            with self.assertRaisesRegex((ArtifactError,LayoutError),'must not be a symlink'):
+                                with self.session.inputs('pr7_fact',self.config):pass
+                    finally:
+                        if target.is_symlink():target.unlink()
+                        if moved.exists():moved.rename(target)
+        with self.session.inputs('pr7_fact',self.config):pass
+        with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as loads:
+            with self.session.inputs('pr7_fact',self.config):pass
+            self.assertEqual(loads.call_count,0)

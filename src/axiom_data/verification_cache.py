@@ -22,7 +22,9 @@ def observe_validation_path(root, path):
         return
     for component in (path, *path.parents):
         observed.setdefault(component, file_state(component))
-        if component == root:
+        # Match _safe_path's complete lexical ancestor walk, including parents
+        # above data_root whose replacement can redirect otherwise unchanged files.
+        if component == Path(component.anchor):
             break
 
 
