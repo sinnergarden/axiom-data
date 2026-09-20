@@ -1,0 +1,29 @@
+{
+  "snapshot": "snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786",
+  "symbol": "688981.SH",
+  "sessions": [
+    "2025-06-10",
+    "2025-06-13"
+  ],
+  "labels": 24,
+  "artifact_equal": true,
+  "results": {
+    "initial": {
+      "seconds": 0.46056233695708215,
+      "builder_calls": 24,
+      "plan_writes": 1,
+      "progress_writes": 50,
+      "bytes_written": 166997,
+      "repeated_inline_plan_bytes_avoided": 160650
+    },
+    "resume": {
+      "seconds": 0.28977147198747844,
+      "builder_calls": 0,
+      "plan_writes": 0,
+      "progress_writes": 26,
+      "bytes_written": 162576,
+      "repeated_inline_plan_bytes_avoided": 83538
+    }
+  },
+  "measurement": "serialized operation writes; excludes artifact writes and filesystem metadata; warm OS caches, isolated real fixture copy"
+}
