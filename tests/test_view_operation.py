@@ -35,7 +35,8 @@ class ViewOperationTest(unittest.TestCase):
                 state['published_views']['facts']['view_id']=run['refs']['pr7_view_id']
                 record.write_text(json.dumps(state))
                 rejected=materialize_views(root,**args)
-                self.assertEqual(rejected['status'],'FAILED');self.assertFalse(rejected['ready_for_consumption'])
+                self.assertEqual(rejected['status'],'VIEWS_BUILT');self.assertFalse(rejected['ready_for_consumption'])
+                self.assertEqual(rejected['published_views'],complete['published_views'])
                 self.assertFalse((root/'current.json').exists())
                 with self.assertRaises(BuildContractError):materialize_views(root,**dict(args,snapshot_id='current'))
             finally:
@@ -63,6 +64,18 @@ class ViewOperationTest(unittest.TestCase):
                     self.assertEqual(result['status'],'VIEWS_BUILT',result.get('failed'))
                     self.assertEqual(checked.call_count,18)
                 self.assertEqual(len(result['published_views']),5)
+                from contextlib import ExitStack
+                with ExitStack() as stack:
+                    builders=[stack.enter_context(patch(name,side_effect=AssertionError('completed builder entered')))
+                        for name in ('axiom_data.views._build_adjusted_price_view',
+                            'axiom_data.views._build_market_replay_view',
+                            'axiom_data.consumption._build_qlib_view',
+                            'axiom_data.pr6_views._build_pr6_fact_view',
+                            'axiom_data.pr7_views._build_pr7_fact_view')]
+                    resumed=materialize_views(root,run_id='five',snapshot_id=run['refs']['snapshot_id'],views=plan)
+                    self.assertEqual(resumed['status'],'VIEWS_BUILT',resumed.get('failed'))
+                    self.assertEqual(resumed['published_views'],result['published_views'])
+                    self.assertTrue(all(b.call_count==0 for b in builders))
                 reader=SnapshotReader(root,run['refs']['snapshot_id'])
                 path=root/'canonical/market_daily/commits'/reader.commits['market_daily'].ref.commit_id/'rows.json'
                 path.chmod(0o600);path.write_bytes(path.read_bytes()+b' ')
