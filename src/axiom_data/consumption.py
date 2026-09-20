@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import math
 import struct
+import heapq
+import json
+from collections import OrderedDict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -27,6 +30,7 @@ from axiom_data.artifacts import (
     _write_file,
     _write_manifest,
     _load_snapshot_with_commits,
+    _safe_path,
 )
 
 
@@ -86,6 +90,8 @@ class SnapshotReader:
         self._verified_lineage = {}
         self.snapshot, self.commits = _load_snapshot_with_commits(
             self.data_root, snapshot_id, lineage_index=self._verified_lineage)
+        self._security_projection = OrderedDict()
+        self._security_projection_bytes = 0
 
     def schema(self, domain: str) -> tuple[str, ...]:
         try:
@@ -137,16 +143,62 @@ class SnapshotReader:
         fields = self.schema("market_daily")
         return tuple(
             _ordered_row(row, fields)
-            for row in self._session_rows('market_daily', start, end)
+            for row in self._session_rows('market_daily', start, end, selected)
             if row["symbol"] in selected and start <= row["session"] <= end
         )
 
-    def _session_rows(self, domain, start, end):
+    def _session_rows(self, domain, start, end, symbols=None):
         from axiom_data.partition_rows import PartitionRows, SESSION_PARTITION_DOMAINS
         rows = self.commits[domain].rows
+        if (isinstance(rows, PartitionRows) and domain in SESSION_PARTITION_DOMAINS
+                and domain != 'benchmark_daily' and symbols and len(symbols) <= 64):
+            return self._security_session_rows(rows, start, end, symbols)
         if isinstance(rows, PartitionRows) and domain in SESSION_PARTITION_DOMAINS and (start is not None or end is not None):
             return rows.sessions(start, end)
         return rows
+
+    def _security_session_rows(self, rows, start, end, symbols):
+        """Cache verified projections, never partial validation or persisted facts."""
+        selected = tuple(sorted(symbols))
+        selected_set = set(selected)
+        projected = []
+        for entry in rows.entries:
+            month = entry['key']
+            if (start is not None and month < start[:7]) or (end is not None and month > end[:7]):
+                continue
+            target = rows.layout.domain_objects(rows.domain) / entry['object_id']
+            path = _safe_path(rows.layout.root, target / 'rows.json', closure=target)
+            stat = path.stat()
+            # Content ID identifies the input. File metadata only invalidates a
+            # local optimization; neither time nor path chooses an artifact.
+            stamp = (stat.st_dev, stat.st_ino, stat.st_size, stat.st_ctime_ns)
+            key = (rows.domain, entry['object_id'], selected)
+            cached = self._security_projection.pop(key, None)
+            if cached is not None:
+                self._security_projection_bytes -= len(cached[1])
+            if cached is not None and cached[0] == stamp:
+                payload = cached[1]
+            else:
+                # Exhaust the complete month so count/order/digest checks finish
+                # even when all remaining rows belong to unrequested securities.
+                values = [row for row in rows.sessions(month + '-01', month + '-31')
+                          if row['symbol'] in selected_set]
+                after = path.stat()
+                if (after.st_dev, after.st_ino, after.st_size, after.st_ctime_ns) != stamp:
+                    raise ArtifactError('partition changed during security projection')
+                payload = _json_bytes(values)
+            # ponytail: 8 MiB encoded payload and 128 entries per Reader. Larger
+            # projections are read normally; no disk index or eviction service.
+            if len(payload) <= 8 * 1024 * 1024:
+                while self._security_projection and (len(self._security_projection) >= 128 or
+                        self._security_projection_bytes + len(payload) > 8 * 1024 * 1024):
+                    _, (_, previous) = self._security_projection.popitem(last=False)
+                    self._security_projection_bytes -= len(previous)
+                self._security_projection[key] = (stamp, payload)
+                self._security_projection_bytes += len(payload)
+            projected.append(json.loads(payload))
+        order = rows.contract['sort_order']
+        return heapq.merge(*projected, key=lambda row: tuple(row[field] for field in order))
 
     def leaf_fact(self, leaf, *, symbol, target_session, knowledge_cutoff, pit_policy):
         from axiom_data.pr7_views import leaf_facts
@@ -292,7 +344,7 @@ class SnapshotReader:
                 for row in self.commits[domain].rows):
                 raise ArtifactError('INSUFFICIENT_SCOPE: unresolved corporate action observations; inspect without date projection')
         rows = []
-        for row in self._session_rows(domain, start, end):
+        for row in self._session_rows(domain, start, end, selected_symbols):
             row_symbol = row.get("symbol")
             row_session = row.get("session", row.get("effective_date"))
             if selected_symbols is not None and row_symbol not in selected_symbols:
