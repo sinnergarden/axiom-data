@@ -1,0 +1,18 @@
+{
+  "sample": {
+    "commit": "financial_events-68baff009f117c5fd706a8ef1bdc20e0b55e5dddbd842d8f86ba90ca677c305c",
+    "raw_count": 531,
+    "elapsed": 4.666237253928557
+  },
+  "legacy_v3_closure": "PASS",
+  "legacy_commit": "financial_events-129c4b02afcc47be6765f619264a62d53e3ced8dc62d152b169064dea55fd162",
+  "keys_checked": 1952,
+  "raw_count": 1034,
+  "counts": {
+    "operational_pit_v1_ambiguous": 1912,
+    "best_effort_vendor_v1_orderable": 1936,
+    "operational_pit_v1_orderable": 40,
+    "best_effort_vendor_v1_ambiguous": 16
+  },
+  "elapsed": 10.231907599954866
+}

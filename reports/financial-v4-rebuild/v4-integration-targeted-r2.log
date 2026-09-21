@@ -1,0 +1,9 @@
+test_snapshot_read_union_cohort_industry_and_qlib (test_pr6_integration.Pr6IntegrationTest.test_snapshot_read_union_cohort_industry_and_qlib) ... ok
+test_snapshots_keep_historical_financial_prefix (test_pr6_integration.Pr6IntegrationTest.test_snapshots_keep_historical_financial_prefix) ... ok
+test_candidate_is_not_promoted_and_failed_raw_is_retained (test_v1_candidate.CandidateTest.test_candidate_is_not_promoted_and_failed_raw_is_retained) ... ok
+test_repair_requires_explicit_snapshot_before_writing (test_v1_candidate.CandidateTest.test_repair_requires_explicit_snapshot_before_writing) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 5.218s
+
+OK
