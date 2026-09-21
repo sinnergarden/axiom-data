@@ -27,7 +27,7 @@ def validate_rows(domain, rows, version=None):
     version = version or ("v2" if rows and "observations" in rows[0] else "v1")
     frozen = _rows(domain, rows, version)
     for row in frozen:
-        if version in {'v2', 'v3'}:
+        if version in {'v2', 'v3', 'v4'}:
             observations=row['observations']
             if not isinstance(observations,list) or not observations:
                 raise MarketContractError('observation lineage required')

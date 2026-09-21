@@ -42,7 +42,7 @@ class SourceCompletenessTest(unittest.TestCase):
             None,[security_raw.raw_batch_id],[],'security_master.v1')
         return BuildApplication('financial_events',Pr6Builder(self.root,'financial_events',
             dependency_commit_ids={'security_master':security.commit_id})).build(
-                None,[ref.raw_batch_id],[],'financial_events.v3')
+                None,[ref.raw_batch_id],[],'financial_events.v4')
 
     def test_direct_public_builder_rejects_100_raw_for_current_and_legacy_profiles(self):
         for version in ('tushare_fina_indicator.v1','tushare_pr6.v1'):

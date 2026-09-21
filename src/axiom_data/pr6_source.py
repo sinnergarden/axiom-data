@@ -125,12 +125,33 @@ def _indicator_revision_winners(records):
     return [flags['1'] if '1' in flags else flags['0'] for _, flags in sorted(groups.items())]
 
 
+def _financial_revision_rows(records):
+    """V4 preference inside one Raw and exact publication group only.
+
+    Retain every same-flag variant: unresolved content stays visible to the
+    existing PIT ambiguity check, rather than inventing a supplier sequence.
+    """
+    groups = defaultdict(list)
+    for row in records:
+        flag = row.get('update_flag')
+        if not isinstance(flag, str) or flag not in {'0', '1'}:
+            raise ArtifactError('ambiguous simultaneous revisions: unknown financial update_flag')
+        key = (row['ts_code'], row['end_date'], row.get('report_type'),
+               row['ann_date'], row.get('f_ann_date'))
+        groups[key].append(row)
+    selected = []
+    for rows in groups.values():
+        preferred = '1' if any(row['update_flag'] == '1' for row in rows) else '0'
+        selected.extend(row for row in rows if row['update_flag'] == preferred)
+    return selected
+
+
 class Pr6Builder(MarketDomainBuilder):
     implementation_revision='tushare-pr6-builder.v1'
 
     def __init__(self, data_root, domain, *, builder_config=None, **kwargs):
         if domain=='financial_events':
-            self.implementation_revision='tushare-financial-builder.v2'
+            self.implementation_revision='tushare-financial-builder.v3'
         config=dict(builder_config or {})
         acquisition=config.get('universe_acquisition')
         if acquisition is not None:
@@ -166,7 +187,9 @@ class Pr6Builder(MarketDomainBuilder):
                 raise ArtifactError('PR6 source profile binding mismatch')
             records=json.loads(raw.payload)
             validate_payload(endpoint,request['params'],records,profile_version=version)
-            if contract['contract_version']=='financial_events.v3' and endpoint=='fina_indicator':
+            if contract['contract_version']=='financial_events.v4':
+                records=_financial_revision_rows(records)
+            elif contract['contract_version']=='financial_events.v3' and endpoint=='fina_indicator':
                 records=_indicator_revision_winners(records)
             if endpoint=='index_weight':
                 for source in records:
@@ -249,7 +272,7 @@ class Pr6Builder(MarketDomainBuilder):
         if acquisition and not group_mode:
             raise ArtifactError('complete bootstrap requires universe_membership.v3')
         self.group_states=[]
-        if not group_mode and contract['contract_version']!='financial_events.v3' and not contract['contract_version'].endswith('.v2'):
+        if not group_mode and contract['contract_version'] not in {'financial_events.v3','financial_events.v4'} and not contract['contract_version'].endswith('.v2'):
             return self._legacy_rows(contract, parent_rows, raw_batches)
         # Parent is immutable; replay only its explicit raw lineage plus new inputs.
         from axiom_data.artifacts import load_raw_batch
@@ -260,17 +283,32 @@ class Pr6Builder(MarketDomainBuilder):
                     for ref in o.get('state_raw_refs', []))
         if group_mode:
             refs.update(ref for state in getattr(self,'parent_group_states',[]) for ref in state['raw_refs'])
-        raws = {r.ref.raw_batch_id:r for r in raw_batches}
-        for ref in sorted(refs - raws.keys()):
-            raws[ref] = load_raw_batch(self.layout.root, ref)
-        ordered = sorted(raws.values(), key=lambda r:(instant(r.manifest['retrieved_at']),r.ref.raw_batch_id))
+        if self.domain == 'financial_events':
+            # Financial content accumulation is order-independent; retain only one
+            # Raw payload at a time, including when replaying a complete lineage.
+            def financial_raws():
+                seen = set()
+                for raw in raw_batches:
+                    seen.add(raw.ref.raw_batch_id)
+                    yield raw
+                for ref in sorted(refs - seen):
+                    yield load_raw_batch(self.layout.root, ref)
+            ordered = financial_raws()
+        else:
+            raws = {r.ref.raw_batch_id:r for r in raw_batches}
+            for ref in sorted(refs - raws.keys()):
+                raws[ref] = load_raw_batch(self.layout.root, ref)
+            ordered = sorted(raws.values(), key=lambda r:(instant(r.manifest['retrieved_at']),r.ref.raw_batch_id))
         content = {}
         def retain(row, observation):
             key = (row['logical_event_key'], row['revision_id'])
             previous = content.get(key)
             if previous is None:
                 previous = dict(row, observations=[]); content[key] = previous
-            elif instant(row['first_observed_at']) < instant(previous['first_observed_at']):
+            elif ((instant(row['first_observed_at']), row['source_ref']) <
+                  (instant(previous['first_observed_at']), previous['source_ref'])
+                  if self.domain == 'financial_events' else
+                  instant(row['first_observed_at']) < instant(previous['first_observed_at'])):
                 history = previous['observations'];previous.update(row);previous['observations']=history
             if group_mode:
                 observation['group_state_ref']=observation['state_id']

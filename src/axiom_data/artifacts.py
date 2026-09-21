@@ -942,11 +942,14 @@ class MarketDomainBuilder:
         if 'coverage_state_policy' in self.builder_config and not coverage_enabled:
             raise ArtifactError('unsupported source coverage state policy')
         coverage_observations = []
+        financial_raw_refs = []
         coverage_pages = {}
         if coverage_policy == 'source_observations.v2' and self.domain == 'industry_membership':
             from axiom_data.source_completeness import page_evidence
             coverage_pages = page_evidence(raw_batches)
         for raw in raw_batches:
+            if self.domain == "financial_events":
+                financial_raw_refs.append(_raw_ref(raw))
             if raw.manifest.get("domain") != self.domain:
                 raise ArtifactError(
                     f"RawBatch {raw.ref.raw_batch_id!r} belongs to another domain"
@@ -1032,7 +1035,8 @@ class MarketDomainBuilder:
                 self.domain,
                 rows,
                 parent_raw_batch_ids
-                | frozenset(raw.ref.raw_batch_id for raw in raw_batches),
+                | (frozenset(request.raw_batch_ids) if self.domain == "financial_events"
+                   else frozenset(raw.ref.raw_batch_id for raw in raw_batches)),
             )
         if self.domain in PR6_DOMAINS:
             from axiom_data.pr6_source import Pr6Builder
@@ -1062,7 +1066,8 @@ class MarketDomainBuilder:
             and (request.contract_version != 'universe_membership.v3' or
                  self.group_states == parent.manifest['group_states'])):
             return parent.ref
-        raw_refs = [_raw_ref(raw) for raw in raw_batches]
+        raw_refs = (financial_raw_refs if self.domain == "financial_events"
+                    else [_raw_ref(raw) for raw in raw_batches])
         manifest = {
             "artifact_type": "domain_commit",
             "schema_version": "domain_commit.v1",

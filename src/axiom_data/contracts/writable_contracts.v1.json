@@ -10,7 +10,7 @@
     "adjustment_factors": {"current": "adjustment_factors.v1", "legacy_read_only": []},
     "benchmark_daily": {"current": "benchmark_daily.v1", "legacy_read_only": []},
     "security_capital": {"current": "security_capital.v2", "legacy_read_only": ["security_capital.v1"]},
-    "financial_events": {"current": "financial_events.v3", "legacy_read_only": ["financial_events.v1", "financial_events.v2"]},
+    "financial_events": {"current": "financial_events.v4", "legacy_read_only": ["financial_events.v1", "financial_events.v2", "financial_events.v3"]},
     "valuation_daily": {"current": "valuation_daily.v2", "legacy_read_only": ["valuation_daily.v1"]},
     "universe_membership": {"current": "universe_membership.v3", "legacy_read_only": ["universe_membership.v1", "universe_membership.v2"]},
     "industry_membership": {"current": "industry_membership.v3", "legacy_read_only": ["industry_membership.v1", "industry_membership.v2"]},
