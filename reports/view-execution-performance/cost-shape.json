@@ -1,0 +1,100 @@
+{
+  "plan_path": "/var/lib/axiom-data/operations/v1-full-bootstrap-20260913-r1/required-views.json",
+  "plan_sha256": "7db0dfd683a9dd4a6a953e7b57d4760a0026af3478c51ccadb6544b99b3fff7b",
+  "counts": {
+    "adjusted_price": 3580,
+    "market_qlib": 3580,
+    "market_replay": 3580,
+    "pr6_fact": 3580,
+    "pr7_fact": 3580
+  },
+  "financial_cutoff_policy_pairs": [
+    [
+      "2026-09-11T15:59:59+00:00",
+      "best_effort_vendor_v1"
+    ]
+  ],
+  "representative_original_configs": {
+    "adjusted_price": {
+      "anchor_session": "2026-09-11",
+      "decision_cutoff": "2026-09-11",
+      "end_session": "2026-09-11",
+      "pit_policy": "research_non_pit",
+      "start_session": "2020-07-16",
+      "symbols": [
+        "688981.SH"
+      ]
+    },
+    "market_qlib": {
+      "end_session": "2026-09-11",
+      "fields": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "pre_close",
+        "volume_shares",
+        "amount_cny",
+        "adj_factor",
+        "up_limit",
+        "down_limit",
+        "is_suspended",
+        "turnover_rate",
+        "total_market_cap_cny",
+        "circulating_market_cap_cny"
+      ],
+      "pit_policy": "best_effort",
+      "price_basis": "unadjusted",
+      "start_session": "2020-07-16",
+      "symbols": [
+        "688981.SH"
+      ]
+    },
+    "market_replay": {
+      "end_session": "2026-09-11",
+      "start_session": "2020-07-16",
+      "symbols": [
+        "688981.SH"
+      ]
+    },
+    "pr6_fact": {
+      "end_session": "2026-09-11",
+      "industry_system": "SW2021",
+      "knowledge_cutoff": "2026-09-11T15:59:59+00:00",
+      "pit_policy": "best_effort_vendor_v1",
+      "start_session": "2020-07-16",
+      "symbols": [
+        "688981.SH"
+      ],
+      "universe_ids": [
+        "000906.SH",
+        "000852.SH"
+      ]
+    },
+    "pr7_fact": {
+      "end_session": "2026-09-11",
+      "knowledge_cutoff": "2026-09-11T15:59:59+00:00",
+      "pit_policy": "best_effort_vendor_v1",
+      "start_session": "2020-07-16",
+      "symbols": [
+        "688981.SH"
+      ]
+    }
+  },
+  "historical_sample": {
+    "path": "../review/financial-candidate-views-20260921-r2/pr6_fact/new/derived/pr6_fact/commits/pr6-fact-47b50e72f68ca7d369ad05f951bc2c729f6a41068566c292e475a6b639064b5f/rows.json",
+    "session_count": 15,
+    "section_encoded_bytes": {
+      "actual_available_scope": 748078,
+      "derived": 16555504,
+      "events": 3552812,
+      "industries": 36361,
+      "industry_encoding": 5285,
+      "industry_mapping": 6110,
+      "memberships": 35856001,
+      "sessions": 196,
+      "wide": 710917
+    },
+    "note": "Sample byte counts only; output length and per-session work remain, not an ETA or full-scale measurement."
+  }
+}

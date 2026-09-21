@@ -1,0 +1,273 @@
+{
+  "source": "/home/liuming/workspace/axiom/review/financial-candidate-views-20260921-r2/publication.log",
+  "run": {
+    "pid": 973340,
+    "start_elapsed": 0.16569809906650335,
+    "terminal_stage": "PUBLICATION_VALIDATED",
+    "terminal_elapsed": 8938.38099101209
+  },
+  "closure_count": 19,
+  "closure_seconds_sum": 4650.70341323805,
+  "gap_count": 20,
+  "gap_seconds_sum": 4287.511879674974,
+  "unallocated_gap_semantics": "Intervals between emitted CLOSURE markers and run boundaries; include raw loading, row validation, serialization, orchestration and other work, and are not decomposed by this log.",
+  "closures": [
+    {
+      "domain": "trading_calendar",
+      "identity": "trading_calendar-b24314e06a79828a9ce9ff9ca4f2e75a7f12d5f4576c1961c01a68a644b694d7",
+      "begin_elapsed": 0.3723213750636205,
+      "pass_elapsed": 0.39883496705442667,
+      "closure_seconds": 0.026513591990806162
+    },
+    {
+      "domain": "security_master",
+      "identity": "security_master-5540f406637d950766e036a973de7a4a8a96a7f3638b98e97fe5d96d28ac493c",
+      "begin_elapsed": 0.4207435949938372,
+      "pass_elapsed": 0.45608221704605967,
+      "closure_seconds": 0.03533862205222249
+    },
+    {
+      "domain": "market_daily",
+      "identity": "market_daily-9ea11e3b19db8dcaf55c7e235b620e9fab4fc9239495279c45849ad887cf2ed9",
+      "begin_elapsed": 152.5089567170944,
+      "pass_elapsed": 293.44831771904137,
+      "closure_seconds": 140.93936100194696
+    },
+    {
+      "domain": "security_status",
+      "identity": "security_status-7b4634ce532171696a0c1819c7f97fd4380583ec53775e8c0c6fbb8e19251c89",
+      "begin_elapsed": 434.31315699906554,
+      "pass_elapsed": 507.2371951250825,
+      "closure_seconds": 72.92403812601697
+    },
+    {
+      "domain": "price_limits",
+      "identity": "price_limits-37ff0a91daeb3e1d6ec472f357a8d9bd2b4c1189706164ac1ed19003cd80ade1",
+      "begin_elapsed": 623.5890513280174,
+      "pass_elapsed": 1004.0053177430527,
+      "closure_seconds": 380.41626641503535
+    },
+    {
+      "domain": "corporate_actions",
+      "identity": "corporate_actions-bd6799108ee43cf237a366cb97eb0b6f855c629d38bb324d34556e5a51c61f50",
+      "begin_elapsed": 1004.674994958099,
+      "pass_elapsed": 1021.739205236081,
+      "closure_seconds": 17.064210277982056
+    },
+    {
+      "domain": "adjustment_factors",
+      "identity": "adjustment_factors-f668c7b41f28f6440c9cbddc3f8c8b54184340113555b6fe1e8c7ab9b1c163aa",
+      "begin_elapsed": 1116.0224739240948,
+      "pass_elapsed": 1208.7604045080952,
+      "closure_seconds": 92.73793058400042
+    },
+    {
+      "domain": "benchmark_daily",
+      "identity": "benchmark_daily-f0c738958e27ee88f8d74512153b6d7351c93b9c6506976b3bf65846d70abbdc",
+      "begin_elapsed": 1208.8503788190428,
+      "pass_elapsed": 1208.855506902095,
+      "closure_seconds": 0.005128083052113652
+    },
+    {
+      "domain": "security_capital",
+      "identity": "security_capital-6e9f56b079bb1f57c73ff9a74ae7fad75c004701d4e1e3e5f59be5813a6682fe",
+      "begin_elapsed": 1312.5706968490267,
+      "pass_elapsed": 1733.0676036670338,
+      "closure_seconds": 420.4969068180071
+    },
+    {
+      "domain": "universe_membership",
+      "identity": "universe_membership-7b5d90c08a8ea80f59ea9e23fc3e650db25910150e51c11f444d039c33b2f5d8",
+      "begin_elapsed": 1740.849660384003,
+      "pass_elapsed": 1774.1000991960755,
+      "closure_seconds": 33.25043881207239
+    },
+    {
+      "domain": "industry_membership",
+      "identity": "industry_membership-a47f87e0431af950fd4135fce5f50e9f3bf5ba010906daa96ceae05e86c97a42",
+      "begin_elapsed": 1776.3995236030314,
+      "pass_elapsed": 1777.0813347900985,
+      "closure_seconds": 0.6818111870670691
+    },
+    {
+      "domain": "financial_events",
+      "identity": "financial_events-ff83e5efc1f4c805281c556030b219de225fc2dba16e3a16ccf57cab6d8b17a7",
+      "begin_elapsed": 1810.1653791780118,
+      "pass_elapsed": 2693.8978352959966,
+      "closure_seconds": 883.7324561179848
+    },
+    {
+      "domain": "valuation_daily",
+      "identity": "valuation_daily-3888719d42d9e7f5a1a15b14b51a2fd79ca9caec2c4f1a7554de20442c13f858",
+      "begin_elapsed": 3017.1925038381014,
+      "pass_elapsed": 3773.639014814049,
+      "closure_seconds": 756.4465109759476
+    },
+    {
+      "domain": "holder_count_events",
+      "identity": "holder_count_events-2bd13147f0b2f8bd7484f4b7b9efa0d40172624d187039f73a5241229ad7f968",
+      "begin_elapsed": 3784.632268131012,
+      "pass_elapsed": 3815.9206987200305,
+      "closure_seconds": 31.28843058901839
+    },
+    {
+      "domain": "top_holders_reports",
+      "identity": "top_holders_reports-d2a42c310c88c74652cd8544924588530bf6faa647cd4887cf7b5d44949e1de0",
+      "begin_elapsed": 3839.8155039720004,
+      "pass_elapsed": 3924.4499938919907,
+      "closure_seconds": 84.6344899199903
+    },
+    {
+      "domain": "margin_daily",
+      "identity": "margin_daily-74fc981f2f7ca96d2cfbea10cfbbf5bba6a0a5dbfb595efa45171a4b395478a5",
+      "begin_elapsed": 4147.530528187053,
+      "pass_elapsed": 4545.853932194994,
+      "closure_seconds": 398.32340400794055
+    },
+    {
+      "domain": "moneyflow_daily",
+      "identity": "moneyflow_daily-6fc789a379c4038c8abf7aaaf8124b9321839f8232fbfa0a6ae44b9a0103f894",
+      "begin_elapsed": 4912.752367964014,
+      "pass_elapsed": 5589.793732455,
+      "closure_seconds": 677.0413644909859
+    },
+    {
+      "domain": "forecast_observations",
+      "identity": "forecast_observations-fbc31264711758176b1dca3645bf37f9461b048a0b90652a5dd7025422a6467e",
+      "begin_elapsed": 5596.020991963102,
+      "pass_elapsed": 5610.095319017069,
+      "closure_seconds": 14.074327053967863
+    },
+    {
+      "domain": "financial_events",
+      "identity": "financial_events-d5f5c944567aa0f876d1594c61f0a3de14a786453f1413aa212ffe81ff236050",
+      "begin_elapsed": 7527.296441750019,
+      "pass_elapsed": 8173.88092831301,
+      "closure_seconds": 646.5844865629915
+    }
+  ],
+  "gaps": [
+    {
+      "from_elapsed": 0.16569809906650335,
+      "to_elapsed": 0.3723213750636205,
+      "gap_seconds": 0.20662327599711716,
+      "between": "PUBLIC_REPAIR_BEGIN to first closure begin"
+    },
+    {
+      "from_elapsed": 0.39883496705442667,
+      "to_elapsed": 0.4207435949938372,
+      "gap_seconds": 0.021908627939410508,
+      "between": "prior closure pass to security_master begin"
+    },
+    {
+      "from_elapsed": 0.45608221704605967,
+      "to_elapsed": 152.5089567170944,
+      "gap_seconds": 152.05287450004835,
+      "between": "prior closure pass to market_daily begin"
+    },
+    {
+      "from_elapsed": 293.44831771904137,
+      "to_elapsed": 434.31315699906554,
+      "gap_seconds": 140.86483928002417,
+      "between": "prior closure pass to security_status begin"
+    },
+    {
+      "from_elapsed": 507.2371951250825,
+      "to_elapsed": 623.5890513280174,
+      "gap_seconds": 116.35185620293487,
+      "between": "prior closure pass to price_limits begin"
+    },
+    {
+      "from_elapsed": 1004.0053177430527,
+      "to_elapsed": 1004.674994958099,
+      "gap_seconds": 0.6696772150462493,
+      "between": "prior closure pass to corporate_actions begin"
+    },
+    {
+      "from_elapsed": 1021.739205236081,
+      "to_elapsed": 1116.0224739240948,
+      "gap_seconds": 94.28326868801378,
+      "between": "prior closure pass to adjustment_factors begin"
+    },
+    {
+      "from_elapsed": 1208.7604045080952,
+      "to_elapsed": 1208.8503788190428,
+      "gap_seconds": 0.08997431094758213,
+      "between": "prior closure pass to benchmark_daily begin"
+    },
+    {
+      "from_elapsed": 1208.855506902095,
+      "to_elapsed": 1312.5706968490267,
+      "gap_seconds": 103.71518994693179,
+      "between": "prior closure pass to security_capital begin"
+    },
+    {
+      "from_elapsed": 1733.0676036670338,
+      "to_elapsed": 1740.849660384003,
+      "gap_seconds": 7.782056716969237,
+      "between": "prior closure pass to universe_membership begin"
+    },
+    {
+      "from_elapsed": 1774.1000991960755,
+      "to_elapsed": 1776.3995236030314,
+      "gap_seconds": 2.29942440695595,
+      "between": "prior closure pass to industry_membership begin"
+    },
+    {
+      "from_elapsed": 1777.0813347900985,
+      "to_elapsed": 1810.1653791780118,
+      "gap_seconds": 33.08404438791331,
+      "between": "prior closure pass to financial_events begin"
+    },
+    {
+      "from_elapsed": 2693.8978352959966,
+      "to_elapsed": 3017.1925038381014,
+      "gap_seconds": 323.2946685421048,
+      "between": "prior closure pass to valuation_daily begin"
+    },
+    {
+      "from_elapsed": 3773.639014814049,
+      "to_elapsed": 3784.632268131012,
+      "gap_seconds": 10.993253316963091,
+      "between": "prior closure pass to holder_count_events begin"
+    },
+    {
+      "from_elapsed": 3815.9206987200305,
+      "to_elapsed": 3839.8155039720004,
+      "gap_seconds": 23.894805251969956,
+      "between": "prior closure pass to top_holders_reports begin"
+    },
+    {
+      "from_elapsed": 3924.4499938919907,
+      "to_elapsed": 4147.530528187053,
+      "gap_seconds": 223.08053429506253,
+      "between": "prior closure pass to margin_daily begin"
+    },
+    {
+      "from_elapsed": 4545.853932194994,
+      "to_elapsed": 4912.752367964014,
+      "gap_seconds": 366.8984357690206,
+      "between": "prior closure pass to moneyflow_daily begin"
+    },
+    {
+      "from_elapsed": 5589.793732455,
+      "to_elapsed": 5596.020991963102,
+      "gap_seconds": 6.22725950810127,
+      "between": "prior closure pass to forecast_observations begin"
+    },
+    {
+      "from_elapsed": 5610.095319017069,
+      "to_elapsed": 7527.296441750019,
+      "gap_seconds": 1917.2011227329494,
+      "between": "prior closure pass to financial_events begin"
+    },
+    {
+      "from_elapsed": 8173.88092831301,
+      "to_elapsed": 8938.38099101209,
+      "gap_seconds": 764.5000626990804,
+      "between": "last closure pass to PUBLICATION_VALIDATED"
+    }
+  ],
+  "warnings": []
+}
+

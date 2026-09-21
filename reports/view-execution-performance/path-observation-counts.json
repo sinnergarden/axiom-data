@@ -1,0 +1,28 @@
+{
+  "baseline": {
+    "file_state_lstat_calls": 500,
+    "lstat_calls_per_observe": 5.0,
+    "module": "/home/liuming/workspace/axiom/review/view-performance-20260922/baseline/src/axiom_data/verification_cache.py",
+    "observed_components": 5,
+    "repeated_calls": 100,
+    "same_path": "/tmp/view-observe-count-6bd2b3ng/nested/file.bin"
+  },
+  "current": {
+    "file_state_lstat_calls": 5,
+    "lstat_calls_per_observe": 0.05,
+    "module": "/home/liuming/workspace/axiom/axiom-data/src/axiom_data/verification_cache.py",
+    "observed_components": 5,
+    "repeated_calls": 100,
+    "same_path": "/tmp/view-observe-count-a67k9o8z/nested/file.bin"
+  },
+  "measurement": "observe_validation_path repeated same path 100 times",
+  "reduction": {
+    "absolute_lstat_calls": 495,
+    "factor": 100.0
+  },
+  "safe_path": {
+    "baseline_sha256": "5d6aa1cfa8ca134f79e8715fa36fdda7a2e1eb72307b3cab01cbcf40d3789f5c",
+    "current_sha256": "5d6aa1cfa8ca134f79e8715fa36fdda7a2e1eb72307b3cab01cbcf40d3789f5c",
+    "identical": true
+  }
+}
