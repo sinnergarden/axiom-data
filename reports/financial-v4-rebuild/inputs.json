@@ -1,0 +1,19 @@
+{
+  "run_id": "financial-v4-rebuild-20260921-r1",
+  "code": "a7d8571c3adb9a6fb1421d4cf5acf575c3cec22c",
+  "old_commit": "financial_events-ff83e5efc1f4c805281c556030b219de225fc2dba16e3a16ccf57cab6d8b17a7",
+  "old_manifest_sha256": "8fbf92102d643fa672ab7fac332c96cf2974c3f742dac783ca2090aaef00ee73",
+  "raw_count": 230464,
+  "raw_ids_sha256": "sha256:53c6e3745ad325be80fae792177b217ba651418a3a93d66e3720c4f10b4eb0a2",
+  "dependencies": {
+    "security_master": "security_master-5540f406637d950766e036a973de7a4a8a96a7f3638b98e97fe5d96d28ac493c"
+  },
+  "contract": "financial_events.v4",
+  "parent": null,
+  "scope": {
+    "start_session": "2014-01-01",
+    "end_session": "2026-09-13",
+    "storage_policy": "domain_time_blocks.v1"
+  },
+  "symbols_count": 3601
+}

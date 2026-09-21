@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "commit": "financial_events-7fe86eee9a5e0b64e9fb8cc47c0446a6677c4d4f0de59bef6979244e4d15c04a",
+  "rows": 694151,
+  "partitions": 90,
+  "known_keys_checked": 1952,
+  "counts": {
+    "operational_pit_v1_ambiguous": 1912,
+    "best_effort_vendor_v1_orderable": 1936,
+    "best_effort_vendor_v1_ambiguous": 16,
+    "operational_pit_v1_orderable": 40
+  },
+  "actual_002010": [
+    {
+      "policy": "operational_pit_v1",
+      "roe": 0.024916,
+      "revision_id": "b150b4200cb22dd4f79aca0d2121d44b143491a924bc10ff4f553ed8faa71f9c",
+      "source_ref": "pr6-480cfa7d0400011c3adfcb532a724f202e65fbe15663730d840bbe37bd6a5b9c"
+    },
+    {
+      "policy": "best_effort_vendor_v1",
+      "roe": 0.024916,
+      "revision_id": "b150b4200cb22dd4f79aca0d2121d44b143491a924bc10ff4f553ed8faa71f9c",
+      "source_ref": "pr6-480cfa7d0400011c3adfcb532a724f202e65fbe15663730d840bbe37bd6a5b9c"
+    }
+  ],
+  "elapsed": 7.355631408980116,
+  "scope": "all published financial partition integrity; known ambiguity keys and original indicator regression; no Snapshot/Views"
+}

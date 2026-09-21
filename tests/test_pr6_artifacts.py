@@ -37,7 +37,7 @@ class Pr6ArtifactTest(unittest.TestCase):
 
     def build(self,raw,parent=None):
         builder=Pr6Builder(self.root,'financial_events',dependency_commit_ids={'security_master':self.security.commit_id})
-        ref=BuildApplication('financial_events',builder).build(parent,[raw.raw_batch_id],[],'financial_events.v3')
+        ref=BuildApplication('financial_events',builder).build(parent,[raw.raw_batch_id],[],'financial_events.v4')
         return validate_domain_commit_closure(self.root,'financial_events',ref.commit_id)
 
     def test_raw_mapping_revision_retention_and_repeated_observation(self):
@@ -63,14 +63,14 @@ class Pr6ArtifactTest(unittest.TestCase):
         self.assertEqual(sum(len(r['observations']) for r in commit.rows),4)
         self.assertEqual(next(r for r in commit.rows if r['values']['revenue']==100)['first_observed_at'],'2025-04-02T00:00:00Z')
         builder=Pr6Builder(self.root,'financial_events',dependency_commit_ids={'security_master':self.security.commit_id})
-        rebuilt=BuildApplication('financial_events',builder).build(None,[r.raw_batch_id for r in reversed(raw)],[],'financial_events.v3')
+        rebuilt=BuildApplication('financial_events',builder).build(None,[r.raw_batch_id for r in reversed(raw)],[],'financial_events.v4')
         replay=validate_domain_commit_closure(self.root,'financial_events',rebuilt.commit_id)
         self.assertEqual(commit.rows,replay.rows)
         import shutil
         with tempfile.TemporaryDirectory() as clean:
             shutil.copytree(self.root/'raw',Path(clean)/'raw')
             security=BuildApplication('security_master',MarketDomainBuilder(clean,'security_master')).build(None,['security-fixture'],[],'security_master.v1')
-            fresh=BuildApplication('financial_events',Pr6Builder(clean,'financial_events',dependency_commit_ids={'security_master':security.commit_id})).build(None,[r.raw_batch_id for r in raw],[],'financial_events.v3')
+            fresh=BuildApplication('financial_events',Pr6Builder(clean,'financial_events',dependency_commit_ids={'security_master':security.commit_id})).build(None,[r.raw_batch_id for r in raw],[],'financial_events.v4')
             self.assertEqual(commit.rows,validate_domain_commit_closure(clean,'financial_events',fresh.commit_id).rows)
         for day,value in [('03',100),('05',200),('07',100),('09',100)]:
             selected=select_revisions(commit.rows,policy='operational_pit_v1',knowledge_cutoff='2025-04-'+day+'T00:00:00Z')

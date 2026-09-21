@@ -59,7 +59,7 @@ class Pr6IntegrationTest(unittest.TestCase):
                 refs=[Pr6Collector(root,Client(rows)).collect(endpoint,params,retrieved_at='2026-09-01T00:00:00Z').raw_batch_id for endpoint,params,rows in jobs]
                 config={'membership_end_exclusive':'2026-01-08'} if domain=='universe_membership' else {}
                 builder=Pr6Builder(root,domain,builder_config=config,dependency_commit_ids={d:commits[d] for d in _DOMAIN_DEPENDENCIES[domain]})
-                version=domain+('.v3' if domain in {'universe_membership','financial_events'} else '.v2')
+                version=domain+('.v4' if domain=='financial_events' else '.v3' if domain=='universe_membership' else '.v2')
                 commits[domain]=BuildApplication(domain,builder).build(None,refs,[],version).commit_id
             commits['industry_membership']=build_industry(root,commits['security_master'])
             snapshot=create_snapshot(root,commits);reader=SnapshotReader(root,snapshot.snapshot_id)
@@ -114,7 +114,7 @@ class Pr6IntegrationTest(unittest.TestCase):
                 'valuation_daily':('daily_basic',{'ts_code':'600000.SH','trade_date':'20260105'})}
             for domain,(endpoint,params) in requests.items():
                 ref=Pr6Collector(root,Client([])).collect(endpoint,params,retrieved_at='2026-01-06T00:00:00Z',membership_complete=domain=='universe_membership')
-                version=domain+('.v3' if domain in {'universe_membership','financial_events'} else '.v2')
+                version=domain+('.v4' if domain=='financial_events' else '.v3' if domain=='universe_membership' else '.v2')
                 builder=Pr6Builder(root,domain,builder_config={'membership_end_exclusive':'2026-01-06'} if domain=='universe_membership' else {},dependency_commit_ids={d:commits[d] for d in _DOMAIN_DEPENDENCIES[domain]})
                 commits[domain]=BuildApplication(domain,builder).build(None,[ref.raw_batch_id],[],version).commit_id
             commits['industry_membership']=build_industry(root,commits['security_master'],empty=True)
@@ -123,10 +123,10 @@ class Pr6IntegrationTest(unittest.TestCase):
                     'end_date':period,'report_type':'1','update_flag':'1','revenue':value,'oper_cost':value/2,'n_income':value/10}])).collect(
                     'income',{'ts_code':'600000.SH','period':period},retrieved_at=observed).raw_batch_id
             app=BuildApplication('financial_events',Pr6Builder(root,'financial_events',dependency_commit_ids={'security_master':commits['security_master']}))
-            first=app.build(None,[raw(p,v,'2025-05-01T00:00:00Z') for p,v in [('20240331',100),('20240930',600),('20241231',1000)]],[],'financial_events.v3')
+            first=app.build(None,[raw(p,v,'2025-05-01T00:00:00Z') for p,v in [('20240331',100),('20240930',600),('20241231',1000)]],[],'financial_events.v4')
             commits['financial_events']=first.commit_id;old=create_snapshot(root,commits)
             late=raw('20240630',300,'2025-07-01T00:00:00Z')
-            commits['financial_events']=app.build(first.commit_id,[late],[],'financial_events.v3').commit_id
+            commits['financial_events']=app.build(first.commit_id,[late],[],'financial_events.v4').commit_id
             new=create_snapshot(root,commits)
             envelope=SnapshotReader(root,new.snapshot_id).membership_facts('000906.SH','2026-01-05',knowledge_cutoff='2026-02-01T00:00:00Z',pit_policy='operational_pit_v1')
             self.assertEqual(envelope['rows'],());self.assertEqual(envelope['group_observation']['member_count'],0)

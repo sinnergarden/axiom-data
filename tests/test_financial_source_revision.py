@@ -46,7 +46,7 @@ class FinancialSourceRevisionTest(unittest.TestCase):
 
     def test_actual_frozen_raw_public_build_and_replay(self):
         self.assertEqual([r['update_flag'] for r in self.source], ['1', '0'])
-        ref = BuildApplication('financial_events', self.builder()).build(None, [RAW_ID], [], 'financial_events.v3')
+        ref = BuildApplication('financial_events', self.builder()).build(None, [RAW_ID], [], 'financial_events.v4')
         checked = validate_domain_commit_closure(self.root, 'financial_events', ref.commit_id)
         self.assertEqual(len(checked.rows), 1)
         self.assertEqual(checked.rows[0]['values']['roe'], 0.024916)
@@ -84,7 +84,7 @@ class FinancialSourceRevisionTest(unittest.TestCase):
                 select_revisions(rows, policy='operational_pit_v1', knowledge_cutoff='2026-09-15T00:00:00Z')
 
     def test_publication_cannot_downgrade_contract(self):
-        for version in ('financial_events.v1', 'financial_events.v2'):
+        for version in ('financial_events.v1', 'financial_events.v2', 'financial_events.v3'):
             with self.assertRaisesRegex((ArtifactError, BuildContractError), 'LEGACY_CONTRACT_READ_ONLY'):
                 BuildApplication('financial_events', self.builder()).build(None, [RAW_ID], [], version)
 

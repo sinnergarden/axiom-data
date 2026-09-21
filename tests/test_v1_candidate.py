@@ -49,7 +49,7 @@ class CandidateTest(unittest.TestCase):
             self.assertNotIn('domain_commit_ids',rejected)
             self.assertFalse(rejected['ready_for_consumption'])
             failed=assemble_candidate(root,run_id='failed',parent_snapshot_id=parent.snapshot.ref.snapshot_id,
-                domain_inputs={'financial_events':dict(spec,contract_version='financial_events.v3')})
+                domain_inputs={'financial_events':dict(spec,contract_version='financial_events.v4')})
             self.assertEqual(failed['status'],'FAILED')
             self.assertNotIn('snapshot_id',failed)
             self.assertTrue(all((root/'raw/batches'/identity).exists() for identity in raw))
