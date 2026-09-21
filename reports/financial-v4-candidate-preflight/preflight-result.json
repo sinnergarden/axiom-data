@@ -1,0 +1,297 @@
+{
+  "status": "BLOCKED_BEFORE_PUBLICATION",
+  "base": "21382552bfa9531ad2c93c55a7beeeb7d6e66b33",
+  "old_snapshot": "snapshot-aa48fb719f5db092e81a24b188e469e38d3ef05bde77f4ec39282e55b5ebb650",
+  "old_snapshot_manifest_digest": "sha256:bcba1dfd9c3d3416cef358e22926f129541525fe956ac20dad1a4066a00a11df",
+  "proposed_financial_commit": "financial_events-7fe86eee9a5e0b64e9fb8cc47c0446a6677c4d4f0de59bef6979244e4d15c04a",
+  "financial_manifest_digest": "sha256:187577100ea69a2eac968199fb65d020979cfccd6218cab0c02abfd9219ca5ce",
+  "proposed_unchanged_refs": {
+    "adjustment_factors": {
+      "contract_digest": "sha256:66971791dc0d2b20f0b5d2593ed19001199ec5456b538b32ee5c068ff3927938",
+      "contract_version": "adjustment_factors.v1",
+      "domain": "adjustment_factors",
+      "domain_commit_id": "adjustment_factors-f668c7b41f28f6440c9cbddc3f8c8b54184340113555b6fe1e8c7ab9b1c163aa",
+      "identity_digest": "sha256:f668c7b41f28f6440c9cbddc3f8c8b54184340113555b6fe1e8c7ab9b1c163aa",
+      "logical_content_digest": "sha256:5cc9c4afda3c089bb6c289402e90a12f8225af2c97acaf54af1dea937aa3e96f"
+    },
+    "benchmark_daily": {
+      "contract_digest": "sha256:c51644aed6b743f86d2d97685eb85b7dd3dcc17dc12bd4d0d74445a3c2538564",
+      "contract_version": "benchmark_daily.v1",
+      "domain": "benchmark_daily",
+      "domain_commit_id": "benchmark_daily-f0c738958e27ee88f8d74512153b6d7351c93b9c6506976b3bf65846d70abbdc",
+      "identity_digest": "sha256:f0c738958e27ee88f8d74512153b6d7351c93b9c6506976b3bf65846d70abbdc",
+      "logical_content_digest": "sha256:e276524a020ce9690beb45a9180cf472c926659b39bda2d757eff01268dccce8"
+    },
+    "corporate_actions": {
+      "contract_digest": "sha256:f19d98cbb325c13c20ba69326d68c3863d9fa68776183062ea78560dc17eabc0",
+      "contract_version": "corporate_actions.v2",
+      "domain": "corporate_actions",
+      "domain_commit_id": "corporate_actions-bd6799108ee43cf237a366cb97eb0b6f855c629d38bb324d34556e5a51c61f50",
+      "identity_digest": "sha256:bd6799108ee43cf237a366cb97eb0b6f855c629d38bb324d34556e5a51c61f50",
+      "logical_content_digest": "sha256:66fe211ee3a34019cd7bd4a3752842f90529111c438a0198982847b7d07b24a4"
+    },
+    "forecast_observations": {
+      "contract_digest": "sha256:1c925ecc4880cb1e3ae9fedc771bca7fd262ad4e3cf2dc7a3f8c099a7e99e19f",
+      "contract_version": "forecast_observations.v2",
+      "domain": "forecast_observations",
+      "domain_commit_id": "forecast_observations-fbc31264711758176b1dca3645bf37f9461b048a0b90652a5dd7025422a6467e",
+      "identity_digest": "sha256:fbc31264711758176b1dca3645bf37f9461b048a0b90652a5dd7025422a6467e",
+      "logical_content_digest": "sha256:a830f5c3f6a73dd98f20e857e8064ab3402754ee98f169abf81bef25b73ade04"
+    },
+    "holder_count_events": {
+      "contract_digest": "sha256:fe0ef0fb1ed56c876677142aace517cda2836b66b1ceecca18a7a9e09a1feacd",
+      "contract_version": "holder_count_events.v1",
+      "domain": "holder_count_events",
+      "domain_commit_id": "holder_count_events-2bd13147f0b2f8bd7484f4b7b9efa0d40172624d187039f73a5241229ad7f968",
+      "identity_digest": "sha256:2bd13147f0b2f8bd7484f4b7b9efa0d40172624d187039f73a5241229ad7f968",
+      "logical_content_digest": "sha256:c6e4921115eb1d3691483cd919a28a78e715d90b10dfa5acb800fdc4023b23a2"
+    },
+    "industry_membership": {
+      "contract_digest": "sha256:1ac0b7a6227c4d696709e1c38e70c3cc28cf2bf23645c023d24689a7813a6d02",
+      "contract_version": "industry_membership.v3",
+      "domain": "industry_membership",
+      "domain_commit_id": "industry_membership-a47f87e0431af950fd4135fce5f50e9f3bf5ba010906daa96ceae05e86c97a42",
+      "identity_digest": "sha256:a47f87e0431af950fd4135fce5f50e9f3bf5ba010906daa96ceae05e86c97a42",
+      "logical_content_digest": "sha256:7d4912736cd929f87f4570a4476c95066b1503df8ece5a49b5f267493026b369"
+    },
+    "margin_daily": {
+      "contract_digest": "sha256:a271cc007373d7854f9de13cacc5dbec3c3195cda73c5dbb55503d49241629b4",
+      "contract_version": "margin_daily.v1",
+      "domain": "margin_daily",
+      "domain_commit_id": "margin_daily-74fc981f2f7ca96d2cfbea10cfbbf5bba6a0a5dbfb595efa45171a4b395478a5",
+      "identity_digest": "sha256:74fc981f2f7ca96d2cfbea10cfbbf5bba6a0a5dbfb595efa45171a4b395478a5",
+      "logical_content_digest": "sha256:7c6c585ba4d7596f834885adb1a67c5e0616526f6446e56783237b5b2a73d179"
+    },
+    "market_daily": {
+      "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+      "contract_version": "market_daily.v1",
+      "domain": "market_daily",
+      "domain_commit_id": "market_daily-9ea11e3b19db8dcaf55c7e235b620e9fab4fc9239495279c45849ad887cf2ed9",
+      "identity_digest": "sha256:9ea11e3b19db8dcaf55c7e235b620e9fab4fc9239495279c45849ad887cf2ed9",
+      "logical_content_digest": "sha256:9ea0e69d9fc0bfd59ab72fef01c4c9844dbd08d945b9faeed85171be51c4350b"
+    },
+    "moneyflow_daily": {
+      "contract_digest": "sha256:b41df4b8745979963d76a223bb5e124cb637ebcde6e714ecf43f68ce891a7eb1",
+      "contract_version": "moneyflow_daily.v1",
+      "domain": "moneyflow_daily",
+      "domain_commit_id": "moneyflow_daily-6fc789a379c4038c8abf7aaaf8124b9321839f8232fbfa0a6ae44b9a0103f894",
+      "identity_digest": "sha256:6fc789a379c4038c8abf7aaaf8124b9321839f8232fbfa0a6ae44b9a0103f894",
+      "logical_content_digest": "sha256:e9de20b56ce7d3fb0c6da7773119f3621ac039d55e7c83ce03de892ef198f5a7"
+    },
+    "price_limits": {
+      "contract_digest": "sha256:df88b568f1835e5df26dd8534279e67271f1d0d33b6135b22298674b9b939d15",
+      "contract_version": "price_limits.v1",
+      "domain": "price_limits",
+      "domain_commit_id": "price_limits-37ff0a91daeb3e1d6ec472f357a8d9bd2b4c1189706164ac1ed19003cd80ade1",
+      "identity_digest": "sha256:37ff0a91daeb3e1d6ec472f357a8d9bd2b4c1189706164ac1ed19003cd80ade1",
+      "logical_content_digest": "sha256:55a54cbd3dd323d858504007ffc235928f3cdd63fafffda5f8b4014fbf0b7c75"
+    },
+    "security_capital": {
+      "contract_digest": "sha256:8d6c0c7eeda8db90bded8c81db95ccd638e5e090fadd61baca2efbd15e7972a8",
+      "contract_version": "security_capital.v2",
+      "domain": "security_capital",
+      "domain_commit_id": "security_capital-6e9f56b079bb1f57c73ff9a74ae7fad75c004701d4e1e3e5f59be5813a6682fe",
+      "identity_digest": "sha256:6e9f56b079bb1f57c73ff9a74ae7fad75c004701d4e1e3e5f59be5813a6682fe",
+      "logical_content_digest": "sha256:a4c5946a2e8571889dcfe644e09d4b8891d6e46b37ed7c05dc0c6f15f8bbad88"
+    },
+    "security_master": {
+      "contract_digest": "sha256:c970fdc656ff512e053391bb52bd784f3ee8b65bdc6195442d14da7d39a2c223",
+      "contract_version": "security_master.v1",
+      "domain": "security_master",
+      "domain_commit_id": "security_master-5540f406637d950766e036a973de7a4a8a96a7f3638b98e97fe5d96d28ac493c",
+      "identity_digest": "sha256:5540f406637d950766e036a973de7a4a8a96a7f3638b98e97fe5d96d28ac493c",
+      "logical_content_digest": "sha256:584f735d05bbb486a28c29d5df4c9e87fa85572e1033e1e240e4eee9896d2a0e"
+    },
+    "security_status": {
+      "contract_digest": "sha256:1087b0f2bd9e28a7578da2b4a9a807d0323d7010bc6aca14db79377b515c9e8a",
+      "contract_version": "security_status.v1",
+      "domain": "security_status",
+      "domain_commit_id": "security_status-7b4634ce532171696a0c1819c7f97fd4380583ec53775e8c0c6fbb8e19251c89",
+      "identity_digest": "sha256:7b4634ce532171696a0c1819c7f97fd4380583ec53775e8c0c6fbb8e19251c89",
+      "logical_content_digest": "sha256:6e3de18b7c7d11f1224f30c22ce93d6d87edd76b8c64ab18e24e4308be05a2d1"
+    },
+    "top_holders_reports": {
+      "contract_digest": "sha256:c639caa1eaa23edd27877ad3985e099dbe6e9003d74ec2a85392a2ee8237301e",
+      "contract_version": "top_holders_reports.v1",
+      "domain": "top_holders_reports",
+      "domain_commit_id": "top_holders_reports-d2a42c310c88c74652cd8544924588530bf6faa647cd4887cf7b5d44949e1de0",
+      "identity_digest": "sha256:d2a42c310c88c74652cd8544924588530bf6faa647cd4887cf7b5d44949e1de0",
+      "logical_content_digest": "sha256:2039f0fa1bacad7a3a01479c15166234023aa015220487b80f6387a6768213b1"
+    },
+    "trading_calendar": {
+      "contract_digest": "sha256:0e593f8f9651be8acfa253d3bde3190a0187fa63edd8559387485f0cb71ab8c2",
+      "contract_version": "trading_calendar.v1",
+      "domain": "trading_calendar",
+      "domain_commit_id": "trading_calendar-b24314e06a79828a9ce9ff9ca4f2e75a7f12d5f4576c1961c01a68a644b694d7",
+      "identity_digest": "sha256:b24314e06a79828a9ce9ff9ca4f2e75a7f12d5f4576c1961c01a68a644b694d7",
+      "logical_content_digest": "sha256:3916d1a7f9d23397318b985dba00428c2ff0cd46f0a7f9b6c6c6508f125f281e"
+    },
+    "universe_membership": {
+      "contract_digest": "sha256:23c22dc0590f1dc03d0f9a882aa1cb2fc3d1377321dea9f9267cdf0ec35d9c8e",
+      "contract_version": "universe_membership.v3",
+      "domain": "universe_membership",
+      "domain_commit_id": "universe_membership-7b5d90c08a8ea80f59ea9e23fc3e650db25910150e51c11f444d039c33b2f5d8",
+      "identity_digest": "sha256:7b5d90c08a8ea80f59ea9e23fc3e650db25910150e51c11f444d039c33b2f5d8",
+      "logical_content_digest": "sha256:c841105193d2b53bf2367c9bff89925fc7a05a134ed8411289393b5aed79b5d8"
+    },
+    "valuation_daily": {
+      "contract_digest": "sha256:1e41eab6a15903f70fcd6d5abc127e550eff3508d630cd9cb0d18221ab548760",
+      "contract_version": "valuation_daily.v2",
+      "domain": "valuation_daily",
+      "domain_commit_id": "valuation_daily-3888719d42d9e7f5a1a15b14b51a2fd79ca9caec2c4f1a7554de20442c13f858",
+      "identity_digest": "sha256:3888719d42d9e7f5a1a15b14b51a2fd79ca9caec2c4f1a7554de20442c13f858",
+      "logical_content_digest": "sha256:671c35251cea703499cf0759752e92c6d94c882d7b0b091ad458f8ca46fa04e9"
+    }
+  },
+  "request": {
+    "config": {
+      "end_session": "2026-09-11",
+      "industry_system": "SW2021",
+      "knowledge_cutoff": "2026-09-11T15:59:59+00:00",
+      "pit_policy": "best_effort_vendor_v1",
+      "start_session": "2020-07-16",
+      "symbols": [
+        "688981.SH"
+      ],
+      "universe_ids": [
+        "000906.SH",
+        "000852.SH"
+      ]
+    },
+    "kind": "pr6_fact"
+  },
+  "policy": "best_effort_vendor_v1",
+  "cutoff": "2026-09-11T15:59:59+00:00",
+  "partition": {
+    "bytes": 12517189,
+    "content_digest": "sha256:038ad52fef78b67f192d4525c06938d29ae1c598a4b9c52ff0dd83aee4d67325",
+    "key": "balancesheet-2015",
+    "object_id": "038ad52fef78b67f192d4525c06938d29ae1c598a4b9c52ff0dd83aee4d67325",
+    "rows": 10950
+  },
+  "canonical_rows": [
+    {
+      "availability_basis": "terminal_history_observed",
+      "endpoint": "balancesheet",
+      "first_observed_at": "2026-09-14T14:18:32.295744+00:00",
+      "logical_event_key": "c272bbb844cc44b1d75c80769bf9c7bcd27a91b1990885f34f92fe308e5116dc",
+      "missing_reasons": {
+        "accounts_receivable": "vendor_null",
+        "current_assets": "vendor_null",
+        "current_liabilities": "vendor_null",
+        "inventory": "vendor_null"
+      },
+      "observations": [
+        {
+          "observation_id": "93ebdf3572750a94ac24bd9e3935c1f16f0c4679e937823c60e0e8c73516a394",
+          "observed_at": "2026-09-14T14:18:32.295744+00:00",
+          "revision_id": "a5be8818fdceba1e8666844d33fc394a7f97b54de6ac4cb7533fd00bedbcc994",
+          "source_ref": "pr6-621fffeb21d94ed806062ac72ea3d32e75f4455fb6e6490847b22e1e152b6cfa",
+          "vendor_available_at": "2016-12-09T23:59:59+08:00"
+        }
+      ],
+      "pit_qualification": "best_effort",
+      "report_period": "2015-12-31",
+      "report_type": "1",
+      "revision_id": "a5be8818fdceba1e8666844d33fc394a7f97b54de6ac4cb7533fd00bedbcc994",
+      "source_available_at": null,
+      "source_ref": "pr6-621fffeb21d94ed806062ac72ea3d32e75f4455fb6e6490847b22e1e152b6cfa",
+      "symbol": "002961.SZ",
+      "values": {
+        "accounts_receivable": null,
+        "current_assets": null,
+        "current_liabilities": null,
+        "equity": 930322361.36,
+        "inventory": null,
+        "total_assets": 7668366827.31
+      },
+      "vendor_available_at": "2016-12-09T23:59:59+08:00"
+    },
+    {
+      "availability_basis": "terminal_history_observed",
+      "endpoint": "balancesheet",
+      "first_observed_at": "2026-09-14T14:18:32.295744+00:00",
+      "logical_event_key": "c272bbb844cc44b1d75c80769bf9c7bcd27a91b1990885f34f92fe308e5116dc",
+      "missing_reasons": {
+        "accounts_receivable": "vendor_null",
+        "current_assets": "vendor_null",
+        "current_liabilities": "vendor_null"
+      },
+      "observations": [
+        {
+          "observation_id": "bce502755de20f7746ddf336ed6c20e7b05281ea7c137bae8979e808a6e1655b",
+          "observed_at": "2026-09-14T14:18:32.295744+00:00",
+          "revision_id": "c604bc5dafe09d4c47cd12857473246ebd6406af2c8ca6b05424fab70f45e6ad",
+          "source_ref": "pr6-621fffeb21d94ed806062ac72ea3d32e75f4455fb6e6490847b22e1e152b6cfa",
+          "vendor_available_at": "2016-12-09T23:59:59+08:00"
+        }
+      ],
+      "pit_qualification": "best_effort",
+      "report_period": "2015-12-31",
+      "report_type": "1",
+      "revision_id": "c604bc5dafe09d4c47cd12857473246ebd6406af2c8ca6b05424fab70f45e6ad",
+      "source_available_at": null,
+      "source_ref": "pr6-621fffeb21d94ed806062ac72ea3d32e75f4455fb6e6490847b22e1e152b6cfa",
+      "symbol": "002961.SZ",
+      "values": {
+        "accounts_receivable": null,
+        "current_assets": null,
+        "current_liabilities": null,
+        "equity": 930322361.36,
+        "inventory": 170629689.76,
+        "total_assets": 7668366827.31
+      },
+      "vendor_available_at": "2016-12-09T23:59:59+08:00"
+    }
+  ],
+  "raw_evidence": [
+    {
+      "raw_batch_id": "pr6-621fffeb21d94ed806062ac72ea3d32e75f4455fb6e6490847b22e1e152b6cfa",
+      "manifest_digest": "sha256:f319eaa7e8dee7c2b96735a94d5630d498e5df07b33be4d0aaf4d834aba96f9e",
+      "matches": [
+        {
+          "index": 2,
+          "row": {
+            "accounts_receiv": null,
+            "ann_date": "20161209",
+            "end_date": "20151231",
+            "f_ann_date": "20161209",
+            "inventories": null,
+            "report_type": "1",
+            "total_assets": 7668366827.31,
+            "total_cur_assets": null,
+            "total_cur_liab": null,
+            "total_hldr_eqy_exc_min_int": 930322361.36,
+            "ts_code": "002961.SZ",
+            "update_flag": "1"
+          }
+        },
+        {
+          "index": 3,
+          "row": {
+            "accounts_receiv": null,
+            "ann_date": "20161209",
+            "end_date": "20151231",
+            "f_ann_date": "20161209",
+            "inventories": 170629689.76,
+            "report_type": "1",
+            "total_assets": 7668366827.31,
+            "total_cur_assets": null,
+            "total_cur_liab": null,
+            "total_hldr_eqy_exc_min_int": 930322361.36,
+            "ts_code": "002961.SZ",
+            "update_flag": "1"
+          }
+        }
+      ]
+    }
+  ],
+  "failure": {
+    "exception": "MarketContractError",
+    "message": "ambiguous simultaneous revisions: c272bbb844cc44b1d75c80769bf9c7bcd27a91b1990885f34f92fe308e5116dc"
+  },
+  "elapsed_seconds": 6.271919730934314,
+  "validation_scope": "manifest identity/digest, contract digest, complete single partition integrity and exact PIT logical key; not full Snapshot closure or View execution",
+  "candidate_id": null,
+  "formal_writes": false
+}
