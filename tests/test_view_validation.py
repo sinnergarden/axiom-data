@@ -58,6 +58,19 @@ class ViewValidationTest(unittest.TestCase):
         with self.session.inputs('pr7_fact',self.config) as reader:self.project(reader)
         with self.assertRaises(ArtifactError):SnapshotReader(self.root,self.snapshot)
 
+    def test_new_projection_scope_reuses_full_closure_but_rechecks_request(self):
+        with self.session.inputs('pr7_fact',self.config):pass
+        changed=dict(self.config,symbols=['000001.SZ'],start_session='2025-06-11')
+        with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as loads:
+            with self.session.inputs('pr7_fact',changed):pass
+            self.assertEqual(loads.call_count,0)
+        config={k:self.config[k] for k in ('symbols','start_session','end_session')}
+        with self.session.inputs('market_qlib',config):pass
+        with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as loads:
+            with self.assertRaisesRegex(ArtifactError,'reversed'):
+                with self.session.inputs('market_qlib',dict(config,start_session='2025-06-14')):pass
+            self.assertEqual(loads.call_count,0)
+
     def test_dependency_changes_invalidate_cached_validation(self):
         with self.session.inputs('pr7_fact',self.config):pass
         self.corrupt('holder_count_events')
@@ -130,6 +143,10 @@ class ViewValidationTest(unittest.TestCase):
         config.update(price_basis='anchor_adjusted',adjusted_price_view_id=adjusted.view_id,
             pit_policy='research_non_pit',decision_cutoff='2025-06-13')
         with self.session.inputs('market_qlib',config):pass
+        with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as loads:
+            with self.assertRaisesRegex(ArtifactError,'Derived scope mismatch'):
+                with self.session.inputs('market_qlib',dict(config,start_session='2025-06-11')):pass
+            self.assertEqual(loads.call_count,0)
         path=self.root/'derived/adjusted_price/commits'/adjusted.view_id/'rows.json'
         path.chmod(0o600);path.write_bytes(path.read_bytes()+b' ')
         with self.assertRaises(ArtifactError):
