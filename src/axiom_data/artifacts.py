@@ -1587,12 +1587,9 @@ def _checked_snapshot_commits(
             raise ArtifactError(
                 f"snapshot domain refs do not match {domain} fixed dependencies"
             )
-    if "market_daily" in commits:
-        _validate_market_dependencies(
-            commits["market_daily"].rows,
-            commits["trading_calendar"],
-            commits["security_master"],
-        )
+    # Each closure already checked its rows against these exact dependencies.
+    # The ref comparisons above bind that check to the Snapshot composition;
+    # scanning the entire market again would repeat the identical validation.
     if set(DM1_SNAPSHOT_DOMAINS).issubset(ordered_domains):
         try:
             validate_dm1_snapshot_rows(commits)
