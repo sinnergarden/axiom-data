@@ -42,6 +42,18 @@ def request_coverage(reader,domain,symbol,session):
     raise ArtifactError('INSUFFICIENT_SCOPE: no bounded supplier request for '+symbol+' '+session)
 
 
+def dependency_session(reader, domain, session):
+    """Plan against the source bound frozen in this Snapshot's DomainCommit.
+
+    An absent bound retains legacy strict request coverage. Never infer a
+    cutoff from returned rows or a different security's observed coverage.
+    """
+    if domain not in reader.commits:
+        raise ArtifactError('Snapshot lacks PR7 domain')
+    end = reader.commits[domain].manifest['builder_config'].get('end_session')
+    return min(session, _session(end, 'source end_session')) if end is not None else session
+
+
 def exchange_sessions(reader,symbols,start,end):
     """Validate each requested exchange for every calendar day before projection."""
     from axiom_data.domains.market import _symbol
@@ -80,13 +92,14 @@ def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
     domain=LEAF_DOMAINS[leaf];field=leaf.split('.',1)[1]
     if not exchange_sessions(reader,[symbol],target_session,target_session)[symbol]['sessions']:
         raise ArtifactError('CLOSED_SESSION: '+symbol+' '+target_session)
-    request_coverage(reader,domain,symbol,target_session)
-    bounds={'start_session':target_session,'end_session':target_session} if domain in DAILY_DOMAINS else {}
+    source_session=dependency_session(reader,domain,target_session)
+    request_coverage(reader,domain,symbol,source_session)
+    bounds={'start_session':source_session,'end_session':source_session} if domain in DAILY_DOMAINS else {}
     selected=reader.as_of(domain,symbols=[symbol],pit_policy=pit_policy,knowledge_cutoff=knowledge_cutoff,**bounds)
-    return _leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected)
+    return _leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected,source_session=source_session)
 
 
-def _leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected):
+def _leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected,*,source_session=None):
     domain=LEAF_DOMAINS[leaf];field=leaf.split('.',1)[1]
     candidates=[r for r in selected if (r['session']==target_session if domain in DAILY_DOMAINS else
         domain=='forecast_observations' or r['report_period']<=target_session)]
@@ -94,6 +107,8 @@ def _leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy
          max(candidates,key=lambda r:(r['announcement'] or r['session'],r['report_period'] or r['session'])) if candidates else None)
     value=row['values'][field] if row else None
     reason=row['missing_reasons'].get(field) if row else 'no_observation_at_cutoff'
+    if domain in DAILY_DOMAINS and source_session is not None and source_session < target_session:
+        reason='source_scope_not_available'
     contract_version=reader.commits[domain].ref.contract_version
     metadata={'leaf':leaf,'symbol':symbol,'target_session':target_session,'snapshot_id':reader.snapshot.ref.snapshot_id,
         'contract_version':contract_version,'domain_commit_id':reader.commits[domain].ref.commit_id,
@@ -114,7 +129,7 @@ def _leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy
     return metadata
 
 
-def project(reader,scope,policy,cutoff):
+def project(reader,scope,policy,cutoff,*,source_cutoffs=True):
     symbols=_symbols(scope['symbols']);start=_session(scope['start_session'],'start');end=_session(scope['end_session'],'end')
     if start>end:raise ArtifactError('reversed View range')
     calendars=exchange_sessions(reader,symbols,start,end)
@@ -126,10 +141,12 @@ def project(reader,scope,policy,cutoff):
     for session in sorted({day for item in calendars.values() for day in item['sessions']}):
         active=[symbol for symbol in symbols if session in open_days[symbol]]
         effective=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
-        selected={}
+        selected={};source_sessions={}
         for domain in PR7_DOMAINS:
-            for symbol in active:request_coverage(reader,domain,symbol,session)
-            bounds={'start_session':session,'end_session':session} if domain in DAILY_DOMAINS else {}
+            source_session=dependency_session(reader,domain,session) if source_cutoffs else session
+            source_sessions[domain]=source_session
+            for symbol in active:request_coverage(reader,domain,symbol,source_session)
+            bounds={'start_session':source_session,'end_session':source_session} if domain in DAILY_DOMAINS else {}
             groups={symbol:[] for symbol in active}
             if domain in DAILY_DOMAINS:
                 selected_rows=reader.as_of(domain,symbols=active,pit_policy=policy,knowledge_cutoff=effective,**bounds)
@@ -145,7 +162,7 @@ def project(reader,scope,policy,cutoff):
                 groups[row['symbol']].append(row)
             selected[domain]=groups
         for symbol in active:
-            facts={leaf:_leaf_metadata(reader,leaf,symbol,session,effective,policy,selected[domain][symbol]) for leaf,domain in LEAF_DOMAINS.items()}
+            facts={leaf:_leaf_metadata(reader,leaf,symbol,session,effective,policy,selected[domain][symbol],source_session=source_sessions[domain]) for leaf,domain in LEAF_DOMAINS.items()}
             wide.append({'symbol':symbol,'session':session,'values':{f:facts[f]['value'] for f in NUMERIC_FIELDS},'facts':facts})
     wide.sort(key=lambda r:r['session'])
     return {'wide':wide,'sessions':sorted({r['session'] for r in wide}),'symbol_calendars':calendars}
@@ -162,9 +179,9 @@ def payload_files(payload,symbols,bundle):
     return output
 
 
-def manifest_for(reader,scope,policy,cutoff,payload,bundle):
+def manifest_for(reader,scope,policy,cutoff,payload,bundle,*,schema_version='pr7_fact_view.v3'):
     contents=payload_files(payload,scope['symbols'],bundle)
-    return {'artifact_type':'pr7_fact_view','schema_version':'pr7_fact_view.v2',
+    return {'artifact_type':'pr7_fact_view','schema_version':schema_version,
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
         'scope':scope,'validated_scope':dict(scope,fields=list(LEAF_DOMAINS)),
         'pit_policy':policy,'knowledge_cutoff':instant(cutoff).isoformat(),
@@ -203,10 +220,15 @@ def load_pr7_fact_view(data_root,view_id):
 
 def _load_pr7_fact_view(data_root,view_id,*,checked_reader=None):
     view_id=_identity('view_id',view_id);layout=_layout(data_root);target=layout.derived_commits('pr7_fact')/view_id
-    manifest,digest=_load_manifest(layout.root,target,artifact_type='pr7_fact_view',schema_version=('pr7_fact_view.v1','pr7_fact_view.v2'),identity_field='view_id',identity=view_id)
+    manifest,digest=_load_manifest(layout.root,target,artifact_type='pr7_fact_view',schema_version=('pr7_fact_view.v1','pr7_fact_view.v2','pr7_fact_view.v3'),identity_field='view_id',identity=view_id)
     _validate_manifest_identity(manifest,'view_id','pr7-fact',view_id)
     if manifest['schema_version']=='pr7_fact_view.v1':
         from axiom_data.pr7_views_v1 import project as projection, manifest_for as make_manifest, payload_files as make_files
+    elif manifest['schema_version']=='pr7_fact_view.v2':
+        from functools import partial
+        projection=partial(project,source_cutoffs=False)
+        make_manifest=partial(manifest_for,schema_version='pr7_fact_view.v2')
+        make_files=payload_files
     else:
         projection,make_manifest,make_files=project,manifest_for,payload_files
     reader=checked_reader or SnapshotReader(data_root,manifest['snapshot_ref']['snapshot_id'])

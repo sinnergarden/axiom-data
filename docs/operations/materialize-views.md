@@ -28,3 +28,15 @@ One operation constructs a fully validated Reader and shares it among its View
 builds and their written-artifact checks. Individual public builders still create
 a fresh Reader. A new operation or public load revalidates the Snapshot closure;
 there is no cross-call correctness cache.
+
+Event View v3 keeps its requested calendar interval while planning each source
+against that DomainCommit's frozen `builder_config.end_session`. For example,
+a View can end on 2026-09-11 while margin input ends on 2026-09-10. The 09-11
+margin facts are null with `source_scope_not_available`; 09-10 values are not
+carried forward. Moneyflow with a 09-11 source bound still supplies that day's
+facts. PIT visibility continues to use the requested knowledge cutoff.
+
+The frozen bound does not replace request coverage: a missing security or a gap
+inside the required source interval still fails. Commits without an explicit
+source end retain strict coverage checks. Published Event Views v1/v2 continue
+to load with their original projection rules; source contracts are unchanged.
