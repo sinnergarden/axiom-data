@@ -140,6 +140,18 @@ class FinancialPreparationTest(unittest.TestCase):
         ref = _build_pr6_fact_view(reader, **config)
         self.assertEqual(_load_pr6_fact_view(self.root, ref.view_id, checked_reader=reader).ref, ref)
 
+    def test_reader_preparation_rejects_changed_implementation(self):
+        source = Path(self.temp.name) / 'code'
+        source.mkdir()
+        implementation = source / 'projection.py'
+        implementation.write_text('revision = 1')
+        with patch('axiom_data.consumption.files', return_value=source):
+            self.reader = SnapshotReader(self.root, self.reader.snapshot.ref.snapshot_id)
+        self.project()
+        implementation.write_text('revision = 2')
+        with self.assertRaisesRegex(ArtifactError,'changed after validation'):
+            self.project()
+
 
 if __name__ == '__main__':
     unittest.main()
