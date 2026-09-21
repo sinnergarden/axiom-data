@@ -129,7 +129,7 @@ def verify_recovery(data_root, *, run_id, snapshot_id,
                         manifest, _ = _load_manifest(
                             layout.root, layout.derived_commits('pr6_fact') / spec['view_id'],
                             artifact_type='pr6_fact_view',
-                            schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2'),
+                            schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2', 'pr6_fact_view.v3'),
                             identity_field='view_id', identity=spec['view_id'],
                         )
                         if manifest['schema_version'] == 'pr6_fact_view.v1':

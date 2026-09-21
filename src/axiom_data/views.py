@@ -359,12 +359,12 @@ class FactView:
             layout = _layout(data_root)
             identity = _identity('view_id', pr6_fact_view_id)
             manifest, _ = _load_manifest(layout.root, layout.derived_commits('pr6_fact') / identity,
-                artifact_type='pr6_fact_view', schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2'),
+                artifact_type='pr6_fact_view', schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2', 'pr6_fact_view.v3'),
                 identity_field='view_id', identity=identity)
             # v1 keeps its frozen LegacyReader projection. v2 can share the
             # complete closure checked in this constructor invocation.
             self.pr6 = _load_pr6_fact_view(data_root, identity,
-                checked_reader=self.reader if manifest['schema_version']=='pr6_fact_view.v2' else None)
+                checked_reader=self.reader if manifest['schema_version'] in {'pr6_fact_view.v2','pr6_fact_view.v3'} else None)
             if self.pr6.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
                 raise ArtifactError("PR6 FactView belongs to another Snapshot")
         self.adjusted = (

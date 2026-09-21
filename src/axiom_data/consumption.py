@@ -208,7 +208,7 @@ class SnapshotReader:
     def as_of(self, domain: str, *, knowledge_cutoff: str, pit_policy: str,
               symbols: Sequence[str] | None = None, start_session: str | None = None,
               end_session: str | None = None) -> tuple[dict[str, Any], ...]:
-        from axiom_data.pit import select_revisions
+        from axiom_data.pit import select_revisions, select_financial_revisions
         from axiom_data.domains.pr7 import PR7_DOMAINS, DAILY_DOMAINS
         if (start_session is not None or end_session is not None) and domain not in DAILY_DOMAINS:
             raise ArtifactError('session-bounded PIT requires a daily PR7 domain')
@@ -218,9 +218,10 @@ class SnapshotReader:
                                         start_session=start_session,end_session=end_session),policy=pit_policy,
                                         knowledge_cutoff=knowledge_cutoff)
         universe = domain == "universe_membership"
-        result = select_revisions(self.facts(domain, symbols=None if universe else symbols),
+        selector = select_financial_revisions if domain == "financial_events" else select_revisions
+        result = selector(self.facts(domain, symbols=None if universe else symbols),
                                   policy=pit_policy, knowledge_cutoff=knowledge_cutoff,
-                                  group_states=self.commits[domain].manifest.get("group_states"))
+                                  **({} if domain == "financial_events" else {"group_states":self.commits[domain].manifest.get("group_states")}))
         return self._project_membership(domain, result, symbols) if universe else result
 
     def _project_membership(self, domain, rows, symbols):
