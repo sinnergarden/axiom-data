@@ -911,7 +911,7 @@ class QlibViewReader:
             ):
                 raise ArtifactError("Qlib feature range does not match instrument scope")
             for offset in range(length):
-                if (self.view.manifest['schema_version']=='pr7_fact_view.v2'
+                if (self.view.manifest['schema_version'] in {'pr7_fact_view.v2','pr7_fact_view.v3'}
                     and calendar[first_index+offset] not in item['valid_sessions']):
                     continue
                 values: dict[str, Any] = {}

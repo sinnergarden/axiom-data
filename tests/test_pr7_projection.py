@@ -28,7 +28,7 @@ def report(period,value,observed,domain='holder_count_events',symbol='600000.SH'
 class Reader:
     def __init__(self,exchanges=('SSE','SZSE'),rows=(),closed=()):
         self.snapshot=SimpleNamespace(ref=SimpleNamespace(snapshot_id='snapshot-test'))
-        self.commits={d:SimpleNamespace(ref=SimpleNamespace(commit_id=d,contract_version=d+'.v1')) for d in set(LEAF_DOMAINS.values())}
+        self.commits={d:SimpleNamespace(manifest={'builder_config':{}},ref=SimpleNamespace(commit_id=d,contract_version=d+'.v1')) for d in set(LEAF_DOMAINS.values())}
         self.rows=rows
         self.securities=[{'symbol':s,'exchange':e} for s,e in zip(SYMBOLS,['SSE','SZSE'])]
         self.calendar=[{'exchange':e,'session':day,'is_open':(e,day) not in closed}
