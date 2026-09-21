@@ -76,6 +76,7 @@ class ViewValidationSession:
                     _validate_qlib_inputs(reader, **config)
             if any(file_state(p) != state for p,state in observed.items()):
                 raise ArtifactError('View validation inputs changed during validation')
+            reader._view_validation_paths = observed
             self._cached = (key, reader, observed)
         _, reader, observed = self._cached
         try:

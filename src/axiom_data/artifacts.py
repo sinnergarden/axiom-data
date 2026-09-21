@@ -825,12 +825,18 @@ def _validate_market_dependencies(
 
 def _validate_pr6_dependencies(domain, rows, dependencies):
     securities = {r["symbol"]: r for r in dependencies["security_master"].rows}
-    if any(r["symbol"] not in securities for r in rows):
-        raise ArtifactError("PR6 fact has no security identity")
-    if domain in ("valuation_daily", "margin_daily", "moneyflow_daily"):
-        sessions = {(r["exchange"], r["session"]) for r in dependencies["trading_calendar"].rows if r["is_open"]}
-        if any((securities[r["symbol"]]["exchange"], r["session"]) not in sessions for r in rows):
-            raise ArtifactError("valuation fact is outside open calendar coverage")
+    daily = domain in ("valuation_daily", "margin_daily", "moneyflow_daily")
+    sessions = ({(r["exchange"], r["session"]) for r in dependencies["trading_calendar"].rows
+                 if r["is_open"]} if daily else set())
+    outside_calendar = False
+    for row in rows:
+        if row['symbol'] not in securities:
+            raise ArtifactError("PR6 fact has no security identity")
+        if daily and (securities[row['symbol']]['exchange'], row['session']) not in sessions:
+            outside_calendar = True
+    # Preserve security-error precedence while checking the complete input once.
+    if outside_calendar:
+        raise ArtifactError("valuation fact is outside open calendar coverage")
 
 
 class MarketDomainBuilder:

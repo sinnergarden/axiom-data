@@ -88,8 +88,13 @@ class SnapshotReader:
     def __init__(self, data_root: str | Path, snapshot_id: str) -> None:
         self.data_root = Path(data_root)
         self._verified_lineage = {}
-        self.snapshot, self.commits = _load_snapshot_with_commits(
-            self.data_root, snapshot_id, lineage_index=self._verified_lineage)
+        from axiom_data.verification_cache import validation_paths, file_state
+        with validation_paths() as observed:
+            self.snapshot, self.commits = _load_snapshot_with_commits(
+                self.data_root, snapshot_id, lineage_index=self._verified_lineage)
+        if any(file_state(p) != state for p, state in observed.items()):
+            raise ArtifactError('Snapshot inputs changed during validation')
+        self._view_validation_paths = observed
         self._security_projection = OrderedDict()
         self._security_projection_bytes = 0
 

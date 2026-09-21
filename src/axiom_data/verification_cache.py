@@ -3,6 +3,7 @@ from contextvars import ContextVar
 from functools import wraps
 from pathlib import Path
 from contextlib import contextmanager
+import stat as stat_mode
 
 _active = ContextVar('axiom_candidate_verification', default=None)
 _observed_paths = ContextVar('axiom_validation_paths', default=None)
@@ -11,6 +12,11 @@ _observed_paths = ContextVar('axiom_validation_paths', default=None)
 def file_state(path):
     try:
         stat = path.lstat()
+        # Creating an unrelated child does not replace an ancestor. Its inode
+        # and mode still catch directory/symlink replacement; files retain the
+        # full change stamp so in-place edits invalidate verification.
+        if stat_mode.S_ISDIR(stat.st_mode):
+            return stat.st_dev, stat.st_ino, stat.st_mode
         return stat.st_dev, stat.st_ino, stat.st_mode, stat.st_size, stat.st_ctime_ns
     except FileNotFoundError:
         return None
@@ -21,7 +27,8 @@ def observe_validation_path(root, path):
     if observed is None:
         return
     for component in (path, *path.parents):
-        observed.setdefault(component, file_state(component))
+        if component not in observed:
+            observed[component] = file_state(component)
         # Match _safe_path's complete lexical ancestor walk, including parents
         # above data_root whose replacement can redirect otherwise unchanged files.
         if component == Path(component.anchor):

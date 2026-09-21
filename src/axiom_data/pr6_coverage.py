@@ -4,6 +4,67 @@ from axiom_data.artifacts import ArtifactError
 from axiom_data.pit import select_revisions, select_financial_revisions, financial_ambiguities
 
 
+def prepared_input(reader, slot, arguments, prepare):
+    """Two bounded PR6 preparation slots, only on a checked immutable Reader.
+
+    File state invalidates reuse; it never selects an artifact. Ordinary fixture
+    Readers without a verified closure always execute the authoritative path.
+    Encoded values prevent a consumer from mutating the cached admission result.
+    """
+    from axiom_data.artifacts import _json_bytes
+    from axiom_data.verification_cache import file_state
+    import json
+    observed = getattr(reader, '_view_validation_paths', None)
+    if observed is None:
+        return prepare()
+    if slot not in {'admission', 'financial_history'}:
+        raise ValueError('unknown financial preparation slot')
+    def check():
+        if any(file_state(p) != state for p, state in observed.items()):
+            reader._financial_preparation = {}
+            raise ArtifactError('View inputs changed after validation')
+    check()
+    key = (reader.snapshot.ref.snapshot_id,
+           tuple((d, c.ref.commit_id, c.manifest_digest, id(c)) for d, c in sorted(reader.commits.items())),
+           arguments)
+    cache = getattr(reader, '_financial_preparation', {})
+    previous = cache.get(slot)
+    if previous is not None and previous[0] == key:
+        return json.loads(previous[1])
+    value = prepare()
+    check()
+    encoded = _json_bytes(value)
+    cache.pop(slot, None)
+    # Fixed two slots, at most 32 MiB each. No disk state or process-wide cache.
+    if len(encoded) <= 32 * 1024 * 1024:
+        cache[slot] = (key, encoded)
+    reader._financial_preparation = cache
+    return value
+
+
+def _admission_inputs(reader, policy, cutoff, financial_resolution):
+    """Full-scope admission summaries, independent of requested security/window."""
+    def prepare():
+        session_index = {}; coverage = {}
+        for row in reader.commits['valuation_daily'].rows:
+            session = row['session']; symbol = row['symbol']
+            index = session_index.setdefault(session, len(session_index))
+            coverage[symbol] = coverage.get(symbol, 0) | (1 << index)
+        rows = reader.commits['financial_events'].rows
+        selector = select_financial_revisions if financial_resolution else select_revisions
+        endpoints = {}; periods = {}
+        for row in selector(rows, policy=policy, knowledge_cutoff=cutoff):
+            endpoints.setdefault(row['symbol'], set()).add(row['endpoint'])
+            periods.setdefault(row['symbol'], set()).add(row['report_period'])
+        return {'session_index': session_index,
+                'coverage': {s:hex(bits) for s,bits in coverage.items()},
+                'endpoints': {s:sorted(values) for s,values in endpoints.items()},
+                'periods': {s:sorted(values) for s,values in periods.items()},
+                **({'financial_ambiguities':financial_ambiguities(rows,policy=policy,knowledge_cutoff=cutoff)}
+                   if financial_resolution else {})}
+    return prepared_input(reader, 'admission', (policy, cutoff, financial_resolution), prepare)
+
+
 def require_symbols(rows, symbols):
     available={r['symbol'] for r in rows}
     if symbols is not None and (not symbols or not set(symbols)<=available):
@@ -89,30 +150,29 @@ def admit_view(reader,scope,policy,cutoff,*,financial_resolution=True):
     # Classification is daily: closed days need no observation, open-day holes fail.
     for session in sorted(sessions):
         membership_coverage(reader,'industry_membership',scope['industry_system'],session,session,policy,cutoff,symbols)
-    valuation=reader.commits['valuation_daily'].rows
-    available={(r['symbol'],r['session']) for r in valuation}
-    if any((s,d) not in available for s in symbols for d in sessions):
+    inputs=_admission_inputs(reader,policy,cutoff,financial_resolution)
+    indexes=inputs['session_index']
+    required=sum(1 << indexes[d] for d in sessions if d in indexes)
+    if not sessions<=indexes.keys() or any(
+            int(inputs['coverage'].get(s,'0'),16) & required != required for s in symbols):
         raise ArtifactError('INSUFFICIENT_SCOPE: valuation date/security gap')
-    financial_rows=reader.commits['financial_events'].rows
-    selector=select_financial_revisions if financial_resolution else select_revisions
-    financial=selector(financial_rows,policy=policy,knowledge_cutoff=cutoff)
-    if any(not any(r['symbol']==s and r['endpoint']==e for r in financial)
+    if any(e not in inputs['endpoints'].get(s,())
            for s in symbols for e in {e for e,_ in FIELD_MAP.values()}):
         raise ArtifactError('INSUFFICIENT_SCOPE: financial endpoint/security gap')
     industry_rows=reader.commits['industry_membership'].rows
     if reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3':
         industry_rows=select_revisions(industry_rows,policy=policy,knowledge_cutoff=cutoff)
-    return {**({'financial_ambiguities':financial_ambiguities(financial_rows,policy=policy,knowledge_cutoff=cutoff)} if financial_resolution else {}),
+    return {**({'financial_ambiguities':inputs['financial_ambiguities']} if financial_resolution else {}),
             'fields':list(WIDE_FIELDS),
             'calendar_sessions':sorted({r['session'] for r in calendar}),
-            'symbols':sorted({r['symbol'] for r in valuation}),
-            'valuation_sessions':sorted({r['session'] for r in valuation}),
+            'symbols':sorted(inputs['coverage']),
+            'valuation_sessions':sorted(indexes),
             'classification_intervals':[{'symbol':r['symbol'],'group_id':r['group_id'],
                 'effective_from':span['effective_from'],'effective_to':span['effective_to']}
                 for r in industry_rows
                 for span in (r['membership_spans'] if 'membership_spans' in r else [r])],
             'universes':universes,'financial_report_periods':{
-                s:sorted({r['report_period'] for r in financial if r['symbol']==s}) for s in symbols}}
+                s:inputs['periods'].get(s,[]) for s in symbols}}
 
 
 def admit_materialized(manifest,symbols,start,end,fields):
