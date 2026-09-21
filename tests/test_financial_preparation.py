@@ -103,8 +103,11 @@ class FinancialPreparationTest(unittest.TestCase):
         day = first['sessions'][1]; symbol = m['scope']['symbols'][0]
         rows = tuple(r for r in commit.rows if (r['symbol'], r['session']) != (symbol, day))
         self.reader.commits['valuation_daily'] = replace(commit, rows=rows)
-        with self.assertRaisesRegex(ArtifactError, 'valuation date/security gap'):
-            self.project()
+        with patch.object(coverage,'select_revisions',wraps=coverage.select_revisions) as select:
+            with self.assertRaisesRegex(ArtifactError, 'valuation date/security gap'):
+                self.project()
+            self.assertFalse(any(c.args[0] is self.reader.commits['financial_events'].rows
+                                 for c in select.call_args_list))
 
     def test_dependency_validation_traverses_once_and_keeps_error_precedence(self):
         from axiom_data.artifacts import _validate_pr6_dependencies

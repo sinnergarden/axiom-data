@@ -42,7 +42,15 @@ def prepared_input(reader, slot, arguments, prepare):
     return value
 
 
-def _admission_inputs(reader, policy, cutoff, financial_resolution):
+def _require_valuation(inputs, symbols, sessions):
+    indexes = inputs['session_index']
+    required = sum(1 << indexes[d] for d in sessions if d in indexes)
+    if not set(sessions) <= indexes.keys() or any(
+            int(inputs['coverage'].get(s,'0'),16) & required != required for s in symbols):
+        raise ArtifactError('INSUFFICIENT_SCOPE: valuation date/security gap')
+
+
+def _admission_inputs(reader, policy, cutoff, financial_resolution, symbols=(), sessions=()):
     """Full-scope admission summaries, independent of requested security/window."""
     def prepare():
         session_index = {}; coverage = {}
@@ -50,19 +58,24 @@ def _admission_inputs(reader, policy, cutoff, financial_resolution):
             session = row['session']; symbol = row['symbol']
             index = session_index.setdefault(session, len(session_index))
             coverage[symbol] = coverage.get(symbol, 0) | (1 << index)
+        result = {'session_index':session_index, 'coverage':{s:hex(bits) for s,bits in coverage.items()}}
+        # Preserve admission order on a cache miss: invalid valuation scope is
+        # rejected before attempting financial selection, as on the old path.
+        _require_valuation(result, symbols, sessions)
         rows = reader.commits['financial_events'].rows
         selector = select_financial_revisions if financial_resolution else select_revisions
         endpoints = {}; periods = {}
         for row in selector(rows, policy=policy, knowledge_cutoff=cutoff):
             endpoints.setdefault(row['symbol'], set()).add(row['endpoint'])
             periods.setdefault(row['symbol'], set()).add(row['report_period'])
-        return {'session_index': session_index,
-                'coverage': {s:hex(bits) for s,bits in coverage.items()},
+        return {**result,
                 'endpoints': {s:sorted(values) for s,values in endpoints.items()},
                 'periods': {s:sorted(values) for s,values in periods.items()},
                 **({'financial_ambiguities':financial_ambiguities(rows,policy=policy,knowledge_cutoff=cutoff)}
                    if financial_resolution else {})}
-    return prepared_input(reader, 'admission', (policy, cutoff, financial_resolution), prepare)
+    result = prepared_input(reader, 'admission', (policy, cutoff, financial_resolution), prepare)
+    _require_valuation(result, symbols, sessions)
+    return result
 
 
 def require_symbols(rows, symbols):
@@ -150,12 +163,8 @@ def admit_view(reader,scope,policy,cutoff,*,financial_resolution=True):
     # Classification is daily: closed days need no observation, open-day holes fail.
     for session in sorted(sessions):
         membership_coverage(reader,'industry_membership',scope['industry_system'],session,session,policy,cutoff,symbols)
-    inputs=_admission_inputs(reader,policy,cutoff,financial_resolution)
+    inputs=_admission_inputs(reader,policy,cutoff,financial_resolution,symbols,sessions)
     indexes=inputs['session_index']
-    required=sum(1 << indexes[d] for d in sessions if d in indexes)
-    if not sessions<=indexes.keys() or any(
-            int(inputs['coverage'].get(s,'0'),16) & required != required for s in symbols):
-        raise ArtifactError('INSUFFICIENT_SCOPE: valuation date/security gap')
     if any(e not in inputs['endpoints'].get(s,())
            for s in symbols for e in {e for e,_ in FIELD_MAP.values()}):
         raise ArtifactError('INSUFFICIENT_SCOPE: financial endpoint/security gap')
