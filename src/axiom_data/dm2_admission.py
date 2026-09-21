@@ -38,7 +38,7 @@ def consumer_admission(root,refs):
                'valuation_daily' if leaf.startswith('valuation.') else 'financial_events')
         source_commit=reader.commits['financial_events' if owner=='financial_stable_derived' else owner]
         matrix.append({'requirement':leaf,'owner':owner,
-            'contract':'pr6_fact_view.v2' if owner=='financial_stable_derived' else source_commit.ref.contract_version,
+            'contract':pr6.manifest['schema_version'] if owner=='financial_stable_derived' else source_commit.ref.contract_version,
             'artifact':refs['pr6_view_id'] if owner=='financial_stable_derived' else source_commit.ref.commit_id,
             'view':refs['pr6_view_id'],'public_field':leaf,'pit_qualification':'best_effort',
             'coverage':{'symbol':'688981.SH','start':'2025-06-10','end':'2025-06-13','rows':len(rows)},'status':'resolved'})

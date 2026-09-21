@@ -1,0 +1,14 @@
+{
+  "financial_events.v3": {
+    "commit": "financial_events-129c4b02afcc47be6765f619264a62d53e3ced8dc62d152b169064dea55fd162",
+    "rows": 2010,
+    "status": "PASS",
+    "elapsed": 2.1954829609021544
+  },
+  "financial_events.v4": {
+    "commit": "financial_events-68baff009f117c5fd706a8ef1bdc20e0b55e5dddbd842d8f86ba90ca677c305c",
+    "rows": 2005,
+    "status": "PASS",
+    "elapsed": 1.7870523070450872
+  }
+}

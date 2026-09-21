@@ -1840,7 +1840,7 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
     for artifact_dir in _artifact_directories(layout.root, layout.derived_commits("pr6_fact")):
         reader, version = view_reader(artifact_dir)
         view = _load_pr6_fact_view(layout.root, artifact_dir.name,
-            checked_reader=reader if version=='pr6_fact_view.v2' else None)
+            checked_reader=reader if version in {'pr6_fact_view.v2','pr6_fact_view.v3'} else None)
         for artifact_type in ("pr6_fact_view", "qlib_view"):
             entries.append(CatalogEntry(artifact_type, view.ref.view_id, "pr6_fact",
                 view.manifest["schema_version"],

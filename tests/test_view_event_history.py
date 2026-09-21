@@ -26,7 +26,7 @@ class ViewEventHistoryTest(unittest.TestCase):
         reader=SnapshotReader(self.root,self.snapshot)
         m=self.manifest;scope=m['scope'];policy=m['pit_policy'];cutoff=m['knowledge_cutoff']
         with patch.object(reader,'facts',wraps=reader.facts) as prepared:
-            actual=project(reader,scope,policy,cutoff)
+            actual=project(reader,scope,policy,cutoff,financial_resolution=False)
         self.assertEqual(_json_bytes(actual),(self.view/'rows.json').read_bytes())
         calls=[c for c in prepared.call_args_list if c.args[0]=='financial_events']
         self.assertEqual(len(calls),1)
@@ -36,11 +36,12 @@ class ViewEventHistoryTest(unittest.TestCase):
             effective=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
             args=dict(symbols=scope['symbols'],pit_policy=policy,knowledge_cutoff=effective)
             events.extend(dict(r,target_session=session) for r in reader.as_of('financial_events',**args))
-            derived.extend(dict(r,target_session=session) for r in reader.financial_derived(**args))
+            from axiom_data.pit import financial_derived
+            derived.extend(dict(r,target_session=session) for r in financial_derived(reader.facts('financial_events',symbols=scope['symbols']),policy=policy,knowledge_cutoff=effective,resolve_ambiguity=False))
         self.assertEqual(actual['events'],events)
         self.assertEqual(actual['derived'],derived)
 
-    def test_out_of_scope_financial_conflict_rejects_before_prefetch(self):
+    def test_out_of_scope_financial_conflict_is_recorded_before_projection(self):
         from dataclasses import replace
         reader=SnapshotReader(self.root,self.snapshot)
         m=self.manifest
@@ -53,10 +54,13 @@ class ViewEventHistoryTest(unittest.TestCase):
         for observation in conflict.get('observations',[]):
             observation['revision_id']=conflict['revision_id']
         reader.commits['financial_events']=replace(commit,rows=tuple(rows+[conflict]))
-        with patch.object(reader,'facts',wraps=reader.facts) as prepared:
-            with self.assertRaisesRegex(MarketContractError,'ambiguous simultaneous'):
-                project(reader,scope,m['pit_policy'],m['knowledge_cutoff'])
-        self.assertFalse(any(c.args[0]=='financial_events' for c in prepared.call_args_list))
+        conflict['values']=dict(conflict['values'], **{next(iter(conflict['values'])):123456})
+        actual=project(reader,scope,m['pit_policy'],m['knowledge_cutoff'])
+        recorded=actual['actual_available_scope']['financial_ambiguities']
+        self.assertTrue(any(r['symbol']==original['symbol'] and r['ambiguous_fields'] for r in recorded))
+        self.assertTrue(all(r['symbol'] in scope['symbols'] for r in actual['wide']))
+        with self.assertRaisesRegex(MarketContractError,'ambiguous simultaneous'):
+            project(reader,scope,m['pit_policy'],m['knowledge_cutoff'],financial_resolution=False)
 
     def test_event_ambiguity_matches_direct_selector(self):
         from axiom_data.artifacts import ArtifactError

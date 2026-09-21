@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 from pathlib import Path
+from functools import partial
 from importlib.resources import files
 from axiom_data.artifacts import (ArtifactError, _layout, _json_bytes, _digest, _identity_digest,
     _derived_identity, _timestamp, _write_file, _write_manifest, _publish_directory,
@@ -9,7 +10,7 @@ from axiom_data.artifacts import (ArtifactError, _layout, _json_bytes, _digest, 
 from axiom_data.consumption import SnapshotReader, _feature_bytes, _qlib_symbol, _symbols, _session
 from axiom_data.domains import PR6_DOMAINS
 from axiom_data.domains.dm1 import weakest_pit_qualification
-from axiom_data.pit import instant, financial_derived, select_revisions
+from axiom_data.pit import instant, financial_derived, select_revisions, select_financial_revisions, AMBIGUOUS_SOURCE_REVISION
 from axiom_data.views import DerivedView, DerivedViewRef
 
 FIELD_MAP = {
@@ -30,7 +31,7 @@ def _valuation_at(reader,symbols,session,policy,cutoff):
     return select_revisions(rows,policy=policy,knowledge_cutoff=cutoff)
 
 
-def project(reader, scope, policy, cutoff):
+def project(reader, scope, policy, cutoff, *, financial_resolution=True):
     symbols=scope['symbols'];start=scope['start_session'];end=scope['end_session']
     _symbols(symbols);_session(start,'start');_session(end,'end');instant(cutoff)
     if start>end:raise ArtifactError('reversed PR6 View interval')
@@ -42,7 +43,7 @@ def project(reader, scope, policy, cutoff):
     sessions=sorted({r['session'] for r in reader.trading_calendar(start_session=start,end_session=end) if r['is_open']})
     if not sessions:raise ArtifactError('PR6 View has no calendar coverage')
     from axiom_data.pr6_coverage import admit_view
-    actual_scope=admit_view(reader,scope,policy,cutoff)
+    actual_scope=admit_view(reader,scope,policy,cutoff,financial_resolution=financial_resolution)
     sw_state=reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3'
     taxonomy=sorted({s['industry_id'] for r in reader.as_of('industry_membership',knowledge_cutoff=cutoff,pit_policy=policy) for s in r['membership_spans']}) if sw_state else sorted({r['industry_id'] for r in reader.facts('industry_membership')})
     encoding={industry:i+1 for i,industry in enumerate(taxonomy)}
@@ -52,8 +53,9 @@ def project(reader, scope, policy, cutoff):
     events=[];derived=[];wide=[];memberships=[];industries=[]
     for session in sessions:
         session_cutoff=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
-        facts=select_revisions(financial_history,knowledge_cutoff=session_cutoff,policy=policy)
-        stable=financial_derived(financial_history,policy=policy,knowledge_cutoff=session_cutoff)
+        selector=select_financial_revisions if financial_resolution else select_revisions
+        facts=selector(financial_history,knowledge_cutoff=session_cutoff,policy=policy)
+        stable=financial_derived(financial_history,policy=policy,knowledge_cutoff=session_cutoff,resolve_ambiguity=financial_resolution)
         valuation=_valuation_at(reader,symbols,session,policy,session_cutoff)
         membership={}
         for group in scope['universe_ids']:
@@ -127,13 +129,14 @@ def fact_metadata(row,value,leaf,reader,policy,cutoff):
     reason=row.get('missing_reason')
     if value is None and reason is None:
         field=FIELD_MAP.get(leaf,(None,leaf.split('.')[-1]))[1]
-        reason=('source_value_missing' if field in row.get('missing_reasons',{})
+        reason=(AMBIGUOUS_SOURCE_REVISION if row.get('missing_reasons',{}).get(field)==AMBIGUOUS_SOURCE_REVISION
+                else 'source_value_missing' if field in row.get('missing_reasons',{})
                 else 'PIT_component_not_visible')
     domain=('financial_events' if leaf.startswith(('income.','balance.','cashflow.','indicator.','financial.'))
             else 'valuation_daily' if leaf.startswith('valuation.') else leaf.split('.')[0]+'_membership')
     unit=('CNY' if leaf.startswith(('income.','balance.','cashflow.','financial.'))
           else 'ratio' if leaf.startswith(('indicator.','valuation.')) else 'code' if leaf.startswith('industry.') else 'boolean')
-    return {'value':value,'unit':unit,'validity':'missing' if value is None else 'valid',
+    return {'value':value,'unit':unit,'validity':'unavailable' if reason==AMBIGUOUS_SOURCE_REVISION else 'missing' if value is None else 'valid',
             'missing_reason':reason,'pit_qualification':row.get('pit_qualification','best_effort'),
             'usable_at':row.get('usable_from'),'pit_policy':policy,'knowledge_cutoff':cutoff,
             'source_ref':row.get('source_ref'),'revision_ref':row.get('revision_id'),
@@ -157,9 +160,10 @@ def _files(payload, symbols, bundle):
     return output
 
 
-def _manifest(reader, scope, policy, cutoff, payload, bundle):
+def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resolution=True):
     contents=_files(payload,scope['symbols'],bundle)
-    return {'artifact_type':'pr6_fact_view','schema_version':'pr6_fact_view.v2',
+    return {'artifact_type':'pr6_fact_view','schema_version':'pr6_fact_view.v3' if financial_resolution else 'pr6_fact_view.v2',
+        **({'financial_resolution_policy':'financial_leaf_resolution.v1'} if financial_resolution else {}),
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
         'domain_refs':reader.snapshot.manifest['domain_refs'],'scope':scope,
         'requested_scope':dict(scope,fields=list(WIDE_FIELDS)),
@@ -170,7 +174,7 @@ def _manifest(reader, scope, policy, cutoff, payload, bundle):
         'instrument_storage_scope':[{'symbol':s,'qlib_symbol':_qlib_symbol(s),'storage_path':'features/'+_qlib_symbol(s).lower(),'start_session':payload['sessions'][0],'end_session':payload['sessions'][-1]} for s in scope['symbols']],
         'fields':list(WIDE_FIELDS),'qlib_field_mapping':{f:f.replace('.','__') for f in WIDE_FIELDS},
         'industry_encoding':payload['industry_encoding'],'industry_mapping':payload['industry_mapping'],
-        'fact_metadata_schema':'typed_fact.v1',
+        'fact_metadata_schema':'typed_fact.v2' if financial_resolution else 'typed_fact.v1',
         'implementation_digests':{name:_digest(content.encode()) for name,content in sorted(bundle.items())},
         'files':[{'path':p,'content_digest':_digest(b),'size':len(b)} for p,b in sorted(contents.items())],
         'pit_qualification':weakest_pit_qualification(payload['events']+payload['memberships']+payload['industries']),
@@ -212,14 +216,15 @@ def _load_pr6_fact_view(data_root,view_id,*,checked_reader=None):
     view_id=_identity('view_id',view_id)
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
     manifest,digest=_load_manifest(layout.root,target,artifact_type='pr6_fact_view',
-        schema_version=('pr6_fact_view.v1','pr6_fact_view.v2'),identity_field='view_id',identity=view_id)
+        schema_version=('pr6_fact_view.v1','pr6_fact_view.v2','pr6_fact_view.v3'),identity_field='view_id',identity=view_id)
     declared=manifest['schema_version']
     if declared=='pr6_fact_view.v1':
         from axiom_data.pr6_views_v1 import LegacyReader, project as projection, _manifest as manifest_builder, _files as payload_files
     else:
-        LegacyReader,projection,manifest_builder,payload_files=SnapshotReader,project,_manifest,_files
+        resolution=declared=='pr6_fact_view.v3'
+        LegacyReader,projection,manifest_builder,payload_files=SnapshotReader,partial(project,financial_resolution=resolution),partial(_manifest,financial_resolution=resolution),_files
     _validate_manifest_identity(manifest,'view_id','pr6-fact',view_id)
-    if checked_reader is not None and declared!='pr6_fact_view.v2':
+    if checked_reader is not None and declared=='pr6_fact_view.v1':
         raise ArtifactError('legacy PR6 View requires its declared Reader')
     reader=checked_reader or LegacyReader(data_root,manifest['snapshot_ref']['snapshot_id'])
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or

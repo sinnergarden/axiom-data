@@ -1,7 +1,7 @@
 """Fail-closed admission over explicit Snapshot and View coverage."""
 from datetime import date, timedelta
 from axiom_data.artifacts import ArtifactError
-from axiom_data.pit import select_revisions
+from axiom_data.pit import select_revisions, select_financial_revisions, financial_ambiguities
 
 
 def require_symbols(rows, symbols):
@@ -71,7 +71,7 @@ def membership_coverage(reader,domain,group,start,end,policy,cutoff,symbols=None
         {'symbol':r['symbol'],'start_session':r['effective_from'],'end_exclusive':r['effective_to']} for r in selected]}
 
 
-def admit_view(reader,scope,policy,cutoff):
+def admit_view(reader,scope,policy,cutoff,*,financial_resolution=True):
     from axiom_data.pr6_views import FIELD_MAP, WIDE_FIELDS
     symbols=scope['symbols']; start=scope['start_session'];end=scope['end_session']
     dates=[]; day=date.fromisoformat(start);stop=date.fromisoformat(end)
@@ -93,14 +93,17 @@ def admit_view(reader,scope,policy,cutoff):
     available={(r['symbol'],r['session']) for r in valuation}
     if any((s,d) not in available for s in symbols for d in sessions):
         raise ArtifactError('INSUFFICIENT_SCOPE: valuation date/security gap')
-    financial=select_revisions(reader.commits['financial_events'].rows,policy=policy,knowledge_cutoff=cutoff)
+    financial_rows=reader.commits['financial_events'].rows
+    selector=select_financial_revisions if financial_resolution else select_revisions
+    financial=selector(financial_rows,policy=policy,knowledge_cutoff=cutoff)
     if any(not any(r['symbol']==s and r['endpoint']==e for r in financial)
            for s in symbols for e in {e for e,_ in FIELD_MAP.values()}):
         raise ArtifactError('INSUFFICIENT_SCOPE: financial endpoint/security gap')
     industry_rows=reader.commits['industry_membership'].rows
     if reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3':
         industry_rows=select_revisions(industry_rows,policy=policy,knowledge_cutoff=cutoff)
-    return {'fields':list(WIDE_FIELDS),
+    return {**({'financial_ambiguities':financial_ambiguities(financial_rows,policy=policy,knowledge_cutoff=cutoff)} if financial_resolution else {}),
+            'fields':list(WIDE_FIELDS),
             'calendar_sessions':sorted({r['session'] for r in calendar}),
             'symbols':sorted({r['symbol'] for r in valuation}),
             'valuation_sessions':sorted({r['session'] for r in valuation}),

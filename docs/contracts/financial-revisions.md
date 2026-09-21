@@ -50,3 +50,38 @@ input IDs from the explicit build request. It does not reload payloads merely
 to recover IDs/refs. Mapping replay, source completeness, staged validation and
 published closure validation remain in place; this creates no persistent cache
 or alternate financial calculation path.
+
+## Unorderable leaf facts
+
+`financial_leaf_resolution.v1` applies at consumption, after the existing PIT
+policy has found its highest-ranked candidates. It does not change canonical
+observations or supplier ordering. `SnapshotReader.as_of('financial_events')`
+uses this policy; generic `select_revisions` retains strict tie rejection.
+
+For example, two equally ranked balance-sheet observations may both report
+assets of 500, while inventory is null in one and 20 in the other. Assets remains
+500. Inventory becomes null with `missing_reason=AMBIGUOUS_SOURCE_REVISION` and
+Fact metadata `validity=unavailable`. A null/value difference is a conflict;
+matching nulls retain a normal missing reason.
+
+There is no selected source winner. The combined consumption result has null
+`revision_id`/`source_ref`, all competing `component_revisions`, and a separate
+`resolution_id`. `ambiguous_fields` names only fields with differing values.
+An equally valued leaf still retains the competing sources as provenance.
+
+Single-quarter and TTM outputs propagate this unavailable reason when an input
+for that specific field is ambiguous. An unrelated field remains usable.
+The new derived contract is `financial_stable.v3`.
+
+Full-scope View admission records `financial_ambiguities` before security
+projection. Each entry contains the logical record, conflicting fields, source
+components and half-open PIT interval `[from,to_exclusive)`. The census includes
+historical conflicts even when a later visible revision resolves them. An open
+end means no ending transition is known at the query cutoff; future observations
+do not change an earlier cutoff's evidence. Equal-valued revision ties are also
+recorded, with no conflicting fields, rather than silently discarding sources.
+
+New Fact/Qlib artifacts declare `pr6_fact_view.v3`, `typed_fact.v2` and the
+resolution policy. Published v1/v2 Views replay their original semantics and
+identity projection. Financial canonical v1–v4 loaders and Raw stay unchanged;
+this consumption change requires no financial DomainCommit rebuild.

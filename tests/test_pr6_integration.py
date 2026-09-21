@@ -105,6 +105,40 @@ class Pr6IntegrationTest(unittest.TestCase):
             self.assertEqual(direct[-1]['financial.single_quarter_revenue'],100)
             # Available income/cost do not silently replace a missing supplier margin.
             self.assertIsNone(direct[-1]['indicator.gross_margin'])
+            # A real public publication keeps both source observations, while
+            # Fact/Qlib expose only the differing income leaf as unavailable.
+            source=requests['financial_events'][0][2][0]
+            raw=Pr6Collector(root,Client([source,dict(source,revenue=101)])).collect(
+                'income',{'ts_code':'600000.SH','period':'20250331'},
+                retrieved_at='2026-09-02T00:00:00Z')
+            financial=BuildApplication('financial_events',Pr6Builder(root,'financial_events',
+                dependency_commit_ids={'security_master':commits['security_master']})).build(
+                    commits['financial_events'],[raw.raw_batch_id],[],'financial_events.v4')
+            changed=create_snapshot(root,dict(commits,financial_events=financial.commit_id))
+            changed_reader=SnapshotReader(root,changed.snapshot_id)
+            selected=changed_reader.as_of('financial_events',symbols=['600000.SH'],**args)
+            income=next(row for row in selected if row['endpoint']=='income')
+            self.assertEqual(income['ambiguous_fields'],['revenue'])
+            self.assertEqual(len(income['component_revisions']),2)
+            canonical=[r for r in changed_reader.facts('financial_events') if r['endpoint']=='income']
+            self.assertEqual(len(canonical),2)
+            self.assertEqual(sum(len(r['observations']) for r in canonical),3)
+            changed_view=build_pr6_fact_view(root,changed.snapshot_id,**build_args)
+            loaded=load_pr6_fact_view(root,changed_view.view_id)
+            self.assertEqual(loaded.manifest['schema_version'],'pr6_fact_view.v3')
+            self.assertTrue(loaded.manifest['actual_available_scope']['financial_ambiguities'])
+            public=FactView(root,changed.snapshot_id,pr6_fact_view_id=changed_view.view_id).read('pr6')
+            metadata=public['facts'][0]['fields']
+            for leaf in ('income.revenue','financial.single_quarter_revenue','financial.ttm_revenue'):
+                self.assertIsNone(metadata[leaf]['value'])
+                self.assertEqual(metadata[leaf]['validity'],'unavailable')
+                self.assertEqual(metadata[leaf]['missing_reason'],'AMBIGUOUS_SOURCE_REVISION')
+                self.assertTrue(metadata[leaf]['component_revision_refs'])
+            self.assertEqual(metadata['income.oper_cost']['value'],60)
+            self.assertEqual(metadata['income.oper_cost']['validity'],'valid')
+            qlib=QlibViewReader(root,changed_view.view_id)
+            self.assertEqual(qlib.fact_metadata()['rows'],public['facts'])
+            self.assertEqual(qlib.market_daily(include_missing=True),public['rows'])
 
     def test_snapshots_keep_historical_financial_prefix(self):
         with tempfile.TemporaryDirectory() as directory:

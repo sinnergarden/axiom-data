@@ -52,14 +52,14 @@ def usable_from(row: Mapping[str, Any], policy: str) -> str | None:
 
 
 def select_revisions(rows: Sequence[Mapping[str, Any]], *, policy: str,
-                     knowledge_cutoff: str, group_states=None) -> tuple[dict[str, Any], ...]:
+                     knowledge_cutoff: str, group_states=None, _financial_leaves=False) -> tuple[dict[str, Any], ...]:
     if group_states is not None:
         return _group_members(rows,group_states,policy,knowledge_cutoff)
     cutoff = instant(knowledge_cutoff)
     if policy not in POLICIES:
         raise MarketContractError('unsupported PIT policy')
     if rows and 'observations' in rows[0]:
-        return _select_observations(rows, policy, knowledge_cutoff)
+        return _select_observations(rows, policy, knowledge_cutoff, _financial_leaves)
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for original in rows:
         usable = usable_from(original, policy)
@@ -72,12 +72,15 @@ def select_revisions(rows: Sequence[Mapping[str, Any]], *, policy: str,
         newest = max(instant(r['usable_from']) for r in versions)
         winners = [r for r in versions if instant(r['usable_from']) == newest]
         if len({r['revision_id'] for r in winners}) != 1:
+            if _financial_leaves:
+                selected.append(_financial_tie(winners))
+                continue
             raise MarketContractError(f'ambiguous simultaneous revisions: {key}')
         selected.append(winners[0])
     return tuple(selected)
 
 
-def _select_observations(rows, policy, knowledge_cutoff):
+def _select_observations(rows, policy, knowledge_cutoff, financial_leaves=False):
     if any('group_state_ref' in o for r in rows for o in r['observations']):
         raise MarketContractError('universe group_states required; member rows alone are incomplete')
     cutoff = instant(knowledge_cutoff)
@@ -110,9 +113,76 @@ def _select_observations(rows, policy, knowledge_cutoff):
             result.extend(winners)
         else:
             if len({r['revision_id'] for r in winners})!=1:
+                if financial_leaves:
+                    result.append(_financial_tie(winners))
+                    continue
                 raise MarketContractError(f'ambiguous simultaneous revisions: {key}')
             result.append(min(winners,key=lambda r:r['observation_ref']['observation_id']))
     return tuple(sorted(result,key=lambda r:(r['logical_event_key'],r['revision_id'])))
+
+
+AMBIGUOUS_SOURCE_REVISION = 'AMBIGUOUS_SOURCE_REVISION'
+
+
+def _financial_tie(winners):
+    """A consumption result over all tied sources, never a canonical winner."""
+    if any(r.get('endpoint') not in {'income','balancesheet','cashflow','fina_indicator'} for r in winners):
+        raise MarketContractError('financial leaf resolution requires financial records')
+    common = {k:v for k,v in winners[0].items()
+              if all(k in r and r[k] == v for r in winners)}
+    refs = [{ 'logical_event_key':r['logical_event_key'], 'revision_id':r['revision_id'],
+              'source_ref':r['source_ref'], 'observation_ref':r.get('observation_ref'),
+              'report_period':r['report_period'], 'usable_from':r['usable_from']}
+            for r in winners]
+    refs = sorted({fingerprint(r):r for r in refs}.values(), key=fingerprint)
+    values={};reasons={};conflicts=[]
+    for field in sorted(set().union(*(r['values'] for r in winners))):
+        candidates=[r['values'].get(field) for r in winners]
+        if any(v != candidates[0] for v in candidates):
+            values[field]=None;reasons[field]=AMBIGUOUS_SOURCE_REVISION;conflicts.append(field)
+        else:
+            values[field]=candidates[0]
+            if candidates[0] is None:
+                missing={r.get('missing_reasons',{}).get(field,'source_value_missing') for r in winners}
+                reasons[field]=next(iter(missing)) if len(missing)==1 else 'source_value_missing'
+    common.update(values=values, missing_reasons=reasons, revision_id=None,
+                  source_ref=None, observation_ref=None, component_revisions=refs,
+                  ambiguous_fields=conflicts, resolution_policy='financial_leaf_resolution.v1',
+                  pit_qualification='best_effort' if any(r['pit_qualification']=='best_effort' for r in winners) else 'observed')
+    common['resolution_id']=fingerprint({'values':values,'missing_reasons':reasons,'components':refs})
+    return common
+
+
+def select_financial_revisions(rows, *, policy, knowledge_cutoff):
+    return select_revisions(rows, policy=policy, knowledge_cutoff=knowledge_cutoff,
+                            _financial_leaves=True)
+
+
+def financial_ambiguities(rows, *, policy, knowledge_cutoff):
+    """Complete visible tie intervals; future observations do not close old intervals."""
+    cutoff=instant(knowledge_cutoff);groups=defaultdict(list);result=[]
+    for row in rows:
+        groups[row['logical_event_key']].append(row)
+    for key, versions in sorted(groups.items()):
+        if len({r['revision_id'] for r in versions})<2:continue
+        boundaries=set()
+        for row in versions:
+            for observation in row.get('observations',[None]):
+                candidate=(dict(row,first_observed_at=observation['observed_at'],
+                                vendor_available_at=observation['vendor_available_at']) if observation else row)
+                usable=usable_from(candidate,policy)
+                if usable is not None and instant(usable)<=cutoff:boundaries.add(instant(usable))
+        times=sorted(boundaries)
+        for i, start in enumerate(times):
+            selected=select_financial_revisions(versions,policy=policy,knowledge_cutoff=start.isoformat())
+            for row in selected:
+                if 'resolution_id' not in row:continue
+                result.append({'logical_event_key':key,'symbol':row['symbol'],
+                    'report_period':row['report_period'],'endpoint':row['endpoint'],
+                    'from':start.isoformat(),'to_exclusive':times[i+1].isoformat() if i+1<len(times) else None,
+                    'ambiguous_fields':row['ambiguous_fields'],'resolution_id':row['resolution_id'],
+                    'component_revisions':row['component_revisions']})
+    return result
 
 
 def select_group_states(states, *, policy, knowledge_cutoff):
@@ -189,9 +259,10 @@ def _value(row: Mapping[str, Any], field: str) -> float | None:
 
 
 def financial_derived(rows: Sequence[Mapping[str, Any]], *, policy: str,
-                      knowledge_cutoff: str) -> tuple[dict[str, Any], ...]:
+                      knowledge_cutoff: str, resolve_ambiguity=True) -> tuple[dict[str, Any], ...]:
     """Derive only after as-of selection. Missing components retain an explicit reason."""
-    selected = select_revisions(rows, policy=policy, knowledge_cutoff=knowledge_cutoff)
+    selector=select_financial_revisions if resolve_ambiguity else select_revisions
+    selected = selector(rows, policy=policy, knowledge_cutoff=knowledge_cutoff)
     income = [r for r in selected if r['endpoint'] == 'income']
     by_series: dict[tuple[str, str], dict[int, dict[str, Any]]] = defaultdict(dict)
     for r in income:
@@ -218,13 +289,16 @@ def financial_derived(rows: Sequence[Mapping[str, Any]], *, policy: str,
                         components.append(previous)
                         prior_value = _value(previous, field)
                         value = value - prior_value if value is not None and prior_value is not None else None
+                if any(r.get('missing_reasons',{}).get(field)==AMBIGUOUS_SOURCE_REVISION for r in components):
+                    reason=AMBIGUOUS_SOURCE_REVISION
                 if value is None and reason is None:
                     reason = 'source_value_missing'
                 if reason:
                     value = None
                 derived = _derived_row(symbol, current['report_period'], report_type,
                                        'single_quarter_' + field, value, reason,
-                                       components, policy, knowledge_cutoff)
+                                       components, policy, knowledge_cutoff,
+                                       contract_version='financial_stable.v3' if resolve_ambiguity else 'financial_stable.v2')
                 quarters[(q, field)] = derived
                 # Net income single-quarter is an internal TTM component, not a new leaf.
                 if field != 'net_income':
@@ -232,7 +306,9 @@ def financial_derived(rows: Sequence[Mapping[str, Any]], *, policy: str,
             for field in ('revenue', 'net_income'):
                 parts = [quarters.get((i, field)) for i in range(q - 3, q + 1)]
                 reason = None
-                if report_type != '1':
+                if any(p is not None and p['missing_reason']==AMBIGUOUS_SOURCE_REVISION for p in parts):
+                    reason=AMBIGUOUS_SOURCE_REVISION
+                elif report_type != '1':
                     reason = 'incompatible_report_type'
                 elif any(p is None for p in parts):
                     reason = 'missing_quarter'
@@ -242,7 +318,8 @@ def financial_derived(rows: Sequence[Mapping[str, Any]], *, policy: str,
                 components = [p for p in parts if p is not None]
                 ttm = _derived_row(symbol, current['report_period'], report_type,
                                    'ttm_' + field, value, reason, components,
-                                   policy, knowledge_cutoff)
+                                   policy, knowledge_cutoff,
+                                   contract_version='financial_stable.v3' if resolve_ambiguity else 'financial_stable.v2')
                 ttm['expected_quarters'] = [str(i//4)+'-'+('03-31','06-30','09-30','12-31')[i%4] for i in range(q-3,q+1)]
                 ttm['quarter_components'] = [
                     {'report_period': p['report_period'], 'derived_id': p['derived_id'],
@@ -256,7 +333,7 @@ def financial_derived(rows: Sequence[Mapping[str, Any]], *, policy: str,
 
 def _derived_row(symbol: str, period: str, report_type: str, field: str,
                  value: float | None, reason: str | None, components: Sequence[Mapping[str, Any]],
-                 policy: str, cutoff: str) -> dict[str, Any]:
+                 policy: str, cutoff: str, *, contract_version: str = 'financial_stable.v2') -> dict[str, Any]:
     refs = []
     for row in components:
         refs.extend(row.get('component_revisions', [{
@@ -270,8 +347,8 @@ def _derived_row(symbol: str, period: str, report_type: str, field: str,
               'field': field, 'value': value, 'missing_reason': reason,
               'usable_from': usable, 'component_revisions': refs,
               'pit_policy': policy, 'knowledge_cutoff': instant(cutoff).isoformat(),
-              'contract_version': 'financial_stable.v2', 'unit': 'CNY',
-              'validity': 'missing' if value is None else 'valid',
+              'contract_version': contract_version, 'unit': 'CNY',
+              'validity': 'unavailable' if reason == AMBIGUOUS_SOURCE_REVISION else 'missing' if value is None else 'valid',
               'quality_state': 'BLOCKED' if reason else 'PASS',
               'pit_qualification': 'best_effort' if any(r.get('pit_qualification')=='best_effort' for r in components) else 'observed'}
     output['derived_id'] = fingerprint(output)
