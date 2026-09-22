@@ -1,0 +1,11 @@
+{
+  "host_boot": "2026-09-22T09:00:30+08:00",
+  "probe_30_seconds": "PASS",
+  "retry_exit": 139,
+  "kernel_event": "2026-09-22T09:22:03+08:00 SIGSEGV in python3.12",
+  "instruction_address": "0x4bb854",
+  "local_symbol": "_Py_DumpTracebackThreads",
+  "last_log": "second periodic faulthandler traceback truncated at interpreter trampoline",
+  "oom_observed": false,
+  "assessment": "Current retry crashed during added traceback diagnostics; does not establish cause of earlier lost handles. Retry without faulthandler, external process sampling only."
+}
