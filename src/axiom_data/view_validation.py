@@ -56,8 +56,14 @@ class ViewValidationSession:
         code = {p.relative_to(source).as_posix(): _digest(p.read_bytes()) for p in paths}
         if any(file_state(p) != state for p,state in code_states.items()):
             raise ArtifactError('View implementation changed during validation')
-        key = _digest(_json_bytes([str(self.root), self.snapshot_id, kind, config, code]))
         domains = _dependencies(kind, config)
+        # The complete domain closure is independent of the requested security
+        # and date projection. Policy/Derived inputs still bind reuse; builders
+        # and Qlib admission below validate each actual request separately.
+        closure_config = {k:v for k,v in config.items()
+                          if k not in {'symbols', 'start_session', 'end_session'}}
+        key = _digest(_json_bytes([str(self.root), self.snapshot_id, kind,
+                                  sorted(domains), closure_config, code]))
         cached = self._cached
         if cached is None or cached[0] != key or any(file_state(p) != state for p,state in cached[2].items()):
             self._cached = None
@@ -71,14 +77,20 @@ class ViewValidationSession:
                 reader.snapshot, reader.commits = _load_snapshot_with_commits(
                     self.root, self.snapshot_id, required_domains=domains,
                     lineage_index=reader._verified_lineage, validation_cache=({}, {}))
-                if kind == 'market_qlib':
-                    from axiom_data.consumption import _validate_qlib_inputs
-                    _validate_qlib_inputs(reader, **config)
             if any(file_state(p) != state for p,state in observed.items()):
                 raise ArtifactError('View validation inputs changed during validation')
+            reader._view_validation_paths = observed
             self._cached = (key, reader, observed)
         _, reader, observed = self._cached
         try:
+            if kind == 'market_qlib':
+                from axiom_data.consumption import _validate_qlib_inputs
+                with validation_paths() as request_paths:
+                    _validate_qlib_inputs(reader, **config)
+                for path, state in request_paths.items():
+                    observed.setdefault(path, state)
+                if any(file_state(p) != state for p,state in observed.items()):
+                    raise ArtifactError('View validation inputs changed during validation')
             yield reader
         finally:
             if any(file_state(p) != state for p,state in observed.items()):

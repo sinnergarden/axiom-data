@@ -1,0 +1,47 @@
+{
+  "source": "review/financial-candidate-views-20260921-r2/pr6_fact/result.json",
+  "status": "PASS",
+  "snapshot": "snapshot-1d69dc236a358f1627ae91080c33cf993b9e2acb55bbd2c2cb7a37129ce6b5a5",
+  "config": {
+    "end_session": "2026-09-11",
+    "industry_system": "SW2021",
+    "knowledge_cutoff": "2026-09-11T15:59:59+00:00",
+    "pit_policy": "best_effort_vendor_v1",
+    "start_session": "2026-08-24",
+    "symbols": [
+      "688981.SH"
+    ],
+    "universe_ids": [
+      "000906.SH",
+      "000852.SH"
+    ]
+  },
+  "warm_public_builder": {
+    "seconds": 642.3544058570405,
+    "partition_traversals": 2208,
+    "partition_bytes": 62349034658,
+    "partitions_by_domain": {
+      "valuation_daily": 948,
+      "financial_events": 1260
+    },
+    "rchar": 123414940294,
+    "wchar": 59767272,
+    "read_bytes": 81920,
+    "write_bytes": 59875328
+  },
+  "completed_resume": {
+    "seconds": 323.1742187109776,
+    "partition_traversals": 1104,
+    "partition_bytes": 31174517329,
+    "partitions_by_domain": {
+      "valuation_daily": 474,
+      "financial_events": 630
+    },
+    "rchar": 61678267179,
+    "wchar": 1926,
+    "read_bytes": 16384,
+    "write_bytes": 16384,
+    "builder_calls": 0
+  },
+  "limitation": "Historical same-input context; different execution date, OS cache state and harness boundaries, not a controlled speedup ratio."
+}

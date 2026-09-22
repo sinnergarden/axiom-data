@@ -11,6 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from importlib.resources import files
 from typing import Any
 
 from axiom_data.artifacts import (
@@ -88,8 +89,15 @@ class SnapshotReader:
     def __init__(self, data_root: str | Path, snapshot_id: str) -> None:
         self.data_root = Path(data_root)
         self._verified_lineage = {}
-        self.snapshot, self.commits = _load_snapshot_with_commits(
-            self.data_root, snapshot_id, lineage_index=self._verified_lineage)
+        from axiom_data.verification_cache import validation_paths, file_state
+        with validation_paths() as observed:
+            observed.update({p:file_state(p) for p in files('axiom_data').rglob('*')
+                             if p.is_file() and p.suffix in {'.py', '.json'}})
+            self.snapshot, self.commits = _load_snapshot_with_commits(
+                self.data_root, snapshot_id, lineage_index=self._verified_lineage)
+        if any(file_state(p) != state for p, state in observed.items()):
+            raise ArtifactError('Snapshot inputs changed during validation')
+        self._view_validation_paths = observed
         self._security_projection = OrderedDict()
         self._security_projection_bytes = 0
 

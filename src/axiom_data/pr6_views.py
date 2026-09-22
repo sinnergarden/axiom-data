@@ -49,7 +49,9 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True):
     encoding={industry:i+1 for i,industry in enumerate(taxonomy)}
     # Full-scope admission above must finish before security projection. Retain
     # only this View's requested history, for this projection call's lifetime.
-    financial_history=reader.facts('financial_events',symbols=symbols)
+    from axiom_data.pr6_coverage import prepared_input
+    financial_history=prepared_input(reader,'financial_history',tuple(symbols),
+        lambda:reader.facts('financial_events',symbols=symbols))
     events=[];derived=[];wide=[];memberships=[];industries=[]
     for session in sessions:
         session_cutoff=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()

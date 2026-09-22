@@ -1,0 +1,179 @@
+{
+  "status": "PASS",
+  "snapshot": "snapshot-1d69dc236a358f1627ae91080c33cf993b9e2acb55bbd2c2cb7a37129ce6b5a5",
+  "config": {
+    "end_session": "2026-09-11",
+    "industry_system": "SW2021",
+    "knowledge_cutoff": "2026-09-11T15:59:59+00:00",
+    "pit_policy": "best_effort_vendor_v1",
+    "start_session": "2026-08-24",
+    "symbols": [
+      "688981.SH"
+    ],
+    "universe_ids": [
+      "000906.SH",
+      "000852.SH"
+    ]
+  },
+  "pid": 8,
+  "phases": {
+    "initialization": {
+      "seconds": 2006.819058223,
+      "domain_loads": 6,
+      "partition_traversals": 972,
+      "partition_bytes": 36761516144,
+      "partitions_by_domain": {
+        "financial_events": 360,
+        "valuation_daily": 612
+      },
+      "rchar": 101813167104,
+      "wchar": 0,
+      "read_bytes": 28766957568,
+      "write_bytes": 0,
+      "inclusive_function_profile": {
+        "_validate_domain_rows": {
+          "calls": 6,
+          "seconds": 332.6149901300005
+        },
+        "load_raw_batch": {
+          "calls": 674850,
+          "seconds": 599.565498224435
+        },
+        "_validate_domain_commit_node": {
+          "calls": 6,
+          "seconds": 1627.5721229050005
+        },
+        "_validate_dm1_observation_refs": {
+          "calls": 4,
+          "seconds": 221.05062842999905
+        },
+        "_validate_pr6_dependencies": {
+          "calls": 4,
+          "seconds": 79.65987179999865
+        }
+      }
+    },
+    "projection": {
+      "seconds": 322.758662016,
+      "partition_traversals": 798,
+      "partition_bytes": 14263094201,
+      "partitions_by_domain": {
+        "valuation_daily": 168,
+        "financial_events": 630
+      },
+      "rchar": 27792715886,
+      "wchar": 0,
+      "read_bytes": 836988928,
+      "write_bytes": 0,
+      "inclusive_function_profile": {
+        "membership_coverage": {
+          "calls": 77,
+          "seconds": 2.044185620998178
+        },
+        "select_financial_revisions": {
+          "calls": 1,
+          "seconds": 45.61848301499958
+        },
+        "financial_ambiguities": {
+          "calls": 1,
+          "seconds": 16.62498407199928
+        },
+        "admit_view": {
+          "calls": 1,
+          "seconds": 226.59682056100064
+        }
+      }
+    },
+    "warm_projection": {
+      "seconds": 55.370968070000345,
+      "partition_traversals": 15,
+      "partition_bytes": 664710333,
+      "partitions_by_domain": {
+        "valuation_daily": 15
+      },
+      "rchar": 1329420799,
+      "wchar": 0,
+      "read_bytes": 0,
+      "write_bytes": 0,
+      "inclusive_function_profile": {
+        "membership_coverage": {
+          "calls": 77,
+          "seconds": 2.3286882670035993
+        },
+        "admit_view": {
+          "calls": 1,
+          "seconds": 3.08757366700047
+        }
+      }
+    },
+    "changed_scope_validation": {
+      "seconds": 2.905023841000002,
+      "partitions_by_domain": {},
+      "rchar": 1437730,
+      "wchar": 0,
+      "read_bytes": 4300800,
+      "write_bytes": 0,
+      "inclusive_function_profile": {}
+    },
+    "prepared_public_build": {
+      "seconds": 114.24437658199986,
+      "partition_traversals": 30,
+      "partition_bytes": 1329420666,
+      "partitions_by_domain": {
+        "valuation_daily": 30
+      },
+      "rchar": 2723003478,
+      "wchar": 59776284,
+      "read_bytes": 32219136,
+      "write_bytes": 59904000,
+      "inclusive_function_profile": {
+        "membership_coverage": {
+          "calls": 154,
+          "seconds": 3.5085835779982517
+        },
+        "admit_view": {
+          "calls": 2,
+          "seconds": 5.063298993999524
+        }
+      },
+      "builder_calls": 1
+    },
+    "completed_resume": {
+      "seconds": 55.22905799,
+      "partition_traversals": 15,
+      "partition_bytes": 664710333,
+      "partitions_by_domain": {
+        "valuation_daily": 15
+      },
+      "rchar": 1392146223,
+      "wchar": 1614,
+      "read_bytes": 0,
+      "write_bytes": 12288,
+      "inclusive_function_profile": {
+        "membership_coverage": {
+          "calls": 77,
+          "seconds": 1.0776102730023922
+        },
+        "admit_view": {
+          "calls": 1,
+          "seconds": 1.8249607429997923
+        }
+      },
+      "builder_calls": 0
+    },
+    "context_exit": {
+      "seconds": 1.4044432810005674,
+      "partitions_by_domain": {},
+      "rchar": 135,
+      "wchar": 0,
+      "read_bytes": 0,
+      "write_bytes": 0,
+      "inclusive_function_profile": {}
+    }
+  },
+  "payload_digest": "sha256:a0b9e9bff2e3dee4bd3ab019c6a598e88585b080f8e194b1af77e408d40e84de",
+  "exact_equal": true,
+  "view_id": "pr6-fact-b6faa8c1a8998cafce2c98c030b7426124622c451e65cfa6c531b5c3d14039aa",
+  "artifact_payload_equal": true,
+  "total_seconds": 2561.1559253979995
+}

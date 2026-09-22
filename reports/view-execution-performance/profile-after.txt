@@ -1,0 +1,71 @@
+         880394256 function calls (880355088 primitive calls) in 322.207 seconds
+
+   Ordered by: cumulative time
+   List reduced from 298 to 65 due to restriction <65>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.001    0.001  322.758  322.758 /home/liuming/workspace/axiom/review/view-performance-20260922/profile_real.py:110(project)
+        1    0.048    0.048  322.757  322.757 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_views.py:34(project)
+        2    0.005    0.003  254.210  127.105 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_coverage.py:7(prepared_input)
+    80/61    0.373    0.005  227.943    3.737 /home/liuming/workspace/axiom/review/view-performance-20260922/profile_real.py:80(timed)
+        1    0.003    0.003  226.583  226.583 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_coverage.py:148(admit_view)
+        1    0.000    0.000  225.835  225.835 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_coverage.py:53(_admission_inputs)
+        1   12.316   12.316  220.757  220.757 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_coverage.py:55(prepare)
+ 13751109    2.501    0.000  219.093    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:154(_iter_entries)
+ 13751109    9.685    0.000  216.592    0.000 /usr/lib/python3.12/heapq.py:316(merge)
+ 13053699    2.298    0.000  212.790    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:144(__iter__)
+ 13751973    2.530    0.000  189.606    0.000 /home/liuming/workspace/axiom/review/view-performance-20260922/profile_real.py:50(rows)
+ 13751973   11.136    0.000  187.077    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:119(_rows)
+ 13751883   10.126    0.000  148.213    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:30(array_rows)
+ 14574884   53.382    0.000  112.047    0.000 /usr/lib/python3.12/json/decoder.py:343(raw_decode)
+     3999    0.234    0.000   76.571    0.019 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:54(select_revisions)
+       45    2.287    0.051   57.537    1.279 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/consumption.py:250(members)
+ 56016386   33.858    0.000   53.901    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:32(<lambda>)
+       62    4.321    0.070   48.392    0.781 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/consumption.py:301(facts)
+     3969    3.890    0.001   47.064    0.012 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:83(_select_observations)
+     3877    0.001    0.000   45.781    0.012 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:156(select_financial_revisions)
+    18986    0.393    0.000   33.543    0.002 {built-in method builtins.any}
+       30    0.799    0.027   29.538    0.985 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:222(members)
+       30   20.356    0.679   28.685    0.956 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:205(_group_members)
+ 26804970   14.885    0.000   24.986    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:113(_key)
+        1    0.000    0.000   23.349   23.349 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_views.py:54(<lambda>)
+302862482   20.054    0.000   20.054    0.000 {built-in method sys.intern}
+ 27504564   12.677    0.000   19.339    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:45(token)
+  8053511   18.458    0.000   18.458    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/consumption.py:79(_ordered_row)
+        1    0.909    0.909   16.267   16.267 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:161(financial_ambiguities)
+   881544    0.581    0.000   11.765    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:88(<genexpr>)
+   881544    0.521    0.000   11.583    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:84(<genexpr>)
+       77    0.411    0.005   11.530    0.150 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_coverage.py:81(require_symbols)
+ 80414910   10.101    0.000   10.101    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:115(<genexpr>)
+        4    0.000    0.000   10.048    2.512 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_coverage.py:22(check)
+  3783076    1.478    0.000    9.796    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_coverage.py:23(<genexpr>)
+       15    0.215    0.014    8.932    0.595 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_views.py:26(_valuation_at)
+   697410    0.115    0.000    8.716    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:147(sessions)
+  3783072    1.439    0.000    8.317    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/verification_cache.py:12(file_state)
+    21283    4.711    0.000    7.765    0.000 {built-in method builtins.sorted}
+ 13052997    7.738    0.000    7.738    0.000 {built-in method _heapq.heapreplace}
+      798    0.044    0.000    7.232    0.009 /usr/lib/python3.12/hashlib.py:195(file_digest)
+   826905    1.000    0.000    6.722    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partition_rows.py:38(fill)
+  3790254    0.592    0.000    6.678    0.000 /usr/lib/python3.12/pathlib.py:844(lstat)
+    54877    6.096    0.000    6.096    0.000 {method 'update' of '_hashlib.HASH' objects}
+  3790254    0.504    0.000    6.086    0.000 /usr/lib/python3.12/pathlib.py:837(stat)
+ 46551903    5.883    0.000    5.883    0.000 {method 'get' of 'dict' objects}
+   826905    4.364    0.000    5.722    0.000 {method 'read' of '_io.TextIOWrapper' objects}
+  3790254    4.640    0.000    5.582    0.000 {built-in method posix.stat}
+65576474/65537360    5.042    0.000    5.047    0.000 {built-in method builtins.len}
+   823709    1.284    0.000    4.764    0.000 /usr/lib/python3.12/json/decoder.py:31(__init__)
+ 13751175    3.726    0.000    4.719    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/partitions.py:10(partition_key)
+  4421705    1.915    0.000    3.702    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:18(instant)
+   881559    0.738    0.000    3.277    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:33(usable_from)
+   823709    3.192    0.000    3.192    0.000 {method 'count' of 'str' objects}
+ 27503856    2.607    0.000    2.607    0.000 {method 'isspace' of 'str' objects}
+ 10273194    2.460    0.000    2.460    0.000 {method 'setdefault' of 'dict' objects}
+       77    0.049    0.001    2.044    0.027 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pr6_coverage.py:92(membership_coverage)
+ 18387720    1.737    0.000    1.737    0.000 {method 'append' of 'list' objects}
+  7938000    1.516    0.000    1.516    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:219(<lambda>)
+       30    0.006    0.000    1.470    0.049 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/consumption.py:266(industry_facts)
+  7938060    1.265    0.000    1.265    0.000 /home/liuming/workspace/axiom/axiom-data/src/axiom_data/pit.py:216(<genexpr>)
+   827635    0.433    0.000    1.235    0.000 <frozen codecs>:319(decode)
+    55675    1.090    0.000    1.090    0.000 {method 'readinto' of '_io.BufferedReader' objects}
+  3791052    0.723    0.000    0.942    0.000 /usr/lib/python3.12/pathlib.py:447(__fspath__)
+   827635    0.803    0.000    0.803    0.000 {built-in method _codecs.utf_8_decode}
