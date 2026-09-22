@@ -44,7 +44,12 @@ def prepared_input(reader, slot, arguments, prepare):
             if batch is not None:
                 batch.clear()
             raise ArtifactError('View inputs changed after validation')
-    check()
+    # Calendar/identity/taxonomy are consumed by project/admit_view before the
+    # existing admission and history guards. Those guards check the entire
+    # closure, including these inputs; do not add another full stat walk for
+    # every small metadata cache hit.
+    if slot in {'admission', 'financial_history'}:
+        check()
     key = (reader.snapshot.ref.snapshot_id,
            tuple((d, c.ref.commit_id, c.manifest_digest, id(c)) for d, c in sorted(reader.commits.items())),
            arguments)
