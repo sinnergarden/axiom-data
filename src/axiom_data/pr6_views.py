@@ -32,24 +32,26 @@ def _valuation_at(reader,symbols,session,policy,cutoff):
 
 
 def project(reader, scope, policy, cutoff, *, financial_resolution=True):
+    from axiom_data.pr6_coverage import prepared_input
     symbols=scope['symbols'];start=scope['start_session'];end=scope['end_session']
     _symbols(symbols);_session(start,'start');_session(end,'end');instant(cutoff)
     if start>end:raise ArtifactError('reversed PR6 View interval')
     if not scope['universe_ids'] or len(scope['universe_ids'])!=len(set(scope['universe_ids'])):
         raise ArtifactError('PR6 View requires explicit unique universes')
-    known={r['symbol'] for r in reader.security_master()}
+    known=set(prepared_input(reader,'security_master',(),lambda:sorted(r['symbol'] for r in reader.security_master())))
     if not set(symbols)<=known:raise ArtifactError('PR6 View scope lacks security identities')
     if any(d not in reader.commits for d in PR6_DOMAINS):raise ArtifactError('PR6 snapshot required')
-    sessions=sorted({r['session'] for r in reader.trading_calendar(start_session=start,end_session=end) if r['is_open']})
+    calendar=prepared_input(reader,'calendar',(),lambda:list(reader.trading_calendar()))
+    sessions=sorted({r['session'] for r in calendar if start<=r['session']<=end and r['is_open']})
     if not sessions:raise ArtifactError('PR6 View has no calendar coverage')
     from axiom_data.pr6_coverage import admit_view
     actual_scope=admit_view(reader,scope,policy,cutoff,financial_resolution=financial_resolution)
     sw_state=reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3'
-    taxonomy=sorted({s['industry_id'] for r in reader.as_of('industry_membership',knowledge_cutoff=cutoff,pit_policy=policy) for s in r['membership_spans']}) if sw_state else sorted({r['industry_id'] for r in reader.facts('industry_membership')})
+    taxonomy=prepared_input(reader,'taxonomy',(policy,cutoff),lambda:
+        sorted({s['industry_id'] for r in reader.as_of('industry_membership',knowledge_cutoff=cutoff,pit_policy=policy) for s in r['membership_spans']}) if sw_state else sorted({r['industry_id'] for r in reader.facts('industry_membership')}))
     encoding={industry:i+1 for i,industry in enumerate(taxonomy)}
     # Full-scope admission above must finish before security projection. Retain
     # only this View's requested history, for this projection call's lifetime.
-    from axiom_data.pr6_coverage import prepared_input
     financial_history=prepared_input(reader,'financial_history',tuple(symbols),
         lambda:reader.facts('financial_events',symbols=symbols))
     events=[];derived=[];wide=[];memberships=[];industries=[]
