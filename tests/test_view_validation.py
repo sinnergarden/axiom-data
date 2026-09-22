@@ -107,6 +107,19 @@ class ViewValidationTest(unittest.TestCase):
         with self.assertRaises(ArtifactError):
             with self.session.inputs('pr7_fact',self.config):pass
 
+    def test_initialization_provenance_reuses_checked_raw(self):
+        original = artifacts._observation_rows
+        checks = []
+        def checked(root, domain, rows, raw_ids, **kwargs):
+            with patch.object(artifacts, 'load_raw_batch', wraps=artifacts.load_raw_batch) as loads:
+                yield from original(root, domain, rows, raw_ids, **kwargs)
+                checks.append((domain, loads.call_count))
+        with patch.object(artifacts, '_observation_rows', checked):
+            with self.session.inputs('pr7_fact', self.config):
+                pass
+        self.assertTrue(checks)
+        self.assertTrue(all(count == 0 for _, count in checks), checks)
+
     def test_implementation_change_revalidates(self):
         source=Path(self.temp.name)/'code';source.mkdir()
         module=source/'validation.py';module.write_text('revision = 1')
@@ -116,6 +129,26 @@ class ViewValidationTest(unittest.TestCase):
             with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as loads:
                 with self.session.inputs('pr7_fact',self.config):pass
                 self.assertGreater(loads.call_count,0)
+
+    def test_raw_mutation_during_initialization_cannot_reuse_provenance(self):
+        original = artifacts._observation_rows
+        changed = []
+        def mutate(root, domain, rows, raw_ids, **kwargs):
+            if domain == 'holder_count_events' and not changed:
+                raw_id = next(iter(kwargs['verified_evidence']))
+                path = root/'raw/batches'/raw_id/'payload.bin'
+                path.chmod(0o600)
+                path.write_bytes(path.read_bytes() + b' ')
+                changed.append(raw_id)
+            yield from original(root, domain, rows, raw_ids, **kwargs)
+        with patch.object(artifacts, '_observation_rows', mutate):
+            with self.assertRaisesRegex(ArtifactError, 'changed during validation'):
+                with self.session.inputs('pr7_fact', self.config):
+                    pass
+        self.assertTrue(changed)
+        with self.assertRaises(ArtifactError):
+            with self.session.inputs('pr7_fact', self.config):
+                pass
 
     def test_financial_projection_and_market_dependency_groups(self):
         from axiom_data.pr6_views import project as financial_project

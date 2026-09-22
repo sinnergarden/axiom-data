@@ -1,0 +1,29 @@
+{
+  "counts": {
+    "financial_events": {
+      "total_raw_refs": 230464,
+      "sample": 100
+    },
+    "valuation_daily": {
+      "total_raw_refs": 3601,
+      "sample": 100
+    },
+    "universe_membership": {
+      "total_raw_refs": 306,
+      "sample": 100
+    },
+    "industry_membership": {
+      "total_raw_refs": 12,
+      "sample": 12
+    },
+    "security_master": {
+      "total_raw_refs": 8,
+      "sample": 8
+    },
+    "trading_calendar": {
+      "total_raw_refs": 2,
+      "sample": 2
+    }
+  },
+  "elapsed": 6.223498204000862
+}

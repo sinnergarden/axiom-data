@@ -1,0 +1,89 @@
+{
+  "status": "PASS",
+  "pid": 2,
+  "snapshot": "snapshot-1d69dc236a358f1627ae91080c33cf993b9e2acb55bbd2c2cb7a37129ce6b5a5",
+  "config": {
+    "end_session": "2026-09-11",
+    "industry_system": "SW2021",
+    "knowledge_cutoff": "2026-09-11T15:59:59+00:00",
+    "pit_policy": "best_effort_vendor_v1",
+    "start_session": "2026-08-24",
+    "symbols": [
+      "688981.SH"
+    ],
+    "universe_ids": [
+      "000906.SH",
+      "000852.SH"
+    ]
+  },
+  "phases": {
+    "initialization": {
+      "seconds": 1783.5501339310013,
+      "domain_loads": 6,
+      "partition_traversals": 729,
+      "partition_bytes": 27571137108,
+      "partitions_by_domain": {
+        "financial_events": 270,
+        "valuation_daily": 459
+      },
+      "rchar": 82141830178,
+      "wchar": 0,
+      "read_bytes": 32510754816,
+      "write_bytes": 0,
+      "inclusive_function_profile": {
+        "_validate_domain_rows": {
+          "calls": 6,
+          "seconds": 331.23809640700347
+        },
+        "load_raw_batch": {
+          "calls": 468812,
+          "seconds": 459.6373667602438
+        },
+        "_validate_domain_commit_node": {
+          "calls": 6,
+          "seconds": 1394.988339128
+        },
+        "_validate_pr6_dependencies": {
+          "calls": 4,
+          "seconds": 76.01179118899927
+        }
+      }
+    },
+    "logical_comparison": {
+      "seconds": 213.9957941629982,
+      "partition_traversals": 798,
+      "partition_bytes": 14263094201,
+      "partitions_by_domain": {
+        "valuation_daily": 168,
+        "financial_events": 630
+      },
+      "rchar": 27792715887,
+      "wchar": 0,
+      "read_bytes": 2538450944,
+      "write_bytes": 0,
+      "inclusive_function_profile": {}
+    },
+    "reused_initialization": {
+      "seconds": 2.9078622859997267,
+      "partitions_by_domain": {},
+      "rchar": 1439126,
+      "wchar": 0,
+      "read_bytes": 4145152,
+      "write_bytes": 0,
+      "inclusive_function_profile": {}
+    },
+    "context_exit": {
+      "seconds": 1.4303851920012676,
+      "partitions_by_domain": {},
+      "rchar": 127,
+      "wchar": 0,
+      "read_bytes": 12288,
+      "write_bytes": 0,
+      "inclusive_function_profile": {}
+    }
+  },
+  "baseline_payload_digest": "sha256:a0b9e9bff2e3dee4bd3ab019c6a598e88585b080f8e194b1af77e408d40e84de",
+  "payload_digest": "sha256:a0b9e9bff2e3dee4bd3ab019c6a598e88585b080f8e194b1af77e408d40e84de",
+  "exact_logical_equal": true,
+  "elapsed": 2003.000119028
+}

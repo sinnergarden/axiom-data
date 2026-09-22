@@ -673,11 +673,20 @@ def _validate_dm1_observation_refs(
     domain: str,
     rows: Sequence[Mapping[str, Any]],
     transitive_raw_batch_ids: frozenset[str] | set[str],
+    *, verified_evidence=None,
 ) -> None:
     """Resolve observed provenance within this DomainCommit's RawBatch lineage."""
-    evidence = {}
+    for _ in _observation_rows(root, domain, rows, transitive_raw_batch_ids,
+                               verified_evidence=verified_evidence):
+        pass
+
+
+def _observation_rows(root, domain, rows, transitive_raw_batch_ids, *, verified_evidence=None):
+    """Check provenance while the caller consumes the complete canonical rows."""
+    evidence = {} if verified_evidence is None else dict(verified_evidence)
     for row in rows:
         if row.get("pit_qualification") != "observed" and domain not in PR6_DOMAINS + PR7_DOMAINS:
+            yield row
             continue
         source_refs = [row.get("source_ref")]
         if row.get("boundary_source_ref") is not None:
@@ -711,6 +720,7 @@ def _validate_dm1_observation_refs(
                 raise ArtifactError(
                     "observed PIT first_observed_at predates its RawBatch retrieval"
                 )
+        yield row
 
 def _commit_ref(commit: DomainCommit) -> dict[str, Any]:
     return {
@@ -1343,6 +1353,10 @@ def _validate_domain_commit_node(
         if ('source_coverage' in commit.manifest) != coverage_enabled:
             raise ArtifactError('source coverage manifest/policy mismatch')
         coverage_observations = []
+        # This node already verifies every declared Raw below. Preserve only
+        # the scalar provenance needed by the subsequent canonical-row check.
+        # The dictionary is invocation-local; no supplier payload is retained.
+        raw_evidence = {}
         coverage_pages = {}
         if coverage_policy == 'source_observations.v2' and domain == 'industry_membership':
             from axiom_data.source_completeness import page_evidence
@@ -1360,6 +1374,10 @@ def _validate_domain_commit_node(
             if raw.manifest.get("domain") != domain or _raw_ref(raw) != raw_ref:
                 raise ArtifactError("DomainCommit raw ref does not match its artifact")
             raw_ids.add(raw.ref.raw_batch_id)
+            raw_evidence[raw.ref.raw_batch_id] = (
+                raw.manifest['domain'], raw.ref.raw_batch_id,
+                datetime.fromisoformat(raw.manifest['retrieved_at'].replace('Z', '+00:00')),
+            )
             if coverage_enabled:
                 from axiom_data.source_coverage import observation
                 coverage_observations.append(observation(raw, policy=coverage_policy,
@@ -1412,12 +1430,21 @@ def _validate_domain_commit_node(
             if commit.manifest['source_coverage'] != expected_coverage:
                 raise ArtifactError('source coverage differs from validated Raw lineage')
 
-        if domain in DM1_REFERENCE_DOMAINS + PR6_DOMAINS + PR7_DOMAINS:
+        canonical_rows = commit.rows
+        if domain in PR6_DOMAINS + PR7_DOMAINS:
+            # Mapping replay below already consumes every canonical row. Check
+            # its provenance in that pass instead of parsing all partitions again.
+            canonical_rows = _observation_rows(
+                root, domain, commit.rows, transitive_raw_batch_ids,
+                verified_evidence=raw_evidence,
+            )
+        elif domain in DM1_REFERENCE_DOMAINS:
             _validate_dm1_observation_refs(
                 root,
                 domain,
                 commit.rows,
                 transitive_raw_batch_ids,
+                verified_evidence=raw_evidence,
             )
 
         if domain in PR6_DOMAINS:
@@ -1432,7 +1459,7 @@ def _validate_domain_commit_node(
             if commit.ref.contract_version == "universe_membership.v3":
                 from axiom_data.domains.pr6 import validate_group_states
                 validate_group_states(commit.rows,commit.manifest["group_states"])
-            if not _equal_rows(expected_rows, commit.rows):
+            if not _equal_rows(expected_rows, canonical_rows):
                 raise ArtifactError("PR6 canonical rows differ from their RawBatch mapping")
             del expected_rows
 
@@ -1441,7 +1468,7 @@ def _validate_domain_commit_node(
             replay = Pr7Builder(root, domain, builder_config=commit.manifest["builder_config"])
             expected_rows = replay._build_rows(commit.contract, parent.rows if parent_ref is not None else (),
                 RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]))
-            if not _equal_rows(expected_rows, commit.rows):
+            if not _equal_rows(expected_rows, canonical_rows):
                 raise ArtifactError("PR7 canonical rows differ from RawBatch mapping")
             del expected_rows
 
