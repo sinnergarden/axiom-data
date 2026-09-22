@@ -1,11 +1,27 @@
 """Fail-closed admission over explicit Snapshot and View coverage."""
 from datetime import date, timedelta
+from contextlib import contextmanager
 from axiom_data.artifacts import ArtifactError
 from axiom_data.pit import select_revisions, select_financial_revisions, financial_ambiguities
 
 
+@contextmanager
+def financial_batch(reader):
+    """Share preparation for one operation; publish ordinary independent Views.
+
+    Histories occupy at most the input financial domain, not securities times
+    history. No projected View payload or persistent execution state is retained.
+    """
+    previous = getattr(reader, '_financial_batch', None)
+    reader._financial_batch = {}
+    try:
+        yield
+    finally:
+        reader._financial_batch = previous
+
+
 def prepared_input(reader, slot, arguments, prepare):
-    """Two bounded PR6 preparation slots, only on a checked immutable Reader.
+    """Reuse financial preparation only on a checked immutable Reader.
 
     File state invalidates reuse; it never selects an artifact. Ordinary fixture
     Readers without a verified closure always execute the authoritative path.
@@ -17,16 +33,47 @@ def prepared_input(reader, slot, arguments, prepare):
     observed = getattr(reader, '_view_validation_paths', None)
     if observed is None:
         return prepare()
-    if slot not in {'admission', 'financial_history'}:
+    batch = getattr(reader, '_financial_batch', None)
+    if slot not in {'admission', 'financial_history', 'calendar', 'security_master', 'taxonomy'}:
         raise ValueError('unknown financial preparation slot')
+    if batch is None and slot not in {'admission', 'financial_history'}:
+        return prepare()
     def check():
         if any(file_state(p) != state for p, state in observed.items()):
             reader._financial_preparation = {}
+            if batch is not None:
+                batch.clear()
             raise ArtifactError('View inputs changed after validation')
     check()
     key = (reader.snapshot.ref.snapshot_id,
            tuple((d, c.ref.commit_id, c.manifest_digest, id(c)) for d, c in sorted(reader.commits.items())),
            arguments)
+    if batch is not None:
+        if batch.get('inputs') != key[:2]:
+            batch.clear()
+            batch['inputs'] = key[:2]
+        if slot == 'financial_history':
+            if 'histories' not in batch:
+                # Admission is performed by project before requesting history.
+                # Read the public full history once, then retain encoded groups
+                # so caller mutations cannot alter a later artifact.
+                grouped = {}
+                for index, row in enumerate(reader.facts('financial_events')):
+                    grouped.setdefault(row['symbol'], []).append((index, row))
+                batch['histories'] = {s:_json_bytes(rows) for s,rows in grouped.items()}
+                check()
+            if not arguments or not set(arguments) <= batch['histories'].keys():
+                raise ArtifactError('INSUFFICIENT_SCOPE: symbols outside domain coverage')
+            rows = [item for symbol in arguments for item in json.loads(batch['histories'][symbol])]
+            return [row for _,row in sorted(rows, key=lambda item:item[0])]
+        if slot in {'calendar', 'security_master', 'taxonomy'}:
+            previous = batch.get(slot)
+            if previous is not None and previous[0] == key:
+                return json.loads(previous[1])
+            value = prepare()
+            check()
+            batch[slot] = (key, _json_bytes(value))
+            return value
     cache = getattr(reader, '_financial_preparation', {})
     previous = cache.get(slot)
     if previous is not None and previous[0] == key:
@@ -151,7 +198,7 @@ def admit_view(reader,scope,policy,cutoff,*,financial_resolution=True):
     dates=[]; day=date.fromisoformat(start);stop=date.fromisoformat(end)
     while day<=stop:dates.append(day.isoformat());day+=timedelta(days=1)
     if not dates:raise ArtifactError('INSUFFICIENT_SCOPE: reversed dates')
-    calendar=reader.commits['trading_calendar'].rows
+    calendar=prepared_input(reader,'calendar',(),lambda:list(reader.commits['trading_calendar'].rows))
     sessions=set()
     for symbol in symbols:
         exchange={'SH':'SSE','SZ':'SZSE'}[symbol[-2:]]

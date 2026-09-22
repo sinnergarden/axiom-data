@@ -117,26 +117,28 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
         except Exception as exc:
             state.update(status='FAILED',failed={'snapshot':{'error_type':type(exc).__name__}})
             _save(path,state);return dict(state,plan=plan)
-        for label,spec in frozen.items():
-            state['active_view']=label;_save(path,state);started=time.monotonic()
-            try:
-                old=state['published_views'].get(label)
-                if old is not None:
-                    try:
-                        _completed_view(reader,spec,old,builders[spec['kind']],loaders[spec['kind']],code)
-                    except (ArtifactError,OSError,ValueError,KeyError,TypeError):
-                        state['published_views'].pop(label)
-                        _save(path,state)
-                    else:
-                        continue
-                ref=checked_builders[spec['kind']](reader,**spec['config'])
-                result={'kind':spec['kind'],'view_id':ref.view_id,'manifest_digest':ref.manifest_digest}
-                state['published_views'][label]=result
-                state.setdefault('build_seconds',{})[label]=time.monotonic()-started
-            except Exception as exc:
-                state.update(status='FAILED',failed={label:{'error_type':type(exc).__name__}})
-                _save(path,state);return dict(state,plan=plan)
-            _save(path,state)
+        from axiom_data.pr6_coverage import financial_batch
+        with financial_batch(reader):
+            for label,spec in frozen.items():
+                state['active_view']=label;_save(path,state);started=time.monotonic()
+                try:
+                    old=state['published_views'].get(label)
+                    if old is not None:
+                        try:
+                            _completed_view(reader,spec,old,builders[spec['kind']],loaders[spec['kind']],code)
+                        except (ArtifactError,OSError,ValueError,KeyError,TypeError):
+                            state['published_views'].pop(label)
+                            _save(path,state)
+                        else:
+                            continue
+                    ref=checked_builders[spec['kind']](reader,**spec['config'])
+                    result={'kind':spec['kind'],'view_id':ref.view_id,'manifest_digest':ref.manifest_digest}
+                    state['published_views'][label]=result
+                    state.setdefault('build_seconds',{})[label]=time.monotonic()-started
+                except Exception as exc:
+                    state.update(status='FAILED',failed={label:{'error_type':type(exc).__name__}})
+                    _save(path,state);return dict(state,plan=plan)
+                _save(path,state)
         if set(state['published_views'])!=set(frozen):raise ArtifactError('required View closure incomplete')
         state.update(status='VIEWS_BUILT',stage='FULL_ADMISSION');state.pop('active_view',None)
         _save(path,state);return dict(state,plan=plan)

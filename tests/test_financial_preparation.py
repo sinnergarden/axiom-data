@@ -155,6 +155,108 @@ class FinancialPreparationTest(unittest.TestCase):
         with self.assertRaisesRegex(ArtifactError,'changed after validation'):
             self.project()
 
+    def test_batch_matches_serial_and_prepares_history_and_calendar_once(self):
+        scopes = [dict(self.manifest['scope'], symbols=[symbol])
+                  for symbol in self.manifest['scope']['symbols']]
+        expected = [_json_bytes(self.project(scope, resolution=True)) for scope in scopes]
+        self.reader._financial_preparation = {}
+        with coverage.financial_batch(self.reader), patch.object(
+                self.reader, 'facts', wraps=self.reader.facts) as facts, patch.object(
+                self.reader, 'trading_calendar', wraps=self.reader.trading_calendar) as calendar, patch.object(
+                coverage, 'select_financial_revisions', wraps=coverage.select_financial_revisions) as admission:
+            for scope, content in zip(scopes, expected):
+                actual = self.project(scope, resolution=True)
+                self.assertEqual(_json_bytes(actual), content)
+                actual['events'].clear()
+                actual['actual_available_scope'].clear()
+            for scope, content in zip(scopes, expected):
+                self.assertEqual(_json_bytes(self.project(scope, resolution=True)), content)
+            self.assertEqual(sum(c.args == ('financial_events',) for c in facts.call_args_list), 1)
+            self.assertEqual(calendar.call_count, 1)
+            self.assertEqual(admission.call_count, 1)
+        self.assertIsNone(self.reader._financial_batch)
+
+    def test_batch_preserves_scope_wide_conflict_and_changed_input_rejection(self):
+        with coverage.financial_batch(self.reader):
+            self.test_new_commit_object_cannot_hide_out_of_scope_conflict()
+        with coverage.financial_batch(self.reader):
+            self.project(resolution=True)
+            commit = self.reader.commits['financial_events']
+            path = self.root / 'canonical/financial_events/commits' / commit.ref.commit_id / 'rows.json'
+            path.chmod(0o600)
+            path.write_bytes(path.read_bytes() + b' ')
+            with self.assertRaisesRegex(ArtifactError, 'changed after validation'):
+                self.project(resolution=True)
+
+    def test_batch_publication_identity_and_completed_resume(self):
+        from axiom_data import materialize_views
+        from axiom_data.pr6_views import _build_pr6_fact_view
+        m = self.manifest
+        configs = [dict(m['scope'], symbols=[symbol], pit_policy=m['pit_policy'],
+                        knowledge_cutoff=m['knowledge_cutoff']) for symbol in m['scope']['symbols']]
+        expected = [_build_pr6_fact_view(self.reader, **config) for config in configs]
+        views = {str(i):dict(kind='pr6_fact', config=config) for i,config in enumerate(configs)}
+        args = dict(run_id='financial-batch', snapshot_id=self.reader.snapshot.ref.snapshot_id, views=views)
+        result = materialize_views(self.root, **args)
+        self.assertEqual(result['status'], 'VIEWS_BUILT', result.get('failed'))
+        for i,ref in enumerate(expected):
+            self.assertEqual(result['published_views'][str(i)]['view_id'], ref.view_id)
+            self.assertEqual(result['published_views'][str(i)]['manifest_digest'], ref.manifest_digest)
+        with patch('axiom_data.pr6_views._build_pr6_fact_view') as builder:
+            resumed = materialize_views(self.root, **args)
+        self.assertEqual(resumed['status'], 'VIEWS_BUILT', resumed.get('failed'))
+        self.assertEqual(builder.call_count, 0)
+        target = self.root / 'derived/pr6_fact/commits' / expected[0].view_id
+        for path in target.rglob('*'):
+            if path.is_dir():
+                path.chmod(0o755)
+        target.chmod(0o755)
+        shutil.rmtree(target)
+        with patch('axiom_data.pr6_views._build_pr6_fact_view', wraps=_build_pr6_fact_view) as builder:
+            rebuilt = materialize_views(self.root, **args)
+        self.assertEqual(rebuilt['status'], 'VIEWS_BUILT', rebuilt.get('failed'))
+        self.assertEqual(builder.call_count, 1)
+        payload = target / 'rows.json'
+        payload.chmod(0o600)
+        payload.write_bytes(b'corrupt')
+        with patch('axiom_data.pr6_views._build_pr6_fact_view', wraps=_build_pr6_fact_view) as builder:
+            corrupt = materialize_views(self.root, **args)
+        self.assertEqual(corrupt['status'], 'FAILED')
+        self.assertEqual(builder.call_count, 1)
+        self.assertNotIn('0', corrupt['published_views'])
+
+    def test_batch_interruption_resumes_only_remaining_artifacts(self):
+        from axiom_data import materialize_views
+        from axiom_data.pr6_views import _build_pr6_fact_view
+        m = self.manifest
+        configs = [dict(m['scope'], symbols=[symbol], pit_policy=m['pit_policy'],
+                        knowledge_cutoff=m['knowledge_cutoff']) for symbol in m['scope']['symbols']]
+        self.assertGreaterEqual(len(configs), 2)
+        views = {str(i):dict(kind='pr6_fact', config=config) for i,config in enumerate(configs)}
+        args = dict(run_id='financial-interrupted', snapshot_id=self.reader.snapshot.ref.snapshot_id, views=views)
+        calls = 0
+        def interrupt(reader, **config):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise KeyboardInterrupt()
+            return _build_pr6_fact_view(reader, **config)
+        with patch('axiom_data.pr6_views._build_pr6_fact_view', side_effect=interrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                materialize_views(self.root, **args)
+        with patch('axiom_data.pr6_views._build_pr6_fact_view', wraps=_build_pr6_fact_view) as builder:
+            result = materialize_views(self.root, **args)
+        self.assertEqual(result['status'], 'VIEWS_BUILT', result.get('failed'))
+        self.assertEqual(builder.call_count, len(configs) - 1)
+
+    def test_batch_still_rejects_valuation_gap_before_financial_preparation(self):
+        with coverage.financial_batch(self.reader), patch.object(
+                self.reader, 'facts', wraps=self.reader.facts) as facts:
+            self.test_sparse_valuation_hole_does_not_become_complete_interval()
+            # The first valid request prepares once; the changed, invalid
+            # scope must fail without reading a replacement financial history.
+            self.assertEqual(sum(c.args == ('financial_events',) for c in facts.call_args_list), 1)
+
 
 if __name__ == '__main__':
     unittest.main()
