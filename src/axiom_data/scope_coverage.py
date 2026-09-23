@@ -4,7 +4,7 @@ from collections import Counter
 from axiom_data.artifacts import ArtifactError, _digest, _json_bytes
 from axiom_data.domains.market import _checked_security_identity_state
 from axiom_data.partition_rows import SESSION_PARTITION_DOMAINS
-from axiom_data.pr7_views import exchange_sessions
+from axiom_data.consumption import exchange_sessions
 
 
 def session_coverage(reader, domain, *, symbols, start_session, end_session, fields):
@@ -43,7 +43,7 @@ def session_coverage(reader, domain, *, symbols, start_session, end_session, fie
     present={s:0 for s in calendars}
     valid={s:{f:0 for f in fields} for s in calendars}
     counts=Counter();qualifications=Counter();nulls=Counter()
-    for row in reader._session_rows(domain,start_session,end_session):
+    for row in reader.session_rows(domain,start_session,end_session):
         symbol=row['symbol'];day=row['session']
         if symbol not in calendars or not start_session<=day<=end_session:continue
         bit=bits.get(day,0)

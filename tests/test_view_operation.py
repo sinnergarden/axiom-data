@@ -19,7 +19,7 @@ class ViewOperationTest(unittest.TestCase):
             root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
                 args=dict(run_id='required-views',snapshot_id=run['refs']['snapshot_id'],views=views)
-                with patch('axiom_data.pr7_views._build_pr7_fact_view',side_effect=ArtifactError('simulated required failure')):
+                with patch('axiom_data.event_views.build_event_fact_view_from_reader',side_effect=ArtifactError('simulated required failure')):
                     failed=materialize_views(root,**args)
                 self.assertEqual(failed['status'],'FAILED');self.assertEqual(set(failed['published_views']),{'adjusted'})
                 self.assertFalse(failed['ready_for_consumption'])
@@ -71,7 +71,7 @@ class ViewOperationTest(unittest.TestCase):
                             'axiom_data.views._build_market_replay_view',
                             'axiom_data.consumption._build_qlib_view',
                             'axiom_data.pr6_views._build_pr6_fact_view',
-                            'axiom_data.pr7_views._build_pr7_fact_view')]
+                            'axiom_data.event_views.build_event_fact_view_from_reader')]
                     resumed=materialize_views(root,run_id='five',snapshot_id=run['refs']['snapshot_id'],views=plan)
                     self.assertEqual(resumed['status'],'VIEWS_BUILT',resumed.get('failed'))
                     self.assertEqual(resumed['published_views'],result['published_views'])

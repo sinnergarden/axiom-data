@@ -7,14 +7,14 @@ from axiom_data.artifacts import (
     ArtifactError, _identity, _layout, _digest, _json_bytes,
     _load_snapshot_with_commits, _DOMAIN_DEPENDENCIES,
 )
-from axiom_data.domains import DM1_SNAPSHOT_DOMAINS, PR6_DOMAINS, PR7_DOMAINS
+from axiom_data.domains import REFERENCE_SNAPSHOT_DOMAINS, FUNDAMENTAL_DOMAINS, EVENT_DOMAINS
 from axiom_data.verification_cache import validation_paths, file_state
 
 
 def _dependencies(kind, config):
     domains = {
-        'pr6_fact': set(PR6_DOMAINS),
-        'pr7_fact': set(PR7_DOMAINS),
+        'pr6_fact': set(FUNDAMENTAL_DOMAINS),
+        'pr7_fact': set(EVENT_DOMAINS),
         'market_qlib': {'market_daily'},
         'adjusted_price': {'adjustment_factors'},
         'market_replay': {'market_daily', 'security_status', 'price_limits', 'corporate_actions'},
@@ -26,8 +26,8 @@ def _dependencies(kind, config):
         selected.add('adjustment_factors')
     # Existing D-M1 Snapshot checks are a single cross-domain contract. Keep the
     # whole group when needed, rather than dropping any of those checks.
-    if selected & (set(DM1_SNAPSHOT_DOMAINS) - {'security_master','trading_calendar','market_daily'}):
-        selected.update(DM1_SNAPSHOT_DOMAINS)
+    if selected & (set(REFERENCE_SNAPSHOT_DOMAINS) - {'security_master','trading_calendar','market_daily'}):
+        selected.update(REFERENCE_SNAPSHOT_DOMAINS)
     while True:
         expanded = selected | {dep for d in selected for dep in _DOMAIN_DEPENDENCIES[d]}
         if expanded == selected:
@@ -96,3 +96,9 @@ class ViewValidationSession:
             if any(file_state(p) != state for p,state in observed.items()):
                 self._cached = None
                 raise ArtifactError('View validation inputs changed during use')
+
+
+# Compatibility exports for historical callers.
+PR6_DOMAINS = FUNDAMENTAL_DOMAINS
+PR7_DOMAINS = EVENT_DOMAINS
+DM1_SNAPSHOT_DOMAINS = REFERENCE_SNAPSHOT_DOMAINS

@@ -1,8 +1,8 @@
 """Explicit source plans for the accepted V1 domains, independent of wall time."""
 from datetime import date, timedelta
 from axiom_data.artifacts import ArtifactError
-from axiom_data.consumption import _symbols, _session
-from axiom_data.operations import _request
+from axiom_data.consumption import validate_symbols, validate_session
+from axiom_data.operations import validate_request_spec
 from axiom_data.source_completeness import SourceCompletenessError, validate_raw_completeness
 
 
@@ -32,7 +32,7 @@ def plan_truncated_raw_split(raw):
     """
     import copy
     import json
-    from axiom_data.pr6_source import source_date
+    from axiom_data.fundamentals_source import source_date
     from axiom_data.source_completeness import completeness_policy
     manifest=raw.manifest;request=manifest['request'];params=request['params']
     endpoint=request.get('endpoint')
@@ -73,7 +73,7 @@ def plan_truncated_raw_split(raw):
               'availability_policy':('reference_observation' if endpoint=='index_weight' else
                   'next_session_publication' if endpoint=='margin_detail' else
                   'session_close' if endpoint in {'daily','daily_basic','stk_limit','adj_factor','index_daily','suspend_d','moneyflow'} else 'revision_scan')}
-        _request(spec);children.append(spec)
+        validate_request_spec(spec);children.append(spec)
     return {'schema_version':'source_scope_split.v1','parent_raw_batch_id':raw.ref.raw_batch_id,
             'status':'NEEDS_COLLECTION','ready_for_consumption':False,'requests':children}
 
@@ -86,15 +86,15 @@ def plan_bootstrap_sources(*, symbols, start_session, end_session,
     a 2014 TTM consumer needs earlier observations. Plans describe acquisition,
     not proof of source completeness, PIT safety or baseline admission.
     """
-    selected=_symbols(symbols);_symbols(benchmarks);_symbols(universe_ids)
-    start=_session(start_session,'start_session');end=_session(end_session,'end_session')
-    financial_start=_session(financial_observation_start,'financial_observation_start')
+    selected=validate_symbols(symbols);validate_symbols(benchmarks);validate_symbols(universe_ids)
+    start=validate_session(start_session,'start_session');end=validate_session(end_session,'end_session')
+    financial_start=validate_session(financial_observation_start,'financial_observation_start')
     if start>end or financial_start>start:raise ArtifactError('invalid bootstrap bounds/lookback')
     result={}
     def add(family,domain,endpoint,params,policy,first=start,last=end):
         spec=dict(collector=family,domain=domain,endpoint=endpoint,params=params,
                   economic_scope={'start':first.replace('-',''),'end':last.replace('-','')},availability_policy=policy)
-        _request(spec)
+        validate_request_spec(spec)
         result.setdefault(domain,[]).append(spec)
     bounds={'start_date':start.replace('-',''),'end_date':end.replace('-','')}
     for symbol in selected:
@@ -154,7 +154,7 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
     import json
     from pathlib import Path
     from axiom_data.artifacts import _identity,_digest,_json_bytes,load_raw_batch,_layout,_ensure_directory
-    from axiom_data.operations import collect_requests,_save,_supersede_collection_request
+    from axiom_data.operations import collect_requests,save_progress,_supersede_collection_request
     _identity('run_id',run_id)
     if not domains or len(set(domains))!=len(domains) or not set(domains)<=set(plan['requests_by_domain']):
         raise ArtifactError('explicit unique planned domains required')
@@ -162,7 +162,7 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
     for domain in domains:
         for spec in plan['requests_by_domain'][domain]:
             if spec['domain']!=domain:raise ArtifactError('bootstrap domain/request mismatch')
-            _request(spec)
+            validate_request_spec(spec)
     if client is None:
         from axiom_data.source_client import PacedSourceClient
         from axiom_data.tushare import TushareCollector
@@ -176,17 +176,17 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
         plan_path=directory/'source_plan.json'
         if plan_path.exists():
             if json.loads(plan_path.read_bytes())!=frozen:raise ArtifactError('source run plan changed')
-        else:_save(plan_path,frozen)
+        else:save_progress(plan_path,frozen)
         state={'run_id':run_id,'stage':'SOURCE_COLLECTION','status':'RUNNING','plan_digest':digest,
                'ready_for_consumption':False,'domains':{},'validated_requests':0,'validated_rows':0}
-        _save(directory/'progress.json',state)
+        save_progress(directory/'progress.json',state)
 
         def collect_bounded(batch, specs, local):
             """Revalidate checkpoints and replace only rejected cap scopes."""
             result=collect_requests(root,run_id=batch,requests=specs,client=client)
             local['batches'].append(batch)
             for spec in specs:
-                key=_request(spec)
+                key=validate_request_spec(spec)
                 record=result['request_states'][key]
                 identity=record['raw_batch_id']
                 if record['state']=='VALID_COMPLETE':
@@ -202,7 +202,7 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
                         'parent_batch':batch,'split':split}))[7:31]
                     _supersede_collection_request(root,run_id=batch,key=key,split=split,child_run_id=child_batch)
                     local['splits'].append(dict(split,run_id=child_batch))
-                    _save(directory/'progress.json',state)
+                    save_progress(directory/'progress.json',state)
                     if not collect_bounded(child_batch,split['requests'],local):return False
                 else:
                     failure=record['failure']
@@ -222,9 +222,9 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
                 batch=run_id+'-'+domain+'-'+str(offset)
                 if not collect_bounded(batch,requests[offset:offset+50],local):
                     local['status']='FAILED'
-                    _save(directory/'progress.json',state)
+                    save_progress(directory/'progress.json',state)
                     return state
-                _save(directory/'progress.json',state)
+                save_progress(directory/'progress.json',state)
             local['status']='COMPLETE'
-        state['status']='COMPLETE';_save(directory/'progress.json',state)
+        state['status']='COMPLETE';save_progress(directory/'progress.json',state)
         return state

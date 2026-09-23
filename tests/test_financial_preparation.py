@@ -202,7 +202,7 @@ class FinancialPreparationTest(unittest.TestCase):
         for i,ref in enumerate(expected):
             self.assertEqual(result['published_views'][str(i)]['view_id'], ref.view_id)
             self.assertEqual(result['published_views'][str(i)]['manifest_digest'], ref.manifest_digest)
-        with patch('axiom_data.pr6_views._build_pr6_fact_view') as builder:
+        with patch('axiom_data.financial_views.build_financial_fact_view_from_reader') as builder:
             resumed = materialize_views(self.root, **args)
         self.assertEqual(resumed['status'], 'VIEWS_BUILT', resumed.get('failed'))
         self.assertEqual(builder.call_count, 0)
@@ -212,14 +212,14 @@ class FinancialPreparationTest(unittest.TestCase):
                 path.chmod(0o755)
         target.chmod(0o755)
         shutil.rmtree(target)
-        with patch('axiom_data.pr6_views._build_pr6_fact_view', wraps=_build_pr6_fact_view) as builder:
+        with patch('axiom_data.financial_views.build_financial_fact_view_from_reader', wraps=_build_pr6_fact_view) as builder:
             rebuilt = materialize_views(self.root, **args)
         self.assertEqual(rebuilt['status'], 'VIEWS_BUILT', rebuilt.get('failed'))
         self.assertEqual(builder.call_count, 1)
         payload = target / 'rows.json'
         payload.chmod(0o600)
         payload.write_bytes(b'corrupt')
-        with patch('axiom_data.pr6_views._build_pr6_fact_view', wraps=_build_pr6_fact_view) as builder:
+        with patch('axiom_data.financial_views.build_financial_fact_view_from_reader', wraps=_build_pr6_fact_view) as builder:
             corrupt = materialize_views(self.root, **args)
         self.assertEqual(corrupt['status'], 'FAILED')
         self.assertEqual(builder.call_count, 1)
@@ -241,10 +241,10 @@ class FinancialPreparationTest(unittest.TestCase):
             if calls == 2:
                 raise KeyboardInterrupt()
             return _build_pr6_fact_view(reader, **config)
-        with patch('axiom_data.pr6_views._build_pr6_fact_view', side_effect=interrupt):
+        with patch('axiom_data.financial_views.build_financial_fact_view_from_reader', side_effect=interrupt):
             with self.assertRaises(KeyboardInterrupt):
                 materialize_views(self.root, **args)
-        with patch('axiom_data.pr6_views._build_pr6_fact_view', wraps=_build_pr6_fact_view) as builder:
+        with patch('axiom_data.financial_views.build_financial_fact_view_from_reader', wraps=_build_pr6_fact_view) as builder:
             result = materialize_views(self.root, **args)
         self.assertEqual(result['status'], 'VIEWS_BUILT', result.get('failed'))
         self.assertEqual(builder.call_count, len(configs) - 1)

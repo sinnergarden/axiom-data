@@ -43,7 +43,7 @@ class RequestCoverageIndexTest(unittest.TestCase):
                         before=Counter((call.args[1],call.args[2]) for call in loaded.call_args_list)
                         self.assertTrue(all(n==1 for n in before.values()))
                         counts.append(sum(n for (d,_),n in before.items() if d==domain))
-                        with patch.object(pr7_views,'load_raw_batch',wraps=load_raw_batch) as raw_loaded:
+                        with patch('axiom_data.consumption.load_raw_batch',wraps=load_raw_batch) as raw_loaded:
                             pr7_views.request_coverage(reader,domain,'688981.SH','2025-06-13')
                             first=raw_loaded.call_count
                             for _ in range(10):pr7_views.request_coverage(reader,domain,'688981.SH','2025-06-13')
@@ -61,7 +61,7 @@ class RequestCoverageIndexTest(unittest.TestCase):
             try:
                 reader=SnapshotReader(root,run['refs']['snapshot_id'])
                 domain='margin_daily'
-                with patch.object(pr7_views,'load_raw_batch',wraps=load_raw_batch) as loaded:
+                with patch('axiom_data.consumption.load_raw_batch',wraps=load_raw_batch) as loaded:
                     pr7_views.request_coverage(reader,domain,'688981.SH','2025-06-13')
                     first=loaded.call_count;self.assertGreater(first,0)
                     for _ in range(100):

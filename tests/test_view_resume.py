@@ -47,7 +47,7 @@ class ViewResumeTest(unittest.TestCase):
         # Recreate the legacy inline checkpoint without changing the frozen plan.
         state.update(schema_version='required_views_run.v1',plan=json.loads(plan_path.read_bytes()))
         self.path.write_text(json.dumps(state));plan_path.unlink()
-        with patch('axiom_data.view_operation._save',wraps=_save) as saves, patch(
+        with patch('axiom_data.view_operation.save_progress',wraps=_save) as saves, patch(
                 'axiom_data.views._build_market_replay_view',wraps=_build_market_replay_view) as builder:
             result=self.run_views()
         self.assertEqual(result['status'],'VIEWS_BUILT')
@@ -55,7 +55,7 @@ class ViewResumeTest(unittest.TestCase):
         self.assertEqual(builder.call_args.kwargs['end_session'],'2025-06-12')
         self.assertEqual(sum(c.args[0]==plan_path for c in saves.call_args_list),1)
         self.assertTrue(all('plan' not in c.args[1] for c in saves.call_args_list if c.args[0]==self.path))
-        with patch('axiom_data.view_operation._save',wraps=_save) as saves, patch(
+        with patch('axiom_data.view_operation.save_progress',wraps=_save) as saves, patch(
                 'axiom_data.views._build_market_replay_view') as builder:
             self.assertEqual(self.run_views()['status'],'VIEWS_BUILT')
         self.assertEqual(builder.call_count,0)

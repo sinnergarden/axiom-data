@@ -17,10 +17,10 @@ ENDPOINTS = ('dividend', 'forecast', 'stk_holdernumber', 'top10_holders',
 
 def plan_historical_sparse(*, symbols, start_session, end_session):
     from axiom_data.bootstrap_sources import plan_bootstrap_sources
-    from axiom_data.consumption import _symbols, _session
-    selected = _symbols(symbols)
-    start = _session(start_session, 'start_session')
-    end = _session(end_session, 'end_session')
+    from axiom_data.consumption import validate_symbols, validate_session
+    selected = validate_symbols(symbols)
+    start = validate_session(start_session, 'start_session')
+    end = validate_session(end_session, 'end_session')
     base = plan_bootstrap_sources(symbols=selected, start_session=start, end_session=end,
         financial_observation_start=start, benchmarks=['000300.SH'], universe_ids=['000906.SH'])
     requests = {domain: specs for domain, specs in base['requests_by_domain'].items()
@@ -48,7 +48,7 @@ def plan_historical_sparse(*, symbols, start_session, end_session):
 
 def _check_children(parent, children):
     """A date split is an exact partition with invariant non-date selectors."""
-    from axiom_data.pr6_source import source_date
+    from axiom_data.fundamentals_source import source_date
     params = parent['params']
     if not {'start_date', 'end_date'} <= set(params) or not children:
         raise ArtifactError('sparse split requires bounded date scope')

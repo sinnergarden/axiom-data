@@ -111,12 +111,12 @@ class LegacyCheckpointRecoveryTest(unittest.TestCase):
     def test_upgraded_needs_split_is_durable_before_recovery_or_source_call(self):
         from axiom_data import operations
         plan,key,parent,batch = seed_legacy(self.root)
-        client = ChildClient(); save = operations._save
+        client = ChildClient(); save = operations.save_progress
         def stop_after_upgrade(path, value):
             save(path,value)
             if path.parent.name=='collection-checkpoints' and value.get('state')=='NEEDS_SPLIT':
                 raise KeyboardInterrupt('fixture crash after durable upgrade')
-        with patch.object(operations,'_save',side_effect=stop_after_upgrade):
+        with patch.object(operations,'save_progress',side_effect=stop_after_upgrade):
             with self.assertRaises(KeyboardInterrupt): self.run_recovery(plan,client)
         self.assertEqual(client.calls,[])
         path = self.root/'operations'/batch/'collection-checkpoints'/(key[7:]+'.json')
@@ -194,12 +194,12 @@ class LegacyCheckpointRecoveryTest(unittest.TestCase):
                 count = 100 if full and params['ts_code']!='000004.SZ' else 1
                 period = '20250331' if params['start_date']=='20250101' else '20250630'
                 return [dict(ts_code=params['ts_code'],ann_date='20250701',end_date=period,current_ratio=2)]*count
-        client=Client(); save=operations._save; fourth=_request(requests[-1])
+        client=Client(); save=operations.save_progress; fourth=_request(requests[-1])
         def crash(path,value):
             save(path,value)
             if value.get('request_id')==fourth and value.get('state')=='VALID_COMPLETE':
                 raise KeyboardInterrupt('crash after fourth request checkpoint')
-        with patch.object(operations,'_save',side_effect=crash):
+        with patch.object(operations,'save_progress',side_effect=crash):
             with self.assertRaises(KeyboardInterrupt): self.run_recovery(plan,client)
         final=self.run_recovery(plan,client)
         self.assertEqual(final['status'],'COMPLETE')

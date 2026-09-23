@@ -24,14 +24,14 @@ class CollectionCheckpointIOTest(unittest.TestCase):
 
     def test_checkpoint_bytes_grow_linearly(self):
         totals = []
-        save = operations._save
+        save = operations.save_progress
         for count in (8, 16):
             writes = []
             def measured(path, value):
                 writes.append((path.name, len(_json_bytes(value))))
                 return save(path, value)
             plan = [request(f'{600000+i}.SH') for i in range(count)]
-            with patch.object(operations, '_save', side_effect=measured):
+            with patch.object(operations, 'save_progress', side_effect=measured):
                 result = operations.collect_requests(self.root, run_id=f'scale-{count}', requests=plan, client=Client())
             self.assertEqual(result['status'], 'COMPLETE')
             self.assertEqual(sum(name == 'collection.json' for name, _ in writes), 2)
@@ -43,12 +43,12 @@ class CollectionCheckpointIOTest(unittest.TestCase):
     def test_crash_after_checkpoint_before_summary_keeps_completed_request(self):
         plan = [request('600036.SH'), request('000001.SZ')]
         client = Client(); client.fail = False
-        save = operations._save
+        save = operations.save_progress
         def interrupted(path, value):
             save(path, value)
             if path.parent.name == 'collection-checkpoints':
                 raise KeyboardInterrupt('simulated process termination after durable checkpoint')
-        with patch.object(operations, '_save', side_effect=interrupted):
+        with patch.object(operations, 'save_progress', side_effect=interrupted):
             with self.assertRaises(KeyboardInterrupt):
                 operations.collect_requests(self.root, run_id='crash', requests=plan, client=client)
         old = json.loads((self.root/'operations/crash/collection.json').read_bytes())

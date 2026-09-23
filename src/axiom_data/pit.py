@@ -353,3 +353,26 @@ def _derived_row(symbol: str, period: str, report_type: str, field: str,
               'pit_qualification': 'best_effort' if any(r.get('pit_qualification')=='best_effort' for r in components) else 'observed'}
     output['derived_id'] = fingerprint(output)
     return output
+
+
+def select_event_revisions(rows, *, policy, knowledge_cutoff):
+    """Break same-retrieval ties by explicit publication order within PR7 reports.
+
+    Every candidate is first selected by the shared PIT visibility rule. Thus a
+    later publication cannot affect an earlier cutoff. Distinct content with
+    identical retrieval and publication times remains an error.
+    """
+    from axiom_data.artifacts import ArtifactError
+    groups=defaultdict(list)
+    for row in rows:
+        selected=select_revisions([row],policy=policy,knowledge_cutoff=knowledge_cutoff)
+        for candidate in selected:
+            o=candidate['observation_ref']
+            order=(instant(candidate['usable_from']),instant(o['observed_at']),instant(o['vendor_available_at']))
+            groups[candidate['logical_event_key']].append((order,candidate))
+    result=[]
+    for key,candidates in sorted(groups.items()):
+        order=max(k for k,_ in candidates);winners=[r for k,r in candidates if k==order]
+        if len({r['revision_id'] for r in winners})!=1:raise ArtifactError('ambiguous simultaneous PR7 revisions: '+key)
+        result.append(winners[0])
+    return tuple(result)

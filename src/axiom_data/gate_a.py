@@ -10,13 +10,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from axiom_data.artifacts import ArtifactError, _digest, _json_bytes, _validated_digest
-from axiom_data.consumption import MARKET_VIEW_FIELDS, _session, _symbols
-from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
+from axiom_data.consumption import MARKET_VIEW_FIELDS, validate_session, validate_symbols
+from axiom_data.domains import EVENT_SNAPSHOT_DOMAINS
 from axiom_data.domains.market import (
     _checked_security_identity_state, validate_security_master_rows, validate_trading_calendar_rows,
 )
 from axiom_data.pit import instant
-from axiom_data.pr7_views import exchange_sessions
+from axiom_data.consumption import exchange_sessions
 
 
 def _contract():
@@ -82,9 +82,9 @@ def _scope(scope):
         raise ArtifactError('complete explicit source scope required')
     scope = dict(scope)
     for key in ('symbols', 'benchmarks', 'universe_ids'):
-        scope[key] = list(_symbols(scope[key]))
+        scope[key] = list(validate_symbols(scope[key]))
     for key in ('start_session', 'end_session', 'financial_observation_start'):
-        scope[key] = _session(scope[key], key)
+        scope[key] = validate_session(scope[key], key)
     if not scope['financial_observation_start'] <= scope['start_session'] <= scope['end_session']:
         raise ArtifactError('source scope or financial lookback reversed')
     return scope
@@ -122,8 +122,8 @@ def _intervals_cover(intervals, first, last):
     cursor = date.fromisoformat(first)
     stop = date.fromisoformat(last)
     for lower, upper in sorted(intervals):
-        lower = date.fromisoformat(_session(lower, 'request start'))
-        upper = date.fromisoformat(_session(upper, 'request end'))
+        lower = date.fromisoformat(validate_session(lower, 'request start'))
+        upper = date.fromisoformat(validate_session(upper, 'request end'))
         if lower > upper or lower > cursor:
             return False
         if upper >= cursor:
@@ -311,8 +311,8 @@ def _reference_qualification(scope):
 
 def _requirement_bindings(contract, registry):
     """Bind the registry to the actual public exporters, including derived owners."""
-    from axiom_data.pr6_views import FIELD_MAP, WIDE_FIELDS
-    from axiom_data.pr7_views import LEAF_DOMAINS
+    from axiom_data.domains.fundamentals import FIELD_MAP, WIDE_FIELDS
+    from axiom_data.domains.events import LEAF_DOMAINS
     expected = {leaf: (spec['domain'], spec['field']) for leaf, spec in registry['pr5_public_evidence'].items()}
     for leaf in WIDE_FIELDS:
         domain = ('financial_stable_derived' if leaf.startswith('financial.') else
@@ -457,7 +457,7 @@ def validate_gate_a(plan):
                 or len(leaves) != 56 or len(registry['feature_dependencies']) != 469
                 or any(not set(f['leaves']) <= leaves for f in registry['feature_dependencies'])):
             raise ArtifactError('frozen 56/469 registry binding mismatch')
-        if {s['domain'] for s in contract['sources'].values()} != set(PR7_SNAPSHOT_DOMAINS):
+        if {s['domain'] for s in contract['sources'].values()} != set(EVENT_SNAPSHOT_DOMAINS):
             raise ArtifactError('source registry lacks an accepted canonical domain')
         for leaf, spec in contract['requirements'].items():
             if not spec['sources'] or not set(spec['sources']) <= set(contract['sources']):
@@ -581,10 +581,10 @@ def plan_historical_views(*, target, security_rows, calendar_rows, universe_ids,
     """Per-security last eligible anchor; explicit geometry, never fill source gaps."""
     if not isinstance(target, dict) or set(target) != {'symbols', 'start_session', 'end_session'}:
         raise ArtifactError('complete historical target required')
-    target = dict(target, symbols=list(_symbols(target['symbols'])),
-                  start_session=_session(target['start_session'], 'start_session'),
-                  end_session=_session(target['end_session'], 'end_session'))
-    groups = list(_symbols(universe_ids))
+    target = dict(target, symbols=list(validate_symbols(target['symbols'])),
+                  start_session=validate_session(target['start_session'], 'start_session'),
+                  end_session=validate_session(target['end_session'], 'end_session'))
+    groups = list(validate_symbols(universe_ids))
     cutoff = instant(knowledge_cutoff).isoformat()
     security_rows = list(security_rows)
     calendar_rows = list(calendar_rows)
@@ -737,3 +737,7 @@ def validate_terminal_evidence(data_root, evidence, *, plan):
         raise ArtifactError('Notebook parameter/execution binding has not been validated')
     return {'status': 'EVIDENCE_VALIDATED', 'snapshot_id': snapshot_id,
             'gate_b_status': 'REVIEW_REQUIRED', 'ready_for_consumption': False}
+
+
+# Compatibility exports for historical callers.
+PR7_SNAPSHOT_DOMAINS = EVENT_SNAPSHOT_DOMAINS

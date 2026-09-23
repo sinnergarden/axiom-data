@@ -8,9 +8,10 @@ from axiom_data.artifacts import (ArtifactError, _digest, _json_bytes, _identity
     load_raw_batch, load_snapshot)
 from axiom_data.publication import writer
 from axiom_data.verification_cache import candidate_verification
+from axiom_data.source_completeness import requalify_sources
 
 
-def _save(path, value):
+def save_progress(path, value):
     temporary = path.with_suffix('.pending')
     if temporary.exists():
         temporary.unlink()
@@ -83,7 +84,7 @@ def inspect_snapshot(data_root, snapshot_id):
             'note': 'Extents are not completeness; structural validation is not full-scope certification.'}
 
 
-def _request(spec):
+def validate_request_spec(spec):
     """Only source parameters can enter durable metadata; credentials never can."""
     allowed = {'collector', 'domain', 'endpoint', 'params', 'economic_scope', 'availability_policy'}
     if not isinstance(spec, dict) or set(spec) != allowed:
@@ -97,7 +98,7 @@ def _request(spec):
         raise ArtifactError('source parameters must be bounded strings')
     for k, v in params.items():
         if k in {'start_date', 'end_date', 'trade_date', 'period'}:
-            from axiom_data.pr6_source import source_date
+            from axiom_data.fundamentals_source import source_date
             source_date(v)
         elif k in {'ts_code', 'index_code'}:
             from axiom_data.domains.market import _symbol
@@ -109,16 +110,16 @@ def _request(spec):
         elif k == 'report_type' and (not v.isdigit() or len(v) > 2):
             raise ArtifactError('invalid report type')
     from axiom_data.tushare import load_tushare_source_profile
-    from axiom_data.dm1_source import load_dm1_source_profile
-    from axiom_data.pr6_source import load_pr6_source_profile, validate_payload as pr6_validate
-    from axiom_data.pr7_source import load_pr7_source_profile, validate_payload as pr7_validate
+    from axiom_data.reference_source import load_reference_source_profile
+    from axiom_data.fundamentals_source import load_fundamentals_source_profile, validate_payload as pr6_validate
+    from axiom_data.event_source import load_event_source_profile, validate_payload as pr7_validate
     from axiom_data.sw_source import load_profile as sw_profile, validate_request as sw_validate
-    profiles = {'market': load_tushare_source_profile(), 'dm1': load_dm1_source_profile(),
-                'pr6': load_pr6_source_profile(), 'pr6_bulk': load_pr6_source_profile('tushare_pr6.v2'), 'pr7': load_pr7_source_profile(), 'sw_pilot': sw_profile()}
+    profiles = {'market': load_tushare_source_profile(), 'dm1': load_reference_source_profile(),
+                'pr6': load_fundamentals_source_profile(), 'pr6_bulk': load_fundamentals_source_profile('tushare_pr6.v2'), 'pr7': load_event_source_profile(), 'sw_pilot': sw_profile()}
     profiles['industry_qualification'] = sw_profile('tushare_industry_qualification.v1')
-    profiles['pr7_holder'] = load_pr7_source_profile('tushare_pr7_holder.v2')
-    profiles['pr7_holder_v3'] = load_pr7_source_profile('tushare_pr7_holder.v3')
-    profiles['pr6_indicator'] = load_pr6_source_profile('tushare_fina_indicator.v1')
+    profiles['pr7_holder'] = load_event_source_profile('tushare_pr7_holder.v2')
+    profiles['pr7_holder_v3'] = load_event_source_profile('tushare_pr7_holder.v3')
+    profiles['pr6_indicator'] = load_fundamentals_source_profile('tushare_fina_indicator.v1')
     family = spec['collector']
     if family not in profiles or spec['endpoint'] not in profiles[family]['endpoints']:
         raise ArtifactError('unsupported source operation')
@@ -146,7 +147,7 @@ def _request(spec):
     economic = spec['economic_scope']
     if not isinstance(economic, dict) or set(economic) != {'start', 'end'}:
         raise ArtifactError('economic scope must be explicit')
-    from axiom_data.pr6_source import source_date
+    from axiom_data.fundamentals_source import source_date
     start, end = source_date(economic['start']), source_date(economic['end'])
     if start > end:
         raise ArtifactError('reversed economic scope')
@@ -163,7 +164,7 @@ def plan_daily(data_root, snapshot_id, *, source_requests):
     from axiom_data.consumption import SnapshotReader
     if not isinstance(source_requests, list):
         raise ArtifactError('daily source requests must be an explicit list')
-    keys = [_request(spec) for spec in source_requests]
+    keys = [validate_request_spec(spec) for spec in source_requests]
     if len(set(keys)) != len(keys):
         raise ArtifactError('duplicate daily source request')
     policies = {'margin_daily': 'next_session_publication',
@@ -210,14 +211,14 @@ def _source_binding(spec):
         digest = tushare_source_profile_digest(profile)
         ref = profile['endpoints'][endpoint]['source_profile_ref']
     elif family == 'dm1':
-        from axiom_data.dm1_source import load_dm1_source_profile, dm1_source_profile_digest
-        profile = load_dm1_source_profile()
-        digest = dm1_source_profile_digest(profile)
+        from axiom_data.reference_source import load_reference_source_profile, reference_source_profile_digest
+        profile = load_reference_source_profile()
+        digest = reference_source_profile_digest(profile)
         ref = profile['endpoints'][endpoint]['source_profile_ref']
     elif family in {'pr6', 'pr6_bulk', 'pr6_indicator'}:
-        from axiom_data.pr6_source import load_pr6_source_profile, profile_digest
+        from axiom_data.fundamentals_source import load_fundamentals_source_profile, profile_digest
         version = {'pr6_bulk':'tushare_pr6.v2','pr6_indicator':'tushare_fina_indicator.v1'}.get(family,'tushare_pr6.v1')
-        profile = load_pr6_source_profile(version)
+        profile = load_fundamentals_source_profile(version)
         digest = profile_digest(version)
         ref = 'tushare.pr6.' + endpoint
     elif family in {'sw_pilot','industry_qualification'}:
@@ -227,9 +228,9 @@ def _source_binding(spec):
         digest = profile_digest(version)
         ref = 'tushare.sw-pilot.' + endpoint
     else:
-        from axiom_data.pr7_source import load_pr7_source_profile, profile_digest
+        from axiom_data.event_source import load_event_source_profile, profile_digest
         version={'pr7_holder':'tushare_pr7_holder.v2','pr7_holder_v3':'tushare_pr7_holder.v3'}.get(family,'tushare_pr7.v1')
-        profile = load_pr7_source_profile(version)
+        profile = load_event_source_profile(version)
         digest = profile_digest(version)
         ref = 'tushare.pr7.' + endpoint
     return {'source_profile_ref': ref, 'source_profile_version': profile['profile_version'],
@@ -310,16 +311,16 @@ def _supersede_collection_request(root, *, run_id, key, split, child_run_id):
         record = state['request_states'][key]
         if record['state'] not in {'NEEDS_SPLIT', 'SUPERSEDED_BY_SPLIT'} or record['split'] != split:
             raise ArtifactError('collection split differs from revalidated parent')
-        child_refs = {'run_id': child_run_id, 'request_ids': [_request(s) for s in split['requests']]}
+        child_refs = {'run_id': child_run_id, 'request_ids': [validate_request_spec(s) for s in split['requests']]}
         if record.get('child_refs', child_refs) != child_refs:
             raise ArtifactError('collection split child graph changed')
         record = dict(record, state='SUPERSEDED_BY_SPLIT', failure=None, child_refs=child_refs)
         checkpoint = directory/'collection-checkpoints'/(key.removeprefix('sha256:')+'.json')
-        _save(_safe_path(root, checkpoint), _collection_checkpoint(state['plan_digest'], key, record))
+        save_progress(_safe_path(root, checkpoint), _collection_checkpoint(state['plan_digest'], key, record))
         _record_collection_state(state, key, record)
         # The parent page is superseded, never an admitted canonical input.
         state['status'] = 'RECOVERY_REQUIRED'
-        _save(path, state)
+        save_progress(path, state)
 
 
 def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_batch_ids=None):
@@ -328,15 +329,15 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
     This collection stage alone cannot accept a baseline or move a pointer.
     """
     from axiom_data.tushare import TushareCollector
-    from axiom_data.dm1_source import TushareDm1Collector
-    from axiom_data.pr6_source import Pr6Collector
-    from axiom_data.pr7_source import Pr7Collector
+    from axiom_data.reference_source import TushareReferenceCollector
+    from axiom_data.fundamentals_source import FundamentalsCollector
+    from axiom_data.event_source import EventCollector
     from axiom_data.sw_source import SwQualificationCollector, IndustryQualificationCollector
     _identity('run_id', run_id)
     if not isinstance(requests, list) or not requests:
         raise ArtifactError('explicit nonempty source request plan required')
     requests=json.loads(_json_bytes(requests))
-    keys = [_request(spec) for spec in requests]
+    keys = [validate_request_spec(spec) for spec in requests]
     if len(set(keys)) != len(keys):
         raise ArtifactError('duplicate requests in plan')
     bound={}
@@ -414,7 +415,7 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
                         records[key]['raw_batch_id'] not in (None, bound[key])):
                     state.update(status='FAILED',failed={key:{'error_type':'ArtifactError'}})
                     state['completed'].pop(key, None)
-                    _save(path,state)
+                    save_progress(path,state)
                     raise ArtifactError('completed Raw ref differs from explicitly bound observation')
                 records[key]['raw_batch_id'] = bound[key]
         state.update(status='RUNNING',stage='COLLECTION',completed={},failed={},request_states={})
@@ -437,16 +438,16 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
             upgraded = _collection_checkpoint(plan_digest, key, record)
             if identity is not None and saved.get(key) != upgraded:
                 checkpoint = _safe_path(layout.root, checkpoints/(key.removeprefix('sha256:')+'.json'))
-                _save(checkpoint, upgraded)
-        _save(path, state)
+                save_progress(checkpoint, upgraded)
+        save_progress(path, state)
         collectors = {'market': TushareCollector(layout.root, client),
-                      'dm1': TushareDm1Collector(layout.root, client),
-                      'pr6': Pr6Collector(layout.root, client), 'pr6_bulk': Pr6Collector(layout.root, client), 'pr7': Pr7Collector(layout.root, client),
+                      'dm1': TushareReferenceCollector(layout.root, client),
+                      'pr6': FundamentalsCollector(layout.root, client), 'pr6_bulk': FundamentalsCollector(layout.root, client), 'pr7': EventCollector(layout.root, client),
                       'sw_pilot': SwQualificationCollector(layout.root, client)}
         collectors['industry_qualification'] = IndustryQualificationCollector(layout.root, client)
-        collectors['pr7_holder'] = Pr7Collector(layout.root, client)
-        collectors['pr7_holder_v3'] = Pr7Collector(layout.root, client)
-        collectors['pr6_indicator'] = Pr6Collector(layout.root, client)
+        collectors['pr7_holder'] = EventCollector(layout.root, client)
+        collectors['pr7_holder_v3'] = EventCollector(layout.root, client)
+        collectors['pr6_indicator'] = FundamentalsCollector(layout.root, client)
         consecutive_failures = 0
         for key, spec in zip(keys, requests):
             record = state['request_states'][key]
@@ -466,7 +467,7 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
             _record_collection_state(state, key, record)
             state['updated_at'] = datetime.now(timezone.utc).isoformat()
             checkpoint = _safe_path(layout.root, checkpoints/(key.removeprefix('sha256:')+'.json'))
-            _save(checkpoint, _collection_checkpoint(plan_digest, key, record))
+            save_progress(checkpoint, _collection_checkpoint(plan_digest, key, record))
             # A supported split is a planned recovery, not a transport failure.
             consecutive_failures = (0 if record['state'] in {'VALID_COMPLETE','NEEDS_SPLIT'}
                                     else consecutive_failures + 1)
@@ -474,7 +475,7 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
                 break
         state['pending_count'] = sum(r['state'] == 'PENDING' for r in state['request_states'].values())
         state['status'] = 'COMPLETE' if len(state['completed']) == len(requests) else 'FAILED'
-        _save(path, state)
+        save_progress(path, state)
         return state
 
 
@@ -482,10 +483,10 @@ def compare_pr7_projection(data_root, snapshot_id, view_id, *, symbols, fields, 
     """Public acceptance probe using Reader PIT facts and Qlib's public row reader."""
     import math
     from axiom_data.consumption import SnapshotReader, QlibViewReader
-    from axiom_data.pr7_views import _load_pr7_fact_view, LEAF_DOMAINS
+    from axiom_data.event_views import load_event_fact_view_with_reader, LEAF_DOMAINS
     from axiom_data.pit import instant
     reader = SnapshotReader(data_root, snapshot_id)
-    view = _load_pr7_fact_view(data_root, view_id, checked_reader=reader)
+    view = load_event_fact_view_with_reader(data_root, view_id, checked_reader=reader)
     if view.manifest['snapshot_ref']['snapshot_id'] != snapshot_id:
         raise ArtifactError('View/Snapshot mismatch')
     scope = view.manifest['scope']
@@ -520,8 +521,8 @@ def compare_pr7_projection(data_root, snapshot_id, view_id, *, symbols, fields, 
 
 def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
     from axiom_data.contracts import require_writable_contract
-    from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
-    if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(PR7_SNAPSHOT_DOMAINS):
+    from axiom_data.domains import EVENT_SNAPSHOT_DOMAINS
+    if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(EVENT_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
     allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'security_session_scope', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition','top10_qualification','margin_qualification','corporate_action_observations','capital_qualification','limit_qualification','forecast_source_types','corporate_action_reobservation'}
     for domain, spec in domain_inputs.items():
@@ -530,7 +531,7 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
         if not isinstance(spec['config'], dict) or set(spec['config'])-allowed_config:
             raise ArtifactError('unsupported public builder config')
         config = spec['config']
-        from axiom_data.consumption import _symbols, _session
+        from axiom_data.consumption import validate_symbols, validate_session
         from axiom_data.contracts import load_contract
         if load_contract(spec['contract_version'])['domain'] != domain:
             raise ArtifactError('public domain/contract mismatch')
@@ -539,14 +540,14 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
         except ValueError as exc:
             raise ArtifactError(str(exc)) from exc
         if 'symbols' in config:
-            _symbols(config['symbols'])
+            validate_symbols(config['symbols'])
         for key in ('start_session', 'end_session'):
-            if key in config and _session(config[key], key) != config[key]:
+            if key in config and validate_session(config[key], key) != config[key]:
                 raise ArtifactError('public scope requires canonical ISO sessions')
         if 'start_session' in config and 'end_session' in config and config['start_session'] > config['end_session']:
             raise ArtifactError('reversed public scope')
         if 'security_session_scope' in config:
-            from axiom_data.dm1_source import _SECURITY_SESSION_SCOPE_DOMAINS
+            from axiom_data.reference_source import _SECURITY_SESSION_SCOPE_DOMAINS
             if (domain not in _SECURITY_SESSION_SCOPE_DOMAINS or config['security_session_scope'] != 'exchange_security.v1'
                     or not {'symbols','start_session','end_session'} <= set(config)):
                 raise ArtifactError('unsupported or incomplete public security session scope')
@@ -575,7 +576,7 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
         if 'market_source_partitioning' in spec['config'] and (domain!='market_daily' or spec['config']['market_source_partitioning']!='security.v1'):
             raise ArtifactError('unsupported market source partitioning')
         if 'dm1_source_partitioning' in spec['config']:
-            from axiom_data.dm1_source import _EXPECTED_ENDPOINTS
+            from axiom_data.reference_source import _EXPECTED_ENDPOINTS
             if domain not in _EXPECTED_ENDPOINTS or spec['config']['dm1_source_partitioning']!='security.v1':
                 raise ArtifactError('unsupported D-M1 source partitioning')
         from axiom_data.build import BuildRequest
@@ -635,20 +636,20 @@ def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, cli
         state={'schema_version':'daily_run.v1','run_id':run_id,'plan':frozen,
             'plan_digest':_digest(_json_bytes(frozen)),'status':'RUNNING','stage':'COLLECTION',
             'ready_for_consumption':False}
-        _save(path,state)
+        save_progress(path,state)
         try:
             collected=collect_requests(layout.root,run_id=run_id,requests=source_requests,client=client,
                                        observed_raw_batch_ids=observed_raw_batch_ids)
             state['collected_raw_batch_ids']=dict(collected['completed'])
             if collected['status']!='COMPLETE':
                 state.update(status='FAILED',failed=collected['failed'])
-                _save(path,state);return state
+                save_progress(path,state);return state
             inputs=json.loads(_json_bytes(frozen['domain_inputs']))
             for request in planned['source_requests']:
                 raw_id=collected['completed'][request['request_id']]
                 ids=inputs[request['domain']]['raw_batch_ids']
                 if raw_id not in ids:ids.append(raw_id)
-            state.update(stage='CANONICAL_BUILD',resolved_domain_inputs=inputs);_save(path,state)
+            state.update(stage='CANONICAL_BUILD',resolved_domain_inputs=inputs);save_progress(path,state)
             result=assemble_candidate(layout.root,run_id=run_id,domain_inputs=inputs,
                                       parent_snapshot_id=concrete)
             state.update(status=result['status'],stage=result['stage'],failed=result['failed'])
@@ -659,44 +660,13 @@ def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, cli
                 if not changed:
                     if result['snapshot_id']!=concrete:raise ArtifactError('no-change Snapshot identity mismatch')
                     state['status']='NO_CHANGE'
-            _save(path,state);return state
+            save_progress(path,state);return state
         except Exception as exc:
             state.update(status='FAILED',error_type=type(exc).__name__)
             state.pop('snapshot_id',None);state.pop('domain_commit_ids',None)
-            _save(path,state);raise
+            save_progress(path,state);raise
 
 
-def _requalify_sources(data_root, domain_commit_ids):
-    """Current candidate admission is separate from frozen artifact replay."""
-    from axiom_data.artifacts import _validated_domain_commit_with_raw_closure, RawBatches
-    from axiom_data.source_completeness import validate_raw_completeness, page_evidence, current_contract_binding
-    from axiom_data.verification_cache import current_source_cache
-    binding = _digest(_json_bytes(current_contract_binding()))
-    pending = list(domain_commit_ids.items()); seen = set(); checked_raw = current_source_cache(data_root)
-    while pending:
-        domain, identity = pending.pop()
-        if (domain, identity) in seen:
-            continue
-        seen.add((domain, identity))
-        commit, _ = _validated_domain_commit_with_raw_closure(Path(data_root), domain, identity)
-        refs = commit.manifest['ordered_raw_batch_refs']
-        # One immutable commit's ordered inputs delimit its page observation.
-        # Combining all ancestors would conflate distinct offset-zero revisions.
-        pages = page_evidence(RawBatches(data_root, [ref['raw_batch_id'] for ref in refs
-            if ref.get('source_profile_version') == 'tushare_industry_qualification.v1']))
-        for ref in refs:
-            raw_id = ref['raw_batch_id']
-            key = (raw_id, ref['manifest_digest'], binding)
-            if key in checked_raw:
-                continue
-            raw = load_raw_batch(data_root, raw_id)
-            admitted = validate_raw_completeness(raw, evidence=pages.get(raw_id))
-            if admitted.get('complete') is not True:
-                raise ArtifactError('current candidate source completeness is unproven')
-            checked_raw.add(key)
-        parent = commit.manifest.get('parent_commit_ref')
-        if parent is not None:
-            pending.append((domain, parent['domain_commit_id']))
 
 
 @candidate_verification
@@ -711,10 +681,10 @@ def bootstrap(data_root, *, run_id, domain_inputs=None, domain_commit_ids=None):
     if domain_inputs is not None:
         return assemble_candidate(data_root,run_id=run_id,domain_inputs=domain_inputs)
     from axiom_data import create_snapshot
-    from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
+    from axiom_data.domains import EVENT_SNAPSHOT_DOMAINS
     from axiom_data.build import _validate_identity
     _identity('run_id',run_id)
-    if not isinstance(domain_commit_ids,dict) or set(domain_commit_ids)!=set(PR7_SNAPSHOT_DOMAINS):
+    if not isinstance(domain_commit_ids,dict) or set(domain_commit_ids)!=set(EVENT_SNAPSHOT_DOMAINS):
         raise ArtifactError('bootstrap checkpoint requires all V1 domains')
     ids={d:_validate_identity('domain_commit_id',i) for d,i in domain_commit_ids.items()}
     layout=_layout(data_root)
@@ -726,15 +696,15 @@ def bootstrap(data_root, *, run_id, domain_inputs=None, domain_commit_ids=None):
         state={'schema_version':'bootstrap_checkpoint_run.v1','run_id':run_id,
             'domain_commit_ids':ids,'status':'RUNNING','stage':'CANONICAL_CHECKPOINT_VALIDATION',
             'ready_for_consumption':False}
-        _save(path,state)
+        save_progress(path,state)
         try:
-            _requalify_sources(layout.root, ids)
+            requalify_sources(layout.root, ids)
             ref=create_snapshot(layout.root,ids)
             state.update(status='CANDIDATE_BUILT',stage='REQUIRED_VIEWS_AND_FULL_ADMISSION',
                 snapshot_id=ref.snapshot_id,snapshot_manifest_digest=ref.manifest_digest)
         except Exception as exc:
             state.update(status='FAILED',error_type=type(exc).__name__)
-        _save(path,state);return state
+        save_progress(path,state);return state
 
 
 def repair(data_root, *, run_id, snapshot_id, domain_inputs):
@@ -758,12 +728,12 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
     """
     from axiom_data import BuildApplication, create_snapshot, SnapshotReader, validate_domain_commit_closure
     from axiom_data.artifacts import _DOMAIN_DEPENDENCIES
-    from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
+    from axiom_data.domains import EVENT_SNAPSHOT_DOMAINS
     from axiom_data.tushare import TushareMarketBuilder
-    from axiom_data.dm1_source import TushareDm1Builder
-    from axiom_data.pr6_source import Pr6Builder
-    from axiom_data.pr7_source import Pr7Builder
-    from axiom_data.domains import PR6_DOMAINS, PR7_DOMAINS
+    from axiom_data.reference_source import TushareReferenceBuilder
+    from axiom_data.fundamentals_source import FundamentalsBuilder
+    from axiom_data.event_source import EventBuilder
+    from axiom_data.domains import FUNDAMENTAL_DOMAINS, EVENT_DOMAINS
     _identity('run_id', run_id)
     layout = _layout(data_root)
     _validate_domain_inputs(domain_inputs)
@@ -772,8 +742,8 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
         parent = SnapshotReader(layout.root, parent_id) if parent_id else None
         commits = {d: c.ref.commit_id for d, c in parent.commits.items()} if parent else {}
         reused = {d: identity for d, identity in commits.items() if d not in domain_inputs}
-        _requalify_sources(layout.root, reused)
-        if set(commits) | set(domain_inputs) != set(PR7_SNAPSHOT_DOMAINS):
+        requalify_sources(layout.root, reused)
+        if set(commits) | set(domain_inputs) != set(EVENT_SNAPSHOT_DOMAINS):
             raise ArtifactError('V1 candidate requires the complete registered domain set')
         plan = {'parent_snapshot_id': parent_id, 'domains': domain_inputs}
         directory = layout.root/'operations'/run_id
@@ -790,8 +760,8 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
         state.pop('domain_commit_ids', None)
         state['ready_for_consumption'] = False
         state.update(status='RUNNING', stage='CANONICAL_BUILD')
-        _save(path,state)
-        for domain in PR7_SNAPSHOT_DOMAINS:
+        save_progress(path,state)
+        for domain in EVENT_SNAPSHOT_DOMAINS:
             if domain not in domain_inputs:
                 continue
             spec = domain_inputs[domain]
@@ -808,7 +778,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
                     else:
                         builder = TushareMarketBuilder(layout.root,domain,builder_config=config,**options)
                 else:
-                    cls = Pr6Builder if domain in PR6_DOMAINS else Pr7Builder if domain in PR7_DOMAINS else TushareDm1Builder
+                    cls = FundamentalsBuilder if domain in FUNDAMENTAL_DOMAINS else EventBuilder if domain in EVENT_DOMAINS else TushareReferenceBuilder
                     builder = cls(layout.root,domain,builder_config=config,dependency_commit_ids=deps)
                 previous = None if spec['new_lineage'] else commits.get(domain)
                 if domain in state['published_commits']:
@@ -841,11 +811,11 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
                 commits[domain] = ref.commit_id
                 state['published_commits'][domain] = ref.commit_id
                 state['failed'].pop(domain,None)
-                _save(path,state)
+                save_progress(path,state)
             except Exception as exc:
                 state['failed'][domain] = {'error_type':type(exc).__name__}
                 state['status'] = 'FAILED'
-                _save(path,state)
+                save_progress(path,state)
                 return state
         try:
             candidate = create_snapshot(layout.root,commits)
@@ -857,5 +827,12 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
                          ready_for_consumption=False, failed={})
         except Exception as exc:
             state.update(status='FAILED', failed={'snapshot':{'error_type':type(exc).__name__}})
-        _save(path,state)
+        save_progress(path,state)
         return state
+
+
+# Historical operation imports.
+_save = save_progress
+_request = validate_request_spec
+
+_requalify_sources = requalify_sources

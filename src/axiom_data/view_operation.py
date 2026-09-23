@@ -6,13 +6,13 @@ from importlib.resources import files
 
 from axiom_data.artifacts import ArtifactError, _identity, _layout, _ensure_directory, _safe_path, _digest, _json_bytes
 from axiom_data.build import _validate_identity
-from axiom_data.operations import _save
+from axiom_data.operations import save_progress
 from axiom_data.publication import writer
 
 
 def _completed_view(reader, spec, record, builder, loader, code):
     """Validate the artifact itself and bind its declared inputs to this request."""
-    from axiom_data.consumption import _symbols
+    from axiom_data.consumption import validate_symbols
     from axiom_data.pit import instant
     if record['kind'] != spec['kind']:
         raise ArtifactError('completed View kind mismatch')
@@ -33,7 +33,7 @@ def _completed_view(reader, spec, record, builder, loader, code):
     scope = manifest['scope']
     for key in ('symbols', 'start_session', 'end_session', 'universe_ids', 'industry_system'):
         if key in config:
-            expected = list(_symbols(config[key])) if key == 'symbols' else config[key]
+            expected = list(validate_symbols(config[key])) if key == 'symbols' else config[key]
             if scope.get(key) != expected:
                 raise ArtifactError('completed View scope mismatch')
     if spec['kind'] in {'pr6_fact', 'pr7_fact'}:
@@ -62,22 +62,22 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
     """
     from axiom_data.views import build_adjusted_price_view, build_market_replay_view
     from axiom_data.consumption import build_qlib_view
-    from axiom_data.pr6_views import build_pr6_fact_view
-    from axiom_data.pr7_views import build_pr7_fact_view
+    from axiom_data.financial_views import build_financial_fact_view
+    from axiom_data.event_views import build_event_fact_view
     from axiom_data.views import _build_adjusted_price_view, _build_market_replay_view
     from axiom_data.consumption import SnapshotReader, _build_qlib_view
-    from axiom_data.pr6_views import _build_pr6_fact_view
-    from axiom_data.pr7_views import _build_pr7_fact_view
+    from axiom_data.financial_views import build_financial_fact_view_from_reader
+    from axiom_data.event_views import build_event_fact_view_from_reader
     from axiom_data.views import _load_adjusted_price_view, _load_market_replay_view
     from axiom_data.consumption import _load_qlib_view
-    from axiom_data.pr6_views import _load_pr6_fact_view
-    from axiom_data.pr7_views import _load_pr7_fact_view
+    from axiom_data.financial_views import load_financial_fact_view_with_reader
+    from axiom_data.event_views import load_event_fact_view_with_reader
     loaders={'adjusted_price':_load_adjusted_price_view,'market_replay':_load_market_replay_view,
-        'market_qlib':_load_qlib_view,'pr6_fact':_load_pr6_fact_view,'pr7_fact':_load_pr7_fact_view}
+        'market_qlib':_load_qlib_view,'pr6_fact':load_financial_fact_view_with_reader,'pr7_fact':load_event_fact_view_with_reader}
     builders={'adjusted_price':build_adjusted_price_view,'market_replay':build_market_replay_view,
-              'market_qlib':build_qlib_view,'pr6_fact':build_pr6_fact_view,'pr7_fact':build_pr7_fact_view}
+              'market_qlib':build_qlib_view,'pr6_fact':build_financial_fact_view,'pr7_fact':build_event_fact_view}
     checked_builders={'adjusted_price':_build_adjusted_price_view,'market_replay':_build_market_replay_view,
-        'market_qlib':_build_qlib_view,'pr6_fact':_build_pr6_fact_view,'pr7_fact':_build_pr7_fact_view}
+        'market_qlib':_build_qlib_view,'pr6_fact':build_financial_fact_view_from_reader,'pr7_fact':build_event_fact_view_from_reader}
     concrete=_validate_identity('snapshot_id',snapshot_id);_identity('run_id',run_id)
     if not isinstance(views,dict) or not views:raise ArtifactError('explicit nonempty required View plan required')
     frozen=json.loads(_json_bytes(views))
@@ -108,19 +108,19 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
             raise ArtifactError('required View resume plan or implementation changed')
         # Publish the immutable plan first. A crash before the progress upgrade
         # leaves a readable legacy checkpoint plus the same frozen plan.
-        if not plan_path.exists():_save(plan_path,plan)
+        if not plan_path.exists():save_progress(plan_path,plan)
         state.pop('plan',None)
         state['schema_version']='required_views_run.v2'
         state.update(status='RUNNING',stage='REQUIRED_VIEWS',ready_for_consumption=False,failed={})
-        _save(path,state)
+        save_progress(path,state)
         try:reader=SnapshotReader(layout.root,concrete)
         except Exception as exc:
             state.update(status='FAILED',failed={'snapshot':{'error_type':type(exc).__name__}})
-            _save(path,state);return dict(state,plan=plan)
-        from axiom_data.pr6_coverage import financial_batch
+            save_progress(path,state);return dict(state,plan=plan)
+        from axiom_data.financial_coverage import financial_batch
         with financial_batch(reader):
             for label,spec in frozen.items():
-                state['active_view']=label;_save(path,state);started=time.monotonic()
+                state['active_view']=label;save_progress(path,state);started=time.monotonic()
                 try:
                     old=state['published_views'].get(label)
                     if old is not None:
@@ -128,7 +128,7 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
                             _completed_view(reader,spec,old,builders[spec['kind']],loaders[spec['kind']],code)
                         except (ArtifactError,OSError,ValueError,KeyError,TypeError):
                             state['published_views'].pop(label)
-                            _save(path,state)
+                            save_progress(path,state)
                         else:
                             continue
                     ref=checked_builders[spec['kind']](reader,**spec['config'])
@@ -137,8 +137,8 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
                     state.setdefault('build_seconds',{})[label]=time.monotonic()-started
                 except Exception as exc:
                     state.update(status='FAILED',failed={label:{'error_type':type(exc).__name__}})
-                    _save(path,state);return dict(state,plan=plan)
-                _save(path,state)
+                    save_progress(path,state);return dict(state,plan=plan)
+                save_progress(path,state)
         if set(state['published_views'])!=set(frozen):raise ArtifactError('required View closure incomplete')
         state.update(status='VIEWS_BUILT',stage='FULL_ADMISSION');state.pop('active_view',None)
-        _save(path,state);return dict(state,plan=plan)
+        save_progress(path,state);return dict(state,plan=plan)

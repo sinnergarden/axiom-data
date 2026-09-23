@@ -27,10 +27,10 @@ from axiom_data.artifacts import (
     _write_file,
     _write_manifest,
 )
-from axiom_data.consumption import SnapshotReader, _session, _symbols
-from axiom_data.consumption import _ordered_row
+from axiom_data.consumption import SnapshotReader, validate_session, validate_symbols
+from axiom_data.consumption import ordered_row
 from axiom_data.domains import MarketContractError
-from axiom_data.domains.dm1 import (
+from axiom_data.domains.reference import (
     validate_strict_decision_time,
     weakest_pit_qualification,
 )
@@ -91,11 +91,11 @@ def _build_adjusted_price_view(reader, *, symbols, start_session, end_session,
                                anchor_session, pit_policy, decision_cutoff, created_at=None):
     data_root = reader.data_root
     snapshot = reader.snapshot
-    selected = _symbols(symbols)
-    start = _session(start_session, "start_session")
-    end = _session(end_session, "end_session")
-    anchor = _session(anchor_session, "anchor_session")
-    cutoff = _session(decision_cutoff, "decision_cutoff")
+    selected = validate_symbols(symbols)
+    start = validate_session(start_session, "start_session")
+    end = validate_session(end_session, "end_session")
+    anchor = validate_session(anchor_session, "anchor_session")
+    cutoff = validate_session(decision_cutoff, "decision_cutoff")
     if start > end or not start <= anchor <= end:
         raise ArtifactError("adjusted-price anchor must be inside the requested scope")
     if pit_policy not in {"strict_decision_time", "research_non_pit"}:
@@ -298,26 +298,26 @@ def _load_adjusted_price_view(data_root, view_id, *, checked_reader=None):
     scope = manifest.get("scope")
     if not isinstance(scope, dict) or scope.get("interval") != "closed":
         raise ArtifactError("adjusted-price scope is invalid")
-    _symbols(scope.get("symbols"))
-    start = _session(scope.get("start_session"), "adjusted start")
-    end = _session(scope.get("end_session"), "adjusted end")
-    anchor = _session(manifest.get("anchor_session"), "adjusted anchor")
-    cutoff = _session(manifest.get("decision_cutoff"), "adjusted cutoff")
+    validate_symbols(scope.get("symbols"))
+    start = validate_session(scope.get("start_session"), "adjusted start")
+    end = validate_session(scope.get("end_session"), "adjusted end")
+    anchor = validate_session(manifest.get("anchor_session"), "adjusted anchor")
+    cutoff = validate_session(manifest.get("decision_cutoff"), "adjusted cutoff")
     policy = manifest.get("pit_policy")
     if not start <= anchor <= end or policy not in {
         "strict_decision_time",
         "research_non_pit",
     } or (policy == "strict_decision_time" and anchor > cutoff):
         raise ArtifactError("adjusted-price anchor policy is invalid")
-    selected = set(_symbols(scope["symbols"]))
+    selected = set(validate_symbols(scope["symbols"]))
     factor_rows = {
         (row["session"], row["symbol"]): row
-        for row in reader._session_rows("adjustment_factors", start, end)
+        for row in reader.session_rows("adjustment_factors", start, end)
         if row["symbol"] in selected and start <= row["session"] <= end
     }
     consumed_keys = {(anchor, symbol) for symbol in selected} | {
         (row["session"], row["symbol"])
-        for row in reader._session_rows("market_daily", start, end)
+        for row in reader.session_rows("market_daily", start, end)
         if row["symbol"] in selected
         and start <= row["session"] <= end
         and (row["session"], row["symbol"]) in factor_rows
@@ -355,7 +355,7 @@ class FactView:
         self.reader = SnapshotReader(data_root, snapshot_id)
         self.pr6 = None
         if pr6_fact_view_id is not None:
-            from axiom_data.pr6_views import _load_pr6_fact_view
+            from axiom_data.financial_views import load_financial_fact_view_with_reader
             layout = _layout(data_root)
             identity = _identity('view_id', pr6_fact_view_id)
             manifest, _ = _load_manifest(layout.root, layout.derived_commits('pr6_fact') / identity,
@@ -363,7 +363,7 @@ class FactView:
                 identity_field='view_id', identity=identity)
             # v1 keeps its frozen LegacyReader projection. v2 can share the
             # complete closure checked in this constructor invocation.
-            self.pr6 = _load_pr6_fact_view(data_root, identity,
+            self.pr6 = load_financial_fact_view_with_reader(data_root, identity,
                 checked_reader=self.reader if manifest['schema_version'] in {'pr6_fact_view.v2','pr6_fact_view.v3'} else None)
             if self.pr6.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
                 raise ArtifactError("PR6 FactView belongs to another Snapshot")
@@ -411,7 +411,7 @@ class FactView:
                     'fields':selected_fields,'pit_policy':manifest['pit_policy'],
                     'cutoff_policy':manifest['cutoff_policy'],'knowledge_cutoff':manifest['knowledge_cutoff'],
                     'pit_qualification':manifest['pit_qualification'],'domain_refs':manifest['domain_refs']}
-            from axiom_data.pr6_coverage import admit_materialized
+            from axiom_data.financial_coverage import admit_materialized
             selected = set(symbols) if symbols is not None else set(manifest['validated_scope']['symbols'])
             selected_fields = tuple(fields) if fields is not None else tuple(manifest["fields"])
             admit_materialized(manifest,selected,start_session or manifest['validated_scope']['start_session'],
@@ -447,9 +447,9 @@ class FactView:
                 raise ArtifactError("adjusted FactView fields are invalid")
             if price_basis != "anchor_adjusted":
                 raise ArtifactError("adjusted price requires anchor_adjusted price_basis")
-            selected_symbols = set(_symbols(symbols)) if symbols is not None else None
-            start = _session(start_session, "start_session") if start_session else None
-            end = _session(end_session, "end_session") if end_session else None
+            selected_symbols = set(validate_symbols(symbols)) if symbols is not None else None
+            start = validate_session(start_session, "start_session") if start_session else None
+            end = validate_session(end_session, "end_session") if end_session else None
             values = tuple(
                 {field: row[field] for field in selected_fields}
                 for row in rows
@@ -473,7 +473,7 @@ class FactView:
                 end_session=end_session,
             )
             response_fields = tuple(fields or self.reader.schema(domain))
-            values = tuple(_ordered_row(row, response_fields) for row in full_values)
+            values = tuple(ordered_row(row, response_fields) for row in full_values)
             derived_refs = []
             anchor = None
             qualification = (
@@ -535,9 +535,9 @@ def build_market_replay_view(
 
 def _build_market_replay_view(reader, *, symbols, start_session, end_session, created_at=None):
     data_root = reader.data_root
-    selected = _symbols(symbols)
-    start = _session(start_session, "start_session")
-    end = _session(end_session, "end_session")
+    selected = validate_symbols(symbols)
+    start = validate_session(start_session, "start_session")
+    end = validate_session(end_session, "end_session")
     if start > end:
         raise ArtifactError("MarketReplayView scope is reversed")
     required = ("trading_calendar", "security_master", "market_daily", "security_status", "price_limits", "corporate_actions")

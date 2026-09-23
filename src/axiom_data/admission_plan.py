@@ -13,19 +13,19 @@ from axiom_data.artifacts import (
     _load_manifest, _timestamp, _validate_manifest_identity, validate_domain_commit_closure,
 )
 from axiom_data.build import _validate_identity
-from axiom_data.consumption import MARKET_VIEW_FIELDS, _session, _symbols
+from axiom_data.consumption import MARKET_VIEW_FIELDS, validate_session, validate_symbols
 from axiom_data.domains.market import _checked_security_identity_state
-from axiom_data.domains import PR7_SNAPSHOT_DOMAINS
+from axiom_data.domains import EVENT_SNAPSHOT_DOMAINS
 from axiom_data.pit import POLICIES, instant
-from axiom_data.pr7_views import exchange_sessions
+from axiom_data.consumption import exchange_sessions
 
 
 def _builders():
     from axiom_data import build_adjusted_price_view, build_market_replay_view, build_qlib_view
-    from axiom_data.pr6_views import build_pr6_fact_view
-    from axiom_data.pr7_views import build_pr7_fact_view
+    from axiom_data.financial_views import build_financial_fact_view
+    from axiom_data.event_views import build_event_fact_view
     return dict(adjusted_price=build_adjusted_price_view, market_replay=build_market_replay_view,
-                market_qlib=build_qlib_view, pr6_fact=build_pr6_fact_view, pr7_fact=build_pr7_fact_view)
+                market_qlib=build_qlib_view, pr6_fact=build_financial_fact_view, pr7_fact=build_event_fact_view)
 
 
 def _config(builder, root, snapshot_id, config):
@@ -41,9 +41,9 @@ def _config(builder, root, snapshot_id, config):
         _timestamp(result['created_at'])
     for key in ('data_root', 'snapshot_id', 'created_at'):
         result.pop(key, None)
-    result['symbols'] = list(_symbols(result['symbols']))
-    start = _session(result['start_session'], 'start_session')
-    end = _session(result['end_session'], 'end_session')
+    result['symbols'] = list(validate_symbols(result['symbols']))
+    start = validate_session(result['start_session'], 'start_session')
+    end = validate_session(result['end_session'], 'end_session')
     result.update(start_session=start, end_session=end)
     if start > end:
         raise ArtifactError('reversed View scope')
@@ -58,8 +58,8 @@ def _config(builder, root, snapshot_id, config):
         result['universe_ids'] = sorted(_identity('universe_id', g) for g in groups)
         _identity('industry_system', result['industry_system'])
     if 'anchor_session' in result:
-        anchor = _session(result['anchor_session'], 'anchor_session')
-        cutoff = _session(result['decision_cutoff'], 'decision_cutoff')
+        anchor = validate_session(result['anchor_session'], 'anchor_session')
+        cutoff = validate_session(result['decision_cutoff'], 'decision_cutoff')
         result.update(anchor_session=anchor, decision_cutoff=cutoff)
         if not start <= anchor <= end:
             raise ArtifactError('anchor outside View scope')
@@ -102,9 +102,9 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
         raise ArtifactError('invalid packaged requirement registry')
     if not isinstance(target, dict) or set(target) != {'symbols', 'start_session', 'end_session'}:
         raise ArtifactError('complete explicit target required')
-    target = dict(target, symbols=list(_symbols(target['symbols'])))
-    start = _session(target['start_session'], 'start_session')
-    end = _session(target['end_session'], 'end_session')
+    target = dict(target, symbols=list(validate_symbols(target['symbols'])))
+    start = validate_session(target['start_session'], 'start_session')
+    end = validate_session(target['end_session'], 'end_session')
     target.update(start_session=start, end_session=end)
     if start > end:
         raise ArtifactError('reversed target scope')
@@ -148,9 +148,9 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
         raise ArtifactError('Snapshot created_at is missing')
     _timestamp(manifest['created_at'])
     refs = manifest.get('domain_refs')
-    if (not isinstance(refs, dict) or set(refs) != set(PR7_SNAPSHOT_DOMAINS)
+    if (not isinstance(refs, dict) or set(refs) != set(EVENT_SNAPSHOT_DOMAINS)
             or manifest.get('validation_summary') != {
-                'status': 'PASS', 'required_domains': list(PR7_SNAPSHOT_DOMAINS), 'cross_domain': 'PASS'}):
+                'status': 'PASS', 'required_domains': list(EVENT_SNAPSHOT_DOMAINS), 'cross_domain': 'PASS'}):
         raise ArtifactError('incomplete Snapshot manifest composition')
     for domain, ref in refs.items():
         if not isinstance(ref, dict) or ref.get('domain') != domain:
@@ -214,3 +214,7 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
             'missing_shard_coverage': gaps, 'snapshot_closure_validation': 'PENDING',
             'source_availability_validation': 'PENDING', 'view_payload_validation': 'PENDING',
             'admission': 'NOT_ASSESSED', 'ready_for_consumption': False}
+
+
+# Compatibility exports for historical callers.
+PR7_SNAPSHOT_DOMAINS = EVENT_SNAPSHOT_DOMAINS

@@ -26,7 +26,7 @@ def main():
                 writes.append((path,len(_json_bytes(value))))
                 _save(path,value)
             started=time.perf_counter()
-            with patch('axiom_data.view_operation._save',side_effect=save), patch(
+            with patch('axiom_data.view_operation.save_progress',side_effect=save), patch(
                     'axiom_data.views._build_market_replay_view',wraps=_build_market_replay_view) as builder:
                 state=fixture.run_views()
             assert state['status']=='VIEWS_BUILT',state

@@ -17,7 +17,7 @@ from axiom_data.artifacts import (
     lookup_catalog,
     validate_domain_commit_closure,
 )
-from axiom_data.domains import DM1_REFERENCE_DOMAINS, DM1_SNAPSHOT_DOMAINS
+from axiom_data.domains import REFERENCE_DOMAINS, REFERENCE_SNAPSHOT_DOMAINS
 
 
 _REF_NAMES = (
@@ -138,13 +138,13 @@ def _load_actual_refs(
 
     root = Path(data_root)
     claimed_domains = _mapping(claimed_refs.get("domain_commits"), "DomainCommit refs")
-    if set(claimed_domains) != set(DM1_SNAPSHOT_DOMAINS):
+    if set(claimed_domains) != set(REFERENCE_SNAPSHOT_DOMAINS):
         raise ArtifactError("PR5 evidence DomainCommit set is incomplete")
 
     commits: dict[str, Any] = {}
     domain_refs: dict[str, Any] = {}
     raw_refs: list[dict[str, Any]] = []
-    for domain in DM1_SNAPSHOT_DOMAINS:
+    for domain in REFERENCE_SNAPSHOT_DOMAINS:
         claimed = _mapping(claimed_domains[domain], f"{domain} DomainCommit ref")
         commit_id = claimed.get("domain_commit_id")
         if not isinstance(commit_id, str):
@@ -337,9 +337,9 @@ def validate_pr5_evidence(
     """Load one immutable D-M1 closure and derive every claimed PR5 PASS."""
 
     from axiom_data.consumption import compare_direct_and_qlib
-    from axiom_data.dm1_reconciliation import reconcile_dm1_raw_mapping
+    from axiom_data.reference_reconciliation import reconcile_reference_raw_mapping
     from axiom_data.domains import MarketContractError
-    from axiom_data.domains.dm1 import validate_strict_decision_time
+    from axiom_data.domains.reference import validate_strict_decision_time
 
     run = _mapping(run_manifest, "run manifest")
     artifacts = _mapping(run.get("artifacts"), "artifact map")
@@ -452,9 +452,9 @@ def validate_pr5_evidence(
         domain: [
             raw["raw_batch_id"] for raw in raw_refs if raw["domain"] == domain
         ]
-        for domain in DM1_REFERENCE_DOMAINS
+        for domain in REFERENCE_DOMAINS
     }
-    actual_dm1 = reconcile_dm1_raw_mapping(
+    actual_dm1 = reconcile_reference_raw_mapping(
         str(root),
         snapshot_ref["snapshot_id"],
         dm1_raw_ids,
@@ -538,7 +538,7 @@ def validate_pr5_evidence(
         strict_blocked = True
     terminal_rows = [
         row
-        for domain in DM1_REFERENCE_DOMAINS
+        for domain in REFERENCE_DOMAINS
         for row in loaded["domain_commits"][domain].rows
     ]
     actual_checks = {
@@ -610,9 +610,9 @@ __all__ = ["validate_d01_snapshot_coexistence", "validate_pr5_evidence"]
 def pr6_actual_refs(data_root: str | Path, snapshot_id: str, view_id: str) -> dict[str, Any]:
     """Resolve PR6 evidence through the same manifest-truth loaders used by readers."""
     from axiom_data.consumption import SnapshotReader
-    from axiom_data.pr6_views import load_pr6_fact_view
+    from axiom_data.financial_views import load_financial_fact_view
     reader = SnapshotReader(data_root, snapshot_id)
-    view = load_pr6_fact_view(data_root, view_id)
+    view = load_financial_fact_view(data_root, view_id)
     if view.manifest['snapshot_ref']['snapshot_id'] != snapshot_id:
         raise ArtifactError('PR6 evidence View/Snapshot mismatch')
     return {
@@ -627,7 +627,7 @@ def pr6_actual_refs(data_root: str | Path, snapshot_id: str, view_id: str) -> di
 def validate_pr6_evidence(run_manifest: Mapping[str, Any], *, data_root: str | Path,
                           offline_root: str | Path) -> bool:
     """Fixed PR6 gate schema; caller booleans and coordinated fake references cannot pass."""
-    from axiom_data.pr6_reconciliation import reconcile
+    from axiom_data.financial_reconciliation import reconcile
     expected_fields = {'schema_version', 'data_root', 'offline_root', 'artifact_refs',
                        'offline_artifact_refs', 'reconciliation', 'gates'}
     if set(run_manifest) != expected_fields or run_manifest['schema_version'] != 'pr6_evidence.v1':
@@ -663,3 +663,8 @@ def validate_pr6_evidence(run_manifest: Mapping[str, Any], *, data_root: str | P
     if run_manifest['gates'] != gates or not all(gates.values()):
         raise ArtifactError('PR6 gate result differs from actual validation')
     return True
+
+
+# Compatibility exports for historical callers.
+DM1_REFERENCE_DOMAINS = REFERENCE_DOMAINS
+DM1_SNAPSHOT_DOMAINS = REFERENCE_SNAPSHOT_DOMAINS
