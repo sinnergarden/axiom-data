@@ -4,8 +4,8 @@
 
 Follow the workspace-wide model workflow in `../AGENTS.md`. **GPT-6 Astra**
 (`gpt-6-astra`) writes implementation, scripts and tests, and owns direction,
-contract/semantic decisions and blocker assessment. **GPT-5.6 Luna**
-(`gpt-5.6-luna`, reasoning `high`) runs reviewed scripts/tests, performs bounded
+contract/semantic decisions and blocker assessment. **GPT-6 Luna**
+(`gpt-6-luna`, reasoning `high`) runs reviewed scripts/tests, performs bounded
 read-only inspections, and handles logs, evidence and existing-run monitoring.
 Luna does not write or modify code. Independent Astra reviewers own code review
 and final acceptance. Give execution tasks explicit artifact/run identities and
