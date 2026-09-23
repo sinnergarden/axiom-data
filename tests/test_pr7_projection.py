@@ -47,7 +47,8 @@ class Reader:
 
 class Pr7ProjectionTest(unittest.TestCase):
     def setUp(self):
-        self.guard=patch('axiom_data.pr7_views.request_coverage');self.guard.start();self.addCleanup(self.guard.stop)
+        self.guard=patch('axiom_data.event_views.request_coverage');self.guard.start();self.addCleanup(self.guard.stop)
+        self.direct_guard=patch('axiom_data.consumption.request_coverage');self.direct_guard.start();self.addCleanup(self.direct_guard.stop)
     def fact(self,reader,leaf='holder.number',cutoff='2025-06-04T23:59:59+08:00',symbol='600000.SH'):
         return leaf_facts(reader,leaf,symbol=symbol,target_session='2025-06-04',knowledge_cutoff=cutoff,pit_policy='operational_pit_v1')
     def projection(self,reader,symbols=SYMBOLS):

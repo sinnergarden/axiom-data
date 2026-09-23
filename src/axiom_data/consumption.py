@@ -31,6 +31,7 @@ from axiom_data.artifacts import (
     _write_file,
     _write_manifest,
     _load_snapshot_with_commits,
+    load_raw_batch,
     _safe_path,
 )
 
@@ -55,7 +56,7 @@ _QLIB_EXPORTER_REVISION = "qlib-binary-market.v1"
 _ADJUSTED_PRICE_FIELDS = ("open", "high", "low", "close")
 
 
-def _session(value: object, name: str) -> str:
+def validate_session(value: object, name: str) -> str:
     if not isinstance(value, str):
         raise ArtifactError(f"{name} must be an ISO date")
     try:
@@ -65,18 +66,18 @@ def _session(value: object, name: str) -> str:
     return parsed.isoformat()
 
 
-def _symbols(values: object) -> tuple[str, ...]:
+def validate_symbols(values: object) -> tuple[str, ...]:
     if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
         raise ArtifactError("symbols must be an ordered sequence")
     result = tuple(_identity("symbol", value) for value in values)
     if not result or len(result) != len(set(result)):
         raise ArtifactError("symbols must be non-empty and unique")
     for symbol in result:
-        _qlib_symbol(symbol)
+        qlib_symbol(symbol)
     return result
 
 
-def _ordered_row(row: Mapping[str, Any], fields: Sequence[str]) -> dict[str, Any]:
+def ordered_row(row: Mapping[str, Any], fields: Sequence[str]) -> dict[str, Any]:
     try:
         return {field: row[field] for field in fields}
     except KeyError as exc:
@@ -115,11 +116,11 @@ class SnapshotReader:
         start_session: str | None = None,
         end_session: str | None = None,
     ) -> tuple[dict[str, Any], ...]:
-        start = _session(start_session, "start_session") if start_session else None
-        end = _session(end_session, "end_session") if end_session else None
+        start = validate_session(start_session, "start_session") if start_session else None
+        end = validate_session(end_session, "end_session") if end_session else None
         fields = self.schema("trading_calendar")
         return tuple(
-            _ordered_row(row, fields)
+            ordered_row(row, fields)
             for row in self.commits["trading_calendar"].rows
             if (exchange is None or row["exchange"] == exchange)
             and (start is None or row["session"] >= start)
@@ -129,10 +130,10 @@ class SnapshotReader:
     def security_master(
         self, symbols: Sequence[str] | None = None
     ) -> tuple[dict[str, Any], ...]:
-        selected = set(_symbols(symbols)) if symbols is not None else None
+        selected = set(validate_symbols(symbols)) if symbols is not None else None
         fields = self.schema("security_master")
         return tuple(
-            _ordered_row(row, fields)
+            ordered_row(row, fields)
             for row in self.commits["security_master"].rows
             if selected is None or row["symbol"] in selected
         )
@@ -143,19 +144,19 @@ class SnapshotReader:
         start_session: str,
         end_session: str,
     ) -> tuple[dict[str, Any], ...]:
-        selected = set(_symbols(symbols))
-        start = _session(start_session, "start_session")
-        end = _session(end_session, "end_session")
+        selected = set(validate_symbols(symbols))
+        start = validate_session(start_session, "start_session")
+        end = validate_session(end_session, "end_session")
         if start > end:
             raise ArtifactError("market session interval is reversed")
         fields = self.schema("market_daily")
         return tuple(
-            _ordered_row(row, fields)
-            for row in self._session_rows('market_daily', start, end, selected)
+            ordered_row(row, fields)
+            for row in self.session_rows('market_daily', start, end, selected)
             if row["symbol"] in selected and start <= row["session"] <= end
         )
 
-    def _session_rows(self, domain, start, end, symbols=None):
+    def session_rows(self, domain, start, end, symbols=None):
         from axiom_data.partition_rows import PartitionRows, SESSION_PARTITION_DOMAINS
         rows = self.commits[domain].rows
         if (isinstance(rows, PartitionRows) and domain in SESSION_PARTITION_DOMAINS
@@ -164,6 +165,8 @@ class SnapshotReader:
         if isinstance(rows, PartitionRows) and domain in SESSION_PARTITION_DOMAINS and (start is not None or end is not None):
             return rows.sessions(start, end)
         return rows
+
+    _session_rows = session_rows
 
     def _security_session_rows(self, rows, start, end, symbols):
         """Cache verified projections, never partial validation or persisted facts."""
@@ -209,7 +212,6 @@ class SnapshotReader:
         return heapq.merge(*projected, key=lambda row: tuple(row[field] for field in order))
 
     def leaf_fact(self, leaf, *, symbol, target_session, knowledge_cutoff, pit_policy):
-        from axiom_data.pr7_views import leaf_facts
         return leaf_facts(self, leaf, symbol=symbol, target_session=target_session,
                           knowledge_cutoff=knowledge_cutoff, pit_policy=pit_policy)
 
@@ -217,12 +219,12 @@ class SnapshotReader:
               symbols: Sequence[str] | None = None, start_session: str | None = None,
               end_session: str | None = None) -> tuple[dict[str, Any], ...]:
         from axiom_data.pit import select_revisions, select_financial_revisions
-        from axiom_data.domains.pr7 import PR7_DOMAINS, DAILY_DOMAINS
+        from axiom_data.domains.events import EVENT_DOMAINS, DAILY_DOMAINS
         if (start_session is not None or end_session is not None) and domain not in DAILY_DOMAINS:
             raise ArtifactError('session-bounded PIT requires a daily PR7 domain')
-        if domain in PR7_DOMAINS:
-            from axiom_data.pr7_source import select_pr7_revisions
-            return select_pr7_revisions(self.facts(domain,symbols=symbols,
+        if domain in EVENT_DOMAINS:
+            from axiom_data.pit import select_event_revisions
+            return select_event_revisions(self.facts(domain,symbols=symbols,
                                         start_session=start_session,end_session=end_session),policy=pit_policy,
                                         knowledge_cutoff=knowledge_cutoff)
         universe = domain == "universe_membership"
@@ -238,7 +240,7 @@ class SnapshotReader:
         # Reuse existing symbol admission, after the complete state was validated.
         # Its filtered canonical rows never become selector/closure inputs.
         self.facts(domain, symbols=symbols)
-        selected = set(_symbols(symbols))
+        selected = set(validate_symbols(symbols))
         return tuple(row for row in rows if row["symbol"] in selected)
 
     def financial_derived(self, *, knowledge_cutoff: str, pit_policy: str,
@@ -255,20 +257,20 @@ class SnapshotReader:
         if domain=='industry_membership' and self.commits[domain].ref.contract_version=='industry_membership.v3':
             return tuple(r for r in self.industry_facts(group_id,target_session,knowledge_cutoff=knowledge_cutoff,
                          pit_policy=pit_policy,symbols=symbols) if r['availability_state']=='classified')
-        from axiom_data.pr6_coverage import membership_coverage
+        from axiom_data.financial_coverage import membership_coverage
         membership_coverage(self,domain,group_id,target_session,target_session,pit_policy,knowledge_cutoff,symbols)
         result = members(self.facts(domain), group_id=group_id,
-                       target_session=_session(target_session, "target_session"),
+                       target_session=validate_session(target_session, "target_session"),
                        knowledge_cutoff=knowledge_cutoff, policy=pit_policy,
                        group_states=self.commits[domain].manifest.get("group_states"))
         return self._project_membership(domain, result, symbols)
 
     def industry_facts(self, group_id, target_session, *, knowledge_cutoff, pit_policy, symbols=None):
-        from axiom_data.pr6_coverage import membership_coverage
+        from axiom_data.financial_coverage import membership_coverage
         from axiom_data.sw_industry import project_state
         if self.commits['industry_membership'].ref.contract_version!='industry_membership.v3':
             raise ArtifactError('industry availability states require industry_membership.v3')
-        session=_session(target_session,'target_session')
+        session=validate_session(target_session,'target_session')
         membership_coverage(self,'industry_membership',group_id,session,session,pit_policy,knowledge_cutoff,symbols)
         states=self.as_of('industry_membership',knowledge_cutoff=knowledge_cutoff,pit_policy=pit_policy,symbols=symbols)
         security={r['symbol']:r for r in self.security_master()}
@@ -289,12 +291,12 @@ class SnapshotReader:
                          lookback_start: str, *, knowledge_cutoff: str,
                          pit_policy: str) -> tuple[str, ...]:
         from axiom_data.pit import historical_union
-        from axiom_data.pr6_coverage import membership_coverage
+        from axiom_data.financial_coverage import membership_coverage
         membership_coverage(self,'universe_membership',group_id,lookback_start,end_session,pit_policy,knowledge_cutoff)
         return historical_union(self.facts("universe_membership"), group_id=group_id,
-            start_session=_session(start_session, "start_session"),
-            end_session=_session(end_session, "end_session"),
-            lookback_start=_session(lookback_start, "lookback_start"),
+            start_session=validate_session(start_session, "start_session"),
+            end_session=validate_session(end_session, "end_session"),
+            lookback_start=validate_session(lookback_start, "lookback_start"),
             knowledge_cutoff=knowledge_cutoff, policy=pit_policy,
             group_states=self.commits["universe_membership"].manifest.get("group_states"))
 
@@ -311,13 +313,13 @@ class SnapshotReader:
 
         if domain not in self.commits:
             raise ArtifactError(f"snapshot has no readable domain {domain!r}")
-        from axiom_data.domains import PR6_DOMAINS, PR7_DOMAINS
-        if domain in PR7_DOMAINS and symbols is not None:
-            requested=set(_symbols(symbols))
+        from axiom_data.domains import FUNDAMENTAL_DOMAINS, EVENT_DOMAINS
+        if domain in EVENT_DOMAINS and symbols is not None:
+            requested=set(validate_symbols(symbols))
             if not requested<={r['symbol'] for r in self.security_master()}:
                 raise ArtifactError('unknown security')
-        if domain in PR6_DOMAINS:
-            from axiom_data.pr6_coverage import require_symbols
+        if domain in FUNDAMENTAL_DOMAINS:
+            from axiom_data.financial_coverage import require_symbols
             if domain=='universe_membership' and 'group_states' in self.commits[domain].manifest:
                 available=self.commits[domain].manifest['builder_config'].get('symbols') or [r['symbol'] for r in self.security_master()]
                 if symbols is not None and (not symbols or not set(symbols)<=set(available)):
@@ -328,7 +330,7 @@ class SnapshotReader:
                 if domain != 'valuation_daily':
                     raise ArtifactError('INSUFFICIENT_SCOPE: use explicit PIT membership/financial Reader')
                 candidates=[r for r in self.commits[domain].rows if symbols is None or r['symbol'] in symbols]
-                from axiom_data.pr6_coverage import require_range
+                from axiom_data.financial_coverage import require_range
                 days=[r['session'] for r in candidates]
                 if not days:raise ArtifactError('INSUFFICIENT_SCOPE: no valuation coverage')
                 require_range(start_session or min(days),end_session or max(days),min(days),max(days))
@@ -342,9 +344,9 @@ class SnapshotReader:
             field not in available for field in selected_fields
         ):
             raise ArtifactError("Fact fields must be a non-empty ordered schema subset")
-        selected_symbols = set(_symbols(symbols)) if symbols is not None else None
-        start = _session(start_session, "start_session") if start_session else None
-        end = _session(end_session, "end_session") if end_session else None
+        selected_symbols = set(validate_symbols(symbols)) if symbols is not None else None
+        start = validate_session(start_session, "start_session") if start_session else None
+        end = validate_session(end_session, "end_session") if end_session else None
         if start is not None and end is not None and start > end:
             raise ArtifactError("fact session interval is reversed")
         if domain=='corporate_actions' and (start is not None or end is not None):
@@ -353,7 +355,7 @@ class SnapshotReader:
                 for row in self.commits[domain].rows):
                 raise ArtifactError('INSUFFICIENT_SCOPE: unresolved corporate action observations; inspect without date projection')
         rows = []
-        for row in self._session_rows(domain, start, end, selected_symbols):
+        for row in self.session_rows(domain, start, end, selected_symbols):
             row_symbol = row.get("symbol")
             row_session = row.get("session", row.get("effective_date"))
             if selected_symbols is not None and row_symbol not in selected_symbols:
@@ -362,7 +364,7 @@ class SnapshotReader:
                 continue
             if end is not None and (not isinstance(row_session, str) or row_session > end):
                 continue
-            rows.append(_ordered_row(row, selected_fields))
+            rows.append(ordered_row(row, selected_fields))
         return tuple(rows)
 
 
@@ -378,7 +380,7 @@ class QlibView:
     manifest: dict[str, Any]
 
 
-def _qlib_symbol(symbol: object) -> str:
+def qlib_symbol(symbol: object) -> str:
     if (
         not isinstance(symbol, str)
         or len(symbol) != 9
@@ -391,7 +393,7 @@ def _qlib_symbol(symbol: object) -> str:
     return f"{suffix}{code}"
 
 
-def _feature_bytes(start_index: int, values: Sequence[object]) -> bytes:
+def feature_bytes(start_index: int, values: Sequence[object]) -> bytes:
     encoded = [float(start_index)]
     for value in values:
         if value is None:
@@ -432,9 +434,9 @@ def _validate_qlib_inputs(reader, *, symbols, start_session, end_session, fields
                           decision_cutoff=None, created_at=None):
     """Shared request admission for first publication and completed-View reuse."""
     data_root = reader.data_root
-    selected = _symbols(symbols)
-    start = _session(start_session, "start_session")
-    end = _session(end_session, "end_session")
+    selected = validate_symbols(symbols)
+    start = validate_session(start_session, "start_session")
+    end = validate_session(end_session, "end_session")
     if start > end:
         raise ArtifactError("QlibView session interval is reversed")
     view_fields = tuple(fields)
@@ -468,7 +470,7 @@ def _validate_qlib_inputs(reader, *, symbols, start_session, end_session, fields
             raise ArtifactError("QlibView Derived scope mismatch")
         if decision_cutoff is None:
             raise ArtifactError("adjusted QlibView requires an explicit decision cutoff")
-        cutoff = _session(decision_cutoff, "decision_cutoff")
+        cutoff = validate_session(decision_cutoff, "decision_cutoff")
         if (
             pit_policy != adjusted.manifest["pit_policy"]
             or cutoff != adjusted.manifest["decision_cutoff"]
@@ -540,10 +542,10 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
         instrument_scope.append(
             {
                 "symbol": symbol,
-                "qlib_symbol": _qlib_symbol(symbol),
+                "qlib_symbol": qlib_symbol(symbol),
                 "start_session": eligible[0],
                 "end_session": eligible[-1],
-                "storage_path": f"features/{_qlib_symbol(symbol).lower()}",
+                "storage_path": f"features/{qlib_symbol(symbol).lower()}",
             }
         )
 
@@ -564,7 +566,7 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
         sessions = calendar[first : last + 1]
         for field in view_fields:
             values = [market.get((session, symbol), {}).get(field) for session in sessions]
-            outputs[f"{item['storage_path']}/{field}.day.bin"] = _feature_bytes(
+            outputs[f"{item['storage_path']}/{field}.day.bin"] = feature_bytes(
                 first, values
             )
 
@@ -651,11 +653,11 @@ def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
 def _load_qlib_view(data_root, view_id, *, checked_reader=None):
 
     if isinstance(view_id, str) and view_id.startswith("pr7-fact-"):
-        from axiom_data.pr7_views import load_pr7_fact_view
-        return load_pr7_fact_view(data_root, view_id)
+        from axiom_data.event_views import load_event_fact_view
+        return load_event_fact_view(data_root, view_id)
     if isinstance(view_id, str) and view_id.startswith("pr6-fact-"):
-        from axiom_data.pr6_views import load_pr6_fact_view
-        return load_pr6_fact_view(data_root, view_id)
+        from axiom_data.financial_views import load_financial_fact_view
+        return load_financial_fact_view(data_root, view_id)
     layout = _layout(data_root)
     view_id = _identity("view_id", view_id)
     target = layout.qlib_exports / view_id
@@ -709,7 +711,7 @@ def _load_qlib_view(data_root, view_id, *, checked_reader=None):
             raise ArtifactError("adjusted QlibView source/quality refs are invalid")
         if manifest.get("scope") != adjusted.manifest["scope"]:
             raise ArtifactError("adjusted QlibView scope differs from its Derived view")
-        _session(manifest["decision_cutoff"], "QlibView decision cutoff")
+        validate_session(manifest["decision_cutoff"], "QlibView decision cutoff")
     fields = manifest.get("fields")
     scope = manifest.get("scope")
     instruments = manifest.get("instrument_storage_scope")
@@ -725,10 +727,10 @@ def _load_qlib_view(data_root, view_id, *, checked_reader=None):
         or len(instruments) != len(scope["symbols"])
     ):
         raise ArtifactError("QlibView field or scope metadata is invalid")
-    _session(scope.get("start_session"), "QlibView scope start")
-    _session(scope.get("end_session"), "QlibView scope end")
+    validate_session(scope.get("start_session"), "QlibView scope start")
+    validate_session(scope.get("end_session"), "QlibView scope end")
     if (
-        _symbols(scope["symbols"]) != tuple(scope["symbols"])
+        validate_symbols(scope["symbols"]) != tuple(scope["symbols"])
         or scope["start_session"] > scope["end_session"]
     ):
         raise ArtifactError("QlibView scope is invalid")
@@ -739,13 +741,13 @@ def _load_qlib_view(data_root, view_id, *, checked_reader=None):
     for item in instruments:
         if (
             not isinstance(item, dict)
-            or item.get("qlib_symbol") != _qlib_symbol(item.get("symbol", ""))
+            or item.get("qlib_symbol") != qlib_symbol(item.get("symbol", ""))
             or item.get("storage_path")
             != f"features/{item['qlib_symbol'].lower()}"
         ):
             raise ArtifactError("QlibView instrument mapping is invalid")
-        _session(item.get("start_session"), "QlibView instrument start")
-        _session(item.get("end_session"), "QlibView instrument end")
+        validate_session(item.get("start_session"), "QlibView instrument start")
+        validate_session(item.get("end_session"), "QlibView instrument end")
         if not (
             scope["start_session"]
             <= item["start_session"]
@@ -822,7 +824,7 @@ def _load_qlib_view(data_root, view_id, *, checked_reader=None):
     if not calendar or calendar != tuple(sorted(set(calendar))):
         raise ArtifactError("QlibView calendar is not ordered and unique")
     for value in calendar:
-        _session(value, "QlibView calendar session")
+        validate_session(value, "QlibView calendar session")
     instruments_path = _relative_file(
         layout.root, target, "instruments/all.txt"
     )
@@ -1012,7 +1014,7 @@ def compare_direct_and_qlib(
             }
         )
     )
-    expected_mapping = tuple((symbol, _qlib_symbol(symbol)) for symbol in scope["symbols"])
+    expected_mapping = tuple((symbol, qlib_symbol(symbol)) for symbol in scope["symbols"])
     mismatches: list[dict[str, Any]] = []
     for key in sorted(set(direct_rows) | set(view_rows)):
         if key not in direct_rows or key not in view_rows:
@@ -1322,3 +1324,128 @@ __all__ = [
     "compare_direct_and_qlib",
     "load_qlib_view",
 ]
+
+
+def request_coverage(reader,domain,symbol,session):
+    """Admit bounded requests, including explicit empty supplier responses."""
+    if symbol not in {r['symbol'] for r in reader.security_master()}:raise ArtifactError('unknown security')
+    if domain not in reader.commits:raise ArtifactError('Snapshot lacks PR7 domain')
+    # Only this checked Reader owns the index. New Readers validate their closure
+    # again; no disk cache or execution report can supply request authority.
+    if not hasattr(reader,'_pr7_request_intervals'):reader._pr7_request_intervals={}
+    if domain not in reader._pr7_request_intervals:
+        identity=reader.commits[domain].ref.commit_id;refs=set()
+        while identity:
+            node=reader._verified_lineage[(domain,identity)]
+            refs.update(node['raw_batch_ids'])
+            identity=node['parent_commit_id']
+        intervals={}
+        for ref in sorted(refs):
+            raw=load_raw_batch(reader.data_root,ref);params=raw.manifest['request']['params']
+            intervals.setdefault(params['ts_code'],[]).append((params['start_date'],params['end_date']))
+        reader._pr7_request_intervals[domain]=intervals
+    day=session.replace('-','')
+    if any(start<=day<=end for start,end in reader._pr7_request_intervals[domain].get(symbol,())):return
+    raise ArtifactError('INSUFFICIENT_SCOPE: no bounded supplier request for '+symbol+' '+session)
+
+
+def dependency_session(reader, domain, session):
+    """Plan against the source bound frozen in this Snapshot's DomainCommit.
+
+    An absent bound retains legacy strict request coverage. Never infer a
+    cutoff from returned rows or a different security's observed coverage.
+    """
+    if domain not in reader.commits:
+        raise ArtifactError('Snapshot lacks PR7 domain')
+    end = reader.commits[domain].manifest['builder_config'].get('end_session')
+    return min(session, validate_session(end, 'source end_session')) if end is not None else session
+
+
+def exchange_sessions(reader,symbols,start,end):
+    """Validate each requested exchange for every calendar day before projection."""
+    from datetime import date, timedelta
+    from axiom_data.domains.market import _symbol
+    start=validate_session(start,'start_session');end=validate_session(end,'end_session')
+    if start>end:raise ArtifactError('reversed calendar scope')
+    master=reader.security_master();calendar=reader.trading_calendar()
+    days=[];day=date.fromisoformat(start)
+    while day<=date.fromisoformat(end):
+        days.append(day.isoformat());day+=timedelta(days=1)
+    result={}
+    for symbol in validate_symbols(symbols):
+        identities=[r for r in master if r['symbol']==symbol]
+        if not identities:raise ArtifactError('unknown security')
+        if len(identities)!=1:raise ArtifactError('ambiguous security exchange mapping')
+        exchange=identities[0]['exchange']
+        if exchange not in {'SSE','SZSE'}:raise ArtifactError('unknown exchange')
+        _symbol(symbol,exchange)
+        rows=[r for r in calendar if r['exchange']==exchange and start<=r['session']<=end]
+        by_day={r['session']:r for r in rows}
+        if len(rows)!=len(by_day) or set(by_day)!=set(days):
+            raise ArtifactError('INSUFFICIENT_SCOPE: '+exchange+' calendar coverage')
+        if any(type(r['is_open']) is not bool for r in rows):raise ArtifactError('invalid exchange session state')
+        result[symbol]={'exchange':exchange,'sessions':[d for d in days if by_day[d]['is_open']]}
+    return result
+
+
+def select_latest_report(period_winners,target_session):
+    """PIT has selected each period's revision; economic period now takes precedence."""
+    candidates=[r for r in period_winners if r['report_period']<=target_session]
+    return max(candidates,key=lambda r:r['report_period']) if candidates else None
+
+
+def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
+    from axiom_data.domains.events import LEAF_DOMAINS, DAILY_DOMAINS
+    from axiom_data.pit import instant
+    if leaf not in LEAF_DOMAINS:raise ArtifactError('unknown PR7 leaf')
+    validate_session(target_session,'target_session');instant(knowledge_cutoff)
+    domain=LEAF_DOMAINS[leaf];field=leaf.split('.',1)[1]
+    if not exchange_sessions(reader,[symbol],target_session,target_session)[symbol]['sessions']:
+        raise ArtifactError('CLOSED_SESSION: '+symbol+' '+target_session)
+    source_session=dependency_session(reader,domain,target_session)
+    request_coverage(reader,domain,symbol,source_session)
+    bounds={'start_session':source_session,'end_session':source_session} if domain in DAILY_DOMAINS else {}
+    selected=reader.as_of(domain,symbols=[symbol],pit_policy=pit_policy,knowledge_cutoff=knowledge_cutoff,**bounds)
+    return event_leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected,source_session=source_session)
+
+
+def event_leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected,*,source_session=None):
+    from axiom_data.domains.events import LEAF_DOMAINS, DAILY_DOMAINS
+    from axiom_data.pit import instant, fingerprint
+    from axiom_data.contracts import load_contract
+    domain=LEAF_DOMAINS[leaf];field=leaf.split('.',1)[1]
+    candidates=[r for r in selected if (r['session']==target_session if domain in DAILY_DOMAINS else
+        domain=='forecast_observations' or r['report_period']<=target_session)]
+    row=(select_latest_report(selected,target_session) if domain in {'holder_count_events','top_holders_reports'} else
+         max(candidates,key=lambda r:(r['announcement'] or r['session'],r['report_period'] or r['session'])) if candidates else None)
+    value=row['values'][field] if row else None
+    reason=row['missing_reasons'].get(field) if row else 'no_observation_at_cutoff'
+    if domain in DAILY_DOMAINS and source_session is not None and source_session < target_session:
+        reason='source_scope_not_available'
+    contract_version=reader.commits[domain].ref.contract_version
+    metadata={'leaf':leaf,'symbol':symbol,'target_session':target_session,'snapshot_id':reader.snapshot.ref.snapshot_id,
+        'contract_version':contract_version,'domain_commit_id':reader.commits[domain].ref.commit_id,
+        'value':value,'unit':load_contract(contract_version)['value_units'][field],
+        'validity':'valid' if value is not None else 'missing','missing_reason':reason,
+        'pit_policy':pit_policy,'knowledge_cutoff':instant(knowledge_cutoff).isoformat(),
+        'pit_qualification':row['pit_qualification'] if row else 'unknown',
+        'usable_at':row['usable_from'] if row else None,
+        'source_ref':row['source_ref'] if row else None,'revision_ref':row['revision_id'] if row else None,
+        'observation_ref':row['observation_ref'] if row else None,
+        'report_period':row['report_period'] if row else None,
+        'quality':row['group_completeness'] if row else 'no_visible_fact'}
+    if domain=='top_holders_reports':
+        metadata['holders']=row['holders'] if row else []
+        metadata['component_refs']=[{'report_revision':row['revision_id'],'holder_id':h['holder_id']} for h in row['holders']] if row else []
+        metadata['derived_ref']=fingerprint({'snapshot':reader.snapshot.ref.snapshot_id,'revision':row['revision_id'],'field':field,'value':value}) if row else None
+    if domain=='forecast_observations':metadata['source_kind']='company_performance_forecast'
+    return metadata
+
+
+
+# Compatibility names for historical consumers.
+_session = validate_session
+_symbols = validate_symbols
+_ordered_row = ordered_row
+_qlib_symbol = qlib_symbol
+_feature_bytes = feature_bytes

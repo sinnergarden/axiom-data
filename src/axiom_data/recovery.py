@@ -16,12 +16,12 @@ from axiom_data.publication import writer
 def _view_loaders():
     from axiom_data.consumption import _load_qlib_view
     from axiom_data.views import _load_adjusted_price_view, _load_market_replay_view
-    from axiom_data.pr6_views import _load_pr6_fact_view
-    from axiom_data.pr7_views import _load_pr7_fact_view
+    from axiom_data.financial_views import load_financial_fact_view_with_reader
+    from axiom_data.event_views import load_event_fact_view_with_reader
     return {
         'market_qlib': _load_qlib_view, 'adjusted_price': _load_adjusted_price_view,
-        'market_replay': _load_market_replay_view, 'pr6_fact': _load_pr6_fact_view,
-        'pr7_fact': _load_pr7_fact_view,
+        'market_replay': _load_market_replay_view, 'pr6_fact': load_financial_fact_view_with_reader,
+        'pr7_fact': load_event_fact_view_with_reader,
     }
 
 

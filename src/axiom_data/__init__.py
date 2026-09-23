@@ -51,11 +51,11 @@ from .tushare import (
     load_tushare_source_profile,
     tushare_source_profile_digest,
 )
-from .dm1_source import (
-    TushareDm1Builder,
-    TushareDm1Collector,
-    dm1_source_profile_digest,
-    load_dm1_source_profile,
+from .reference_source import (
+    TushareReferenceBuilder,
+    TushareReferenceCollector,
+    reference_source_profile_digest,
+    load_reference_source_profile,
 )
 from .views import (
     DerivedView,
@@ -66,7 +66,7 @@ from .views import (
     load_adjusted_price_view,
     load_market_replay_view,
 )
-from .dm1_reconciliation import reconcile_dm1_raw_mapping
+from .reference_reconciliation import reconcile_reference_raw_mapping
 from .evidence import validate_pr5_evidence
 from .operations import plan_daily, daily, bootstrap, repair, inspect_scope
 from .view_operation import materialize_views
@@ -144,3 +144,11 @@ __all__ = [
     "validate_pr5_evidence",
     "write_raw_batch",
 ]
+
+
+# Compatibility exports for historical callers.
+TushareDm1Collector = TushareReferenceCollector
+TushareDm1Builder = TushareReferenceBuilder
+load_dm1_source_profile = load_reference_source_profile
+dm1_source_profile_digest = reference_source_profile_digest
+reconcile_dm1_raw_mapping = reconcile_reference_raw_mapping

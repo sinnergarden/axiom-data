@@ -105,7 +105,7 @@ def economic_content(row):
 
 def validate_rows(rows):
     from axiom_data.domains.market import _rows,_validate_keys,_symbol,_date
-    from axiom_data.domains.dm1 import _provenance
+    from axiom_data.domains.reference import _provenance
     frozen=_rows('industry_membership',rows,'v3')
     for row in frozen:
         _symbol(row['symbol']);_provenance(row)

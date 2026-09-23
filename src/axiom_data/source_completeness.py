@@ -354,16 +354,16 @@ def _validate_raw_binding(raw):
         base = load_tushare_source_profile()
         digest = tushare_source_profile_digest(base)
     elif version == 'tushare_dm1.v1':
-        from axiom_data.dm1_source import load_dm1_source_profile, dm1_source_profile_digest
-        base = load_dm1_source_profile()
-        digest = dm1_source_profile_digest(base)
+        from axiom_data.reference_source import load_reference_source_profile, reference_source_profile_digest
+        base = load_reference_source_profile()
+        digest = reference_source_profile_digest(base)
     else:
         if version in {'tushare_sw_pilot.v1', 'tushare_industry_qualification.v1'}:
             from axiom_data.sw_source import load_profile
         elif version in {'tushare_pr7.v1', 'tushare_pr7_holder.v2', 'tushare_pr7_holder.v3'}:
-            from axiom_data.pr7_source import load_pr7_source_profile as load_profile
+            from axiom_data.event_source import load_event_source_profile as load_profile
         else:
-            from axiom_data.pr6_source import load_pr6_source_profile as load_profile
+            from axiom_data.fundamentals_source import load_fundamentals_source_profile as load_profile
         base = load_profile(version)
         digest = _digest(_json_bytes(base))
     definition = base['endpoints'].get(endpoint)
@@ -458,11 +458,45 @@ def _validate_raw_completeness(raw, *, evidence=None, legacy=False):
         version = manifest.get('source_profile_version')
         try:
             if version in {'tushare_pr6.v1', 'tushare_pr6.v2', 'tushare_fina_indicator.v1'}:
-                from axiom_data.pr6_source import _validate_payload_shape
+                from axiom_data.fundamentals_source import _validate_payload_shape
                 _validate_payload_shape(request.get('endpoint'), request.get('params'), rows, profile_version=version)
             elif version in {'tushare_pr7.v1', 'tushare_pr7_holder.v2', 'tushare_pr7_holder.v3'}:
-                from axiom_data.pr7_source import validate_payload
+                from axiom_data.event_source import validate_payload
                 validate_payload(request.get('endpoint'), request.get('params'), rows, profile_version=version)
         except ArtifactError as exc:
             raise SourceCompletenessError(str(exc), raw_batch_id=raw.ref.raw_batch_id) from exc
     return admission
+
+
+def requalify_sources(data_root, domain_commit_ids):
+    """Current candidate admission is separate from frozen artifact replay."""
+    from axiom_data.artifacts import _validated_domain_commit_with_raw_closure, RawBatches
+    from pathlib import Path
+    from axiom_data.artifacts import load_raw_batch
+    from axiom_data.verification_cache import current_source_cache
+    binding = _digest(_json_bytes(current_contract_binding()))
+    pending = list(domain_commit_ids.items()); seen = set(); checked_raw = current_source_cache(data_root)
+    while pending:
+        domain, identity = pending.pop()
+        if (domain, identity) in seen:
+            continue
+        seen.add((domain, identity))
+        commit, _ = _validated_domain_commit_with_raw_closure(Path(data_root), domain, identity)
+        refs = commit.manifest['ordered_raw_batch_refs']
+        # One immutable commit's ordered inputs delimit its page observation.
+        # Combining all ancestors would conflate distinct offset-zero revisions.
+        pages = page_evidence(RawBatches(data_root, [ref['raw_batch_id'] for ref in refs
+            if ref.get('source_profile_version') == 'tushare_industry_qualification.v1']))
+        for ref in refs:
+            raw_id = ref['raw_batch_id']
+            key = (raw_id, ref['manifest_digest'], binding)
+            if key in checked_raw:
+                continue
+            raw = load_raw_batch(data_root, raw_id)
+            admitted = validate_raw_completeness(raw, evidence=pages.get(raw_id))
+            if admitted.get('complete') is not True:
+                raise ArtifactError('current candidate source completeness is unproven')
+            checked_raw.add(key)
+        parent = commit.manifest.get('parent_commit_ref')
+        if parent is not None:
+            pending.append((domain, parent['domain_commit_id']))

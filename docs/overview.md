@@ -108,3 +108,27 @@ def read_example(data_root: str, snapshot_id: str):
 需要执行命令时，再看 [bootstrap](operations/bootstrap.md)、[daily](operations/daily.md)、
 [Views](operations/materialize-views.md)、[repair](operations/repair.md)、[离线恢复](operations/recovery.md)。
 设计依据见 workspace 的 `design/01_axiom_overview.md` 和 `design/02_axiom_data.md`。
+
+
+## 代码从哪里读起
+
+| 职责 | 模块 |
+| --- | --- |
+| 供应商采集与转换 | `tushare`、`reference_source`、`fundamentals_source`、`event_source` |
+| Canonical 行合同 | `domains/market`、`domains/reference`、`domains/fundamentals`、`domains/events` |
+| 时间选择、修订与财务计算 | `pit` |
+| Snapshot 查询与 Qlib 读取 | `consumption` |
+| 查询范围与财务完整性 | `scope_coverage`、`financial_coverage` |
+| View 生成与读取 | `views`、`financial_views`、`event_views` |
+| 执行计划与恢复 | `operations`、`bootstrap_sources`、`view_operation` |
+| 发布与存储 | `artifacts`、`publication`、`partitions` |
+| 来源对账与消费准入 | `reference_reconciliation`、`financial_reconciliation`、`event_reconciliation`、`consumer_admission` |
+
+例如股东事实查询由 `consumption` 读取 Canonical，通过 `pit.select_event_revisions`
+选出可见修订；`event_views` 使用同一查询规则生成 View。Reader 不通过供应商采集代码选择修订。
+财务字段定义在 `domains/fundamentals`，范围校验与 View 共用它。
+
+旧 `pr6_*`、`pr7_*`、`dm*` 模块只保留导入兼容入口；`*_v1` 保留已发布版本的读取规则。
+已保存的 schema、source profile、View kind 和 ID 前缀沿用原协议名称。
+代码整理不会改写或要求重建已有数据。新执行如涉及实现摘要，使用实际新代码的摘要；
+已冻结旧实现的 operation 仍遵守原有输入匹配检查。

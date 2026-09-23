@@ -60,7 +60,7 @@ def inspect_sw_pilot(data_root, raw_batch_ids, *, symbols, calendar_raw_batch_id
     comparisons=defaultdict(list)
     for identity in comparison_raw_batch_ids:
         raw=load_raw_batch(data_root,identity)
-        from axiom_data.pr6_source import profile_digest as pr6_digest, validate_payload
+        from axiom_data.fundamentals_source import profile_digest as pr6_digest, validate_payload
         if raw.manifest['source_profile_version']!='tushare_pr6.v2' or raw.manifest['source_profile_digest']!=pr6_digest('tushare_pr6.v2'):
             raise ArtifactError('comparison source binding mismatch')
         req=raw.manifest['request'];rows=json.loads(raw.payload)
