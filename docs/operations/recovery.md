@@ -15,14 +15,16 @@ axiom-data --data-root /absolute/restored-data verify-recovery \
 
 The JSON plan contains `expected_snapshot_manifest_digest` and a nonempty `views`
 mapping. Each named View has exactly `kind`, `view_id`, and `manifest_digest`.
-Kinds are `market_qlib`, `market_replay`, `adjusted_price`, `pr6_fact`, and
-`pr7_fact`. Manifest digests come from the frozen source references, not from an
-unverified replacement artifact. Published PR6 v1 and current v2 use their own
+Public kinds are `market_qlib`, `market_replay`, `adjusted_price`,
+`financial_fact`, and `event_fact`. Frozen plans and artifacts retain the older
+`pr6_fact` and `pr7_fact` identifiers; both spellings resolve to those same
+published kinds. Manifest digests come from frozen source references, not from an
+unverified replacement artifact. Historical Fact View versions retain their own
 loaders and identity rules.
 
 An optional `rebuild_views` mapping names required `market_qlib`, `market_replay`,
 or `adjusted_price` Views and uses the same `{kind, config}` descriptors as
-`materialize-views`. PR6/PR7 Fact Views require restoration of their original
+`materialize-views`. Financial and event Fact Views require restoration of their original
 published bytes: their builders cannot pin the original manifest creation time,
 so exact rebuild requests for these kinds are rejected before execution.
 Rebuilds must reproduce
@@ -43,6 +45,5 @@ requires the same plan and revalidates artifacts; a previous success is not a
 verification cache. `ready_for_consumption` remains false because recovery alone
 does not establish full admission or baseline acceptance.
 
-Use a separate restored root for the final recovery rehearsal and corruption
-probes. Small fixture tests are implemented; full-root V1 recovery remains
-`NOT_VALIDATED` until the independent artifact gate verifies its actual result.
+Use a separate restored root for a recovery rehearsal and corruption probes.
+The result applies only to the exact root and artifacts that were checked.

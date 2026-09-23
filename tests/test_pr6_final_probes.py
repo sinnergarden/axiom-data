@@ -111,7 +111,10 @@ class FinalProbes(unittest.TestCase):
         self.assertEqual(view.rows,tuple(original['wide']))
         self.assertEqual(view.manifest['identity_digest'],ref['identity_digest'])
         from axiom_data.views import FactView
-        result=FactView(root,report['artifact_refs']['snapshot']['snapshot_id'],pr6_fact_view_id=ref['view_id']).read('pr6')
+        public=FactView(root,report['artifact_refs']['snapshot']['snapshot_id'],financial_fact_view_id=ref['view_id'])
+        self.assertIs(public.financial, public.pr6)
+        result=public.read('financial')
+        self.assertEqual(result, public.read('pr6'))
         self.assertEqual(len(result['rows']),8)
         from axiom_data.consumption import QlibViewReader
         self.assertEqual(len(QlibViewReader(root,ref['view_id']).market_daily(include_missing=True)),8)

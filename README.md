@@ -13,10 +13,15 @@ Axiom Data 将供应商响应整理成不可变的数据版本，提供行情、
 - [离线恢复](docs/operations/recovery.md) / [独立验收](docs/operations/v1-independent-review.md)
 - [目录布局](docs/operations/physical-layout.md)
 - [股东人数缺少报告期时的处理](docs/operations/holder-source-admission.md)
+- [脚本用途](scripts/README.md) / [历史决策与运行证据](docs/history/README.md)
 
 代码位于 `src/axiom_data/`，测试位于 `tests/`。本机正式数据根为 `/var/lib/axiom-data`；
 旧 workspace `data/` 仅作历史证据留存。仓库里的 `reports/` 是各次验证记录，不是完整生产数据。
 供应商凭据通过运行环境或既有安全配置读取，不写入仓库。
+
+公共 View 计划使用 `financial_fact`、`event_fact` 等职责名称；读取财务
+FactView 可使用 `financial_fact_view_id` 与 `read("financial")`。历史
+artifact 仍保留原有版本标识，调用方不需要把开发阶段编号当作当前业务概念。
 
 ## 运行测试
 

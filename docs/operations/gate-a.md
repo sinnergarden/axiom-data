@@ -43,7 +43,7 @@ requests for all five families. Each security uses its own eligible interval and
 its **last eligible target session** as the adjusted-price anchor. This works
 when an early delisted security and a later listed security share no possible
 common anchor. Prices use the existing `research_non_pit` anchored formula;
-market Qlib remains unadjusted. PR6/PR7 retain their complete fixed field sets
+market Qlib remains unadjusted. Financial and event Facts retain their complete fixed field sets
 and existing `best_effort_vendor_v1` projection.
 
 The complete requested target, eligible sessions and every identity exclusion
@@ -51,7 +51,7 @@ remain in the output. Unknown identities or securities with no eligible target
 session block geometry. An eligible anchor does not prove its factor is present.
 Source gaps, missing financial endpoint observations, and other strict View
 admission failures require actual source evidence and qualification. No source
-gap is waived here and no PR1–PR7 View/Reader contract changes. The existing
+gap is waived here and no published View/Reader contract changes. The existing
 single-anchor `validate_admission_plan` remains a separate geometry contract;
 do not feed this per-security-anchor plan into it as if their semantics matched.
 
@@ -82,7 +82,7 @@ bindings to their formal validators. Report `PASS` flags are insufficient. The
 output still requires independent Gate B review and never sets consumption
 readiness or changes a pointer.
 
-The current June 2025 admission script and Notebook are bounded PR7 evidence;
+The bounded admission script and Notebook are historical fixture evidence;
 they are not registered as full-range execution capabilities. Until the formal
 full-admission, daily-evidence and parameterized Notebook entries are present,
 the gate reports their absence. This is an explicit code capability gap, not a

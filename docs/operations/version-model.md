@@ -1,6 +1,6 @@
 # V1 version and publication model
 
-This document describes the implemented artifact contracts used by PR8. Release
+This document describes the implemented Axiom Data artifact contracts. Release
 acceptance remains a separate full-scope decision; successful publication of one
 artifact does not accept the V1 baseline.
 
@@ -81,4 +81,5 @@ checkpoints. A no-change result requires unchanged canonical facts and unchanged
 contract/configuration/identities. Repeated observations remain immutable Raw.
 Each domain’s observation sequence or first-evidence policy determines whether
 a repeated observation changes its canonical state. Daily, recovery and Notebook
-acceptance remain explicit terminal gates in V1_WORK_LOG.md.
+acceptance require separate validation of their actual artifacts and scope; none
+follows automatically from a candidate.

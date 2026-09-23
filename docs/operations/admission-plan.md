@@ -14,14 +14,14 @@ axiom-data --data-root /absolute/data validate-admission-plan \
 The JSON input has these fields:
 
 - `expected_snapshot_manifest_digest`: the frozen Snapshot reference digest.
-- `scope_registry_digest`: SHA-256, including the `sha256:` prefix, of the
-  packaged `axiom_data/scope/pr7_scope.v1.json` bytes. Caller-provided registries
-  cannot replace the frozen 56 requirements and 469 dependency mappings.
+- `scope_registry_digest`: value returned by
+  `axiom_data.requirement_registry_digest()`. Caller-provided registries cannot
+  replace the frozen 56 requirements and 469 dependency mappings.
 - `target`: complete `symbols`, `start_session`, `end_session`, with inclusive
   endpoints. This remains in the report even when identity intervals exclude
   some target days from the expected trading-session set.
 - `required_view_configs`: all five kinds (`market_qlib`, `market_replay`,
-  `adjusted_price`, `pr6_fact`, `pr7_fact`) mapped to their public builder keyword
+  `adjusted_price`, `financial_fact`, `event_fact`) mapped to their public builder keyword
   arguments, excluding the three target keys. Declare the intended cutoff,
   policy, anchor, universe IDs and industry system here.
 - `views`: the existing `materialize-views` label-to-`{kind, config}` mapping.
@@ -30,7 +30,7 @@ The JSON input has these fields:
 
 The market Qlib target and shards require the full `MARKET_VIEW_FIELDS` set,
 unadjusted prices and `best_effort`; adjusted prices use the separate adjusted
-View. PR6 and PR7 keep their fixed complete public field sets, including forecast
+View. Financial and event Facts keep their fixed complete public field sets, including forecast
 metadata. Field-level sharding is not supported by this preflight. A fixed
 adjusted anchor must remain inside every adjusted shard, as its builder requires.
 
@@ -56,6 +56,5 @@ unavailability can excuse a missing planned interval. Sparse source histories
 still require actual source-backed qualification and the existing strict View
 loaders; this preflight neither proves buildability nor changes their contracts.
 
-This is one code-review node. Overall Gate A and `NO_BULK_BUILD` remain in place
-until full admission and terminal-validator execution code are independently
-reviewed.
+This preflight checks plan geometry only. It does not run full admission or
+accept a baseline.

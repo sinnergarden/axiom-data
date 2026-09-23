@@ -6,7 +6,7 @@ from pathlib import Path
 from fixture_locations import fixture_root
 from unittest.mock import patch
 from axiom_data import FactView, ArtifactError, artifacts
-from axiom_data.operations import compare_pr7_projection
+from axiom_data.operations import compare_event_projection
 
 
 class AcceptanceReadReuseTest(unittest.TestCase):
@@ -15,13 +15,13 @@ class AcceptanceReadReuseTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             def facts():
-                return FactView(root,refs['snapshot_id'],pr6_fact_view_id=refs['pr6_view_id'],adjusted_price_view_id=refs['adjusted_view_id'])
+                return FactView(root,refs['snapshot_id'],financial_fact_view_id=refs['pr6_view_id'],adjusted_price_view_id=refs['adjusted_view_id'])
             def compare():
-                return compare_pr7_projection(root,refs['snapshot_id'],refs['pr7_view_id'],symbols=['688981.SH'],fields=['holder.number','holder.top10_ratio','margin.balance'],start_session='2025-06-10',end_session='2025-06-13')
+                return compare_event_projection(root,refs['snapshot_id'],refs['pr7_view_id'],symbols=['688981.SH'],fields=['holder.number','holder.top10_ratio','margin.balance'],start_session='2025-06-10',end_session='2025-06-13')
             try:
                 with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as loaded:
                     fact=facts();self.assertEqual(loaded.call_count,18)
-                    self.assertEqual(fact.pr6.ref.view_id,refs['pr6_view_id'])
+                    self.assertEqual(fact.financial.ref.view_id,refs['pr6_view_id'])
                     self.assertEqual(fact.adjusted.ref.view_id,refs['adjusted_view_id'])
                     result=compare();self.assertEqual(loaded.call_count,36)
                     self.assertEqual(result['status'],'PASS');self.assertEqual(result['rows'],4)

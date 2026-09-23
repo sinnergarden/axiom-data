@@ -22,6 +22,18 @@ class CollectionCheckpointIOTest(unittest.TestCase):
                 path.chmod(0o755)
         self.temp.cleanup()
 
+    def test_public_collector_name_resumes_frozen_request(self):
+        frozen = request('600036.SH')
+        public = dict(frozen, collector='events')
+        self.assertEqual(operations.validate_request_spec(public), operations.validate_request_spec(frozen))
+        client = Client()
+        first = operations.collect_requests(self.root, run_id='alias', requests=[frozen], client=client)
+        self.assertEqual(first['status'], 'COMPLETE')
+        resumed = operations.collect_requests(self.root, run_id='alias', requests=[public], client=client)
+        self.assertEqual(resumed['completed'], first['completed'])
+        self.assertEqual(client.calls, ['600036.SH'])
+        self.assertEqual(resumed['requests'][0]['collector'], 'pr7')
+
     def test_checkpoint_bytes_grow_linearly(self):
         totals = []
         save = operations.save_progress

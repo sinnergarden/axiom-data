@@ -11,6 +11,24 @@ from axiom_data.verification_cache import candidate_verification
 from axiom_data.source_completeness import requalify_sources
 
 
+_COLLECTOR_ALIASES = {
+    'reference': 'dm1',
+    'fundamentals': 'pr6',
+    'fundamentals_bulk': 'pr6_bulk',
+    'financial_indicator': 'pr6_indicator',
+    'events': 'pr7',
+    'holder_reports_v2': 'pr7_holder',
+    'holder_reports_v3': 'pr7_holder_v3',
+}
+
+
+def normalize_source_request(spec):
+    """Use the existing persisted collector name before request identity or plan freeze."""
+    if isinstance(spec, dict) and isinstance(spec.get('collector'), str):
+        return dict(spec, collector=_COLLECTOR_ALIASES.get(spec['collector'], spec['collector']))
+    return spec
+
+
 def save_progress(path, value):
     temporary = path.with_suffix('.pending')
     if temporary.exists():
@@ -86,6 +104,7 @@ def inspect_snapshot(data_root, snapshot_id):
 
 def validate_request_spec(spec):
     """Only source parameters can enter durable metadata; credentials never can."""
+    spec = normalize_source_request(spec)
     allowed = {'collector', 'domain', 'endpoint', 'params', 'economic_scope', 'availability_policy'}
     if not isinstance(spec, dict) or set(spec) != allowed:
         raise ArtifactError('source request requires the complete public plan schema')
@@ -164,6 +183,7 @@ def plan_daily(data_root, snapshot_id, *, source_requests):
     from axiom_data.consumption import SnapshotReader
     if not isinstance(source_requests, list):
         raise ArtifactError('daily source requests must be an explicit list')
+    source_requests = [normalize_source_request(spec) for spec in source_requests]
     keys = [validate_request_spec(spec) for spec in source_requests]
     if len(set(keys)) != len(keys):
         raise ArtifactError('duplicate daily source request')
@@ -336,7 +356,7 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
     _identity('run_id', run_id)
     if not isinstance(requests, list) or not requests:
         raise ArtifactError('explicit nonempty source request plan required')
-    requests=json.loads(_json_bytes(requests))
+    requests=[normalize_source_request(spec) for spec in json.loads(_json_bytes(requests))]
     keys = [validate_request_spec(spec) for spec in requests]
     if len(set(keys)) != len(keys):
         raise ArtifactError('duplicate requests in plan')
@@ -479,7 +499,7 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
         return state
 
 
-def compare_pr7_projection(data_root, snapshot_id, view_id, *, symbols, fields, start_session, end_session):
+def compare_event_projection(data_root, snapshot_id, view_id, *, symbols, fields, start_session, end_session):
     """Public acceptance probe using Reader PIT facts and Qlib's public row reader."""
     import math
     from axiom_data.consumption import SnapshotReader, QlibViewReader
@@ -517,6 +537,9 @@ def compare_pr7_projection(data_root, snapshot_id, view_id, *, symbols, fields, 
                 raise ArtifactError('direct/Qlib value or missingness differs')
     return {'status': 'PASS', 'snapshot_id': snapshot_id, 'view_id': view_id,
             'rows': len(actual), 'fields': fields, 'start_session': start_session, 'end_session': end_session}
+
+
+compare_pr7_projection = compare_event_projection  # Historical public name.
 
 
 def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
@@ -603,7 +626,7 @@ def daily(data_root, *, run_id, snapshot_id, source_requests, domain_inputs, cli
     concrete=_validate_identity('snapshot_id',snapshot_id)
     if not isinstance(source_requests,list) or not source_requests:
         raise ArtifactError('daily requires explicit source requests')
-    source_requests=json.loads(_json_bytes(source_requests))
+    source_requests=[normalize_source_request(spec) for spec in json.loads(_json_bytes(source_requests))]
     planned=plan_daily(data_root,concrete,source_requests=source_requests)
     requested=set(planned['source_change_domains'])
     _validate_domain_inputs(domain_inputs,pending_domains=requested)

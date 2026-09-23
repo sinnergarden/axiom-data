@@ -83,6 +83,17 @@ def read_example(data_root: str, snapshot_id: str):
 `market_daily` 读取该 Snapshot 的日行情；`as_of` 另外按 cutoff 和 policy 选择历史可见版本。
 返回值是由行字典组成的 tuple。Reader 会验证 Snapshot 及其依赖，损坏或缺少必要数据会报错。
 
+已生成财务 View 时，显式传入其 ID 即可读取：
+
+```python
+from axiom_data import FactView
+
+facts = FactView(data_root, snapshot_id, financial_fact_view_id=financial_view_id)
+rows = facts.read("financial", symbols=["000001.SZ"])["rows"]
+```
+
+`financial_view_id` 必须是已发布的具体 View ID；同一个接口仍能读取历史版本。
+
 ## 构建和增量
 
 公共流程是：计划请求 → 采集并保存 Raw → 校验并构建各类数据 → 生成 candidate Snapshot →

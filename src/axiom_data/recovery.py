@@ -11,6 +11,7 @@ from axiom_data.build import _validate_identity
 from axiom_data.offline_guard import deny_external_data
 from axiom_data.operations import _save
 from axiom_data.publication import writer
+from axiom_data.views import _stored_view_kind
 
 
 def _view_loaders():
@@ -45,21 +46,28 @@ def verify_recovery(data_root, *, run_id, snapshot_id,
     loaders = _view_loaders()
     if not isinstance(views, dict) or not views:
         raise ArtifactError('recovery requires nonempty explicit View references')
+    views = json.loads(_json_bytes(views))
     for label, spec in views.items():
         _identity('view_label', label)
         if (not isinstance(spec, dict)
                 or set(spec) != {'kind', 'view_id', 'manifest_digest'}
-                or not isinstance(spec['kind'], str) or spec['kind'] not in loaders):
+                or not isinstance(spec['kind'], str)):
+            raise ArtifactError('invalid recovery View reference')
+        spec['kind'] = _stored_view_kind(spec['kind'])
+        if spec['kind'] not in loaders:
             raise ArtifactError('invalid recovery View reference')
         _validate_identity('view_id', spec['view_id'])
         _require_digest(spec['manifest_digest'])
     if rebuild_views is not None:
         if not isinstance(rebuild_views, dict) or not rebuild_views or not set(rebuild_views) <= set(views):
             raise ArtifactError('rebuild requests must name required recovery Views')
+        rebuild_views = json.loads(_json_bytes(rebuild_views))
         for label, spec in rebuild_views.items():
             if (not isinstance(spec, dict) or set(spec) != {'kind', 'config'}
-                    or not isinstance(spec['config'], dict)
-                    or spec.get('kind') != views[label]['kind']):
+                    or not isinstance(spec['config'], dict) or not isinstance(spec.get('kind'), str)):
+                raise ArtifactError('recovery rebuild kind differs from required View')
+            spec['kind'] = _stored_view_kind(spec['kind'])
+            if spec['kind'] != views[label]['kind']:
                 raise ArtifactError('recovery rebuild kind differs from required View')
             if spec['kind'] not in {'market_qlib', 'market_replay', 'adjusted_price'}:
                 raise ArtifactError('exact recovery rebuild requires a creation-time-pinnable View kind')

@@ -25,7 +25,7 @@ configuration. Existing manifests are never rewritten.
 Partial/truncated observations fail shared admission. A known below-limit
 response may be complete under its profile; an unknown completeness policy is
 stored explicitly as unestablished, never upgraded by the coverage projection.
-An empty complete PR7 request extends bounded query scope; its domain semantics
+An empty complete event-source request extends bounded query scope; its domain semantics
 remain unchanged (for example no new holder event retains the prior observation).
 Old Snapshots retain their original scope.
 
@@ -47,5 +47,5 @@ new source requests; parent history alone cannot authorize a new request scope.
 
 Genesis rebuilds use identical normalized inputs/configuration/dependencies
 through all four entry paths. Incremental repair/daily use the same explicit
-parent and builder service; historical parent rows are preserved. Existing D-M1
-v1 conflicting reobservation rules remain in force.
+parent and builder service; historical parent rows are preserved. Published
+reference-source v1 conflicting reobservation rules remain in force.

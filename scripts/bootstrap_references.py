@@ -15,8 +15,8 @@ from axiom_data import (ArtifactError, BuildApplication, TushareMarketBuilder,
                         load_raw_batch, validate_domain_commit_closure)
 from axiom_data.artifacts import _digest, _identity, _layout, _safe_path, _ensure_directory, _json_bytes
 from axiom_data.exchange_security import ExchangeSecurityBuilder, profile
-from axiom_data.operations import _save
-from axiom_data.pr6_source import Pr6Builder
+from axiom_data.operations import save_progress
+from axiom_data.fundamentals_source import FundamentalsBuilder
 from axiom_data.publication import writer
 from axiom_data.reference_sources import collect_reference_sources, plan_reference_requests
 from axiom_data.source_completeness import validate_raw_completeness
@@ -86,7 +86,7 @@ def bootstrap_references(data_root, *, run_id, parent_run_id, source_plan_path, 
         with writer(root):
             directory = root / 'operations' / run_id
             _ensure_directory(root, directory)
-            _save(_safe_path(root, directory / 'reference-report.json'), report)
+            save_progress(_safe_path(root, directory / 'reference-report.json'), report)
         return report
     raw_ids = {domain: list(collected['raw_batch_ids'][domain]) for domain in builds}
     raw_ids['security_master'].extend(official[exchange] for exchange in sorted(official))
@@ -97,7 +97,7 @@ def bootstrap_references(data_root, *, run_id, parent_run_id, source_plan_path, 
         directory = root / 'operations' / run_id
         _ensure_directory(root, directory)
         report_path = _safe_path(root, directory / 'reference-report.json')
-        _save(report_path, report)
+        save_progress(report_path, report)
         commits = report['domain_commit_ids']
         try:
             for domain, spec in builds.items():
@@ -106,7 +106,7 @@ def bootstrap_references(data_root, *, run_id, parent_run_id, source_plan_path, 
                 elif domain == 'security_master':
                     builder = ExchangeSecurityBuilder(root, builder_config=spec['config'])
                 else:
-                    builder = Pr6Builder(root, domain, builder_config=spec['config'],
+                    builder = FundamentalsBuilder(root, domain, builder_config=spec['config'],
                                         dependency_commit_ids={'security_master': commits['security_master']})
                 # Replaying the same explicit inputs reuses the publisher's immutable ID.
                 ref = BuildApplication(domain, builder).build(None, raw_ids[domain], [], spec['contract_version'])
@@ -117,10 +117,10 @@ def bootstrap_references(data_root, *, run_id, parent_run_id, source_plan_path, 
                 commits[domain] = ref.commit_id
         except Exception as exc:
             report.update(status='FAILED', error_type=type(exc).__name__)
-            _save(report_path, report)
+            save_progress(report_path, report)
             raise
         report.update(status='REFERENCES_VALIDATED', stage='REFERENCE_COMMITS_VALIDATED')
-        _save(report_path, report)
+        save_progress(report_path, report)
     return report
 
 

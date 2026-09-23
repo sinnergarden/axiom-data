@@ -8,7 +8,7 @@ The complete supplier response remains in RawBatch, including non-null
 
 Such rows are `unmaterializable` with reason `MISSING_REPORT_DATE` and
 affected field `end_date`. Raw summary `canonical_admission` records counts,
-row indexes and fingerprints; `pr7_source.canonicalization_report(raw)`
+row indexes and fingerprints; `event_source.canonicalization_report(raw)`
 returns that admission result with its immutable `raw_ref`. They produce no
 canonical holder-count event. This is source-to-canonical admission, not PIT
 qualification. Existing null-date/null-count exclusion remains compatible.

@@ -32,6 +32,9 @@ class DailyPlanTest(unittest.TestCase):
                 return {str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}
             before = contents()
             result = plan_daily(root, 'current', source_requests=specs)
+            public_specs = json.loads(json.dumps(specs))
+            public_specs[1]['collector'] = 'events'
+            self.assertEqual(plan_daily(root, 'current', source_requests=public_specs), result)
             self.assertEqual(result['parent_snapshot_id'], run['refs']['snapshot_id'])
             self.assertEqual(result['source_requests'][1]['economic_scope']['end'], '20250612')
             self.assertTrue(result['source_requests'][1]['expected_t_plus_one'])

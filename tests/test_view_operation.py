@@ -14,7 +14,7 @@ class ViewOperationTest(unittest.TestCase):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         common=dict(symbols=['688981.SH'],start_session='2025-06-10',end_session='2025-06-13')
         views={'adjusted':{'kind':'adjusted_price','config':dict(common,anchor_session='2025-06-13',pit_policy='research_non_pit',decision_cutoff='2025-06-13')},
-               'facts':{'kind':'pr7_fact','config':dict(common,pit_policy='best_effort_vendor_v1',knowledge_cutoff='2025-06-13T23:59:59+08:00')}}
+               'facts':{'kind':'event_fact','config':dict(common,pit_policy='best_effort_vendor_v1',knowledge_cutoff='2025-06-13T23:59:59+08:00')}}
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)/'data';shutil.copytree(fixture_root(run['source_root']),root)
             try:
@@ -27,7 +27,10 @@ class ViewOperationTest(unittest.TestCase):
                 self.assertEqual(complete['status'],'VIEWS_BUILT')
                 self.assertEqual(complete['stage'],'FULL_ADMISSION');self.assertFalse(complete['ready_for_consumption'])
                 self.assertEqual(complete['published_views']['adjusted'],failed['published_views']['adjusted'])
+                self.assertEqual(complete['published_views']['facts']['kind'], 'pr7_fact')
                 self.assertEqual(materialize_views(root,**args)['published_views'],complete['published_views'])
+                legacy=json.loads(json.dumps(views));legacy['facts']['kind']='pr7_fact'
+                self.assertEqual(materialize_views(root,**dict(args,views=legacy))['published_views'],complete['published_views'])
                 changed=json.loads(json.dumps(views));changed['facts']['config']['end_session']='2025-06-12'
                 with self.assertRaisesRegex(ArtifactError,'resume plan'):
                     materialize_views(root,**dict(args,views=changed))
