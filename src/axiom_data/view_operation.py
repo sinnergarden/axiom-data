@@ -141,6 +141,8 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
                         group.append(candidate)
                 offset += len(group)
                 state['active_view'] = label
+                if len(group) > 1:
+                    save_progress(path, state)
                 context = (adjusted_price_batch(reader, [item['config'] for _, item in group])
                            if spec['kind'] == 'adjusted_price' and len(group) > 1
                            else nullcontext())
