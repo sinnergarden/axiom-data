@@ -62,6 +62,17 @@ class AdjustedPriceBatchTest(unittest.TestCase):
                                             snapshot_id=SNAPSHOT, views=plan)
             self.assertEqual(resumed['published_views'], result['published_views'])
             self.assertEqual(builder.call_count, 0)
+            missing = result['published_views'][symbols[0]]['view_id']
+            missing_path = batch_root / 'derived/adjusted_price/commits' / missing
+            missing_path.chmod(0o755)
+            shutil.rmtree(missing_path)
+            with patch('axiom_data.views._build_adjusted_price_view',
+                       wraps=views._build_adjusted_price_view) as builder:
+                rebuilt = materialize_views(batch_root, run_id='adjusted-batch',
+                                            snapshot_id=SNAPSHOT, views=plan)
+            self.assertEqual(rebuilt['status'], 'VIEWS_BUILT')
+            self.assertEqual(rebuilt['published_views'], result['published_views'])
+            self.assertEqual(builder.call_count, 1)
 
     def test_batch_bound(self):
         with tempfile.TemporaryDirectory() as directory:
