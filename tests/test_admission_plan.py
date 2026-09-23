@@ -11,7 +11,7 @@ from fixture_locations import fixture_root
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from axiom_data import ArtifactError, validate_admission_plan
+from axiom_data import ArtifactError, requirement_registry_digest, validate_admission_plan
 from axiom_data.artifacts import _digest, _identity_digest, _derived_identity, _json_bytes, validate_domain_commit_closure
 from axiom_data.consumption import MARKET_VIEW_FIELDS
 
@@ -44,6 +44,22 @@ class AdmissionPlanTest(unittest.TestCase):
         self.assertEqual(result['admission'], 'NOT_ASSESSED')
         self.assertEqual(result['view_payload_validation'], 'PENDING')
         self.assertFalse(result['ready_for_consumption'])
+
+    def test_public_view_names_preserve_frozen_plan(self):
+        plan = copy.deepcopy(self.plan)
+        for current, stored in [('financial_fact', 'pr6_fact'), ('event_fact', 'pr7_fact')]:
+            plan['required_view_configs'][current] = plan['required_view_configs'].pop(stored)
+            plan['views'][stored]['kind'] = current
+        plan['scope_registry_digest'] = requirement_registry_digest()
+        original = validate_admission_plan(self.root, **self.plan)
+        actual = validate_admission_plan(self.root, **plan)
+        self.assertEqual(actual['plan'], original['plan'])
+        self.assertEqual(actual['plan_digest'], original['plan_digest'])
+        self.assertEqual(actual['status'], 'PLAN_VALIDATED')
+        duplicate = copy.deepcopy(plan)
+        duplicate['required_view_configs']['pr6_fact'] = duplicate['required_view_configs']['financial_fact']
+        with self.assertRaisesRegex(ArtifactError, 'five required View kinds'):
+            validate_admission_plan(self.root, **duplicate)
 
     def test_sample_fact_views_do_not_cover_full_target(self):
         plan = copy.deepcopy(self.plan)

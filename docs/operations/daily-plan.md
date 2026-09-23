@@ -14,6 +14,13 @@ requests retain their explicit observation/report windows. The existing
 `plan_bootstrap_sources` service supplies source request recipes; a scheduler
 must choose its economic dates and revision windows explicitly.
 
+For new hand-written plans, collector names include `market`, `reference`,
+`fundamentals`, `fundamentals_bulk`, `financial_indicator`, `events`, `holder_reports_v2` and
+`holder_reports_v3`. Existing frozen requests retain their older collector
+identifiers; the public names resolve to those exact identities before a plan
+or checkpoint is saved. For example, a margin request uses `events` with
+`domain="margin_daily"` and `endpoint="margin_detail"`.
+
 The output includes profile bindings, parent commits, source-change candidates,
 transitive dependency-review candidates, economic scopes, and T+1 markers.
 Every requested source is required. Availability is

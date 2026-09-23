@@ -60,7 +60,7 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
     Resume validates completed artifacts before entering a builder.
     The execution record never substitutes for artifact identity or validation.
     """
-    from axiom_data.views import build_adjusted_price_view, build_market_replay_view
+    from axiom_data.views import build_adjusted_price_view, build_market_replay_view, _stored_view_kind
     from axiom_data.consumption import build_qlib_view
     from axiom_data.financial_views import build_financial_fact_view
     from axiom_data.event_views import build_event_fact_view
@@ -83,7 +83,10 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
     frozen=json.loads(_json_bytes(views))
     for label,spec in frozen.items():
         _identity('view_label',label)
-        if not isinstance(spec,dict) or set(spec)!={'kind','config'} or not isinstance(spec['kind'],str) or spec['kind'] not in builders or not isinstance(spec['config'],dict):
+        if not isinstance(spec,dict) or set(spec)!={'kind','config'} or not isinstance(spec['kind'],str) or not isinstance(spec['config'],dict):
+            raise ArtifactError('required View needs a registered kind and config')
+        spec['kind'] = _stored_view_kind(spec['kind'])
+        if spec['kind'] not in builders:
             raise ArtifactError('required View needs a registered kind and config')
         try:inspect.signature(builders[spec['kind']]).bind(data_root,concrete,**spec['config'])
         except TypeError as exc:raise ArtifactError('invalid required View arguments') from exc

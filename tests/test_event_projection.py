@@ -5,8 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from axiom_data.artifacts import ArtifactError
-from axiom_data.pr7_source import select_pr7_revisions
-from axiom_data.pr7_views import LEAF_DOMAINS,project,leaf_facts,payload_files
+from axiom_data.pit import select_event_revisions
+from axiom_data.event_views import LEAF_DOMAINS,project,leaf_facts,payload_files
 from axiom_data.pit import fingerprint
 from axiom_data.consumption import QlibViewReader
 
@@ -42,10 +42,10 @@ class Reader:
     def as_of(self,domain,*,symbols,pit_policy,knowledge_cutoff,start_session=None,end_session=None):
         if domain not in ('holder_count_events','top_holders_reports'):return ()
         field='number' if domain=='holder_count_events' else 'top10_ratio'
-        return select_pr7_revisions([r for r in self.rows if r['symbol'] in symbols and field in r['values']],policy=pit_policy,knowledge_cutoff=knowledge_cutoff)
+        return select_event_revisions([r for r in self.rows if r['symbol'] in symbols and field in r['values']],policy=pit_policy,knowledge_cutoff=knowledge_cutoff)
 
 
-class Pr7ProjectionTest(unittest.TestCase):
+class EventProjectionTest(unittest.TestCase):
     def setUp(self):
         self.guard=patch('axiom_data.event_views.request_coverage');self.guard.start();self.addCleanup(self.guard.stop)
         self.direct_guard=patch('axiom_data.consumption.request_coverage');self.direct_guard.start();self.addCleanup(self.direct_guard.stop)
@@ -95,7 +95,7 @@ class Pr7ProjectionTest(unittest.TestCase):
         payload=self.projection(reader)
         expected={('600000.SH','2025-06-02'),('600000.SH','2025-06-04'),('000001.SZ','2025-06-03'),('000001.SZ','2025-06-04')}
         self.assertEqual({(r['symbol'],r['session']) for r in payload['wide']},expected)
-        from axiom_data.pr7_views import manifest_for
+        from axiom_data.event_views import manifest_for
         reader.snapshot.manifest={'identity_digest':'test'}
         scope=dict(symbols=SYMBOLS,start_session='2025-06-02',end_session='2025-06-04')
         m=manifest_for(reader,scope,'operational_pit_v1','2025-06-04T23:59:59+08:00',payload,{})

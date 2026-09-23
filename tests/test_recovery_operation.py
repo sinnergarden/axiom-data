@@ -51,6 +51,10 @@ class RecoveryOperationTest(unittest.TestCase):
         self.assertEqual(result['blocked_external_attempts'], 0)
         self.assertEqual(result['validated_views']['pr6_fact']['schema_version'], 'pr6_fact_view.v2')
         self.assertEqual(verify_recovery(self.root, **plan)['status'], 'RECOVERY_VALIDATED')
+        public = json.loads(json.dumps(plan))
+        public['views']['pr6_fact']['kind'] = 'financial_fact'
+        public['views']['pr7_fact']['kind'] = 'event_fact'
+        self.assertEqual(verify_recovery(self.root, **public)['plan'], result['plan'])
         raw = next((self.root / 'raw/batches').iterdir())
         manifest = json.loads((raw / 'manifest.json').read_bytes())
         payload = raw / manifest['payload_files'][0]['path']

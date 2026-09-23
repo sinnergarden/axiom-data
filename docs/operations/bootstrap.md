@@ -19,9 +19,9 @@ actual coverage, required Views and admission. The default pointer remains under
 that separate acceptance gate. Execution records never substitute for artifact
 validation: resuming a checkpoint validates it again and rejects later corruption.
 
-Validation on the real PR7 closure reuses the exact ordinary Snapshot ID, checks
-resume, rejects incomplete input modes and detects corrupted canonical bytes.
-Full suite: 216 tests PASS (68.138s).
+The checked resume path validates the exact ordinary Snapshot ID, rejects
+incomplete input modes and detects corrupted canonical bytes. Historical test
+results belong in [run evidence](../history/README.md), not in this runbook.
 
 ## Physical storage
 

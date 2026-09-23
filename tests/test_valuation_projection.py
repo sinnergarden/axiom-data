@@ -7,8 +7,8 @@ from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, BuildApplication, SnapshotReader, create_snapshot
-from axiom_data.pr6_source import Pr6Builder, Pr6Collector
-from axiom_data.pr6_views import _valuation_at, project
+from axiom_data.fundamentals_source import FundamentalsBuilder, FundamentalsCollector
+from axiom_data.financial_views import _valuation_at, project
 from test_pr6_artifacts import Client
 
 
@@ -22,8 +22,8 @@ class ValuationProjectionTest(unittest.TestCase):
                 source=[dict(ts_code='688981.SH',trade_date=d,pe=3,pb=2,ps=1) for d in ['20250610','20250701','20250801']]
                 params=dict(ts_code='688981.SH',start_date='20250601',end_date='20250908');raw=[]
                 for day,records in [(9,source),(10,[dict(source[0],pe=4)]),(11,[source[0]])]:
-                    raw.append(Pr6Collector(root,Client(records)).collect('daily_basic',params,retrieved_at=f'2025-09-{day:02d}T00:00:00Z').raw_batch_id)
-                builder=Pr6Builder(root,'valuation_daily',builder_config={'storage_policy':'domain_time_blocks.v1'},dependency_commit_ids={d:ids[d] for d in ['trading_calendar','security_master']})
+                    raw.append(FundamentalsCollector(root,Client(records)).collect('daily_basic',params,retrieved_at=f'2025-09-{day:02d}T00:00:00Z').raw_batch_id)
+                builder=FundamentalsBuilder(root,'valuation_daily',builder_config={'storage_policy':'domain_time_blocks.v1'},dependency_commit_ids={d:ids[d] for d in ['trading_calendar','security_master']})
                 ids['valuation_daily']=BuildApplication('valuation_daily',builder).build(None,raw,[],'valuation_daily.v2').commit_id
                 sid=create_snapshot(root,ids).snapshot_id
                 with patch('axiom_data.partition_rows.STREAM_ROW_THRESHOLD',1):

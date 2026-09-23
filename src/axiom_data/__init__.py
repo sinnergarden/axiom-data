@@ -71,7 +71,7 @@ from .evidence import validate_pr5_evidence
 from .operations import plan_daily, daily, bootstrap, repair, inspect_scope
 from .view_operation import materialize_views
 from .recovery import verify_recovery
-from .admission_plan import validate_admission_plan
+from .admission_plan import requirement_registry_digest, validate_admission_plan
 from .gate_a import make_gate_a_plan, validate_gate_a, plan_historical_views, validate_terminal_evidence_plan, validate_terminal_evidence
 
 __all__ = [
@@ -81,6 +81,7 @@ __all__ = [
     "validate_terminal_evidence_plan",
     "validate_terminal_evidence",
     "validate_admission_plan",
+    "requirement_registry_digest",
     "verify_recovery",
     "materialize_views",
     "plan_daily",
@@ -115,6 +116,8 @@ __all__ = [
     "RawBatchRef",
     "SnapshotReader",
     "TushareCollector",
+    "TushareReferenceBuilder",
+    "TushareReferenceCollector",
     "TushareDm1Builder",
     "TushareDm1Collector",
     "TushareMarketBuilder",
@@ -133,13 +136,16 @@ __all__ = [
     "load_market_replay_view",
     "load_snapshot",
     "load_tushare_source_profile",
+    "load_reference_source_profile",
     "load_dm1_source_profile",
     "lookup_catalog",
     "rebuild_catalog",
     "reconcile_market",
     "reconcile_dm1_raw_mapping",
+    "reconcile_reference_raw_mapping",
     "tushare_source_profile_digest",
     "dm1_source_profile_digest",
+    "reference_source_profile_digest",
     "validate_domain_commit_closure",
     "validate_pr5_evidence",
     "write_raw_batch",

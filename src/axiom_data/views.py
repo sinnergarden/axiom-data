@@ -1,4 +1,4 @@
-"""Snapshot-bound D-M1 derived, FactView, and MarketReplayView artifacts."""
+"""Snapshot-bound derived, FactView, and MarketReplayView artifacts."""
 
 from __future__ import annotations
 
@@ -42,6 +42,11 @@ _ADJUSTED_FIELDS = ("open", "high", "low", "close")
 _PIT_STRENGTH = {"unknown": 0, "best_effort": 1, "observed": 2, "verified": 3}
 
 
+def _stored_view_kind(kind: str) -> str:
+    """Resolve public names to the immutable View kinds used in published plans."""
+    return {"financial_fact": "pr6_fact", "event_fact": "pr7_fact"}.get(kind, kind)
+
+
 @dataclass(frozen=True, slots=True)
 class DerivedViewRef:
     name: str
@@ -60,7 +65,7 @@ def _snapshot_domain_ref(snapshot: Any, domain: str) -> dict[str, Any]:
     try:
         ref = snapshot.manifest["domain_refs"][domain]
     except KeyError as exc:
-        raise ArtifactError(f"Snapshot lacks required D-M1 domain {domain!r}") from exc
+        raise ArtifactError(f"Snapshot lacks required domain {domain!r}") from exc
     return dict(ref)
 
 
@@ -351,22 +356,27 @@ class FactView:
         *,
         adjusted_price_view_id: str | None = None,
         pr6_fact_view_id: str | None = None,
+        financial_fact_view_id: str | None = None,
     ) -> None:
+        if pr6_fact_view_id is not None and financial_fact_view_id is not None:
+            raise ArtifactError("provide one financial FactView ID")
+        financial_fact_view_id = financial_fact_view_id or pr6_fact_view_id
         self.reader = SnapshotReader(data_root, snapshot_id)
-        self.pr6 = None
-        if pr6_fact_view_id is not None:
+        self.financial = None
+        if financial_fact_view_id is not None:
             from axiom_data.financial_views import load_financial_fact_view_with_reader
             layout = _layout(data_root)
-            identity = _identity('view_id', pr6_fact_view_id)
+            identity = _identity('view_id', financial_fact_view_id)
             manifest, _ = _load_manifest(layout.root, layout.derived_commits('pr6_fact') / identity,
                 artifact_type='pr6_fact_view', schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2', 'pr6_fact_view.v3'),
                 identity_field='view_id', identity=identity)
             # v1 keeps its frozen LegacyReader projection. v2 can share the
             # complete closure checked in this constructor invocation.
-            self.pr6 = load_financial_fact_view_with_reader(data_root, identity,
+            self.financial = load_financial_fact_view_with_reader(data_root, identity,
                 checked_reader=self.reader if manifest['schema_version'] in {'pr6_fact_view.v2','pr6_fact_view.v3'} else None)
-            if self.pr6.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
-                raise ArtifactError("PR6 FactView belongs to another Snapshot")
+            if self.financial.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
+                raise ArtifactError("financial FactView belongs to another Snapshot")
+        self.pr6 = self.financial  # Historical attribute alias.
         self.adjusted = (
             _load_adjusted_price_view(data_root, adjusted_price_view_id, checked_reader=self.reader)
             if adjusted_price_view_id is not None
@@ -390,22 +400,22 @@ class FactView:
         pit_policy: str = "actual",
         cutoff_policy: str | None = None,
     ) -> dict[str, Any]:
-        if domain == "pr6":
-            if self.pr6 is None:
-                raise ArtifactNotFoundError("VIEW_NOT_BUILT: explicit PR6 FactView required")
-            manifest = self.pr6.manifest
+        if domain in {"pr6", "financial"}:
+            if self.financial is None:
+                raise ArtifactNotFoundError("VIEW_NOT_BUILT: explicit financial FactView required")
+            manifest = self.financial.manifest
             if pit_policy not in {"actual", manifest["pit_policy"]}:
-                raise ArtifactError("PR6 FactView policy differs from materialization")
+                raise ArtifactError("financial FactView policy differs from materialization")
             if cutoff_policy is not None and cutoff_policy != manifest["cutoff_policy"]:
-                raise ArtifactError("PR6 FactView cutoff differs from materialization")
+                raise ArtifactError("financial FactView cutoff differs from materialization")
             if manifest['schema_version']=='pr6_fact_view.v1':
                 selected=set(symbols) if symbols is not None else None
                 selected_fields=tuple(fields or manifest['fields'])
                 if not selected_fields or set(selected_fields)-set(manifest['fields']):
                     raise ArtifactError('invalid v1 FactView fields')
-                return {'snapshot_ref':manifest['snapshot_ref'],'view_id':self.pr6.ref.view_id,
+                return {'snapshot_ref':manifest['snapshot_ref'],'view_id':self.financial.ref.view_id,
                     'rows':tuple({'symbol':r['symbol'],'session':r['session'],**{f:r['values'][f] for f in selected_fields}}
-                        for r in self.pr6.rows if (selected is None or r['symbol'] in selected)
+                        for r in self.financial.rows if (selected is None or r['symbol'] in selected)
                         and (start_session is None or r['session']>=start_session)
                         and (end_session is None or r['session']<=end_session)),
                     'fields':selected_fields,'pit_policy':manifest['pit_policy'],
@@ -417,13 +427,13 @@ class FactView:
             admit_materialized(manifest,selected,start_session or manifest['validated_scope']['start_session'],
                                end_session or manifest['validated_scope']['end_session'],selected_fields)
             if not selected_fields or len(selected_fields)!=len(set(selected_fields)) or set(selected_fields)-set(manifest["fields"]):
-                raise ArtifactError("invalid PR6 FactView fields")
+                raise ArtifactError("invalid financial FactView fields")
             rows = tuple({"symbol":r["symbol"],"session":r["session"],
-                          **{f:r["values"][f] for f in selected_fields}} for r in self.pr6.rows
+                          **{f:r["values"][f] for f in selected_fields}} for r in self.financial.rows
                          if (selected is None or r["symbol"] in selected)
                          and (start_session is None or r["session"]>=start_session)
                          and (end_session is None or r["session"]<=end_session))
-            return {"snapshot_ref":manifest["snapshot_ref"],"view_id":self.pr6.ref.view_id,
+            return {"snapshot_ref":manifest["snapshot_ref"],"view_id":self.financial.ref.view_id,
                     "rows":rows,"fields":selected_fields,"pit_policy":manifest["pit_policy"],
                     "cutoff_policy":manifest["cutoff_policy"],"knowledge_cutoff":manifest["knowledge_cutoff"],
                     "pit_qualification":manifest["pit_qualification"],"domain_refs":manifest["domain_refs"],
@@ -432,7 +442,7 @@ class FactView:
                         "end_session":end_session or manifest['scope']['end_session'],"fields":list(selected_fields)},
                     "actual_available_scope":manifest['actual_available_scope'],"validated_scope":manifest['validated_scope'],
                     "facts":tuple({'symbol':r['symbol'],'session':r['session'],
-                        'fields':{f:r['facts'][f] for f in selected_fields}} for r in self.pr6.rows
+                        'fields':{f:r['facts'][f] for f in selected_fields}} for r in self.financial.rows
                         if r['symbol'] in selected and (start_session is None or r['session']>=start_session)
                         and (end_session is None or r['session']<=end_session))}
         if domain == "adjusted_price":

@@ -18,6 +18,12 @@ from axiom_data.domains.market import _checked_security_identity_state
 from axiom_data.domains import EVENT_SNAPSHOT_DOMAINS
 from axiom_data.pit import POLICIES, instant
 from axiom_data.consumption import exchange_sessions
+from axiom_data.views import _stored_view_kind
+
+
+def requirement_registry_digest():
+    """Digest of the frozen Data requirement registry used by plan admission."""
+    return _digest(files('axiom_data.scope').joinpath('pr7_scope.v1.json').read_bytes())
 
 
 def _builders():
@@ -109,8 +115,12 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
     if start > end:
         raise ArtifactError('reversed target scope')
     builders = _builders()
-    if not isinstance(required_view_configs, dict) or set(required_view_configs) != set(builders):
+    if not isinstance(required_view_configs, dict):
         raise ArtifactError('all five required View kinds must declare target semantics')
+    canonical_configs = {_stored_view_kind(kind): config for kind, config in required_view_configs.items()}
+    if len(canonical_configs) != len(required_view_configs) or set(canonical_configs) != set(builders):
+        raise ArtifactError('all five required View kinds must declare target semantics')
+    required_view_configs = canonical_configs
     required = {}
     for kind, config in required_view_configs.items():
         if not isinstance(config, dict) or set(config) & set(target):
@@ -124,9 +134,11 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
     for label, spec in views.items():
         _identity('view_label', label)
         if (not isinstance(spec, dict) or set(spec) != {'kind', 'config'}
-                or not isinstance(spec['kind'], str) or spec['kind'] not in builders):
+                or not isinstance(spec['kind'], str)):
             raise ArtifactError('invalid View shard')
-        kind = spec['kind']
+        kind = _stored_view_kind(spec['kind'])
+        if kind not in builders:
+            raise ArtifactError('invalid View shard')
         config = _config(builders[kind], data_root, snapshot_id, spec['config'])
         if not set(config['symbols']) <= set(target['symbols']):
             raise ArtifactError('View shard security outside target')
@@ -203,9 +215,10 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
             if missing:
                 gaps.append({'kind': kind, 'symbol': symbol, 'missing_sessions': missing.bit_count(),
                              'first_missing_session': next(d for d in axis if bits[d] & missing)})
+    canonical_views = {label: dict(spec, kind=_stored_view_kind(spec['kind'])) for label, spec in views.items()}
     plan = dict(snapshot_id=snapshot_id, expected_snapshot_manifest_digest=digest,
                 scope_registry_digest=scope_registry_digest, target=target,
-                required_view_configs=required_view_configs, views=views)
+                required_view_configs=required_view_configs, views=canonical_views)
     return {'schema_version': 'admission_plan_check.v1', 'status': 'INCOMPLETE' if gaps else 'PLAN_VALIDATED',
             'plan_digest': _digest(_json_bytes(plan)), 'plan': plan,
             'reference_domain_refs': {d: _commit_ref(c) for d, c in reference.items()},

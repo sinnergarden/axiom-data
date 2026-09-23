@@ -1,4 +1,4 @@
-# DM1 security session scope policy
+# Security session scope policy
 
 `security_session_scope=exchange_security.v1` is an explicit opt-in mapping for
 `adjustment_factors` and `security_capital`. A supplier row becomes a canonical
@@ -9,6 +9,7 @@ are excluded; an unknown or missing identity/calendar fails closed. Raw batches
 remain unchanged and their existing `source_ref` values are retained for rows
 that are emitted.
 
+The paths below identify historical forensic evidence, not the runtime data root.
 The complete 153-month diagnostic evidence is the externally produced report
 `/home/liuming/workspace/axiom/data/operations/v1-full-bootstrap-20260910-r1/diagnostics/dm1_identity_calendar_scan_20260911_r1/report.json`
 (SHA-256

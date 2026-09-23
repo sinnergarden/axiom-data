@@ -5,11 +5,11 @@ from fixture_locations import fixture_root
 from unittest.mock import patch
 
 from axiom_data import SnapshotReader
-from axiom_data.pr7_views import project, LEAF_DOMAINS
+from axiom_data.event_views import project, LEAF_DOMAINS
 from axiom_data.pit import instant
 
 
-class Pr7ProjectionBatchingTest(unittest.TestCase):
+class EventProjectionBatchingTest(unittest.TestCase):
     def test_batch_matches_every_direct_fact_and_metadata_at_multiple_cutoffs(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         reader=SnapshotReader(fixture_root(run['source_root']),run['refs']['snapshot_id'])
