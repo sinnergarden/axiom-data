@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from importlib.resources import files
@@ -40,6 +41,7 @@ _ADJUSTED_REVISION = "anchor-bound-adjusted-price.v2"
 _REPLAY_REVISION = "market-replay-facts.v2"
 _ADJUSTED_FIELDS = ("open", "high", "low", "close")
 _PIT_STRENGTH = {"unknown": 0, "best_effort": 1, "observed": 2, "verified": 3}
+ADJUSTED_BATCH_SIZE = 50
 
 
 def _stored_view_kind(kind: str) -> str:
@@ -71,6 +73,52 @@ def _snapshot_domain_ref(snapshot: Any, domain: str) -> dict[str, Any]:
 
 def _view_target(data_root: str | Path, name: str, view_id: str) -> Path:
     return _layout(data_root).derived_commits(name) / view_id
+
+
+@contextmanager
+def adjusted_price_batch(reader, configs):
+    """Share complete source traversals for one bounded group of security Views."""
+    from axiom_data.verification_cache import file_state, validation_paths
+
+    if len(configs) > ADJUSTED_BATCH_SIZE:
+        raise ArtifactError("adjusted-price batch exceeds its security bound")
+    symbols = set()
+    for config in configs:
+        selected = validate_symbols(config["symbols"])
+        if len(selected) != 1:
+            raise ArtifactError("adjusted-price batch requires one symbol per View")
+        symbols.add(selected[0])
+    start = min(validate_session(c["start_session"], "start_session") for c in configs)
+    end = max(validate_session(c["end_session"], "end_session") for c in configs)
+    sources = {}
+    with validation_paths() as observed:
+        for domain in ("market_daily", "adjustment_factors"):
+            grouped = {symbol: [] for symbol in symbols}
+            # The complete monthly objects are exhausted and validated before
+            # any security projection becomes a builder input.
+            for row in reader.session_rows(domain, start, end):
+                if row["symbol"] in grouped and start <= row["session"] <= end:
+                    grouped[row["symbol"]].append(row)
+            sources[domain] = grouped
+    prior = getattr(reader, "_adjusted_price_batch", None)
+    reader._adjusted_price_batch = (start, end, symbols, sources)
+    try:
+        yield
+    finally:
+        reader._adjusted_price_batch = prior
+        if any(file_state(path) != state for path, state in observed.items()):
+            raise ArtifactError("adjusted-price source changed during batch")
+
+
+def _adjusted_batch_rows(reader, domain, selected, start, end):
+    batch = getattr(reader, "_adjusted_price_batch", None)
+    if batch is None or len(selected) != 1:
+        return None
+    lower, upper, symbols, sources = batch
+    if start < lower or end > upper or selected[0] not in symbols:
+        return None
+    return tuple(row for row in sources[domain][selected[0]]
+                 if start <= row["session"] <= end)
 
 
 def build_adjusted_price_view(
@@ -109,15 +157,22 @@ def _build_adjusted_price_view(reader, *, symbols, start_session, end_session,
         raise ArtifactError("strict decision-time view cannot use a future anchor")
     market_ref = _snapshot_domain_ref(snapshot, "market_daily")
     factor_ref = _snapshot_domain_ref(snapshot, "adjustment_factors")
-    market = reader.market_daily(selected, start, end)
+    batched_market = _adjusted_batch_rows(reader, "market_daily", selected, start, end)
+    if batched_market is None:
+        market = reader.market_daily(selected, start, end)
+    else:
+        market_fields = reader.schema("market_daily")
+        market = tuple(ordered_row(row, market_fields) for row in batched_market)
+    batched_factors = _adjusted_batch_rows(reader, "adjustment_factors", selected, start, end)
+    if batched_factors is None:
+        factor_source = reader.facts("adjustment_factors", symbols=selected,
+                                     start_session=start, end_session=end)
+    else:
+        factor_fields = reader.schema("adjustment_factors")
+        factor_source = tuple(ordered_row(row, factor_fields) for row in batched_factors)
     factors = {
         (row["session"], row["symbol"]): row
-        for row in reader.facts(
-            "adjustment_factors",
-            symbols=selected,
-            start_session=start,
-            end_session=end,
-        )
+        for row in factor_source
     }
     anchors = {symbol: factors.get((anchor, symbol)) for symbol in selected}
     if any(value is None for value in anchors.values()):
@@ -315,14 +370,19 @@ def _load_adjusted_price_view(data_root, view_id, *, checked_reader=None):
     } or (policy == "strict_decision_time" and anchor > cutoff):
         raise ArtifactError("adjusted-price anchor policy is invalid")
     selected = set(validate_symbols(scope["symbols"]))
+    selected_symbols = tuple(sorted(selected))
+    batched_factors = _adjusted_batch_rows(reader, "adjustment_factors", selected_symbols, start, end)
+    batched_market = _adjusted_batch_rows(reader, "market_daily", selected_symbols, start, end)
     factor_rows = {
         (row["session"], row["symbol"]): row
-        for row in reader.session_rows("adjustment_factors", start, end)
+        for row in (reader.session_rows("adjustment_factors", start, end)
+                    if batched_factors is None else batched_factors)
         if row["symbol"] in selected and start <= row["session"] <= end
     }
     consumed_keys = {(anchor, symbol) for symbol in selected} | {
         (row["session"], row["symbol"])
-        for row in reader.session_rows("market_daily", start, end)
+        for row in (reader.session_rows("market_daily", start, end)
+                    if batched_market is None else batched_market)
         if row["symbol"] in selected
         and start <= row["session"] <= end
         and (row["session"], row["symbol"]) in factor_rows

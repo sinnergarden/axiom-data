@@ -1,0 +1,523 @@
+{
+  "status": "PASS",
+  "snapshot": "snapshot-1d69dc236a358f1627ae91080c33cf993b9e2acb55bbd2c2cb7a37129ce6b5a5",
+  "sample_symbols": {
+    "1": [
+      "000001.SZ"
+    ],
+    "10": [
+      "000001.SZ",
+      "000002.SZ",
+      "000006.SZ",
+      "000007.SZ",
+      "000008.SZ",
+      "000009.SZ",
+      "000010.SZ",
+      "000011.SZ",
+      "000012.SZ",
+      "000014.SZ"
+    ],
+    "50": [
+      "000001.SZ",
+      "000002.SZ",
+      "000006.SZ",
+      "000007.SZ",
+      "000008.SZ",
+      "000009.SZ",
+      "000010.SZ",
+      "000011.SZ",
+      "000012.SZ",
+      "000014.SZ",
+      "000016.SZ",
+      "000019.SZ",
+      "000021.SZ",
+      "000025.SZ",
+      "000026.SZ",
+      "000027.SZ",
+      "000028.SZ",
+      "000029.SZ",
+      "000030.SZ",
+      "000031.SZ",
+      "000032.SZ",
+      "000034.SZ",
+      "000035.SZ",
+      "000036.SZ",
+      "000037.SZ",
+      "000039.SZ",
+      "000042.SZ",
+      "000048.SZ",
+      "000049.SZ",
+      "000050.SZ",
+      "000055.SZ",
+      "000056.SZ",
+      "000058.SZ",
+      "000059.SZ",
+      "000060.SZ",
+      "000061.SZ",
+      "000062.SZ",
+      "000063.SZ",
+      "000065.SZ",
+      "000066.SZ",
+      "000068.SZ",
+      "000069.SZ",
+      "000070.SZ",
+      "000078.SZ",
+      "000088.SZ",
+      "000089.SZ",
+      "000090.SZ",
+      "000096.SZ",
+      "000099.SZ",
+      "000100.SZ"
+    ]
+  },
+  "phases": {
+    "1": {
+      "seconds": 135.7223343809892,
+      "counts": {
+        "market_daily_partitions": 306,
+        "market_daily_bytes": 6186484260,
+        "adjustment_factors_partitions": 306,
+        "adjustment_factors_bytes": 6312643992
+      },
+      "elapsed": {
+        "market_daily_partition_seconds": 3151.4413388174435,
+        "adjustment_factors_partition_seconds": 2356.621948319953,
+        "publish_seconds": 0.00819508999120444,
+        "replay_seconds": 74.24513132500579
+      },
+      "peak_rss_kib": 12385920,
+      "io": {
+        "rchar": 25001363177,
+        "wchar": 531247,
+        "read_bytes": 2903044096,
+        "write_bytes": 561152
+      },
+      "refs": [
+        {
+          "label": "adjusted_price-000001.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-46e3574f0cb8f926ad53ae702d264d6f67aa361ea31c69b83782a1e840cc772e",
+          "manifest_digest": "sha256:640e5810f721ab1aacb253f355d1c0779ee7ccec378d8f75e483ae2a49387e52"
+        }
+      ]
+    },
+    "10": {
+      "seconds": 75.60611676299595,
+      "counts": {
+        "market_daily_partitions": 153,
+        "market_daily_bytes": 3093242130,
+        "adjustment_factors_partitions": 153,
+        "adjustment_factors_bytes": 3156321996
+      },
+      "elapsed": {
+        "market_daily_partition_seconds": 3169.3837245198956,
+        "adjustment_factors_partition_seconds": 2334.472499397758,
+        "source_preparation_seconds": 75.17362974199932,
+        "publish_seconds": 0.06846029596636072,
+        "replay_seconds": 0.0965100850444287
+      },
+      "peak_rss_kib": 12385920,
+      "io": {
+        "rchar": 12514949154,
+        "wchar": 4832185,
+        "read_bytes": 94208,
+        "write_bytes": 5005312
+      },
+      "refs": [
+        {
+          "label": "adjusted_price-000001.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-46e3574f0cb8f926ad53ae702d264d6f67aa361ea31c69b83782a1e840cc772e",
+          "manifest_digest": "sha256:908e6dc3b6512293e048ff6a08d33d1bb17ac0770f21aa4cacdc64ba99ea2abe"
+        },
+        {
+          "label": "adjusted_price-000002.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-faf84ea9c4d53d72e7e1c67b73c7d9a7a80b6b00a95a523b02344d412daa34bf",
+          "manifest_digest": "sha256:ffe17217c0625343b0ab57fea50002e6165ff2b335209f0303d35005bbea8e2d"
+        },
+        {
+          "label": "adjusted_price-000006.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-0d872b2825cf060a2fee23fad9805fffae9ea0c93f91f75640c719232c529439",
+          "manifest_digest": "sha256:0140b63c3a8ae79e87a645363c710cac450bf25e3e9e541818497cce56704c06"
+        },
+        {
+          "label": "adjusted_price-000007.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-739c0a14d96fdf61ee5ac2f120d22b73cfa1f2aff08ba815107cd3984d373393",
+          "manifest_digest": "sha256:a4fd655a344b1236429150fabedd91482e59fa6a5db3ad1fd9b62fbf49a379e9"
+        },
+        {
+          "label": "adjusted_price-000008.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-f98c2f4fca777af974115035f2b68a583d2e0a9694134f60e4950620919d1381",
+          "manifest_digest": "sha256:fc23b58461c73b107a4627d871b1de1b14eb093a77a8b281c85980f5d3e47a73"
+        },
+        {
+          "label": "adjusted_price-000009.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-cc41ae75a40cca91ff7924737c1cc989fc85014fe106dc7ccba33d854b9060bc",
+          "manifest_digest": "sha256:64a0865ccce152e0e5a3f35c85bf0080f46846c00e51be5d41f0e7c2d780a222"
+        },
+        {
+          "label": "adjusted_price-000010.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-f25c9c3a9fd6282d01d533f01e1e8c9de67f4edc4e885a12afa14a967d1ab814",
+          "manifest_digest": "sha256:ec1ed92b3bb79fe85b350bbabfbf03070d249e0184109390835c57832acf558f"
+        },
+        {
+          "label": "adjusted_price-000011.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-86993323dbb4dd5477010709643d029c640c5d5db6c579cf0f2a443abdc43bae",
+          "manifest_digest": "sha256:1293e96eea2fb4a44bcbfdf833da20dcf5e86c38fd7285f4e2887f3b6bd294cb"
+        },
+        {
+          "label": "adjusted_price-000012.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-e479b60017c3c0aacb95da45d1c00325006d859fae92552730c3b854ccd8f196",
+          "manifest_digest": "sha256:0ee55f82d727c5e7c98f5d191a0c646e8be9bb5c9cb0500768b94f3a4aecbdd3"
+        },
+        {
+          "label": "adjusted_price-000014.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-d59e69969577f72bf29a74e3bc426bc0602f8acd4c88fd6ebe6fd4318b3317f7",
+          "manifest_digest": "sha256:1b85d866654cda2549abcc321bd26514bd2e20ab9377933554ae38ea0aac4e52"
+        }
+      ]
+    },
+    "50": {
+      "seconds": 77.63064425700577,
+      "counts": {
+        "market_daily_partitions": 153,
+        "market_daily_bytes": 3093242130,
+        "adjustment_factors_partitions": 153,
+        "adjustment_factors_bytes": 3156321996
+      },
+      "elapsed": {
+        "market_daily_partition_seconds": 3170.605898735288,
+        "adjustment_factors_partition_seconds": 2342.7822552018333,
+        "source_preparation_seconds": 75.28591032500844,
+        "publish_seconds": 0.3444086610688828,
+        "replay_seconds": 0.591927699977532
+      },
+      "peak_rss_kib": 12385920,
+      "io": {
+        "rchar": 12575383554,
+        "wchar": 25722727,
+        "read_bytes": 155648,
+        "write_bytes": 26505216
+      },
+      "refs": [
+        {
+          "label": "adjusted_price-000001.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-46e3574f0cb8f926ad53ae702d264d6f67aa361ea31c69b83782a1e840cc772e",
+          "manifest_digest": "sha256:b0eb0a3045430b34ee99db9b99445814631590df7d1f0c4ce092ec1d845bb941"
+        },
+        {
+          "label": "adjusted_price-000002.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-faf84ea9c4d53d72e7e1c67b73c7d9a7a80b6b00a95a523b02344d412daa34bf",
+          "manifest_digest": "sha256:b85cc523171fc8119d2e51ca650889cd563aacbe03828a744632a60abff0bcd8"
+        },
+        {
+          "label": "adjusted_price-000006.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-0d872b2825cf060a2fee23fad9805fffae9ea0c93f91f75640c719232c529439",
+          "manifest_digest": "sha256:d452d580e1fee6bebdf74878e49e6b49dc9e7db2cb872ef9b447a4d90e72b094"
+        },
+        {
+          "label": "adjusted_price-000007.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-739c0a14d96fdf61ee5ac2f120d22b73cfa1f2aff08ba815107cd3984d373393",
+          "manifest_digest": "sha256:8a9add2b512f1856190016fdfad692f38cee5e534b007fefbf8ca2e236c5309b"
+        },
+        {
+          "label": "adjusted_price-000008.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-f98c2f4fca777af974115035f2b68a583d2e0a9694134f60e4950620919d1381",
+          "manifest_digest": "sha256:c26f08b2b6d3786d73589058c34847a38ce78d31eb377e721f832d6f1e43dbb8"
+        },
+        {
+          "label": "adjusted_price-000009.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-cc41ae75a40cca91ff7924737c1cc989fc85014fe106dc7ccba33d854b9060bc",
+          "manifest_digest": "sha256:292f833699c861cf896e18712de091095a544b1e05bb0b19cc1b9ed1049a29a1"
+        },
+        {
+          "label": "adjusted_price-000010.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-f25c9c3a9fd6282d01d533f01e1e8c9de67f4edc4e885a12afa14a967d1ab814",
+          "manifest_digest": "sha256:7a236f1970edc2f4b5f96e4431cb91cedeabe2052527283f23348ad07100bd87"
+        },
+        {
+          "label": "adjusted_price-000011.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-86993323dbb4dd5477010709643d029c640c5d5db6c579cf0f2a443abdc43bae",
+          "manifest_digest": "sha256:243b02eb219c0f197d368197731ac197025b714e064e98e26b2c5ffddf89dda0"
+        },
+        {
+          "label": "adjusted_price-000012.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-e479b60017c3c0aacb95da45d1c00325006d859fae92552730c3b854ccd8f196",
+          "manifest_digest": "sha256:f09fdf3ade5d1f0b5990cb60763ddceca9176f1ba307dfce50c3bb2f0a595e3a"
+        },
+        {
+          "label": "adjusted_price-000014.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-d59e69969577f72bf29a74e3bc426bc0602f8acd4c88fd6ebe6fd4318b3317f7",
+          "manifest_digest": "sha256:0f1797fc92a7a31fade41ca46a13936652faee92bc43a5fa5f71c52333d21020"
+        },
+        {
+          "label": "adjusted_price-000016.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-87adeb1fe545f5c0628cb75a8884c0a359c79047b1e9e13bd80da17a7dbe47d7",
+          "manifest_digest": "sha256:fc8ed9bbd6998cd433c2077be11663c265c1e3fd722fb91919097559a6750020"
+        },
+        {
+          "label": "adjusted_price-000019.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-0925a124cdc035affc486cfaf9dad4938beb4676386ceeeb82fbcb710bf43104",
+          "manifest_digest": "sha256:2c75d38d6401d76b7f07ba1ad631ecb2412487c31e269682e68c3916a3020231"
+        },
+        {
+          "label": "adjusted_price-000021.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-62c91dd06166c7d34de2c74f051a9bcd6ee80ff77c95e6e94ce9f4fccfd2a6a9",
+          "manifest_digest": "sha256:a84a6521eecfd4a3ecb0f1c7b81b06f29d42078a3f31e4bee247c33e279a9a7c"
+        },
+        {
+          "label": "adjusted_price-000025.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-14ac9c04ac479ecd98ba22146538b383c35c6e3004bf6bb4ecb2cd825cc67cfe",
+          "manifest_digest": "sha256:542cccd50be806e1bd0fb2480091442f407ce05866128e9ed5f22d484207f7f3"
+        },
+        {
+          "label": "adjusted_price-000026.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-6281bdaee4836992e24f157cbaacf95b06263b8616451aa890b20125cc8e7f2b",
+          "manifest_digest": "sha256:c43340be81f85a1aed228f9a21247b6d52b1f8ff87e6456cb03cfdf25e66bcb9"
+        },
+        {
+          "label": "adjusted_price-000027.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-b97b6ef7ce3bb09e586138242e430f657f4dcf8b3527b366bc9b90590ec25163",
+          "manifest_digest": "sha256:0e85b03866058924ffb327f7e65703cad652c3dd67122834c8bc2de6cd737493"
+        },
+        {
+          "label": "adjusted_price-000028.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-dc31a9303c352beb6c5550685c5438b51bd6884fd534ae681b63ba21f4ee9b45",
+          "manifest_digest": "sha256:5cf5cb9d10fce15edf2a2a43bba3166448bcdd29df81d7854f7da94d66e7032d"
+        },
+        {
+          "label": "adjusted_price-000029.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-8c274418de0e28a95e0ae40a7f147e839abb6ad38504f2adca47e5678307e6bf",
+          "manifest_digest": "sha256:4409f73a8d3123e023addaa4a3c7c51e2518bf9cd49e8c94dda0f43ff623c156"
+        },
+        {
+          "label": "adjusted_price-000030.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-f2e10fa9a668a9b3c149e99fbd3378f166dd0bb4fa820b8aa560ee7c0ccd62a3",
+          "manifest_digest": "sha256:d4033eddd8799a23f1521b6db3ccb06e52a28086bae37c27f95f748440028446"
+        },
+        {
+          "label": "adjusted_price-000031.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-3d4db68b30fb2ceb97baa33a6a483088ee626fefff3d2065eb472ff0010472b2",
+          "manifest_digest": "sha256:e36f65e338550ad16703febe4e64d661ce03a09b5d51678bb52fff29a33472ea"
+        },
+        {
+          "label": "adjusted_price-000032.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-d218a8fcc10a435c0b22a79ea3c53d5b0fcce2e2db454732b70832c2a89f8a92",
+          "manifest_digest": "sha256:1fe279b521f889803255d3491c1024d558cbb2e44da021343433ca2ccd26bc4b"
+        },
+        {
+          "label": "adjusted_price-000034.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-1742e06ff51c8a6c712a29f259ef25cf1955927e209d7860dfd6e57bf7c141eb",
+          "manifest_digest": "sha256:f986bac43e96b7adc06b720143e519af3017f611f008f803a8ca1faacc3684ba"
+        },
+        {
+          "label": "adjusted_price-000035.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-21e9ff9da6bfc97677ace5046f7a299587d431e4bf3b4d029121d673e30f7e46",
+          "manifest_digest": "sha256:29660518be1454ad87b49bdb62ec4dfc0021004bb158e357b8efea5c173968ad"
+        },
+        {
+          "label": "adjusted_price-000036.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-ffcd738af35f7ca7241f97c12038ff9fd14409315bd18ee055f800b73dd8a8ff",
+          "manifest_digest": "sha256:1df0adfbd68037ba228310070b2866226700aa59b047570a7531b0376222df91"
+        },
+        {
+          "label": "adjusted_price-000037.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-3effaf7a7c8a1a36346a9a3627375430b8003474a14d4746e9be7d623000ef1d",
+          "manifest_digest": "sha256:1fa5d712b67a20e43108a4f34e66f32d41f20bb4dd001d390e91b13806cc3971"
+        },
+        {
+          "label": "adjusted_price-000039.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-12b41e95759b3f070c1a02a5a56e889e213818c69dcdf643f78ec31f4642d407",
+          "manifest_digest": "sha256:1e20d6c9a17f1b3e2348267dc8a95c5294077e5e54b3ab0405d59f39b410d204"
+        },
+        {
+          "label": "adjusted_price-000042.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-34e9863f07b83dae7fb3c01aff85b85a1376653d2d12d931922109e6b2b144d9",
+          "manifest_digest": "sha256:cb91d14f4724f2995c6c1f46150a0d2c719ee3d4f7df7c5bf26fb201b9bfbf06"
+        },
+        {
+          "label": "adjusted_price-000048.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-8dbdbf26024e349f31a4f1483742e0aed3c675fc3d73bff29a57c748e2ab7065",
+          "manifest_digest": "sha256:91c32ce064c25556ae112d906a0eb3fc9ec00f8fa62afaee33a9174bfb352bcf"
+        },
+        {
+          "label": "adjusted_price-000049.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-fe170489dc874d130f6742cf2c91c231de8766cfe48191a559ca78f4031d4956",
+          "manifest_digest": "sha256:71b6ca1eefd6cb5f9a5ad96891e339cb07c941a82142bfdc412eeebb28685139"
+        },
+        {
+          "label": "adjusted_price-000050.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-2e9aead61c5b0f7a542aa9b21290a806143033d72dfcadbf4e50bb80a109e01a",
+          "manifest_digest": "sha256:512b80c3361e8ba90f3e08652b9d4a13d0a2ea3f38933f6eeef95f513cd30dcb"
+        },
+        {
+          "label": "adjusted_price-000055.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-7b0ecbe0a810d8aaa02654f8dadd7aef6a1dd27b3387ae10d69078c745177fe4",
+          "manifest_digest": "sha256:4929eee16968c839fd5c18022343a7f9933ef9dc3cb1e821c322a030948d0338"
+        },
+        {
+          "label": "adjusted_price-000056.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-d34079496a603a3a86886b86b53e5cb5cb38ff946e81cdc515becad792ab147c",
+          "manifest_digest": "sha256:5f308acd10a139601e3842d4e82601ac18c5dc02a552dbd205e332f75fae14a2"
+        },
+        {
+          "label": "adjusted_price-000058.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-125be828a6456a93e3ad4ac9a26f2afa6858a08284fcdadef598b63a8ac9f7c0",
+          "manifest_digest": "sha256:139b73ee522cd77f083bc7ead4676c3ddf080d69db1ad4f2b66cef32c848526e"
+        },
+        {
+          "label": "adjusted_price-000059.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-4e34521a2b1e50943e5d1b41aa0eda85fc03997e92ac26034d83f6b22e520f43",
+          "manifest_digest": "sha256:ab6fb0cca81d4b3559a045f27e071a3f6ee8990c95437fa09221edd17b0521ed"
+        },
+        {
+          "label": "adjusted_price-000060.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-c95013336c7025cdc7db712e6086f514043eba6f19e4bfe304631a27c4af5887",
+          "manifest_digest": "sha256:a243771728f18fdf9daf1da22f53a13d749c82bbeb5548f217ad45cc43cefdbe"
+        },
+        {
+          "label": "adjusted_price-000061.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-fe2d599eeebebe075e21467dd8a15f8a40cf16d7f18b309c280c8fc5b9855702",
+          "manifest_digest": "sha256:f9c82881aedb575f0c7af7ed597d975c48ef9cf7c7320032a02f7e3be4429d49"
+        },
+        {
+          "label": "adjusted_price-000062.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-719d5578c3d4a545f4b4cbf6938dcee80604c9ae52ec8e69be7ab9e2ae424d72",
+          "manifest_digest": "sha256:c631f13cbebe8979fa95e8a33d69a7fd15934e342adc85817529231d3c8923ae"
+        },
+        {
+          "label": "adjusted_price-000063.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-f553048aacf4a3f4338071cafd1bfe3aee136fd433d0f2a1678c013b6cd01a40",
+          "manifest_digest": "sha256:83a85d5de535d42af1d28614d177e212703c9257bb7a0fc7b335bbce11e9a52b"
+        },
+        {
+          "label": "adjusted_price-000065.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-be3b652b7460ad8f1b668229acdd11537f21992819a8c41c000639da3a94157f",
+          "manifest_digest": "sha256:423f98b5a893ed9d34838a5350827792d9a48e049a4e0e6f034b435e5963dcc2"
+        },
+        {
+          "label": "adjusted_price-000066.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-17ced78ea5fa8343a369a23939512e7713543960d7e7fdbc946de1dc3674ecbf",
+          "manifest_digest": "sha256:1c36ec7175209b9f4925f6b6b860aebef0f41b81de49c0237cda3958a6c0df7e"
+        },
+        {
+          "label": "adjusted_price-000068.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-279c34797eff2ee7995ef40fd1fa555540df03ecf7fc9f5088dfb86ce48e193d",
+          "manifest_digest": "sha256:ebde5625c94580c54eea4bf6728397563395c3d4c23945efdfe381805a18595f"
+        },
+        {
+          "label": "adjusted_price-000069.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-62dc8e97d29281d415184fece2fab393b46c0e0923888d69db8302334d3bce99",
+          "manifest_digest": "sha256:36bd1acdf87990db9de78b0ebfe32b5f3b21b6f1ecec2457d28d654e0a764af0"
+        },
+        {
+          "label": "adjusted_price-000070.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-eee1593f02a74e32730a6667b088af4e5b5806c69b19b28e45bcde8f80a7eb4e",
+          "manifest_digest": "sha256:c09be33e5d326a74d1e4db50f2bae8b0d2e4fa6f1a5fecc8a9fa0dd0daff4968"
+        },
+        {
+          "label": "adjusted_price-000078.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-888e155e175b59a1a8c2225a9905ee2c9b107595f265ca8dd5f53dfe3ffd8f10",
+          "manifest_digest": "sha256:06e8be513c4c635eaa2134e847c9c82223dc75f3b4f19918b90c66dd455e89f6"
+        },
+        {
+          "label": "adjusted_price-000088.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-94f78eaf1a238af1099f1f308daa6cf4608aa1214a633f23284e6c3c9da43b30",
+          "manifest_digest": "sha256:ccc565878b7aa923acd67a0a1ee52a5d8d796d367eef02d13f57e10afff3b690"
+        },
+        {
+          "label": "adjusted_price-000089.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-20a28d5fa91622e0d21d0405f44ceb331b7b5dc7afe85b1f37a804fa481c9bf2",
+          "manifest_digest": "sha256:1c810e24729f86d7c924e3a309eb595bb92dcf76f7b23b580bc56ecc7302f723"
+        },
+        {
+          "label": "adjusted_price-000090.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-280d9684ef888e5f526ac2bb7116359fbc8c6358c015a2e68ead0299f96a905b",
+          "manifest_digest": "sha256:8513fc93dd2baabce00172e249c5840590705dc7d44996b9b778868150a79608"
+        },
+        {
+          "label": "adjusted_price-000096.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-1b53d3bca25651e20be4363b1bd5a05daae65021a439367022549d42cae21f1e",
+          "manifest_digest": "sha256:4c28706dc11f6c47626c29702b432950c0d86819493f254a1e4dd682d02bc2f4"
+        },
+        {
+          "label": "adjusted_price-000099.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-fc966385f743c265d14b5137d3560f97aad5765e22030bcb35923a93999bd9a7",
+          "manifest_digest": "sha256:8fbc1ad55c39e5d719dc3e4f1b74624a733fca667e69ef514e00d38de63a7c90"
+        },
+        {
+          "label": "adjusted_price-000100.SZ",
+          "kind": "adjusted_price",
+          "view_id": "adjusted-price-b81182c3947052235beece27b848e0f708055d11cb2ad30c54e4ad8532ffa8ce",
+          "manifest_digest": "sha256:2ecb329efac5b128a383f6cedf70c176d7da06ad4022043e9f0ade00bee73d42"
+        }
+      ]
+    }
+  },
+  "initialization_seconds": 1828.4304342999822,
+  "resume50_seconds": 76.27269843302201,
+  "resume50_builder_calls": 0,
+  "serial_artifact_equal": [
+    "adjusted_price-000001.SZ",
+    "adjusted_price-000002.SZ",
+    "adjusted_price-000006.SZ"
+  ]
+}
