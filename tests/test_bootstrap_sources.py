@@ -1,6 +1,8 @@
 import copy
+import json
 import tempfile
 import unittest
+from pathlib import Path
 from axiom_data import ArtifactError
 from axiom_data.bootstrap_sources import plan_bootstrap_sources,collect_bootstrap_sources
 
@@ -36,8 +38,12 @@ class BootstrapSourceTest(unittest.TestCase):
             client=Client();plan=self.plan()
             result=collect_bootstrap_sources(root,run_id='test',plan=plan,domains=['moneyflow_daily'],client=client)
             self.assertEqual(result['status'],'COMPLETE');self.assertFalse(result['ready_for_consumption'])
-            again=collect_bootstrap_sources(root,run_id='test',plan=plan,domains=['moneyflow_daily'],client=client)
+            renamed=copy.deepcopy(plan)
+            renamed['requests_by_domain']['moneyflow_daily'][0]['collector']='events'
+            again=collect_bootstrap_sources(root,run_id='test',plan=renamed,domains=['moneyflow_daily'],client=client)
             self.assertEqual(result,again);self.assertEqual(client.calls,1)
+            frozen=json.loads((Path(root)/'operations/test/source_plan.json').read_bytes())
+            self.assertEqual(frozen['plan']['requests_by_domain']['moneyflow_daily'][0]['collector'],'pr7')
             changed=copy.deepcopy(plan);changed['scope']['end_session']='2014-02-04'
             with self.assertRaisesRegex(ArtifactError,'plan changed'):
                 collect_bootstrap_sources(root,run_id='test',plan=changed,domains=['moneyflow_daily'],client=client)

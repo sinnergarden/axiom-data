@@ -20,7 +20,7 @@ as a consumable release. Failure retains successful Raw and the old Snapshot.
 The current contracts reject nonempty patch IDs; this repair path uses frozen
 Raw with the installed corrected builder or an explicit clean lineage.
 
-Validation: the real PR7 fixture repair preserves other domain IDs and the old
-Snapshot, resumes identically, rejects a substituted valid commit, retains Raw
-on failure, and supports no-change reuse. Floating repair Snapshot IDs fail
-before writing. Full suite: 211 tests PASS (64.350s).
+Before accepting a repaired candidate, check that unaffected domain IDs and the
+parent Snapshot stay unchanged, resume validates the frozen plan, substituted
+commits are rejected, and failed builds retain Raw. A floating Snapshot ID must
+fail before writing. Earlier test results are in [historical evidence](../history/V1_WORK_LOG.md).

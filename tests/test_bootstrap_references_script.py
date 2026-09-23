@@ -39,7 +39,7 @@ class BootstrapReferencesScriptTest(unittest.TestCase):
         self.enterContext(patch.object(script, 'validate_raw_completeness', return_value={'complete': True}))
         self.collect = self.enterContext(patch.object(script, 'collect_reference_sources', return_value=self.collection))
         self.builders = {name: self.enterContext(patch.object(script, name))
-                         for name in ['TushareMarketBuilder', 'ExchangeSecurityBuilder', 'Pr6Builder']}
+                         for name in ['TushareMarketBuilder', 'ExchangeSecurityBuilder', 'FundamentalsBuilder']}
         self.calls = []
 
         def application(domain, builder):
@@ -71,7 +71,7 @@ class BootstrapReferencesScriptTest(unittest.TestCase):
         self.assertEqual(context['config'], self.config)
         self.assertEqual(context['parent_run_id'], 'parent-run')
         self.assertEqual(context['builds']['industry_membership']['config']['end_session'], '2026-09-11')
-        self.assertEqual(self.builders['Pr6Builder'].call_args.kwargs['dependency_commit_ids'],
+        self.assertEqual(self.builders['FundamentalsBuilder'].call_args.kwargs['dependency_commit_ids'],
                          {'security_master': 'security_master-commit'})
         self.assertFalse(result['ready_for_consumption'])
         saved = self.root / 'operations' / 'parent-run-references' / 'reference-report.json'

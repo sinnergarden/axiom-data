@@ -20,4 +20,4 @@ require their own scope checks and are not accepted by this session audit.
 
 Tests cover an interior missing session, explicit null, zero, different exchange
 sessions, unknown securities, missing calendar coverage and invalid fields.
-Full suite: 214 tests PASS (64.388s).
+Earlier suite results are in [historical evidence](../history/V1_WORK_LOG.md).

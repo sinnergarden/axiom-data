@@ -5,7 +5,7 @@ paths. It does not remove the partition integrity pass or alter PIT selection.
 
 During SnapshotReader initialization the existing closure traversal validates
 each ancestor. The Reader retains only parent IDs and direct Raw IDs from that
-validated traversal. PR7 request coverage walks this in-memory index and loads
+validated traversal. Event request coverage walks this in-memory index and loads
 each distinct Raw once to obtain request intervals; repeated queries reuse the
 Reader-local interval index. It no longer calls full ancestor validation at
 each parent. A new Reader performs ordinary fresh closure validation and rejects

@@ -2,7 +2,7 @@
 from datetime import date, timedelta
 from axiom_data.artifacts import ArtifactError
 from axiom_data.consumption import validate_symbols, validate_session
-from axiom_data.operations import validate_request_spec
+from axiom_data.operations import normalize_source_request, validate_request_spec
 from axiom_data.source_completeness import SourceCompletenessError, validate_raw_completeness
 
 
@@ -156,6 +156,11 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
     from axiom_data.artifacts import _identity,_digest,_json_bytes,load_raw_batch,_layout,_ensure_directory
     from axiom_data.operations import collect_requests,save_progress,_supersede_collection_request
     _identity('run_id',run_id)
+    plan = json.loads(_json_bytes(plan))
+    plan['requests_by_domain'] = {
+        domain: [normalize_source_request(spec) for spec in requests]
+        for domain, requests in plan['requests_by_domain'].items()
+    }
     if not domains or len(set(domains))!=len(domains) or not set(domains)<=set(plan['requests_by_domain']):
         raise ArtifactError('explicit unique planned domains required')
     # Validate every request before writing an execution record or contacting a source.

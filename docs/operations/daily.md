@@ -37,8 +37,7 @@ consumption/publication separately. No-change asserts the exact parent Snapshot
 identity and creates no new Snapshot identity. This entry point alone is not
 completion of the V1 operational acceptance gate.
 
-Validation uses a copied real PR7 closure and explicitly simulated collection:
-partial failure/resume, independent economic dates, T+1 timestamp alignment,
-no-change reuse, frozen input protection and old-Snapshot stability. Full suite:
-215 tests PASS (65.964s). Full-bootstrap-root daily performance and acceptance
-remain outstanding.
+Before accepting a daily candidate, check partial failure/resume, independent
+economic dates, T+1 timestamp alignment, no-change reuse, frozen input protection
+and old-Snapshot stability. Historical test results are in
+[run evidence](../history/V1_WORK_LOG.md); they are not a current acceptance result.
