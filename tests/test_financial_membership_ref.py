@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from axiom_data import ArtifactError, FactView, SnapshotReader
 from axiom_data.financial_views import build_financial_fact_view_from_reader, load_financial_fact_view, project
@@ -57,7 +58,9 @@ class FinancialMembershipRefTest(unittest.TestCase):
             shutil.copytree(source, root)
             reader = SnapshotReader(root, run['refs']['snapshot_id'])
             legacy = project(reader, scope, policy, cutoff)
-            compact = project(reader, scope, policy, cutoff, membership_ref=True)
+            with patch.object(reader,'session_rows',wraps=reader.session_rows) as reads:
+                compact = project(reader, scope, policy, cutoff, membership_ref=True)
+            self.assertEqual(sum(call.args[0]=='valuation_daily' for call in reads.call_args_list),1)
             for key in ('wide', 'sessions'):
                 self.assertEqual(compact[key], legacy[key], key)
             self.assertEqual(compact['events'], [])

@@ -79,24 +79,32 @@ def financial_view_batch(reader, configs):
             raise ArtifactError('financial View source changed during batch')
 
 
-def _valuation_at(reader,symbols,session,policy,cutoff):
-    """After View admission, select all revisions of the requested daily keys."""
+def _valuation_scope(reader,symbols,start,end):
+    """Validate and group the requested date range once before daily PIT selection."""
     selected=set(symbols)
     batch=getattr(reader,'_financial_view_batch',None)
-    if batch is not None and selected<=batch['symbols'] and batch['start']<=session<=batch['end']:
+    if batch is not None and selected<=batch['symbols'] and batch['start']<=start<=end<=batch['end']:
         if 'rows' not in batch:
             from axiom_data.verification_cache import validation_paths
             with validation_paths() as observed:
                 grouped={}
-                for row in reader.session_rows('valuation_daily',batch['start'],batch['end'],batch['symbols']):
+                for row in reader.session_rows('valuation_daily',batch['start'],batch['end']):
                     if row['symbol'] in batch['symbols'] and batch['start']<=row['session']<=batch['end']:
                         grouped.setdefault((row['symbol'],row['session']),[]).append(row)
             batch['rows'],batch['observed']=grouped,observed
-        rows=[r for symbol in symbols for r in batch['rows'].get((symbol,session),())]
-    else:
-        rows=[r for r in reader.session_rows('valuation_daily',session,session)
-              if r['symbol'] in selected and r['session']==session]
-    return select_revisions(rows,policy=policy,knowledge_cutoff=cutoff)
+        return {day:[row for symbol in symbols for row in batch['rows'].get((symbol,day),())]
+                for day in sorted({day for symbol,day in batch['rows'] if symbol in selected and start<=day<=end})}
+    grouped={}
+    for row in reader.session_rows('valuation_daily',start,end):
+        if row['symbol'] in selected and start<=row['session']<=end:
+            grouped.setdefault(row['session'],[]).append(row)
+    return grouped
+
+
+def _valuation_at(reader,symbols,session,policy,cutoff,*,prepared=None):
+    """After View admission, select all revisions of the requested daily keys."""
+    rows=prepared if prepared is not None else _valuation_scope(reader,symbols,session,session)
+    return select_revisions(rows.get(session,()),policy=policy,knowledge_cutoff=cutoff)
 
 
 def project(reader, scope, policy, cutoff, *, financial_resolution=True, membership_ref=False):
@@ -119,6 +127,7 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True, members
         actual_scope=dict(admitted,financial_report_periods={s:admitted['financial_report_periods'][s] for s in symbols})
     else:
         actual_scope=admit_view(reader,scope,policy,cutoff,financial_resolution=financial_resolution)
+    valuation_scope=_valuation_scope(reader,symbols,start,end)
     sw_state=reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3'
     taxonomy=prepared_input(reader,'taxonomy',(policy,cutoff),lambda:
         sorted({s['industry_id'] for r in reader.as_of('industry_membership',knowledge_cutoff=cutoff,pit_policy=policy) for s in r['membership_spans']}) if sw_state else sorted({r['industry_id'] for r in reader.facts('industry_membership')}))
@@ -175,7 +184,7 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True, members
             facts=selector(financial_history,knowledge_cutoff=session_cutoff,policy=policy)
             stable=financial_derived(financial_history,policy=policy,knowledge_cutoff=session_cutoff,
                 resolve_ambiguity=financial_resolution)
-        valuation=_valuation_at(reader,symbols,session,policy,session_cutoff)
+        valuation=_valuation_at(reader,symbols,session,policy,session_cutoff,prepared=valuation_scope)
         membership={}
         if universe_states is not None:
             visibility=bisect_right(universe_times,instant(session_cutoff))
