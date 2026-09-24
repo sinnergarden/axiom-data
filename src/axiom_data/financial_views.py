@@ -1,6 +1,7 @@
 """Snapshot-bound financial Fact/Qlib materialization."""
 from __future__ import annotations
 import json
+from contextlib import contextmanager
 from pathlib import Path
 from functools import partial
 from importlib.resources import files
@@ -14,17 +15,58 @@ from axiom_data.pit import instant, financial_derived, select_revisions, select_
 from axiom_data.views import DerivedView, DerivedViewRef
 
 from axiom_data.domains.fundamentals import FIELD_MAP, DERIVED_FIELDS, WIDE_FIELDS
+FINANCIAL_VIEW_BATCH_SIZE = 50
+
+
+@contextmanager
+def financial_view_batch(reader, configs):
+    """Bound valuation preparation across independent financial Views."""
+    from axiom_data.verification_cache import file_state
+
+    if not 1 < len(configs) <= FINANCIAL_VIEW_BATCH_SIZE:
+        raise ArtifactError('invalid financial View batch')
+    symbols = set()
+    for config in configs:
+        selected = validate_symbols(config['symbols'])
+        if len(selected) != 1:
+            raise ArtifactError('financial View batch requires one symbol per View')
+        symbols.add(selected[0])
+    start = min(validate_session(c['start_session'], 'start') for c in configs)
+    end = max(validate_session(c['end_session'], 'end') for c in configs)
+    if start > end:
+        raise ArtifactError('reversed financial View interval')
+    previous = getattr(reader, '_financial_view_batch', None)
+    batch = {'symbols': symbols, 'start': start, 'end': end}
+    reader._financial_view_batch = batch
+    try:
+        yield
+    finally:
+        reader._financial_view_batch = previous
+        if any(file_state(path) != state for path, state in batch.get('observed', {}).items()):
+            raise ArtifactError('financial View source changed during batch')
 
 
 def _valuation_at(reader,symbols,session,policy,cutoff):
     """After View admission, select all revisions of the requested daily keys."""
     selected=set(symbols)
-    rows=[r for r in reader.session_rows('valuation_daily',session,session)
-          if r['symbol'] in selected and r['session']==session]
+    batch=getattr(reader,'_financial_view_batch',None)
+    if batch is not None and selected<=batch['symbols'] and batch['start']<=session<=batch['end']:
+        if 'rows' not in batch:
+            from axiom_data.verification_cache import validation_paths
+            with validation_paths() as observed:
+                grouped={}
+                for row in reader.session_rows('valuation_daily',batch['start'],batch['end'],batch['symbols']):
+                    if row['symbol'] in batch['symbols'] and batch['start']<=row['session']<=batch['end']:
+                        grouped.setdefault((row['symbol'],row['session']),[]).append(row)
+            batch['rows'],batch['observed']=grouped,observed
+        rows=[r for symbol in symbols for r in batch['rows'].get((symbol,session),())]
+    else:
+        rows=[r for r in reader.session_rows('valuation_daily',session,session)
+              if r['symbol'] in selected and r['session']==session]
     return select_revisions(rows,policy=policy,knowledge_cutoff=cutoff)
 
 
-def project(reader, scope, policy, cutoff, *, financial_resolution=True):
+def project(reader, scope, policy, cutoff, *, financial_resolution=True, membership_ref=False):
     from axiom_data.financial_coverage import prepared_input
     symbols=scope['symbols'];start=scope['start_session'];end=scope['end_session']
     validate_symbols(symbols);validate_session(start,'start');validate_session(end,'end');instant(cutoff)
@@ -48,6 +90,7 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True):
     financial_history=prepared_input(reader,'financial_history',tuple(symbols),
         lambda:reader.facts('financial_events',symbols=symbols))
     events=[];derived=[];wide=[];memberships=[];industries=[]
+    membership_qualifications=set()
     for session in sessions:
         session_cutoff=min(instant(cutoff),instant(session+'T23:59:59+08:00')).isoformat()
         selector=select_financial_revisions if financial_resolution else select_revisions
@@ -57,8 +100,11 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True):
         membership={}
         for group in scope['universe_ids']:
             for row in reader.members(group,session,knowledge_cutoff=session_cutoff,pit_policy=policy):
-                membership[row['symbol']]=row
-                memberships.append(dict(row,target_session=session))
+                membership_qualifications.add(row['pit_qualification'])
+                if not membership_ref or row['symbol'] in symbols:
+                    membership[row['symbol']]=row
+                if not membership_ref:
+                    memberships.append(dict(row,target_session=session))
         industry={r['symbol']:r for r in reader.members(scope['industry_system'],session,
             domain='industry_membership',knowledge_cutoff=session_cutoff,pit_policy=policy,symbols=symbols)}
         industry_availability={r['symbol']:r for r in reader.industry_facts(scope['industry_system'],session,
@@ -115,6 +161,8 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True):
             wide.append({'session':session,'symbol':symbol,'values':values,'provenance':refs,
                          'knowledge_cutoff':session_cutoff,'facts':metadata})
     return {'wide':wide,'events':events,'derived':derived,'memberships':memberships,'industries':industries,
+            **({'membership_qualification':weakest_pit_qualification(
+                [{'pit_qualification':q} for q in membership_qualifications])} if membership_ref else {}),
             'industry_encoding':encoding,'industry_mapping':{'classification_system':scope['industry_system'],
                 'version':reader.commits['industry_membership'].ref.commit_id,
                 'code_to_industry':{str(v):k for k,v in encoding.items()}},
@@ -145,8 +193,20 @@ def fact_metadata(row,value,leaf,reader,policy,cutoff):
             'quality_state':'BLOCKED' if value is None else 'PASS'}
 
 
-def _files(payload, symbols, bundle):
-    output={'code_bundle.json':_json_bytes(bundle),'rows.json':_json_bytes(payload)}
+def _membership_ref(reader,scope,policy,cutoff):
+    commit=reader.commits['universe_membership']
+    return {'snapshot_id':reader.snapshot.ref.snapshot_id,
+            'domain_commit_id':commit.ref.commit_id,
+            'identity_digest':reader.snapshot.manifest['domain_refs']['universe_membership']['identity_digest'],
+            'universe_ids':list(scope['universe_ids']),
+            'start_session':scope['start_session'],'end_session':scope['end_session'],
+            'pit_policy':policy,'knowledge_cutoff':instant(cutoff).isoformat()}
+
+
+def _files(payload, symbols, bundle, *, membership_ref=False):
+    stored=({key:payload[key] for key in ('wide','events','derived','industries','sessions')}
+            if membership_ref else payload)
+    output={'code_bundle.json':_json_bytes(bundle),'rows.json':_json_bytes(stored)}
     sessions=payload['sessions']
     output['calendars/day.txt']=('\n'.join(sessions)+'\n').encode()
     output['instruments/all.txt']=''.join(f'{qlib_symbol(s)}\t{sessions[0]}\t{sessions[-1]}\n' for s in symbols).encode()
@@ -157,10 +217,12 @@ def _files(payload, symbols, bundle):
     return output
 
 
-def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resolution=True):
-    contents=_files(payload,scope['symbols'],bundle)
-    return {'artifact_type':'pr6_fact_view','schema_version':'pr6_fact_view.v3' if financial_resolution else 'pr6_fact_view.v2',
+def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resolution=True, membership_ref=False):
+    contents=_files(payload,scope['symbols'],bundle,membership_ref=membership_ref)
+    return {'artifact_type':'pr6_fact_view','schema_version':('pr6_fact_view.v4' if membership_ref else
+        'pr6_fact_view.v3' if financial_resolution else 'pr6_fact_view.v2'),
         **({'financial_resolution_policy':'financial_leaf_resolution.v1'} if financial_resolution else {}),
+        **({'membership_ref':_membership_ref(reader,scope,policy,cutoff)} if membership_ref else {}),
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
         'domain_refs':reader.snapshot.manifest['domain_refs'],'scope':scope,
         'requested_scope':dict(scope,fields=list(WIDE_FIELDS)),
@@ -174,7 +236,9 @@ def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resol
         'fact_metadata_schema':'typed_fact.v2' if financial_resolution else 'typed_fact.v1',
         'implementation_digests':{name:_digest(content.encode()) for name,content in sorted(bundle.items())},
         'files':[{'path':p,'content_digest':_digest(b),'size':len(b)} for p,b in sorted(contents.items())],
-        'pit_qualification':weakest_pit_qualification(payload['events']+payload['memberships']+payload['industries']),
+        'pit_qualification':weakest_pit_qualification(payload['events']+payload['industries']+
+            ([{'pit_qualification':payload['membership_qualification']}] if membership_ref and
+             payload['membership_qualification']!='unknown' else payload['memberships'])),
         'validation_summary':{'status':'PASS','wide_rows':len(payload['wide']),'derived_rows':len(payload['derived'])}}
 
 
@@ -190,15 +254,15 @@ def build_financial_fact_view_from_reader(reader,*,symbols,start_session,end_ses
     data_root=reader.data_root
     scope={'symbols':list(validate_symbols(symbols)),'start_session':start_session,'end_session':end_session,
            'universe_ids':list(universe_ids),'industry_system':industry_system}
-    payload=project(reader,scope,pit_policy,knowledge_cutoff)
+    payload=project(reader,scope,pit_policy,knowledge_cutoff,membership_ref=True)
     source_root=Path(str(files("axiom_data")))
     bundle={p.relative_to(source_root).as_posix():p.read_text() for p in sorted(source_root.rglob("*")) if p.is_file() and p.suffix in {".py",".json"}}
-    manifest=_manifest(reader,scope,pit_policy,knowledge_cutoff,payload,bundle)
+    manifest=_manifest(reader,scope,pit_policy,knowledge_cutoff,payload,bundle,membership_ref=True)
     identity=_identity_digest(manifest,'view_id');view_id=_derived_identity('pr6-fact',identity)
     manifest.update(view_id=view_id,identity_digest=identity,created_at=_timestamp(None))
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
     def prepare(candidate):
-        for path,content in _files(payload,scope['symbols'],bundle).items():
+        for path,content in _files(payload,scope['symbols'],bundle,membership_ref=True).items():
             (candidate/path).parent.mkdir(parents=True,exist_ok=True);_write_file(candidate/path,content)
         _write_manifest(candidate,manifest)
     _publish_directory(layout,target,prepare,identity_digest=identity)
@@ -213,13 +277,17 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
     view_id=_identity('view_id',view_id)
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
     manifest,digest=_load_manifest(layout.root,target,artifact_type='pr6_fact_view',
-        schema_version=('pr6_fact_view.v1','pr6_fact_view.v2','pr6_fact_view.v3'),identity_field='view_id',identity=view_id)
+        schema_version=('pr6_fact_view.v1','pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4'),identity_field='view_id',identity=view_id)
     declared=manifest['schema_version']
     if declared=='pr6_fact_view.v1':
         from axiom_data.pr6_views_v1 import LegacyReader, project as projection, _manifest as manifest_builder, _files as payload_files
     else:
-        resolution=declared=='pr6_fact_view.v3'
-        LegacyReader,projection,manifest_builder,payload_files=SnapshotReader,partial(project,financial_resolution=resolution),partial(_manifest,financial_resolution=resolution),_files
+        resolution=declared in {'pr6_fact_view.v3','pr6_fact_view.v4'}
+        refs=declared=='pr6_fact_view.v4'
+        LegacyReader=SnapshotReader
+        projection=partial(project,financial_resolution=resolution,membership_ref=refs)
+        manifest_builder=partial(_manifest,financial_resolution=resolution,membership_ref=refs)
+        payload_files=partial(_files,membership_ref=refs)
     _validate_manifest_identity(manifest,'view_id','pr6-fact',view_id)
     if checked_reader is not None and declared=='pr6_fact_view.v1':
         raise ArtifactError('legacy PR6 View requires its declared Reader')

@@ -64,9 +64,11 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
     from axiom_data.views import (ADJUSTED_BATCH_SIZE, adjusted_price_batch,
                                   build_adjusted_price_view, build_market_replay_view,
                                   _stored_view_kind)
-    from axiom_data.consumption import build_qlib_view
+    from axiom_data.consumption import MARKET_BATCH_SIZE, build_qlib_view, market_view_batch
     from axiom_data.financial_views import build_financial_fact_view
+    from axiom_data.financial_views import FINANCIAL_VIEW_BATCH_SIZE, financial_view_batch
     from axiom_data.event_views import build_event_fact_view
+    from axiom_data.event_views import EVENT_BATCH_SIZE, event_view_batch
     from axiom_data.views import _build_adjusted_price_view, _build_market_replay_view
     from axiom_data.consumption import SnapshotReader, _build_qlib_view
     from axiom_data.financial_views import build_financial_fact_view_from_reader
@@ -129,36 +131,55 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
             offset = 0
             def batchable(item):
                 symbols = item['config'].get('symbols')
-                return (item['kind'] == 'adjusted_price' and
+                return (item['kind'] in {'adjusted_price', 'market_replay', 'market_qlib', 'pr6_fact', 'pr7_fact'} and
                         isinstance(symbols, (list, tuple)) and len(symbols) == 1)
             while offset < len(items):
                 label, spec = items[offset]
                 group = [items[offset]]
                 if batchable(spec):
-                    for candidate in items[offset + 1:offset + ADJUSTED_BATCH_SIZE]:
-                        if not batchable(candidate[1]):
+                    bound = (ADJUSTED_BATCH_SIZE if spec['kind'] == 'adjusted_price' else
+                             FINANCIAL_VIEW_BATCH_SIZE if spec['kind'] == 'pr6_fact' else
+                             EVENT_BATCH_SIZE if spec['kind'] == 'pr7_fact' else MARKET_BATCH_SIZE)
+                    for candidate in items[offset + 1:offset + bound]:
+                        if (not batchable(candidate[1]) or candidate[1]['kind'] != spec['kind'] or
+                            (spec['kind'] == 'pr7_fact' and any(
+                                candidate[1]['config'][key] != spec['config'][key]
+                                for key in ('start_session', 'end_session')))):
                             break
                         group.append(candidate)
                 offset += len(group)
                 state['active_view'] = label
                 if len(group) > 1:
                     save_progress(path, state)
-                context = (adjusted_price_batch(reader, [item['config'] for _, item in group])
-                           if spec['kind'] == 'adjusted_price' and len(group) > 1
-                           else nullcontext())
                 try:
+                    pending = []
+                    for candidate_label, candidate_spec in group:
+                        state['active_view'] = candidate_label
+                        old = state['published_views'].get(candidate_label)
+                        if old is not None:
+                            try:
+                                _completed_view(reader,candidate_spec,old,
+                                                builders[candidate_spec['kind']],loaders[candidate_spec['kind']],code)
+                            except (ArtifactError,OSError,ValueError,KeyError,TypeError):
+                                state['published_views'].pop(candidate_label)
+                                save_progress(path,state)
+                            else:
+                                continue
+                        pending.append((candidate_label,candidate_spec))
+                    if not pending:
+                        continue
+                    context = (adjusted_price_batch(reader, [item['config'] for _, item in pending])
+                               if spec['kind'] == 'adjusted_price' and len(pending) > 1 else
+                               market_view_batch(reader, [item['config'] for _, item in pending], spec['kind'])
+                               if spec['kind'] in {'market_replay', 'market_qlib'} and len(pending) > 1 else
+                               financial_view_batch(reader, [item['config'] for _, item in pending])
+                               if spec['kind'] == 'pr6_fact' and len(pending) > 1 else
+                               event_view_batch(reader, [item['config'] for _, item in pending])
+                               if spec['kind'] == 'pr7_fact' and len(pending) > 1 else
+                               nullcontext())
                     with context:
-                        for label, spec in group:
+                        for label, spec in pending:
                             state['active_view']=label;save_progress(path,state);started=time.monotonic()
-                            old=state['published_views'].get(label)
-                            if old is not None:
-                                try:
-                                    _completed_view(reader,spec,old,builders[spec['kind']],loaders[spec['kind']],code)
-                                except (ArtifactError,OSError,ValueError,KeyError,TypeError):
-                                    state['published_views'].pop(label)
-                                    save_progress(path,state)
-                                else:
-                                    continue
                             ref=checked_builders[spec['kind']](reader,**spec['config'])
                             result={'kind':spec['kind'],'view_id':ref.view_id,'manifest_digest':ref.manifest_digest}
                             state['published_views'][label]=result

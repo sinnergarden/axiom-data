@@ -125,7 +125,7 @@ class Pr6IntegrationTest(unittest.TestCase):
             self.assertEqual(sum(len(r['observations']) for r in canonical),3)
             changed_view=build_pr6_fact_view(root,changed.snapshot_id,**build_args)
             loaded=load_pr6_fact_view(root,changed_view.view_id)
-            self.assertEqual(loaded.manifest['schema_version'],'pr6_fact_view.v3')
+            self.assertEqual(loaded.manifest['schema_version'],'pr6_fact_view.v4')
             self.assertTrue(loaded.manifest['actual_available_scope']['financial_ambiguities'])
             public=FactView(root,changed.snapshot_id,pr6_fact_view_id=changed_view.view_id).read('pr6')
             metadata=public['facts'][0]['fields']

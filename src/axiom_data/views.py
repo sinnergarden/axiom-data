@@ -28,7 +28,7 @@ from axiom_data.artifacts import (
     _write_file,
     _write_manifest,
 )
-from axiom_data.consumption import SnapshotReader, validate_session, validate_symbols
+from axiom_data.consumption import SnapshotReader, prepared_market_view_rows, validate_session, validate_symbols
 from axiom_data.consumption import ordered_row
 from axiom_data.domains import MarketContractError
 from axiom_data.domains.reference import (
@@ -428,12 +428,12 @@ class FactView:
             layout = _layout(data_root)
             identity = _identity('view_id', financial_fact_view_id)
             manifest, _ = _load_manifest(layout.root, layout.derived_commits('pr6_fact') / identity,
-                artifact_type='pr6_fact_view', schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2', 'pr6_fact_view.v3'),
+                artifact_type='pr6_fact_view', schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2', 'pr6_fact_view.v3', 'pr6_fact_view.v4'),
                 identity_field='view_id', identity=identity)
             # v1 keeps its frozen LegacyReader projection. v2 can share the
             # complete closure checked in this constructor invocation.
             self.financial = load_financial_fact_view_with_reader(data_root, identity,
-                checked_reader=self.reader if manifest['schema_version'] in {'pr6_fact_view.v2','pr6_fact_view.v3'} else None)
+                checked_reader=self.reader if manifest['schema_version'] in {'pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4'} else None)
             if self.financial.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
                 raise ArtifactError("financial FactView belongs to another Snapshot")
         self.pr6 = self.financial  # Historical attribute alias.
@@ -447,6 +447,13 @@ class FactView:
 
     def leaf_fact(self, leaf, **query):
         return self.reader.leaf_fact(leaf, **query)
+
+    def financial_members(self, group_id, target_session, *, symbols=None):
+        """Resolve a validated financial View's immutable universe reference."""
+        if self.financial is None or 'membership_ref' not in self.financial.manifest:
+            raise ArtifactNotFoundError('financial membership ref unavailable')
+        return self.reader.members_from_view_ref(
+            self.financial.manifest['membership_ref'],group_id,target_session,symbols=symbols)
 
     def read(
         self,
@@ -501,6 +508,7 @@ class FactView:
                     "requested_scope":{"symbols":sorted(selected),"start_session":start_session or manifest['scope']['start_session'],
                         "end_session":end_session or manifest['scope']['end_session'],"fields":list(selected_fields)},
                     "actual_available_scope":manifest['actual_available_scope'],"validated_scope":manifest['validated_scope'],
+                    **({'membership_ref':manifest['membership_ref']} if manifest['schema_version']=='pr6_fact_view.v4' else {}),
                     "facts":tuple({'symbol':r['symbol'],'session':r['session'],
                         'fields':{f:r['facts'][f] for f in selected_fields}} for r in self.financial.rows
                         if r['symbol'] in selected and (start_session is None or r['session']>=start_session)
@@ -613,18 +621,21 @@ def _build_market_replay_view(reader, *, symbols, start_session, end_session, cr
     required = ("trading_calendar", "security_master", "market_daily", "security_status", "price_limits", "corporate_actions")
     for domain in required:
         _snapshot_domain_ref(reader.snapshot, domain)
-    security = {row["symbol"]: row for row in reader.security_master(selected)}
-    market = {(row["session"], row["symbol"]): row for row in reader.market_daily(selected, start, end)}
-    status = {(row["session"], row["symbol"]): row for row in reader.facts("security_status", symbols=selected, start_session=start, end_session=end)}
-    limits = {(row["session"], row["symbol"]): row for row in reader.facts("price_limits", symbols=selected, start_session=start, end_session=end)}
+    def source(domain, read):
+        prepared = prepared_market_view_rows(reader, 'market_replay', domain, selected, start, end)
+        return prepared if prepared is not None else read()
+    security = {row["symbol"]: row for row in source('security_master', lambda: reader.security_master(selected))}
+    market = {(row["session"], row["symbol"]): row for row in source('market_daily', lambda: reader.market_daily(selected, start, end))}
+    status = {(row["session"], row["symbol"]): row for row in source('security_status', lambda: reader.facts("security_status", symbols=selected, start_session=start, end_session=end))}
+    limits = {(row["session"], row["symbol"]): row for row in source('price_limits', lambda: reader.facts("price_limits", symbols=selected, start_session=start, end_session=end))}
     actions: dict[tuple[str, str], list[str]] = {}
-    action_rows = reader.facts("corporate_actions", symbols=selected, start_session=start, end_session=end)
+    action_rows = source('corporate_actions', lambda: reader.facts("corporate_actions", symbols=selected, start_session=start, end_session=end))
     for row in action_rows:
         actions.setdefault((row["effective_date"], row["symbol"]), []).append(row["action_id"])
     replay_qualification = weakest_pit_qualification(
         [*status.values(), *limits.values(), *action_rows]
     )
-    calendars = reader.trading_calendar(start_session=start, end_session=end)
+    calendars = source('trading_calendar', lambda: reader.trading_calendar(start_session=start, end_session=end))
     rows = []
     for cal in calendars:
         if cal["is_open"] is not True:
@@ -752,26 +763,13 @@ def _load_market_replay_view(data_root, view_id, *, checked_reader=None):
         or policy.get("pit_policy") != "research_non_pit"
     ):
         raise ArtifactError("MarketReplayView temporal policy is invalid")
-    qualification_rows = [
-        *reader.facts(
-            "security_status",
-            symbols=scope.get("symbols"),
-            start_session=scope.get("start_session"),
-            end_session=scope.get("end_session"),
-        ),
-        *reader.facts(
-            "price_limits",
-            symbols=scope.get("symbols"),
-            start_session=scope.get("start_session"),
-            end_session=scope.get("end_session"),
-        ),
-        *reader.facts(
-            "corporate_actions",
-            symbols=scope.get("symbols"),
-            start_session=scope.get("start_session"),
-            end_session=scope.get("end_session"),
-        ),
-    ]
+    selected = validate_symbols(scope.get("symbols"))
+    qualification_rows = []
+    for domain in ("security_status", "price_limits", "corporate_actions"):
+        prepared = prepared_market_view_rows(reader, 'market_replay', domain, selected,
+                                             scope['start_session'], scope['end_session'])
+        qualification_rows.extend(prepared if prepared is not None else reader.facts(
+            domain, symbols=selected, start_session=scope['start_session'], end_session=scope['end_session']))
     if policy.get("pit_qualification") != weakest_pit_qualification(qualification_rows):
         raise ArtifactError("MarketReplayView PIT qualification mismatch")
     return DerivedView(DerivedViewRef("market_replay", view_id, manifest_digest), manifest, tuple(rows))

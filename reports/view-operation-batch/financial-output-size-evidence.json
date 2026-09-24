@@ -1,0 +1,18 @@
+{
+  "snapshot_id": "snapshot-1d69dc236a358f1627ae91080c33cf993b9e2acb55bbd2c2cb7a37129ce6b5a5",
+  "financial_view_scope_universe_ids": [
+    "000906.SH",
+    "000852.SH"
+  ],
+  "open_sessions_2014_2026_SZSE": 3088,
+  "group_min_members": {
+    "000906.SH": 800,
+    "000852.SH": 1000
+  },
+  "fixture_selected_member_row_avg_json_bytes": 1576.0,
+  "code_path": "financial_views.project appends reader.members(group, session) for every group and session to payload.memberships; _files writes entire payload to rows.json",
+  "conservative_single_group_rows_per_view": 2400000,
+  "conservative_single_group_bytes_per_view_at_fixture_width": 3782400000,
+  "conservative_single_group_bytes_3580_views_at_fixture_width": 13540992000000,
+  "note": "This is an order-of-magnitude lower bound using one 800-member group and only 3000 of 3088 sessions; actual selected row widths and lifecycle coverage vary."
+}
