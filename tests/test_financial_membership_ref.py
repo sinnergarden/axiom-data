@@ -69,7 +69,7 @@ class FinancialMembershipRefTest(unittest.TestCase):
             self.assertEqual(list(view.rows), compact['wide'])
             stored = root / 'derived/pr6_fact/commits' / ref.view_id / 'rows.json'
             stored_rows = json.loads(stored.read_bytes())
-            self.assertEqual(set(stored_rows), {'wide','events','derived','industries','sessions'})
+            self.assertEqual(set(stored_rows), {'wide','sessions'})
             self.assertLess(stored.stat().st_size, len(json.dumps(legacy,separators=(',',':')).encode()))
             binding = view.manifest['membership_ref']
             self.assertEqual(binding['snapshot_id'], reader.snapshot.ref.snapshot_id)
@@ -83,7 +83,12 @@ class FinancialMembershipRefTest(unittest.TestCase):
                     expected = reader.members(group, day, knowledge_cutoff=effective,
                                               pit_policy=policy, symbols=scope['symbols'])
                     self.assertEqual(public.financial_members(group,day,symbols=scope['symbols']), expected)
+                    complete = reader.members(group, day, knowledge_cutoff=effective,pit_policy=policy)
+                    self.assertEqual(public.financial_members(group,day), complete)
             wrong = dict(binding, snapshot_id='snapshot-other')
+            with self.assertRaisesRegex(ArtifactError, 'membership ref'):
+                reader.members_from_view_ref(wrong,scope['universe_ids'][0],compact['sessions'][0])
+            wrong = dict(binding, domain_commit_id='universe_membership-other')
             with self.assertRaisesRegex(ArtifactError, 'membership ref'):
                 reader.members_from_view_ref(wrong,scope['universe_ids'][0],compact['sessions'][0])
             with self.assertRaisesRegex(ArtifactError, 'does not cover session'):

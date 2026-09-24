@@ -204,7 +204,7 @@ def _membership_ref(reader,scope,policy,cutoff):
 
 
 def _files(payload, symbols, bundle, *, membership_ref=False):
-    stored=({key:payload[key] for key in ('wide','events','derived','industries','sessions')}
+    stored=({key:payload[key] for key in ('wide','sessions')}
             if membership_ref else payload)
     output={'code_bundle.json':_json_bytes(bundle),'rows.json':_json_bytes(stored)}
     sessions=payload['sessions']
