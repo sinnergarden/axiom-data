@@ -20,7 +20,7 @@ from axiom_data.consumption import exchange_sessions
 
 
 def _contract():
-    return json.loads(files('axiom_data.scope').joinpath('pr8_gate_a.v2.json').read_bytes())
+    return json.loads(files('axiom_data.scope').joinpath('gate_a.v3.json').read_bytes())
 
 
 def code_identity():
@@ -189,11 +189,70 @@ def _source_plan(scope, contract):
     return generated
 
 
+def _daily_contract_probe(root):
+    """Exercise real daily admission/publication on a tiny immutable parent closure."""
+    from zipfile import ZipFile
+    import axiom_data
+    from axiom_data.contracts import registered_contract_versions, writable_contracts
+    from axiom_data.fundamentals_source import FundamentalsCollector
+    from axiom_data.operations import validate_request_spec
+
+    parent = 'snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786'
+    with files('axiom_data.scope').joinpath('daily_contract_snapshot.zip').open('rb') as handle:
+        with ZipFile(handle) as archive:
+            archive.extractall(root)
+    class FixtureSource:
+        calls = 0
+        def query(self, endpoint, **kwargs):
+            self.calls += 1
+            if endpoint != 'fina_indicator' or self.calls != 1:
+                raise ArtifactError('daily probe attempted unplanned source collection')
+            return []
+    source = FixtureSource()
+    params = dict(ts_code='688981.SH', start_date='20250101', end_date='20250331')
+    raw = FundamentalsCollector(root, source).collect('fina_indicator', params,
+        profile_version='tushare_fina_indicator.v1', retrieved_at='2025-06-14T00:00:00Z')
+    request = dict(collector='financial_indicator', domain='financial_events', endpoint='fina_indicator',
+        params=params, economic_scope={'start':'20250101', 'end':'20250331'}, availability_policy='revision_scan')
+    args = dict(snapshot_id=parent, source_requests=[request], client=source,
+        observed_raw_batch_ids={validate_request_spec(request):raw.raw_batch_id})
+    current = writable_contracts()['domains']['financial_events']['current']
+    outcomes = {}
+    for version in registered_contract_versions('financial_events'):
+        inputs = {'financial_events': dict(raw_batch_ids=[], contract_version=version, config={}, new_lineage=True)}
+        run_id = 'gate-a-daily-' + version
+        try:
+            result = axiom_data.daily(root, run_id=run_id, domain_inputs=inputs, **args)
+        except ArtifactError as exc:
+            if version == current or 'LEGACY_CONTRACT_READ_ONLY' not in str(exc):
+                raise ArtifactError('public daily writable contract admission failed') from exc
+            if (Path(root)/'operations'/run_id).exists():
+                raise ArtifactError('public daily legacy contract rejection occurred after operation writes')
+            outcomes[version] = 'LEGACY_CONTRACT_READ_ONLY'
+        else:
+            if version != current:
+                raise ArtifactError('public daily accepted a read-only contract')
+            if result.get('status') != 'CANDIDATE_BUILT' or result.get('ready_for_consumption') is not False:
+                raise ArtifactError('public daily writable contract did not build a candidate')
+            snapshot = axiom_data.load_snapshot(root, result['snapshot_id'])
+            if snapshot.manifest['domain_refs']['financial_events']['contract_version'] != version:
+                raise ArtifactError('public daily published the wrong writable contract')
+            outcomes[version] = 'CANDIDATE_BUILT'
+    if source.calls != 1:
+        raise ArtifactError('public daily recollected a bound probe observation')
+    return {'parent_snapshot_id':parent, 'request':request, 'outcomes':outcomes}
+
+
 def _operational_routes():
-    """Check the existing explicit service call paths, recording their actual code."""
+    """Exercise public boundaries and record implementation provenance."""
+    from tempfile import TemporaryDirectory
+    import axiom_data
+    from axiom_data import operations, source_completeness, view_operation
+    from axiom_data.build import BuildApplication, BuildContractError, DomainCommitRef
+    from axiom_data.source_completeness import SourceCompletenessError
+
     routes = {
         'axiom_data.operations.bootstrap': {'assemble_candidate', 'create_snapshot'},
-        'axiom_data.operations.daily': {'collect_requests', '_validate_domain_inputs', 'assemble_candidate'},
         'axiom_data.operations.repair': {'assemble_candidate'},
         'axiom_data.operations.assemble_candidate': {'_validate_domain_inputs', 'BuildApplication'},
         'axiom_data.operations.inspect_scope': {'session_coverage'},
@@ -207,13 +266,89 @@ def _operational_routes():
         if not required <= calls:
             raise ArtifactError('public operation admission/build route absent: ' + name)
         result[name] = {'code_digest': _digest(source.encode()), 'required_calls': sorted(required)}
-    # The reviewed bodies pin actual executable paths. A call hidden in dead
-    # code or moved after publication cannot pass merely by retaining its name.
-    expected = _contract()['reviewed_admission_routes']
-    actual = admission_route_identity()
-    if actual != expected:
-        raise ArtifactError('public admission route differs from reviewed executable binding')
-    result['reviewed_binding'] = actual
+    for public, module, name in (
+        ('bootstrap', operations, 'bootstrap'), ('daily', operations, 'daily'),
+        ('repair', operations, 'repair'), ('materialize_views', view_operation, 'materialize_views')):
+        if getattr(axiom_data, public) is not getattr(module, name):
+            raise ArtifactError('public operation route differs from canonical entry: ' + public)
+    legacy = {'financial_events': {'raw_batch_ids': ['gate-a-raw'],
+              'contract_version': 'financial_events.v1', 'config': {}, 'new_lineage': True}}
+    with TemporaryDirectory(prefix='axiom-gate-a-routes-') as root:
+        for name, kwargs in (
+            ('bootstrap', dict(domain_inputs=legacy)),
+            ('repair', dict(snapshot_id='gate-a-snapshot', domain_inputs=legacy))):
+            try:
+                getattr(operations, name)(root, run_id='gate-a-route', **kwargs)
+            except ArtifactError as exc:
+                if 'LEGACY_CONTRACT_READ_ONLY' not in str(exc):
+                    raise ArtifactError('public operation did not enforce writable contract') from exc
+            else:
+                raise ArtifactError('public operation accepted a legacy writable contract: ' + name)
+        for requests, expected in (
+            ([], 'daily requires explicit source requests'),
+            ([{}], 'source request requires the complete public plan schema')):
+            try:
+                axiom_data.daily(root, run_id='gate-a-daily', snapshot_id='gate-a-snapshot',
+                    source_requests=requests, domain_inputs={})
+            except ArtifactError as exc:
+                if str(exc) != expected:
+                    raise ArtifactError('public daily operation did not enforce request admission') from exc
+            else:
+                raise ArtifactError('public daily operation accepted an invalid source request')
+        if list(Path(root).iterdir()):
+            raise ArtifactError('rejected public operation wrote state')
+        result['daily_contract_admission'] = _daily_contract_probe(root)
+    try:
+        view_operation.materialize_views('/unused', run_id='gate-a-route',
+            snapshot_id='gate-a-snapshot', views={})
+    except ArtifactError:
+        pass
+    else:
+        raise ArtifactError('public View operation accepted an empty plan')
+    called = []
+    def executor(request):
+        called.append(request.contract_version)
+        return DomainCommitRef('financial_events', 'gate-a-commit', request.contract_version)
+    application = BuildApplication('financial_events', executor)
+    try:
+        application.build(None, ['gate-a-raw'], [], 'financial_events.v1')
+    except BuildContractError as exc:
+        if 'LEGACY_CONTRACT_READ_ONLY' not in str(exc):
+            raise ArtifactError('public build did not enforce writable contract') from exc
+    else:
+        raise ArtifactError('public build accepted a legacy writable contract')
+    if called or application.build(None, ['gate-a-raw'], [], 'financial_events.v4').contract_version != 'financial_events.v4':
+        raise ArtifactError('public build writable contract behavior differs')
+    try:
+        rows = [dict(ts_code='600036.SH', ann_date='20250401',
+                     end_date=(date(2025, 1, 1) + timedelta(days=i)).strftime('%Y%m%d'),
+                     update_flag='1', current_ratio=i + 1) for i in range(100)]
+        source_completeness.validate_payload_completeness('tushare_fina_indicator.v1',
+            'fina_indicator', rows,
+            params={'ts_code': '600036.SH', 'start_date': '20250101', 'end_date': '20250630'})
+    except SourceCompletenessError:
+        pass
+    else:
+        raise ArtifactError('public source completeness admitted a capped response')
+    member = dict(l1_code='801160.SI', l1_name='公用事业',
+        l2_code='801161.SI', l2_name='电力', l3_code='851161.SI', l3_name='风力发电',
+        ts_code='000001.SZ', name='fixture', in_date='20200101', out_date='20250101', is_new='N')
+    page_params = {'is_new': 'N', 'limit': '2', 'offset': '0'}
+    page = source_completeness.validate_payload_completeness('tushare_industry_qualification.v1',
+        'index_member_all', [member], params=page_params)
+    if page['admission'] != 'page_series_required':
+        raise ArtifactError('pagination accepted an unbound single page')
+    try:
+        source_completeness.validate_payload_completeness('tushare_industry_qualification.v1',
+            'index_member_all', [dict(member, is_new='Y')], params=page_params)
+    except SourceCompletenessError:
+        pass
+    else:
+        raise ArtifactError('pagination admitted a response outside its selector')
+    result['behavioral_checks'] = ['public_route_identity', 'legacy_bootstrap_rejection',
+        'legacy_repair_rejection', 'daily_request_rejection', 'daily_contract_admission', 'empty_view_plan_rejection', 'public_build_contracts',
+        'capped_source_rejection', 'pagination_selector_rejection']
+    result['implementation_provenance'] = admission_route_identity()
     return result
 
 
@@ -446,6 +581,8 @@ def validate_gate_a(plan):
             findings.append({'section': section, 'reason': str(exc), 'error_type': type(exc).__name__})
     try:
         contract = _contract()
+        if contract.get('schema_version') != 'gate_a_contract.v3':
+            raise ArtifactError('Gate A contract version differs from current policy')
         if not isinstance(plan, dict) or set(plan) != set(make_gate_a_plan(plan.get('scope', {}))):
             raise ArtifactError('complete Gate A plan required')
         scope = _scope(plan['scope'])
@@ -611,12 +748,13 @@ def plan_historical_views(*, target, security_rows, calendar_rows, universe_ids,
             'adjusted_price': dict(common, anchor_session=eligible[-1], decision_cutoff=eligible[-1], pit_policy='research_non_pit'),
             'market_replay': common,
             'market_qlib': dict(common, fields=list(MARKET_VIEW_FIELDS), price_basis='unadjusted', pit_policy='best_effort'),
-            'pr6_fact': dict(common, universe_ids=groups, industry_system='SW2021', pit_policy='best_effort_vendor_v1', knowledge_cutoff=cutoff),
-            'pr7_fact': dict(common, pit_policy='best_effort_vendor_v1', knowledge_cutoff=cutoff),
+            'financial_fact': dict(common, universe_ids=groups, industry_system='SW2021', pit_policy='best_effort_vendor_v1', knowledge_cutoff=cutoff),
+            'event_fact': dict(common, pit_policy='best_effort_vendor_v1', knowledge_cutoff=cutoff),
         }
         for kind, config in configs.items():
             from axiom_data.admission_plan import _builders, _config
-            _config(_builders()[kind], 'FUTURE_VALIDATED_ROOT', 'FUTURE_EXPLICIT_SNAPSHOT', config)
+            from axiom_data.views import _stored_view_kind
+            _config(_builders()[_stored_view_kind(kind)], 'FUTURE_VALIDATED_ROOT', 'FUTURE_EXPLICIT_SNAPSHOT', config)
             views[kind + '-' + symbol] = {'kind': kind, 'config': config}
     return {'schema_version': 'historical_view_execution_plan.v1',
             'status': 'GEOMETRY_BLOCKED' if any(g['qualification'] == 'BLOCKED' for g in gaps) else 'GEOMETRY_DEFINED',

@@ -20,7 +20,7 @@ def validate_rows(domain,rows,version='v1'):
         _date('report_period',r['report_period'],nullable=domain in DAILY_DOMAINS)
         _date('announcement',r['announcement'],nullable=domain in DAILY_DOMAINS)
         if r['revision_id']!=fingerprint(economic_content(r)):raise MarketContractError('revision fingerprint mismatch')
-        if set(r['values'])!=set(units):raise MarketContractError('PR7 value schema mismatch')
+        if set(r['values'])!=set(units):raise MarketContractError('event value schema mismatch')
         if set(r['missing_reasons'])!={k for k,v in r['values'].items() if v is None}:raise MarketContractError('missing reasons mismatch')
         for k,v in r['values'].items():
             if v is None:

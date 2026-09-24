@@ -1,8 +1,13 @@
 import copy
+import json
 import tempfile
 import unittest
+from pathlib import Path
 
 from axiom_data import ArtifactError
+from axiom_data.artifacts import _digest, _json_bytes
+from axiom_data.bootstrap_sources import collect_bootstrap_sources
+from axiom_data.operations import normalize_source_request
 from axiom_data.historical_sparse import (plan_historical_sparse, execute_historical_sparse,
                                           validate_sparse_coverage, _check_children)
 
@@ -50,6 +55,51 @@ class HistoricalSparseTest(unittest.TestCase):
             self.assertFalse(result['complete'])
             self.assertEqual(result['coverage'][0]['status'], 'COLLECTION_FAILURE')
             self.assertIsNone(result['coverage'][0]['empty'])
+
+    def test_public_execute_resumes_legacy_plan_without_recollecting_or_rewriting_identity(self):
+        class Client:
+            calls = 0
+            def query(self, *args, **kwargs):
+                self.calls += 1
+                return []
+        with tempfile.TemporaryDirectory() as root:
+            current = self.plan()
+            legacy = {k:v for k,v in copy.deepcopy(current).items() if k != 'plan_digest'}
+            legacy['requests_by_domain'] = {domain: [normalize_source_request(r) for r in specs]
+                for domain, specs in legacy['requests_by_domain'].items()}
+            legacy['plan_digest'] = _digest(_json_bytes(legacy))
+            self.assertEqual(current['plan_digest'], legacy['plan_digest'])
+            domains = ['forecast_observations']; client = Client()
+            self.assertEqual(collect_bootstrap_sources(root, run_id='legacy', plan=legacy,
+                domains=domains, client=client)['status'], 'COMPLETE')
+            saved = {p: p.read_bytes() for p in (Path(root)/'operations').rglob('*.json')}
+            result = execute_historical_sparse(root, run_id='legacy', plan=current,
+                domains=domains, client=client)
+            self.assertTrue(result['complete'])
+            self.assertEqual(execute_historical_sparse(root, run_id='legacy', plan=legacy,
+                domains=domains, client=client)['status'], 'COMPLETE')
+            self.assertEqual(client.calls, 1)
+            self.assertEqual({p: p.read_bytes() for p in saved}, saved)
+            with self.assertRaisesRegex(ArtifactError, 'digest mismatch'):
+                execute_historical_sparse(root, run_id='legacy', plan=dict(current, plan_digest='sha256:' + '0'*64),
+                    domains=domains, client=client)
+            frozen = json.loads((Path(root)/'operations/legacy/source_plan.json').read_bytes())
+            self.assertEqual(frozen['plan']['plan_digest'], legacy['plan_digest'])
+            self.assertEqual(current['requests_by_domain']['forecast_observations'][0]['collector'], 'events')
+
+            changed_scope = plan_historical_sparse(**dict(current['scope'], end_session='2026-09-02'))
+            changed_request = copy.deepcopy(current)
+            changed_request['requests_by_domain']['forecast_observations'][0]['params']['ts_code'] = '000001.SZ'
+            changed_contract = copy.deepcopy(current)
+            changed_contract['requests_by_domain']['holder_count_events'][0]['collector'] = 'holder_reports_v2'
+            for changed in (changed_scope, changed_request, changed_contract):
+                changed.pop('plan_digest')
+                changed['plan_digest'] = _digest(_json_bytes(changed))
+                with self.subTest(change=changed), self.assertRaises(ArtifactError):
+                    execute_historical_sparse(root, run_id='legacy', plan=changed,
+                        domains=domains, client=client)
+            self.assertEqual(client.calls, 1)
+            self.assertEqual({p: p.read_bytes() for p in saved}, saved)
 
     def test_child_partition_rejects_gap_overlap_and_selector_change(self):
         parent = self.plan()['requests_by_domain']['forecast_observations'][0]

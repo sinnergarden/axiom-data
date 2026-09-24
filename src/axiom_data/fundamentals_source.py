@@ -14,7 +14,7 @@ from axiom_data.source_completeness import validate_payload_completeness, source
 
 def load_fundamentals_source_profile(version='tushare_pr6.v1'):
     if version not in {'tushare_pr6.v1','tushare_pr6.v2','tushare_fina_indicator.v1'}:
-        raise ArtifactError('unsupported PR6 SourceProfile version')
+        raise ArtifactError('unsupported financial SourceProfile version')
     return json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
 
 
@@ -43,7 +43,7 @@ def _validate_payload_shape(endpoint, params, records, *, profile_version):
     definition=profile['endpoints'][endpoint]
     allowed = {'ts_code','start_date','end_date','period','report_type','trade_date','index_code'}
     if not isinstance(params,dict) or not params or set(params)-allowed:
-        raise ArtifactError('PR6 request must have bounded allowed parameters')
+        raise ArtifactError('financial request must have bounded allowed parameters')
     if endpoint=='index_weight':
         if set(params)!={'index_code','start_date','end_date'}:
             raise ArtifactError('index_weight requires explicit index and date bounds')
@@ -88,7 +88,7 @@ class FundamentalsCollector(TushareCollector):
     def collect(self, endpoint, params, *, retrieved_at=None, membership_complete=False, profile_version='tushare_pr6.v1'):
         definition=load_fundamentals_source_profile(profile_version)['endpoints'].get(endpoint)
         if definition is None:
-            raise ArtifactError('unsupported PR6 endpoint')
+            raise ArtifactError('unsupported financial endpoint')
         validate_payload(endpoint,params,[],profile_version=profile_version)
         records=_response_records(self._client().query(endpoint,fields=','.join(definition['fields']),**params))
         _validate_payload_shape(endpoint,params,records,profile_version=profile_version)
@@ -180,11 +180,11 @@ class FundamentalsBuilder(MarketDomainBuilder):
             version=m.get('source_profile_version')
             definition=load_fundamentals_source_profile(version)['endpoints'].get(endpoint)
             if definition is None or definition['domain']!=self.domain:
-                raise ArtifactError('PR6 endpoint/domain mismatch')
+                raise ArtifactError('financial endpoint/domain mismatch')
             if (m['schema_version']!='raw_batch.v2' or m['source_profile_digest']!=profile_digest(version)
                  or m['source_profile_ref']!='tushare.pr6.'+endpoint
                 or request.get('fields')!=definition['fields']):
-                raise ArtifactError('PR6 source profile binding mismatch')
+                raise ArtifactError('financial source profile binding mismatch')
             records=json.loads(raw.payload)
             validate_payload(endpoint,request['params'],records,profile_version=version)
             if contract['contract_version']=='financial_events.v4':
@@ -253,7 +253,7 @@ class FundamentalsBuilder(MarketDomainBuilder):
         selected = self.builder_config.get('symbols')
         if selected is not None:
             if not isinstance(selected,list) or not selected or len(selected)!=len(set(selected)):
-                raise ArtifactError('PR6 scope symbols must be a nonempty unique list')
+                raise ArtifactError('financial scope symbols must be a nonempty unique list')
             normalized=[r for r in normalized if r['symbol'] in selected]
         by_key={}
         for row in [*parent_rows,*normalized]:
@@ -353,7 +353,7 @@ class FundamentalsBuilder(MarketDomainBuilder):
                     if (profile['source_profile_digest']!=profile_digest() or profile['source_profile_ref']!='tushare.pr6.index_weight'
                         or profile['source_profile_version']!='tushare_pr6.v1' or profile['domain']!=self.domain
                         or profile['request']['fields']!=load_fundamentals_source_profile()['endpoints']['index_weight']['fields']):
-                        raise ArtifactError('PR6 source profile binding mismatch')
+                        raise ArtifactError('financial source profile binding mismatch')
                     validate_payload('index_weight',profile['request']['params'],json.loads(raw.payload))
                     records=json.loads(raw.payload);params=raw.manifest['request']['params']
                     grouped=defaultdict(list)

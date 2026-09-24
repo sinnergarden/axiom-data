@@ -224,6 +224,7 @@ def plan_daily(data_root, snapshot_id, *, source_requests):
 
 
 def _source_binding(spec):
+    spec = normalize_source_request(spec)
     family, endpoint = spec['collector'], spec['endpoint']
     if family == 'market':
         from axiom_data.tushare import load_tushare_source_profile, tushare_source_profile_digest

@@ -13,7 +13,7 @@ loads the full data root, builds artifacts, or promotes a baseline. Even READY
 has `external_review_required=true` and `bulk_authorized=false`: an independent
 reviewer must approve the exact code and plan before source preflight and bulk.
 
-The packaged `scope/pr8_gate_a.v1.json` binds each of the frozen 56 public Data
+The packaged `scope/gate_a.v3.json` binds each of the frozen 56 public Data
 requirements to actual public fields, canonical/derived owners, source profiles,
 endpoints, planners, coverage policy, and historical PIT qualification. The
 469 dependency edges remain bound to the original registry digest. The source
@@ -30,9 +30,11 @@ an at-cap gate that silently accepts the payload, blocks readiness. Unestablishe
 supplier limits remain findings; this module does not invent limits to make the
 gate pass. It binds the accepted SW2021 anomaly and gap policies, exclusive
 official delist boundary, and the coverage-state contract. Public bootstrap,
-daily, repair, inspect and catalog entry code and explicit build routes are
-recorded; the independent reviewer and operation regression tests remain the
-authority for their complete behavioral equivalence.
+daily, repair, inspect and catalog entry paths are checked; current code digests
+are recorded for provenance. Gate A exercises the public write and View boundaries
+and the sparse behavior pack. It does not require current Python source to match
+a frozen function-body digest. Independent review and operation regressions still
+assess broader behavioral equivalence.
 
 ## Historical View execution
 

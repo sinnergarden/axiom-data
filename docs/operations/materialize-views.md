@@ -4,9 +4,9 @@
 materializes an explicit nonempty plan through the same implementations as the existing public View builders.
 Each label has `kind` and `config`. Public kinds are `adjusted_price`, `market_replay`,
 `market_qlib`, `financial_fact`, and `event_fact`; config uses that builder's arguments.
-The operation stores the existing `pr6_fact` and `pr7_fact` identifiers for the two
-Fact Views. Old plans using those identifiers remain valid; both spellings produce
-the same frozen plan for the same inputs.
+The operation resolves public names to immutable View kinds before freezing the
+plan. Previously published plans remain readable under their original names;
+see [historical identifiers](../history/compatibility-identifiers.md).
 Snapshot identity must be concrete. Cross-View references, such as an adjusted
 price View supplied to Qlib, must also be explicit artifact IDs.
 

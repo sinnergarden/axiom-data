@@ -1,4 +1,4 @@
-"""Phase 1 PR2 filesystem artifacts and rebuildable catalog."""
+"""Immutable filesystem artifacts and rebuildable catalog."""
 
 from __future__ import annotations
 
@@ -475,7 +475,7 @@ def _publish_directory(
 def _payload_file(root: Path, manifest: Mapping[str, Any], artifact_dir: Path) -> bytes:
     payload_files = manifest.get("payload_files")
     if not isinstance(payload_files, list) or len(payload_files) != 1:
-        raise ArtifactError("Phase 1 RawBatch requires exactly one payload file")
+        raise ArtifactError("market RawBatch requires exactly one payload file")
     entry = payload_files[0]
     if not isinstance(entry, dict):
         raise ArtifactError("RawBatch payload entry must be an object")
@@ -625,7 +625,7 @@ def _decode_rows(raw: RawBatch) -> list[dict[str, Any]]:
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ArtifactError(f"RawBatch {raw.ref.raw_batch_id!r} payload is not JSON") from exc
     if not isinstance(value, list) or any(not isinstance(row, dict) for row in value):
-        raise ArtifactError("Phase 1 market RawBatch payload must be a JSON array of row objects")
+        raise ArtifactError("market RawBatch payload must be a JSON array of row objects")
     return value
 
 
@@ -841,7 +841,7 @@ def _validate_pr6_dependencies(domain, rows, dependencies):
     outside_calendar = False
     for row in rows:
         if row['symbol'] not in securities:
-            raise ArtifactError("PR6 fact has no security identity")
+            raise ArtifactError("financial fact has no security identity")
         if daily and (securities[row['symbol']]['exchange'], row['session']) not in sessions:
             outside_calendar = True
     # Preserve security-error precedence while checking the complete input once.
@@ -945,7 +945,7 @@ class MarketDomainBuilder:
         if self.builder_config.get('coverage_state_policy') != writable_contracts()['source_coverage']['current']:
             raise ArtifactError('LEGACY_CONTRACT_READ_ONLY: current source coverage contract required for publication')
         if request.patch_ids:
-            raise ArtifactError("Phase 1 PR2 does not support non-empty patch_ids")
+            raise ArtifactError("this RawBatch contract does not support non-empty patch_ids")
         contract, contract_content, contract_digest = _contract_content(
             request.contract_version
         )
@@ -1059,12 +1059,12 @@ class MarketDomainBuilder:
             replay = FundamentalsBuilder(self.layout.root, self.domain, builder_config=self.builder_config)
             replay.parent_group_states = self.parent_group_states
             if not _equal_rows(replay._build_rows(contract, parent.rows if parent else (), raw_batches), rows):
-                raise ArtifactError("PR6 staged rows differ from their source mapping")
+                raise ArtifactError("financial staged rows differ from their source mapping")
         if self.domain in EVENT_DOMAINS:
             from axiom_data.event_source import EventBuilder
             replay = EventBuilder(self.layout.root, self.domain, builder_config=self.builder_config)
             if not _equal_rows(replay._build_rows(contract, parent.rows if parent else (), raw_batches), rows):
-                raise ArtifactError("PR7 staged rows differ from RawBatch mapping")
+                raise ArtifactError("event staged rows differ from RawBatch mapping")
         builder_config_digest = _digest(_json_bytes(self.builder_config))
         builder_implementation_ref = _builder_implementation_ref(self)
         parent_ref = _commit_ref(parent) if parent is not None else None
@@ -1225,7 +1225,7 @@ def load_domain_commit(
     try:
         ref = DomainCommitRef(domain, domain_commit_id, contract_version)
     except BuildContractError as exc:
-        raise ArtifactError("DomainCommit uses an unsupported Phase 1 contract") from exc
+        raise ArtifactError("DomainCommit uses an unsupported contract") from exc
 
     if manifest['schema_version'] == 'domain_commit.v2':
         from axiom_data.partition_rows import PartitionRows, STREAM_ROW_THRESHOLD, WHOLE_STATE_DOMAINS
@@ -1240,7 +1240,7 @@ def load_domain_commit(
     else:
         output_files = manifest.get("output_files")
         if not isinstance(output_files, list) or len(output_files) != 1:
-            raise ArtifactError("Phase 1 DomainCommit requires exactly one output file")
+            raise ArtifactError("market DomainCommit requires exactly one output file")
         output = output_files[0]
         if not isinstance(output, dict):
             raise ArtifactError("DomainCommit output entry is invalid")
@@ -1391,7 +1391,7 @@ def _validate_domain_commit_node(
         transitive_raw_batch_ids = set(raw_ids)
 
         if commit.manifest.get("ordered_patch_refs") != []:
-            raise ArtifactError("Phase 1 PR2 DomainCommit patch refs must be empty")
+            raise ArtifactError("market DomainCommit patch refs must be empty")
 
         parent_ref = commit.manifest.get("parent_commit_ref")
         parent = None
@@ -1460,7 +1460,7 @@ def _validate_domain_commit_node(
                 from axiom_data.domains.fundamentals import validate_group_states
                 validate_group_states(commit.rows,commit.manifest["group_states"])
             if not _equal_rows(expected_rows, canonical_rows):
-                raise ArtifactError("PR6 canonical rows differ from their RawBatch mapping")
+                raise ArtifactError("financial canonical rows differ from their RawBatch mapping")
             del expected_rows
 
         if domain in EVENT_DOMAINS:
@@ -1469,7 +1469,7 @@ def _validate_domain_commit_node(
             expected_rows = replay._build_rows(commit.contract, parent.rows if parent_ref is not None else (),
                 RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]))
             if not _equal_rows(expected_rows, canonical_rows):
-                raise ArtifactError("PR7 canonical rows differ from RawBatch mapping")
+                raise ArtifactError("event canonical rows differ from RawBatch mapping")
             del expected_rows
 
         if commit.ref.contract_version in {'corporate_actions.v2', 'security_capital.v2'} or (domain == 'price_limits' and commit.manifest['builder_config'].get('limit_qualification')) or (domain == 'corporate_actions' and commit.manifest['builder_config'].get('corporate_action_reobservation')):

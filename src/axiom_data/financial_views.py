@@ -28,15 +28,15 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True):
     from axiom_data.financial_coverage import prepared_input
     symbols=scope['symbols'];start=scope['start_session'];end=scope['end_session']
     validate_symbols(symbols);validate_session(start,'start');validate_session(end,'end');instant(cutoff)
-    if start>end:raise ArtifactError('reversed PR6 View interval')
+    if start>end:raise ArtifactError('reversed financial View interval')
     if not scope['universe_ids'] or len(scope['universe_ids'])!=len(set(scope['universe_ids'])):
-        raise ArtifactError('PR6 View requires explicit unique universes')
+        raise ArtifactError('financial View requires explicit unique universes')
     known=set(prepared_input(reader,'security_master',(),lambda:sorted(r['symbol'] for r in reader.security_master())))
-    if not set(symbols)<=known:raise ArtifactError('PR6 View scope lacks security identities')
-    if any(d not in reader.commits for d in FUNDAMENTAL_DOMAINS):raise ArtifactError('PR6 snapshot required')
+    if not set(symbols)<=known:raise ArtifactError('financial View scope lacks security identities')
+    if any(d not in reader.commits for d in FUNDAMENTAL_DOMAINS):raise ArtifactError('financial Snapshot domains required')
     calendar=prepared_input(reader,'calendar',(),lambda:list(reader.trading_calendar()))
     sessions=sorted({r['session'] for r in calendar if start<=r['session']<=end and r['is_open']})
-    if not sessions:raise ArtifactError('PR6 View has no calendar coverage')
+    if not sessions:raise ArtifactError('financial View has no calendar coverage')
     from axiom_data.financial_coverage import admit_view
     actual_scope=admit_view(reader,scope,policy,cutoff,financial_resolution=financial_resolution)
     sw_state=reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3'
@@ -226,18 +226,18 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
     reader=checked_reader or LegacyReader(data_root,manifest['snapshot_ref']['snapshot_id'])
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or
         reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
-        raise ArtifactError('checked Reader does not match PR6 View Snapshot')
+        raise ArtifactError('checked Reader does not match financial View Snapshot')
     payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):
         raise ArtifactError('invalid frozen code bundle')
     expected=manifest_builder(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'],payload,bundle)
     if {k:v for k,v in manifest.items() if k not in {'view_id','identity_digest','created_at'}}!=expected:
-        raise ArtifactError('PR6 View semantic closure mismatch')
+        raise ArtifactError('financial View semantic closure mismatch')
     for path,content in payload_files(payload,manifest['scope']['symbols'],bundle).items():
         checked=_safe_path(layout.root,target/path,closure=target)
         if checked.read_bytes()!=content:
-            raise ArtifactError('PR6 Fact/Qlib file differs from source projection')
+            raise ArtifactError('financial Fact/Qlib file differs from source projection')
     return DerivedView(DerivedViewRef("pr6_fact",view_id,digest),manifest,tuple(payload['wide']))
 
 

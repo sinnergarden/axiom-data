@@ -8,11 +8,26 @@ import json
 from datetime import date, timedelta
 
 from axiom_data.artifacts import ArtifactError, _digest, _json_bytes, _layout, _identity, _safe_path, load_raw_batch
-from axiom_data.operations import _request, _source_binding, _check_collected
+from axiom_data.operations import _request, _source_binding, _check_collected, normalize_source_request
 
 VERSION = 'historical_sparse.v1'
 ENDPOINTS = ('dividend', 'forecast', 'stk_holdernumber', 'top10_holders',
              'index_member_all', 'stock_basic')
+
+
+def _checkpoint_plan(plan):
+    """Canonicalize before hashing; never rewrite a stored plan or its digest."""
+    content = {k:v for k,v in plan.items() if k != 'plan_digest'}
+    canonical = dict(content, requests_by_domain={domain: [normalize_source_request(spec) for spec in specs]
+        for domain, specs in plan['requests_by_domain'].items()})
+    digest = _digest(_json_bytes(canonical))
+    if 'plan_digest' in plan and plan['plan_digest'] not in {digest, _digest(_json_bytes(content))}:
+        raise ArtifactError('sparse plan digest mismatch')
+    return dict(canonical, plan_digest=digest)
+
+
+def _same_plan(left, right):
+    return _checkpoint_plan(left) == _checkpoint_plan(right)
 
 
 def plan_historical_sparse(*, symbols, start_session, end_session):
@@ -43,12 +58,13 @@ def plan_historical_sparse(*, symbols, start_session, end_session):
         'limitations': ['stock_basic is an as-observed listing snapshot; official exchange termination Raw and boundary admission remain required',
                         'industry membership observations retain best_effort history and boundary ambiguity'],
         'ready_for_consumption': False}
-    return dict(plan, plan_digest=_digest(_json_bytes(plan)))
+    return dict(plan, plan_digest=_checkpoint_plan(plan)['plan_digest'])
 
 
 def _check_children(parent, children):
     """A date split is an exact partition with invariant non-date selectors."""
     from axiom_data.fundamentals_source import source_date
+    parent = normalize_source_request(parent)
     params = parent['params']
     if not {'start_date', 'end_date'} <= set(params) or not children:
         raise ArtifactError('sparse split requires bounded date scope')
@@ -56,6 +72,7 @@ def _check_children(parent, children):
     end = date.fromisoformat(source_date(params['end_date']))
     for child in children:
         _request(child)
+        child = normalize_source_request(child)
         p = child['params']
         if (any(child[k] != parent[k] for k in ('collector', 'domain', 'endpoint', 'availability_policy'))
             or {k:v for k,v in p.items() if k not in {'start_date','end_date'}} !=
@@ -81,14 +98,14 @@ def _validate_sparse_coverage(data_root, *, run_id, plan, domains, split_resolve
     """Shared aggregate body; public callers always use the real split resolver."""
     from axiom_data.source_coverage import observation
     expected = plan_historical_sparse(**plan['scope'])
-    if plan != expected:
+    if not _same_plan(plan, expected):
         raise ArtifactError('sparse plan differs from canonical planner')
     _identity('run_id', run_id)
     root = _layout(data_root).root
     if not domains or len(set(domains)) != len(domains) or not set(domains) <= set(plan['requests_by_domain']):
         raise ArtifactError('explicit unique sparse domains required')
     frozen = _safe_path(root, root / 'operations' / run_id / 'source_plan.json')
-    if frozen.exists() and json.loads(frozen.read_bytes()) != {'plan': plan, 'domains': domains}:
+    if frozen.exists() and json.loads(frozen.read_bytes()) != {'plan': _checkpoint_plan(plan), 'domains': domains}:
         raise ArtifactError('sparse coverage plan binding mismatch')
 
     def visit(batch, spec, batch_specs, ancestors=()):
@@ -100,10 +117,11 @@ def _validate_sparse_coverage(data_root, *, run_id, plan, domains, split_resolve
         checkpoint = _safe_path(root, root / 'operations' / batch / 'collection-checkpoints' / (key.removeprefix('sha256:') + '.json'))
         record = None
         if frozen.exists() and path.exists() and checkpoint.exists():
-            digest = _digest(_json_bytes({'requests': batch_specs, 'request_keys': [_request(c) for c in batch_specs]}))
+            stored_specs = [normalize_source_request(c) for c in batch_specs]
+            digest = _digest(_json_bytes({'requests': stored_specs, 'request_keys': [_request(c) for c in stored_specs]}))
             saved = json.loads(path.read_bytes())
             record = json.loads(checkpoint.read_bytes())
-            if (saved['requests'] != batch_specs or saved['plan_digest'] != digest
+            if (saved['requests'] != stored_specs or saved['plan_digest'] != digest
                 or record.get('schema_version') != 'collection_checkpoint.v2'
                 or record.get('plan_digest') != digest or record.get('request_id') != key):
                 raise ArtifactError('sparse checkpoint plan binding mismatch')
@@ -185,9 +203,9 @@ def execute_historical_sparse(data_root, *, run_id, plan, domains=None, client=N
     from axiom_data.bootstrap_sources import collect_bootstrap_sources
     from axiom_data.operations import _save
     domains = sorted(plan['requests_by_domain']) if domains is None else domains
-    if plan != plan_historical_sparse(**plan['scope']):
+    if not _same_plan(plan, plan_historical_sparse(**plan['scope'])):
         raise ArtifactError('sparse plan differs from canonical planner')
-    collect_bootstrap_sources(data_root, run_id=run_id, plan=plan, domains=domains, client=client)
+    collect_bootstrap_sources(data_root, run_id=run_id, plan=_checkpoint_plan(plan), domains=domains, client=client)
     result = validate_sparse_coverage(data_root, run_id=run_id, plan=plan, domains=domains)
     _save(_layout(data_root).root / 'operations' / run_id / 'sparse_coverage.json', result)
     return result

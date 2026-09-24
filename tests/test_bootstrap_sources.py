@@ -14,6 +14,10 @@ class BootstrapSourceTest(unittest.TestCase):
 
     def test_explicit_scope_and_financial_lookback(self):
         plan=self.plan()
+        self.assertEqual({r['collector'] for requests in plan['requests_by_domain'].values()
+                          for r in requests},
+                         {'market','reference','fundamentals','financial_indicator','events',
+                          'holder_reports_v3'})
         self.assertEqual(len(plan['requests_by_domain'])+len(plan['required_reused_domains']),18)
         financial=plan['requests_by_domain']['financial_events']
         self.assertTrue(all(r['params']['start_date']=='20130101' for r in financial if r['endpoint']!='fina_indicator'))
@@ -36,11 +40,11 @@ class BootstrapSourceTest(unittest.TestCase):
             def query(self,*args,**kwargs):self.calls+=1;return []
         with tempfile.TemporaryDirectory() as root:
             client=Client();plan=self.plan()
-            result=collect_bootstrap_sources(root,run_id='test',plan=plan,domains=['moneyflow_daily'],client=client)
+            legacy=copy.deepcopy(plan)
+            legacy['requests_by_domain']['moneyflow_daily'][0]['collector']='pr7'
+            result=collect_bootstrap_sources(root,run_id='test',plan=legacy,domains=['moneyflow_daily'],client=client)
             self.assertEqual(result['status'],'COMPLETE');self.assertFalse(result['ready_for_consumption'])
-            renamed=copy.deepcopy(plan)
-            renamed['requests_by_domain']['moneyflow_daily'][0]['collector']='events'
-            again=collect_bootstrap_sources(root,run_id='test',plan=renamed,domains=['moneyflow_daily'],client=client)
+            again=collect_bootstrap_sources(root,run_id='test',plan=plan,domains=['moneyflow_daily'],client=client)
             self.assertEqual(result,again);self.assertEqual(client.calls,1)
             frozen=json.loads((Path(root)/'operations/test/source_plan.json').read_bytes())
             self.assertEqual(frozen['plan']['requests_by_domain']['moneyflow_daily'][0]['collector'],'pr7')

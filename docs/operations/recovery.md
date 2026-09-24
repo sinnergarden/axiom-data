@@ -16,9 +16,10 @@ axiom-data --data-root /absolute/restored-data verify-recovery \
 The JSON plan contains `expected_snapshot_manifest_digest` and a nonempty `views`
 mapping. Each named View has exactly `kind`, `view_id`, and `manifest_digest`.
 Public kinds are `market_qlib`, `market_replay`, `adjusted_price`,
-`financial_fact`, and `event_fact`. Frozen plans and artifacts retain the older
-`pr6_fact` and `pr7_fact` identifiers; both spellings resolve to those same
-published kinds. Manifest digests come from frozen source references, not from an
+`financial_fact`, and `event_fact`. Frozen plans and artifacts retain their
+published identifiers; current names resolve to those same kinds. See the
+[historical identifier map](../history/compatibility-identifiers.md).
+Manifest digests come from frozen source references, not from an
 unverified replacement artifact. Historical Fact View versions retain their own
 loaders and identity rules.
 

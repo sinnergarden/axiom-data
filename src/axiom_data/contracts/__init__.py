@@ -21,7 +21,7 @@ MARKET_CONTRACT_VERSIONS = (
     SECURITY_MASTER_CONTRACT_VERSION,
     MARKET_DAILY_CONTRACT_VERSION,
 )
-DM1_CONTRACT_VERSIONS = MARKET_CONTRACT_VERSIONS + (
+REFERENCE_CONTRACT_VERSIONS = MARKET_CONTRACT_VERSIONS + (
     SECURITY_STATUS_CONTRACT_VERSION,
     PRICE_LIMITS_CONTRACT_VERSION,
     CORPORATE_ACTIONS_CONTRACT_VERSION,
@@ -29,7 +29,7 @@ DM1_CONTRACT_VERSIONS = MARKET_CONTRACT_VERSIONS + (
     BENCHMARK_DAILY_CONTRACT_VERSION,
     SECURITY_CAPITAL_CONTRACT_VERSION,
 )
-_CONTRACT_FILES = {version: f"{version}.json" for version in DM1_CONTRACT_VERSIONS}
+_CONTRACT_FILES = {version: f"{version}.json" for version in REFERENCE_CONTRACT_VERSIONS}
 _CONTRACT_DOMAINS = {
     TRADING_CALENDAR_CONTRACT_VERSION: "trading_calendar",
     SECURITY_MASTER_CONTRACT_VERSION: "security_master",
@@ -47,15 +47,15 @@ _CONTRACT_FILES['security_capital.v2']='security_capital.v2.json'
 _CONTRACT_DOMAINS['security_capital.v2']='security_capital'
 
 
-PR6_CONTRACT_VERSIONS = tuple(name + ".v1" for name in ("financial_events", "valuation_daily", "universe_membership", "industry_membership"))
-PR6_CONTRACT_VERSIONS += tuple(v.replace(".v1", ".v2") for v in PR6_CONTRACT_VERSIONS)
-PR6_CONTRACT_VERSIONS += ("universe_membership.v3", "industry_membership.v3", "financial_events.v3", "financial_events.v4")
-_CONTRACT_FILES.update({v: v + ".json" for v in PR6_CONTRACT_VERSIONS})
-_CONTRACT_DOMAINS.update({v: v[:-3] for v in PR6_CONTRACT_VERSIONS})
+FINANCIAL_CONTRACT_VERSIONS = tuple(name + ".v1" for name in ("financial_events", "valuation_daily", "universe_membership", "industry_membership"))
+FINANCIAL_CONTRACT_VERSIONS += tuple(v.replace(".v1", ".v2") for v in FINANCIAL_CONTRACT_VERSIONS)
+FINANCIAL_CONTRACT_VERSIONS += ("universe_membership.v3", "industry_membership.v3", "financial_events.v3", "financial_events.v4")
+_CONTRACT_FILES.update({v: v + ".json" for v in FINANCIAL_CONTRACT_VERSIONS})
+_CONTRACT_DOMAINS.update({v: v[:-3] for v in FINANCIAL_CONTRACT_VERSIONS})
 
-PR7_CONTRACT_VERSIONS = tuple(d + '.v1' for d in ('holder_count_events','top_holders_reports','margin_daily','moneyflow_daily','forecast_observations'))
-_CONTRACT_FILES.update({v:v+'.json' for v in PR7_CONTRACT_VERSIONS})
-_CONTRACT_DOMAINS.update({v:v[:-3] for v in PR7_CONTRACT_VERSIONS})
+EVENT_CONTRACT_VERSIONS = tuple(d + '.v1' for d in ('holder_count_events','top_holders_reports','margin_daily','moneyflow_daily','forecast_observations'))
+_CONTRACT_FILES.update({v:v+'.json' for v in EVENT_CONTRACT_VERSIONS})
+_CONTRACT_DOMAINS.update({v:v[:-3] for v in EVENT_CONTRACT_VERSIONS})
 _CONTRACT_FILES['forecast_observations.v2']='forecast_observations.v2.json'
 _CONTRACT_DOMAINS['forecast_observations.v2']='forecast_observations'
 
@@ -72,6 +72,11 @@ def load_contract(contract_version: str) -> dict[str, Any]:
     if contract.get("domain") != _CONTRACT_DOMAINS[contract_version]:
         raise ValueError(f"packaged contract domain mismatch: {contract_version}")
     return contract
+
+
+def registered_contract_versions(domain: str) -> tuple[str, ...]:
+    """Enumerate registered versions, including read-only historical contracts."""
+    return tuple(sorted(v for v, d in _CONTRACT_DOMAINS.items() if d == domain))
 
 
 def writable_contracts() -> dict[str, Any]:
@@ -93,11 +98,20 @@ def require_writable_contract(domain: str, contract_version: str) -> None:
         raise ValueError(f'LEGACY_CONTRACT_READ_ONLY: {contract_version}; current writable contract is {current}')
 
 
+# Historical import names; contract versions and artifact identities are unchanged.
+DM1_CONTRACT_VERSIONS = REFERENCE_CONTRACT_VERSIONS
+PR6_CONTRACT_VERSIONS = FINANCIAL_CONTRACT_VERSIONS
+PR7_CONTRACT_VERSIONS = EVENT_CONTRACT_VERSIONS
+
+
 __all__ = [
     "ADJUSTMENT_FACTORS_CONTRACT_VERSION",
     "BENCHMARK_DAILY_CONTRACT_VERSION",
     "CORPORATE_ACTIONS_CONTRACT_VERSION",
     "DM1_CONTRACT_VERSIONS",
+    "REFERENCE_CONTRACT_VERSIONS",
+    "FINANCIAL_CONTRACT_VERSIONS",
+    "EVENT_CONTRACT_VERSIONS",
     "MARKET_CONTRACT_VERSIONS",
     "MARKET_DAILY_CONTRACT_VERSION",
     "PRICE_LIMITS_CONTRACT_VERSION",
