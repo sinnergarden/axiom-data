@@ -5,6 +5,18 @@ from unittest.mock import patch
 
 from axiom_data import ArtifactError, gate_a, operations, historical_sparse, source_completeness
 
+_REAL_DAILY = operations.daily
+
+
+def _daily_bypassing_writable_contract(data_root, *, run_id, snapshot_id, source_requests,
+                                      domain_inputs, client=None, observed_raw_batch_ids=None):
+    # Preserve request validation and normal writes; bypass only contract admission.
+    if domain_inputs.get('financial_events', {}).get('contract_version') == 'financial_events.v1':
+        return {'status': 'CANDIDATE_BUILT', 'ready_for_consumption': True}
+    return _REAL_DAILY(data_root, run_id=run_id, snapshot_id=snapshot_id,
+        source_requests=source_requests, domain_inputs=domain_inputs, client=client,
+        observed_raw_batch_ids=observed_raw_batch_ids)
+
 
 def _daily_without_admission(data_root, *, run_id, snapshot_id, source_requests,
                              domain_inputs, client=None, observed_raw_batch_ids=None):
@@ -42,6 +54,9 @@ class GateAFinalizationTest(unittest.TestCase):
         matrix = gate_a.completeness_matrix()
         self.assertEqual(len(matrix), 13)
         self.assertTrue(all(row['status'] == 'PASS' for row in matrix))
+        self.assertEqual(result['evidence']['public_routes']['daily_contract_admission']['outcomes'],
+                         {'financial_events.v1': 'LEGACY_CONTRACT_READ_ONLY',
+                          'financial_events.v4': 'CANDIDATE_BUILT'})
 
     def test_missing_policy_bad_pagination_and_unknown_history_block_real_gate(self):
         original = source_completeness._extension()
@@ -92,6 +107,17 @@ class GateAFinalizationTest(unittest.TestCase):
         self.assertEqual(result['status'], 'GATE_A_BLOCKED', result['findings'])
         self.assertTrue(any(f['section'] == 'public_routes' and 'daily' in f['reason']
                             for f in result['findings']))
+
+    def test_legal_daily_request_cannot_bypass_writable_contract_admission(self):
+        import axiom_data
+        # Keep source inventory unchanged: only executed behavior can catch this fault.
+        from functools import wraps
+        bypass = wraps(_REAL_DAILY)(_daily_bypassing_writable_contract)
+        with patch.object(operations, 'daily', bypass), patch.object(axiom_data, 'daily', bypass):
+            result = gate_a.validate_gate_a(self.plan)
+        self.assertEqual(result['status'], 'GATE_A_BLOCKED', result['findings'])
+        self.assertTrue(any(f['section'] == 'public_routes' and 'daily' in f['reason']
+                            and 'contract' in f['reason'] for f in result['findings']))
 
     def test_pass_cannot_be_reused_after_code_or_contract_change(self):
         report = gate_a.validate_gate_a(self.plan)

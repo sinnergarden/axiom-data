@@ -189,6 +189,60 @@ def _source_plan(scope, contract):
     return generated
 
 
+def _daily_contract_probe(root):
+    """Exercise real daily admission/publication on a tiny immutable parent closure."""
+    from zipfile import ZipFile
+    import axiom_data
+    from axiom_data.contracts import writable_contracts
+    from axiom_data.fundamentals_source import FundamentalsCollector
+    from axiom_data.operations import validate_request_spec
+
+    parent = 'snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786'
+    with files('axiom_data.scope').joinpath('daily_contract_snapshot.zip').open('rb') as handle:
+        with ZipFile(handle) as archive:
+            archive.extractall(root)
+    class FixtureSource:
+        calls = 0
+        def query(self, endpoint, **kwargs):
+            self.calls += 1
+            if endpoint != 'fina_indicator' or self.calls != 1:
+                raise ArtifactError('daily probe attempted unplanned source collection')
+            return []
+    source = FixtureSource()
+    params = dict(ts_code='688981.SH', start_date='20250101', end_date='20250331')
+    raw = FundamentalsCollector(root, source).collect('fina_indicator', params,
+        profile_version='tushare_fina_indicator.v1', retrieved_at='2025-06-14T00:00:00Z')
+    request = dict(collector='financial_indicator', domain='financial_events', endpoint='fina_indicator',
+        params=params, economic_scope={'start':'20250101', 'end':'20250331'}, availability_policy='revision_scan')
+    args = dict(snapshot_id=parent, source_requests=[request], client=source,
+        observed_raw_batch_ids={validate_request_spec(request):raw.raw_batch_id})
+    current = writable_contracts()['domains']['financial_events']['current']
+    outcomes = {}
+    for version in ('financial_events.v1', current):
+        inputs = {'financial_events': dict(raw_batch_ids=[], contract_version=version, config={}, new_lineage=True)}
+        run_id = 'gate-a-daily-' + version
+        try:
+            result = axiom_data.daily(root, run_id=run_id, domain_inputs=inputs, **args)
+        except ArtifactError as exc:
+            if version == current or 'LEGACY_CONTRACT_READ_ONLY' not in str(exc):
+                raise ArtifactError('public daily writable contract admission failed') from exc
+            if (Path(root)/'operations'/run_id).exists():
+                raise ArtifactError('public daily legacy contract rejection occurred after operation writes')
+            outcomes[version] = 'LEGACY_CONTRACT_READ_ONLY'
+        else:
+            if version != current:
+                raise ArtifactError('public daily accepted a read-only contract')
+            if result.get('status') != 'CANDIDATE_BUILT' or result.get('ready_for_consumption') is not False:
+                raise ArtifactError('public daily writable contract did not build a candidate')
+            snapshot = axiom_data.load_snapshot(root, result['snapshot_id'])
+            if snapshot.manifest['domain_refs']['financial_events']['contract_version'] != current:
+                raise ArtifactError('public daily published the wrong writable contract')
+            outcomes[version] = 'CANDIDATE_BUILT'
+    if source.calls != 1:
+        raise ArtifactError('public daily recollected a bound probe observation')
+    return {'parent_snapshot_id':parent, 'request':request, 'outcomes':outcomes}
+
+
 def _operational_routes():
     """Exercise public boundaries and record implementation provenance."""
     from tempfile import TemporaryDirectory
@@ -199,7 +253,6 @@ def _operational_routes():
 
     routes = {
         'axiom_data.operations.bootstrap': {'assemble_candidate', 'create_snapshot'},
-        'axiom_data.operations.daily': {'collect_requests', '_validate_domain_inputs', 'assemble_candidate'},
         'axiom_data.operations.repair': {'assemble_candidate'},
         'axiom_data.operations.assemble_candidate': {'_validate_domain_inputs', 'BuildApplication'},
         'axiom_data.operations.inspect_scope': {'session_coverage'},
@@ -244,6 +297,7 @@ def _operational_routes():
                 raise ArtifactError('public daily operation accepted an invalid source request')
         if list(Path(root).iterdir()):
             raise ArtifactError('rejected public operation wrote state')
+        result['daily_contract_admission'] = _daily_contract_probe(root)
     try:
         view_operation.materialize_views('/unused', run_id='gate-a-route',
             snapshot_id='gate-a-snapshot', views={})
@@ -292,7 +346,7 @@ def _operational_routes():
     else:
         raise ArtifactError('pagination admitted a response outside its selector')
     result['behavioral_checks'] = ['public_route_identity', 'legacy_bootstrap_rejection',
-        'legacy_repair_rejection', 'daily_request_rejection', 'empty_view_plan_rejection', 'public_build_contracts',
+        'legacy_repair_rejection', 'daily_request_rejection', 'daily_contract_admission', 'empty_view_plan_rejection', 'public_build_contracts',
         'capped_source_rejection', 'pagination_selector_rejection']
     result['implementation_provenance'] = admission_route_identity()
     return result

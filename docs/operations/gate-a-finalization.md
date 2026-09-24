@@ -20,6 +20,11 @@ behavioral probes. It rejects legacy writes, empty or malformed daily requests,
 an empty View plan and capped source
 responses; the sparse pack tests complete children and destructive gaps, partial
 responses and selector conflicts. Keeping a call in dead code is insufficient.
+For daily writable-contract admission it restores a [small immutable fixture](../history/daily-contract-fixture.md)
+into a temporary root and calls the public daily operation with the same legal
+request under a read-only and a current contract. The former must be rejected
+before operation writes; the latter must publish a readable candidate. Daily
+admission is not inferred from source-code call names.
 Implementation digests remain in Gate A evidence and each View operation's frozen
 plan, but Gate A does not compare Python function bodies with an older release.
 An ordinary implementation change therefore needs fresh review evidence, not a
