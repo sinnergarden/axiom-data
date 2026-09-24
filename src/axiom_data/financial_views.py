@@ -23,7 +23,7 @@ FINANCIAL_VIEW_BATCH_SIZE = 50
 
 
 def _prepared_selection(reader, slot, key, prepare):
-    """Reuse at most two selected immutable worlds in one financial operation."""
+    """Reuse at most two prepared immutable inputs per slot in one operation."""
     batch=getattr(reader,'_financial_batch',None)
     if batch is None:return prepare()
     selections=batch.setdefault(slot,OrderedDict())
@@ -34,6 +34,24 @@ def _prepared_selection(reader, slot, key, prepare):
         if len(selections)==2:selections.popitem(last=False)
     selections[key]=value
     return value
+
+
+def _prepared_members(reader, selected, group, session, state_key):
+    """Validate the complete group once per session, then reuse its result."""
+    if getattr(reader, '_financial_view_batch', None) is None:
+        return active_members(selected, group_id=group, target_session=session)
+    operation=getattr(reader, '_financial_batch', None)
+    if operation is None:
+        return active_members(selected, group_id=group, target_session=session)
+    cache=operation.setdefault('active_members', OrderedDict())
+    key=(state_key,group,session)
+    if key in cache:
+        rows=cache.pop(key)
+    else:
+        rows=active_members(selected, group_id=group, target_session=session)
+        if len(cache)==8192:cache.popitem(last=False)
+    cache[key]=rows
+    return rows
 
 
 @contextmanager
@@ -140,7 +158,9 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True, members
     previous_visibility=-1;visible_facts=();latest_facts={};latest_income=();derived_count=0
     universe_states=reader.commits['universe_membership'].manifest.get('group_states') if membership_ref else None
     universe_times=visibility_times(universe_states,policy) if universe_states is not None else ()
-    industry_rows=reader.facts('industry_membership') if membership_ref and sw_state else ()
+    industry_rows=(_prepared_selection(reader,'industry_source',
+        reader.commits['industry_membership'].ref.commit_id,
+        lambda:reader.facts('industry_membership')) if membership_ref and sw_state else ())
     industry_times=visibility_times(industry_rows,policy) if industry_rows else ()
     def last_session_by_visibility(times):
         last={}
@@ -150,7 +170,7 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True, members
         return last
     universe_last=last_session_by_visibility(universe_times) if universe_states is not None else {}
     industry_last=last_session_by_visibility(industry_times) if industry_rows else {}
-    previous_universe=-1;selected_universe=();selected_group_states=()
+    previous_universe=-1;selected_universe=();selected_group_states=();universe_key=None
     previous_industry=-1;selected_industry={}
     security={r['symbol']:r for r in reader.security_master(symbols)} if industry_rows else {}
     events=[];derived=[];wide=[];memberships=[];industries=[]
@@ -197,12 +217,13 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True, members
                     knowledge_cutoff=session_cutoff)
                 state_key=(policy,tuple((s['universe_id'],s['state_id'],s['first_observed_at'],
                     s['usable_from']) for s in selected_group_states))
+                universe_key=state_key
                 selected_universe=_prepared_selection(reader,'universe_selections',state_key,
                     lambda:reader.as_of('universe_membership',knowledge_cutoff=session_cutoff,
                         pit_policy=policy))
                 previous_universe=visibility
         for group in scope['universe_ids']:
-            group_rows=(active_members(selected_universe,group_id=group,target_session=session)
+            group_rows=(_prepared_members(reader,selected_universe,group,session,universe_key)
                 if universe_states is not None else reader.members(group,session,
                     knowledge_cutoff=session_cutoff,pit_policy=policy))
             for row in group_rows:

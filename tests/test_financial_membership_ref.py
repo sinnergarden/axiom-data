@@ -3,17 +3,35 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from axiom_data import ArtifactError, FactView, SnapshotReader
 from axiom_data.financial_views import build_financial_fact_view_from_reader, load_financial_fact_view, project
-from axiom_data.financial_views import _files, _manifest
+from axiom_data.financial_views import _files, _manifest, _prepared_members
 from axiom_data.artifacts import _derived_identity, _identity_digest, _layout, _write_file, _write_manifest
-from axiom_data.pit import instant
+from axiom_data.pit import active_members, instant
 from fixture_locations import fixture_root
 
 
 class FinancialMembershipRefTest(unittest.TestCase):
+    def test_batch_member_cache_validates_complete_state_before_reuse(self):
+        from axiom_data.pit import MarketContractError
+        reader=SimpleNamespace(_financial_batch={},_financial_view_batch={})
+        day='2025-06-10'
+        rows=({'group_id':'G','symbol':'A','effective_from':'2025-01-01','effective_to':None},
+              {'group_id':'G','symbol':'B','effective_from':'2025-01-01','effective_to':None})
+        with patch('axiom_data.financial_views.active_members', wraps=active_members) as selected:
+            self.assertEqual(_prepared_members(reader,rows,'G',day,('state-1',)),rows)
+            self.assertEqual(_prepared_members(reader,rows,'G',day,('state-1',)),rows)
+            reader._financial_view_batch={}  # next bounded batch, same checked operation
+            self.assertEqual(_prepared_members(reader,rows,'G',day,('state-1',)),rows)
+            self.assertEqual(selected.call_count,1)
+            conflict=rows+(dict(rows[1]),)
+            with self.assertRaises(MarketContractError):
+                _prepared_members(reader,conflict,'G',day,('state-2',))
+            self.assertEqual(selected.call_count,2)
+
     def test_v3_manifest_keeps_its_inline_membership_loader(self):
         run = json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         source = fixture_root(run['source_root'])

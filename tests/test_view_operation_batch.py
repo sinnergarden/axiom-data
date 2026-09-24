@@ -126,11 +126,15 @@ class ViewOperationBatchTest(unittest.TestCase):
             batch_reader = SnapshotReader(batch_root, run['refs']['snapshot_id'])
             with patch('axiom_data.consumption.SnapshotReader', return_value=batch_reader), \
                  patch.object(batch_reader, 'session_rows', wraps=batch_reader.session_rows) as reads, \
-                 patch.object(financial_coverage, 'admit_view', wraps=financial_coverage.admit_view) as admissions:
+                 patch.object(financial_coverage, 'admit_view', wraps=financial_coverage.admit_view) as admissions, \
+                 patch.object(financial_views, 'active_members', wraps=financial_views.active_members) as membership:
                 result = materialize_views(batch_root, run_id='financial-batch',
                                            snapshot_id=run['refs']['snapshot_id'], views=plan)
             self.assertEqual(result['status'], 'VIEWS_BUILT', result.get('failed'))
             self.assertEqual(admissions.call_count, 1)
+            self.assertEqual(membership.call_count, len({
+                (call.kwargs['group_id'], call.kwargs['target_session'])
+                for call in membership.call_args_list}))
             valuation_reads = [call for call in reads.call_args_list if call.args[0] == 'valuation_daily']
             self.assertEqual(len(valuation_reads), 1, valuation_reads)
             for symbol, ref in zip(symbols, expected):
