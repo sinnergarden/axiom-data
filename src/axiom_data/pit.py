@@ -359,12 +359,16 @@ def financial_derived_from_selected(selected: Sequence[Mapping[str, Any]], *, po
 
 
 def latest_financial_income_window(selected: Sequence[Mapping[str, Any]]) -> tuple[dict[str, Any], ...]:
-    """Keep only quarters that can affect the latest report's four public leaves."""
+    """Keep quarters that can affect each security's latest public leaves."""
     income = [row for row in selected if row['endpoint'] == 'income' and row['report_type'] == '1']
     if not income:
         return ()
-    latest = max(_quarter(row['report_period']) for row in income)
-    return tuple(row for row in income if latest - 4 <= _quarter(row['report_period']) <= latest)
+    latest_by_symbol = {}
+    for row in income:
+        symbol = row['symbol']
+        latest_by_symbol[symbol] = max(latest_by_symbol.get(symbol, -1), _quarter(row['report_period']))
+    return tuple(row for row in income
+                 if latest_by_symbol[row['symbol']] - 4 <= _quarter(row['report_period']))
 
 
 def _derived_row(symbol: str, period: str, report_type: str, field: str,
