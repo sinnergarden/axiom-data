@@ -16,15 +16,18 @@ ENDPOINTS = ('dividend', 'forecast', 'stk_holdernumber', 'top10_holders',
 
 
 def _checkpoint_plan(plan):
-    """Compare old and current collector spellings using the persisted names."""
-    return dict(plan, requests_by_domain={domain: [normalize_source_request(spec) for spec in specs]
+    """Canonicalize before hashing; never rewrite a stored plan or its digest."""
+    content = {k:v for k,v in plan.items() if k != 'plan_digest'}
+    canonical = dict(content, requests_by_domain={domain: [normalize_source_request(spec) for spec in specs]
         for domain, specs in plan['requests_by_domain'].items()})
+    digest = _digest(_json_bytes(canonical))
+    if 'plan_digest' in plan and plan['plan_digest'] not in {digest, _digest(_json_bytes(content))}:
+        raise ArtifactError('sparse plan digest mismatch')
+    return dict(canonical, plan_digest=digest)
 
 
 def _same_plan(left, right):
-    a, b = _checkpoint_plan(left), _checkpoint_plan(right)
-    a.pop('plan_digest', None); b.pop('plan_digest', None)
-    return a == b
+    return _checkpoint_plan(left) == _checkpoint_plan(right)
 
 
 def plan_historical_sparse(*, symbols, start_session, end_session):
@@ -55,7 +58,7 @@ def plan_historical_sparse(*, symbols, start_session, end_session):
         'limitations': ['stock_basic is an as-observed listing snapshot; official exchange termination Raw and boundary admission remain required',
                         'industry membership observations retain best_effort history and boundary ambiguity'],
         'ready_for_consumption': False}
-    return dict(plan, plan_digest=_digest(_json_bytes(plan)))
+    return dict(plan, plan_digest=_checkpoint_plan(plan)['plan_digest'])
 
 
 def _check_children(parent, children):
@@ -202,7 +205,7 @@ def execute_historical_sparse(data_root, *, run_id, plan, domains=None, client=N
     domains = sorted(plan['requests_by_domain']) if domains is None else domains
     if not _same_plan(plan, plan_historical_sparse(**plan['scope'])):
         raise ArtifactError('sparse plan differs from canonical planner')
-    collect_bootstrap_sources(data_root, run_id=run_id, plan=plan, domains=domains, client=client)
+    collect_bootstrap_sources(data_root, run_id=run_id, plan=_checkpoint_plan(plan), domains=domains, client=client)
     result = validate_sparse_coverage(data_root, run_id=run_id, plan=plan, domains=domains)
     _save(_layout(data_root).root / 'operations' / run_id / 'sparse_coverage.json', result)
     return result

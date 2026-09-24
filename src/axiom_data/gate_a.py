@@ -231,6 +231,17 @@ def _operational_routes():
                     raise ArtifactError('public operation did not enforce writable contract') from exc
             else:
                 raise ArtifactError('public operation accepted a legacy writable contract: ' + name)
+        for requests, expected in (
+            ([], 'daily requires explicit source requests'),
+            ([{}], 'source request requires the complete public plan schema')):
+            try:
+                axiom_data.daily(root, run_id='gate-a-daily', snapshot_id='gate-a-snapshot',
+                    source_requests=requests, domain_inputs={})
+            except ArtifactError as exc:
+                if str(exc) != expected:
+                    raise ArtifactError('public daily operation did not enforce request admission') from exc
+            else:
+                raise ArtifactError('public daily operation accepted an invalid source request')
         if list(Path(root).iterdir()):
             raise ArtifactError('rejected public operation wrote state')
     try:
@@ -281,7 +292,7 @@ def _operational_routes():
     else:
         raise ArtifactError('pagination admitted a response outside its selector')
     result['behavioral_checks'] = ['public_route_identity', 'legacy_bootstrap_rejection',
-        'legacy_repair_rejection', 'empty_view_plan_rejection', 'public_build_contracts',
+        'legacy_repair_rejection', 'daily_request_rejection', 'empty_view_plan_rejection', 'public_build_contracts',
         'capped_source_rejection', 'pagination_selector_rejection']
     result['implementation_provenance'] = admission_route_identity()
     return result

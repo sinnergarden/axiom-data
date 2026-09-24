@@ -6,6 +6,17 @@ from unittest.mock import patch
 from axiom_data import ArtifactError, gate_a, operations, historical_sparse, source_completeness
 
 
+def _daily_without_admission(data_root, *, run_id, snapshot_id, source_requests,
+                             domain_inputs, client=None, observed_raw_batch_ids=None):
+    # Retaining all expected call names must not substitute for executing admission.
+    if False:
+        from axiom_data.operations import collect_requests, _validate_domain_inputs, assemble_candidate
+        collect_requests()
+        _validate_domain_inputs()
+        assemble_candidate()
+    return {'status': 'COMPLETE', 'ready_for_consumption': True}
+
+
 class GateAFinalizationTest(unittest.TestCase):
     def setUp(self):
         self.plan = gate_a.make_gate_a_plan(dict(
@@ -72,6 +83,15 @@ class GateAFinalizationTest(unittest.TestCase):
                     result = gate_a.validate_gate_a(self.plan)
                 self.assertEqual(result['status'], 'GATE_A_BLOCKED')
                 self.assertTrue(any(f['section'] == 'public_routes' for f in result['findings']))
+
+    def test_daily_false_readiness_blocks_even_with_all_route_names(self):
+        import axiom_data
+        with patch.object(operations, 'daily', _daily_without_admission), \
+                patch.object(axiom_data, 'daily', _daily_without_admission):
+            result = gate_a.validate_gate_a(self.plan)
+        self.assertEqual(result['status'], 'GATE_A_BLOCKED', result['findings'])
+        self.assertTrue(any(f['section'] == 'public_routes' and 'daily' in f['reason']
+                            for f in result['findings']))
 
     def test_pass_cannot_be_reused_after_code_or_contract_change(self):
         report = gate_a.validate_gate_a(self.plan)
