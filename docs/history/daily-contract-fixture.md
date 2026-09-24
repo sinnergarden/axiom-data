@@ -14,8 +14,8 @@ covering `2025-01-01` through `2025-03-31`, observed at `2025-06-14T00:00:00Z`.
 The regular collector publishes that temporary Raw, and both daily calls bind
 the exact Raw ID through `observed_raw_batch_ids`. They never contact a supplier.
 
-The legal request with `financial_events.v1` must raise
-`LEGACY_CONTRACT_READ_ONLY` before operation writes. The same request with the
-current writable contract must build a candidate whose real closure loads and
-declares that contract. Neither case claims production readiness. All temporary
+The probe enumerates every registered `financial_events` contract and reads the
+current writable version from publication policy. Each read-only version must
+raise `LEGACY_CONTRACT_READ_ONLY` before operation writes. Each writable request
+must build a candidate whose real closure loads and declares that contract. Neither case claims production readiness. All temporary
 files are removed after the probe; the formal data root is not accessed.

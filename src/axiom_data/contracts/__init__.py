@@ -74,6 +74,11 @@ def load_contract(contract_version: str) -> dict[str, Any]:
     return contract
 
 
+def registered_contract_versions(domain: str) -> tuple[str, ...]:
+    """Enumerate registered versions, including read-only historical contracts."""
+    return tuple(sorted(v for v, d in _CONTRACT_DOMAINS.items() if d == domain))
+
+
 def writable_contracts() -> dict[str, Any]:
     """Explicit publication policy; registered historical contracts stay readable."""
     policy = json.loads(files(__package__).joinpath('writable_contracts.v1.json').read_bytes())

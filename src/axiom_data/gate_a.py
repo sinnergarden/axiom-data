@@ -193,7 +193,7 @@ def _daily_contract_probe(root):
     """Exercise real daily admission/publication on a tiny immutable parent closure."""
     from zipfile import ZipFile
     import axiom_data
-    from axiom_data.contracts import writable_contracts
+    from axiom_data.contracts import registered_contract_versions, writable_contracts
     from axiom_data.fundamentals_source import FundamentalsCollector
     from axiom_data.operations import validate_request_spec
 
@@ -218,7 +218,7 @@ def _daily_contract_probe(root):
         observed_raw_batch_ids={validate_request_spec(request):raw.raw_batch_id})
     current = writable_contracts()['domains']['financial_events']['current']
     outcomes = {}
-    for version in ('financial_events.v1', current):
+    for version in registered_contract_versions('financial_events'):
         inputs = {'financial_events': dict(raw_batch_ids=[], contract_version=version, config={}, new_lineage=True)}
         run_id = 'gate-a-daily-' + version
         try:
@@ -235,7 +235,7 @@ def _daily_contract_probe(root):
             if result.get('status') != 'CANDIDATE_BUILT' or result.get('ready_for_consumption') is not False:
                 raise ArtifactError('public daily writable contract did not build a candidate')
             snapshot = axiom_data.load_snapshot(root, result['snapshot_id'])
-            if snapshot.manifest['domain_refs']['financial_events']['contract_version'] != current:
+            if snapshot.manifest['domain_refs']['financial_events']['contract_version'] != version:
                 raise ArtifactError('public daily published the wrong writable contract')
             outcomes[version] = 'CANDIDATE_BUILT'
     if source.calls != 1:

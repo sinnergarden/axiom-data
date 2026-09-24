@@ -56,7 +56,37 @@ class GateAFinalizationTest(unittest.TestCase):
         self.assertTrue(all(row['status'] == 'PASS' for row in matrix))
         self.assertEqual(result['evidence']['public_routes']['daily_contract_admission']['outcomes'],
                          {'financial_events.v1': 'LEGACY_CONTRACT_READ_ONLY',
+                          'financial_events.v2': 'LEGACY_CONTRACT_READ_ONLY',
+                          'financial_events.v3': 'LEGACY_CONTRACT_READ_ONLY',
                           'financial_events.v4': 'CANDIDATE_BUILT'})
+
+    def test_new_registered_read_only_version_is_probed_automatically(self):
+        from pathlib import Path
+        from shutil import copytree
+        from tempfile import TemporaryDirectory
+        from axiom_data import contracts
+
+        version = 'financial_events.v5'
+        contract = contracts.load_contract('financial_events.v4')
+        contract['contract_version'] = version
+        policy = contracts.writable_contracts()
+        policy['domains']['financial_events']['legacy_read_only'].append(version)
+        gate_policy = gate_a._contract()
+        gate_policy['writable_contracts_digest'] = gate_a._digest(gate_a._json_bytes(policy))
+        with TemporaryDirectory() as tmp:
+            package = Path(tmp) / 'contracts'
+            copytree(Path(contracts.__file__).parent, package)
+            (package / (version + '.json')).write_text(json.dumps(contract))
+            (package / 'writable_contracts.v1.json').write_text(json.dumps(policy))
+            with patch.dict(contracts._CONTRACT_FILES, {version: version + '.json'}), \
+                    patch.dict(contracts._CONTRACT_DOMAINS, {version: 'financial_events'}), \
+                    patch.object(contracts, 'files', return_value=package), \
+                    patch.object(gate_a, '_contract', return_value=gate_policy):
+                result = gate_a.validate_gate_a(self.plan)
+        self.assertEqual(result['status'], 'GATE_A_READY_FOR_BULK_BUILD', result['findings'])
+        outcomes = result['evidence']['public_routes']['daily_contract_admission']['outcomes']
+        self.assertEqual(len(outcomes), 5)
+        self.assertEqual(outcomes[version], 'LEGACY_CONTRACT_READ_ONLY')
 
     def test_missing_policy_bad_pagination_and_unknown_history_block_real_gate(self):
         original = source_completeness._extension()
