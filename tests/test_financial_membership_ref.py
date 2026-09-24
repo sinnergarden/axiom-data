@@ -58,13 +58,23 @@ class FinancialMembershipRefTest(unittest.TestCase):
             reader = SnapshotReader(root, run['refs']['snapshot_id'])
             legacy = project(reader, scope, policy, cutoff)
             compact = project(reader, scope, policy, cutoff, membership_ref=True)
-            for key in ('wide', 'events', 'derived', 'industries', 'sessions'):
+            for key in ('wide', 'sessions'):
                 self.assertEqual(compact[key], legacy[key], key)
+            self.assertEqual(compact['events'], [])
+            self.assertEqual(compact['derived'], [])
+            self.assertEqual(compact['industries'], [])
+            self.assertEqual(compact['compact_derived_count'], len(legacy['derived']))
             self.assertTrue(legacy['memberships'])
             self.assertEqual(compact['memberships'], [])
             ref = build_financial_fact_view_from_reader(reader, **scope,
                 pit_policy=policy, knowledge_cutoff=cutoff)
             view = load_financial_fact_view(root, ref.view_id)
+            package = Path(__import__('axiom_data').__file__).parent
+            bundle = {p.relative_to(package).as_posix():p.read_text()
+                      for p in sorted(package.rglob('*')) if p.is_file() and p.suffix in {'.py','.json'}}
+            legacy_manifest = _manifest(reader,scope,policy,cutoff,legacy,bundle)
+            self.assertEqual(view.manifest['pit_qualification'],legacy_manifest['pit_qualification'])
+            self.assertEqual(view.manifest['validation_summary'],legacy_manifest['validation_summary'])
             self.assertEqual(view.manifest['schema_version'], 'pr6_fact_view.v4')
             self.assertEqual(list(view.rows), compact['wide'])
             stored = root / 'derived/pr6_fact/commits' / ref.view_id / 'rows.json'

@@ -3,6 +3,7 @@ import inspect
 import json
 import time
 from contextlib import nullcontext
+from functools import partial
 from importlib.resources import files
 
 from axiom_data.artifacts import ArtifactError, _identity, _layout, _ensure_directory, _safe_path, _digest, _json_bytes
@@ -26,7 +27,8 @@ def _completed_view(reader, spec, record, builder, loader, code):
     config = args.arguments
     if spec['kind'] == 'market_qlib':
         from axiom_data.consumption import _validate_qlib_inputs
-        _validate_qlib_inputs(reader, **{k:v for k,v in config.items() if k not in {'data_root','snapshot_id'}})
+        _validate_qlib_inputs(reader,structural_only=True,
+            **{k:v for k,v in config.items() if k not in {'data_root','snapshot_id'}})
         actual_basis = ('unadjusted' if manifest['schema_version'] == 'qlib_view.v1'
                         else manifest['price_basis'])
         if actual_basis != config['price_basis']:
@@ -77,8 +79,10 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
     from axiom_data.consumption import _load_qlib_view
     from axiom_data.financial_views import load_financial_fact_view_with_reader
     from axiom_data.event_views import load_event_fact_view_with_reader
-    loaders={'adjusted_price':_load_adjusted_price_view,'market_replay':_load_market_replay_view,
-        'market_qlib':_load_qlib_view,'pr6_fact':load_financial_fact_view_with_reader,'pr7_fact':load_event_fact_view_with_reader}
+    loaders={'adjusted_price':partial(_load_adjusted_price_view,structural_only=True),
+        'market_replay':partial(_load_market_replay_view,structural_only=True),
+        'market_qlib':partial(_load_qlib_view,structural_only=True),
+        'pr6_fact':load_financial_fact_view_with_reader,'pr7_fact':load_event_fact_view_with_reader}
     builders={'adjusted_price':build_adjusted_price_view,'market_replay':build_market_replay_view,
               'market_qlib':build_qlib_view,'pr6_fact':build_financial_fact_view,'pr7_fact':build_event_fact_view}
     checked_builders={'adjusted_price':_build_adjusted_price_view,'market_replay':_build_market_replay_view,
@@ -142,6 +146,10 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
                              EVENT_BATCH_SIZE if spec['kind'] == 'pr7_fact' else MARKET_BATCH_SIZE)
                     for candidate in items[offset + 1:offset + bound]:
                         if (not batchable(candidate[1]) or candidate[1]['kind'] != spec['kind'] or
+                            (spec['kind'] == 'pr6_fact' and any(
+                                candidate[1]['config'][key] != spec['config'][key]
+                                for key in ('start_session', 'end_session', 'universe_ids',
+                                            'industry_system', 'pit_policy', 'knowledge_cutoff'))) or
                             (spec['kind'] == 'pr7_fact' and any(
                                 candidate[1]['config'][key] != spec['config'][key]
                                 for key in ('start_session', 'end_session')))):

@@ -51,6 +51,20 @@ def usable_from(row: Mapping[str, Any], policy: str) -> str | None:
     return observed.isoformat()
 
 
+def visibility_times(rows: Sequence[Mapping[str, Any]], policy: str):
+    """Ordered observation times at which an unchanged PIT selection may change."""
+    boundaries=set()
+    for row in rows:
+        observations=row.get('observations')
+        for observation in observations if observations is not None else (None,):
+            candidate=(dict(row,first_observed_at=observation['observed_at'],
+                            vendor_available_at=observation['vendor_available_at'])
+                       if observation is not None else row)
+            usable=usable_from(candidate,policy)
+            if usable is not None:boundaries.add(instant(usable))
+    return sorted(boundaries)
+
+
 def select_revisions(rows: Sequence[Mapping[str, Any]], *, policy: str,
                      knowledge_cutoff: str, group_states=None, _financial_leaves=False) -> tuple[dict[str, Any], ...]:
     if group_states is not None:
@@ -222,6 +236,12 @@ def _group_members(rows,states,policy,cutoff):
 def members(rows: Sequence[Mapping[str, Any]], *, target_session: str,
             knowledge_cutoff: str, policy: str, group_id: str, group_states=None) -> tuple[dict[str, Any], ...]:
     selected = select_revisions(rows, policy=policy, knowledge_cutoff=knowledge_cutoff, group_states=group_states)
+    return active_members(selected, group_id=group_id, target_session=target_session)
+
+
+def active_members(selected: Sequence[Mapping[str, Any]], *, group_id: str,
+                   target_session: str) -> tuple[dict[str, Any], ...]:
+    """Apply the existing interval/overlap rule to already selected members."""
     active = [r for r in selected if r['group_id'] == group_id
               and r['effective_from'] <= target_session
               and (r['effective_to'] is None or target_session < r['effective_to'])]
@@ -263,6 +283,13 @@ def financial_derived(rows: Sequence[Mapping[str, Any]], *, policy: str,
     """Derive only after as-of selection. Missing components retain an explicit reason."""
     selector=select_financial_revisions if resolve_ambiguity else select_revisions
     selected = selector(rows, policy=policy, knowledge_cutoff=knowledge_cutoff)
+    return financial_derived_from_selected(selected,policy=policy,
+        knowledge_cutoff=knowledge_cutoff,resolve_ambiguity=resolve_ambiguity)
+
+
+def financial_derived_from_selected(selected: Sequence[Mapping[str, Any]], *, policy: str,
+                                    knowledge_cutoff: str, resolve_ambiguity=True) -> tuple[dict[str, Any], ...]:
+    """Apply the existing derivation to one already selected PIT world."""
     income = [r for r in selected if r['endpoint'] == 'income']
     by_series: dict[tuple[str, str], dict[int, dict[str, Any]]] = defaultdict(dict)
     for r in income:
@@ -329,6 +356,15 @@ def financial_derived(rows: Sequence[Mapping[str, Any]], *, policy: str,
                 ttm['derived_id'] = fingerprint({k:v for k,v in ttm.items() if k != 'derived_id'})
                 result.append(ttm)
     return tuple(result)
+
+
+def latest_financial_income_window(selected: Sequence[Mapping[str, Any]]) -> tuple[dict[str, Any], ...]:
+    """Keep only quarters that can affect the latest report's four public leaves."""
+    income = [row for row in selected if row['endpoint'] == 'income' and row['report_type'] == '1']
+    if not income:
+        return ()
+    latest = max(_quarter(row['report_period']) for row in income)
+    return tuple(row for row in income if latest - 4 <= _quarter(row['report_period']) <= latest)
 
 
 def _derived_row(symbol: str, period: str, report_type: str, field: str,

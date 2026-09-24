@@ -101,7 +101,7 @@ def market_view_batch(reader, configs, kind):
         if validate_session(config['start_session'], 'start_session') > validate_session(config['end_session'], 'end_session'):
             raise ArtifactError('market View batch has a reversed scope')
         if kind == 'market_qlib':
-            _validate_qlib_inputs(reader, **config)
+            _validate_qlib_inputs(reader, **config, structural_only=True)
         symbols.add(selected[0])
     start = min(validate_session(c['start_session'], 'start_session') for c in configs)
     end = max(validate_session(c['end_session'], 'end_session') for c in configs)
@@ -511,7 +511,7 @@ def build_qlib_view(
 
 def _validate_qlib_inputs(reader, *, symbols, start_session, end_session, fields=MARKET_VIEW_FIELDS,
                           adjusted_price_view_id=None, price_basis='unadjusted', pit_policy='best_effort',
-                          decision_cutoff=None, created_at=None):
+                          decision_cutoff=None, created_at=None, structural_only=False):
     """Shared request admission for first publication and completed-View reuse."""
     data_root = reader.data_root
     selected = validate_symbols(symbols)
@@ -538,7 +538,8 @@ def _validate_qlib_inputs(reader, *, symbols, start_session, end_session, fields
             raise ArtifactError("adjusted QlibView requires an explicit Derived ref")
         from axiom_data.views import _load_adjusted_price_view
 
-        adjusted = _load_adjusted_price_view(data_root, adjusted_price_view_id, checked_reader=reader)
+        adjusted = _load_adjusted_price_view(data_root, adjusted_price_view_id,
+            checked_reader=reader, structural_only=structural_only)
         if adjusted.manifest["snapshot_ref"]["snapshot_id"] != reader.snapshot.ref.snapshot_id:
             raise ArtifactError("QlibView Derived ref belongs to another Snapshot")
         if adjusted.manifest["scope"] != {
@@ -568,7 +569,8 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
     selected, start, end, view_fields, adjusted = _validate_qlib_inputs(reader,
         symbols=symbols, start_session=start_session, end_session=end_session, fields=fields,
         adjusted_price_view_id=adjusted_price_view_id, price_basis=price_basis,
-        pit_policy=pit_policy, decision_cutoff=decision_cutoff, created_at=created_at)
+        pit_policy=pit_policy, decision_cutoff=decision_cutoff, created_at=created_at,
+        structural_only=True)
     data_root = reader.data_root
 
     if adjusted is not None:
@@ -722,7 +724,7 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
         _write_manifest(candidate, manifest)
 
     _publish_directory(layout, target, prepare, identity_digest=identity_digest)
-    return _load_qlib_view(layout.root, view_id, checked_reader=reader).ref
+    return _load_qlib_view(layout.root, view_id, checked_reader=reader, structural_only=True).ref
 
 
 def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
@@ -730,7 +732,7 @@ def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
     return _load_qlib_view(data_root, view_id)
 
 
-def _load_qlib_view(data_root, view_id, *, checked_reader=None):
+def _load_qlib_view(data_root, view_id, *, checked_reader=None, structural_only=False):
 
     if isinstance(view_id, str) and view_id.startswith("pr7-fact-"):
         from axiom_data.event_views import load_event_fact_view
@@ -772,7 +774,8 @@ def _load_qlib_view(data_root, view_id, *, checked_reader=None):
         ref = derived_refs[0]
         if not isinstance(ref, dict) or not isinstance(ref.get("view_id"), str):
             raise ArtifactError("adjusted QlibView Derived ref is invalid")
-        adjusted = _load_adjusted_price_view(layout.root, ref["view_id"], checked_reader=reader)
+        adjusted = _load_adjusted_price_view(layout.root, ref["view_id"],
+            checked_reader=reader, structural_only=structural_only)
         if ref != {
             "view_id": adjusted.ref.view_id,
             "identity_digest": adjusted.manifest["identity_digest"],

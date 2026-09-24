@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from axiom_data import SnapshotReader, materialize_views
-from axiom_data import consumption, views, event_views, financial_views
+from axiom_data import consumption, views, event_views, financial_views, financial_coverage
 from fixture_locations import fixture_root
 
 
@@ -94,7 +94,9 @@ class ViewOperationBatchTest(unittest.TestCase):
                         elif file.name != 'manifest.sha256':
                             self.assertEqual(file.read_bytes(), (right / file.relative_to(left)).read_bytes())
             with patch('axiom_data.event_views.build_event_fact_view_from_reader',
-                       side_effect=AssertionError('completed builder entered')) as built:
+                       side_effect=AssertionError('completed builder entered')) as built, \
+                 patch('axiom_data.event_views.project',
+                       side_effect=AssertionError('completed projection entered')):
                 resumed = materialize_views(batch_root, run_id='event-batch',
                                             snapshot_id=run['refs']['snapshot_id'], views=plan)
             self.assertEqual(resumed['status'], 'VIEWS_BUILT')
@@ -123,10 +125,12 @@ class ViewOperationBatchTest(unittest.TestCase):
                     for symbol, config in zip(symbols, configs)}
             batch_reader = SnapshotReader(batch_root, run['refs']['snapshot_id'])
             with patch('axiom_data.consumption.SnapshotReader', return_value=batch_reader), \
-                 patch.object(batch_reader, 'session_rows', wraps=batch_reader.session_rows) as reads:
+                 patch.object(batch_reader, 'session_rows', wraps=batch_reader.session_rows) as reads, \
+                 patch.object(financial_coverage, 'admit_view', wraps=financial_coverage.admit_view) as admissions:
                 result = materialize_views(batch_root, run_id='financial-batch',
                                            snapshot_id=run['refs']['snapshot_id'], views=plan)
             self.assertEqual(result['status'], 'VIEWS_BUILT', result.get('failed'))
+            self.assertEqual(admissions.call_count, 1)
             valuation_reads = [call for call in reads.call_args_list if call.args[0] == 'valuation_daily']
             self.assertEqual(len(valuation_reads), 1, valuation_reads)
             for symbol, ref in zip(symbols, expected):
@@ -142,8 +146,40 @@ class ViewOperationBatchTest(unittest.TestCase):
                         elif file.name != 'manifest.sha256':
                             self.assertEqual(file.read_bytes(), (right / file.relative_to(left)).read_bytes())
             with patch('axiom_data.financial_views.build_financial_fact_view_from_reader',
-                       side_effect=AssertionError('completed builder entered')) as built:
+                       side_effect=AssertionError('completed builder entered')) as built, \
+                 patch('axiom_data.financial_views.project',
+                       side_effect=AssertionError('completed projection entered')):
                 resumed = materialize_views(batch_root, run_id='financial-batch',
                                             snapshot_id=run['refs']['snapshot_id'], views=plan)
             self.assertEqual(resumed['status'], 'VIEWS_BUILT')
             self.assertEqual(built.call_count, 0)
+
+    def test_current_fact_publication_projects_once_and_detects_damage(self):
+        from axiom_data import ArtifactError
+        run = json.loads(Path('reports/pr7/run_manifest.json').read_text())
+        source = fixture_root(run['source_root'])
+        old = json.loads((source / 'derived/pr6_fact/commits' /
+                          run['refs']['pr6_view_id'] / 'manifest.json').read_bytes())
+        cases = (
+            (financial_views, financial_views.build_financial_fact_view_from_reader,
+             financial_views.load_financial_fact_view_with_reader, 'pr6_fact',
+             dict(symbols=['688981.SH'],start_session='2025-06-10',end_session='2025-06-13',
+                  universe_ids=old['scope']['universe_ids'],industry_system=old['scope']['industry_system'],
+                  pit_policy='best_effort_vendor_v1',knowledge_cutoff='2025-06-13T23:59:59+08:00')),
+            (event_views, event_views.build_event_fact_view_from_reader,
+             event_views.load_event_fact_view_with_reader, 'pr7_fact',
+             dict(symbols=['688981.SH'],start_session='2025-06-10',end_session='2025-06-13',
+                  pit_policy='best_effort_vendor_v1',knowledge_cutoff='2025-06-13T23:59:59+08:00')),
+        )
+        for module,builder,loader,kind,config in cases:
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root=Path(directory)/'data';shutil.copytree(source,root)
+                reader=SnapshotReader(root,run['refs']['snapshot_id'])
+                with patch.object(module,'project',wraps=module.project) as projection:
+                    ref=builder(reader,**config)
+                    self.assertEqual(projection.call_count,1)
+                    loader(root,ref.view_id,checked_reader=reader)
+                    self.assertEqual(projection.call_count,1)
+                rows=root/'derived'/kind/'commits'/ref.view_id/'rows.json'
+                rows.write_bytes(rows.read_bytes()+b'corrupt')
+                with self.assertRaises(ArtifactError):loader(root,ref.view_id,checked_reader=reader)

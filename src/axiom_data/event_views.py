@@ -1,14 +1,16 @@
 """Snapshot-bound event Fact/Qlib materialization."""
 import json
+from bisect import bisect_right
 from contextlib import contextmanager
 from pathlib import Path
 from importlib.resources import files
 from axiom_data.artifacts import (ArtifactError,_layout,_json_bytes,_digest,_identity_digest,_derived_identity,
-    _timestamp,_write_file,_write_manifest,_publish_directory,_load_manifest,_validate_manifest_identity,_safe_path,_identity)
+    _timestamp,_write_file,_write_manifest,_publish_directory,_load_manifest,_validate_manifest_identity,_safe_path,_identity,
+    _declared_content_files)
 from axiom_data.consumption import SnapshotReader,feature_bytes,qlib_symbol,validate_symbols,validate_session
 from axiom_data.views import DerivedView,DerivedViewRef
 from axiom_data.domains.events import EVENT_DOMAINS,DAILY_DOMAINS
-from axiom_data.pit import instant
+from axiom_data.pit import instant, visibility_times
 from axiom_data.pit import select_event_revisions
 
 from axiom_data.domains.events import LEAF_DOMAINS, NUMERIC_FIELDS
@@ -112,11 +114,21 @@ def project(reader,scope,policy,cutoff,*,source_cutoffs=True):
                 # Coverage checks remain above preparation. Histories are scoped
                 # to requested securities and released when this View returns.
                 if domain not in event_history:
-                    event_history[domain]=(tuple(row for symbol in symbols for row in batch[4][domain][symbol])
-                                           if prepared else reader.facts(domain,symbols=symbols))
-                selected_rows=select_event_revisions(
-                    [row for row in event_history[domain] if row['symbol'] in groups],
-                    policy=policy,knowledge_cutoff=effective)
+                    rows=(tuple(row for symbol in symbols for row in batch[4][domain][symbol])
+                          if prepared else reader.facts(domain,symbols=symbols))
+                    by_symbol={symbol:tuple(row for row in rows if row['symbol']==symbol) for symbol in symbols}
+                    event_history[domain]={'rows':by_symbol,
+                        'times':{symbol:visibility_times(by_symbol[symbol],policy) for symbol in symbols},
+                        'index':{},'selected':{}}
+                history=event_history[domain]
+                selected_rows=[]
+                for symbol in active:
+                    visibility=bisect_right(history['times'][symbol],instant(effective))
+                    if (not source_cutoffs or history['index'].get(symbol)!=visibility):
+                        history['selected'][symbol]=select_event_revisions(
+                            history['rows'][symbol],policy=policy,knowledge_cutoff=effective)
+                        history['index'][symbol]=visibility
+                    selected_rows.extend(history['selected'][symbol])
             for row in selected_rows:
                 groups[row['symbol']].append(row)
             selected[domain]=groups
@@ -140,8 +152,8 @@ def payload_files(payload,symbols,bundle):
     return output
 
 
-def manifest_for(reader,scope,policy,cutoff,payload,bundle,*,schema_version='pr7_fact_view.v3'):
-    contents=payload_files(payload,scope['symbols'],bundle)
+def manifest_for(reader,scope,policy,cutoff,payload,bundle,*,schema_version='pr7_fact_view.v3',contents=None):
+    if contents is None:contents=payload_files(payload,scope['symbols'],bundle)
     return {'artifact_type':'pr7_fact_view','schema_version':schema_version,
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
         'scope':scope,'validated_scope':dict(scope,fields=list(LEAF_DOMAINS)),
@@ -196,6 +208,25 @@ def load_event_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or
         reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
         raise ArtifactError('checked Reader does not match event View Snapshot')
+    if manifest['schema_version']=='pr7_fact_view.v3':
+        contents=_declared_content_files(layout.root,target,manifest.get('files'))
+        try:
+            payload=json.loads(contents['rows.json'])
+            bundle=json.loads(contents['code_bundle.json'])
+            if not isinstance(payload,dict) or set(payload)!={'wide','sessions','symbol_calendars'}:
+                raise ArtifactError('event View rows have invalid structure')
+            if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):
+                raise ArtifactError('invalid code bundle')
+            outputs=payload_files(payload,manifest['scope']['symbols'],bundle)
+            expected=manifest_for(reader,manifest['scope'],manifest['pit_policy'],
+                manifest['knowledge_cutoff'],payload,bundle,contents=outputs)
+        except (KeyError,IndexError,TypeError,ValueError) as exc:
+            raise ArtifactError('event View structure is invalid') from exc
+        if {k:v for k,v in manifest.items() if k not in {'view_id','identity_digest','created_at'}}!=expected:
+            raise ArtifactError('event View structural closure mismatch')
+        if contents!=outputs:
+            raise ArtifactError('event View files differ from declared rows')
+        return DerivedView(DerivedViewRef('pr7_fact',view_id,digest),manifest,tuple(payload['wide']))
     payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):raise ArtifactError('invalid code bundle')

@@ -403,6 +403,37 @@ def _content_tree_digests(directory: Path) -> dict[str, str]:
     }
 
 
+def _declared_content_files(root: Path, artifact_dir: Path, entries: object) -> dict[str, bytes]:
+    """Read and verify one View's declared files without replaying its builder."""
+    if not isinstance(entries, list) or not entries:
+        raise ArtifactError("View content files are missing")
+    contents: dict[str, bytes] = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != {"path", "content_digest", "size"}:
+            raise ArtifactError("View content entry is invalid")
+        name = entry["path"]
+        if not isinstance(name, str):
+            raise ArtifactError("View content path is invalid")
+        if name in contents:
+            raise ArtifactError("View content file is declared twice")
+        path = _relative_file(root, artifact_dir, name)
+        if not path.is_file():
+            raise ArtifactError("View content file is missing")
+        content = path.read_bytes()
+        if len(content) != entry["size"] or _digest(content) != entry["content_digest"]:
+            raise ArtifactError("View content digest or size mismatch")
+        contents[name] = content
+    actual = set()
+    for path in artifact_dir.rglob("*"):
+        if path.is_symlink():
+            raise ArtifactError("published artifact closure must not contain symlinks")
+        if path.is_file():
+            actual.add(path.relative_to(artifact_dir).as_posix())
+    if actual != set(contents) | {_MANIFEST, _MANIFEST_DIGEST}:
+        raise ArtifactError("View contains undeclared or missing content")
+    return contents
+
+
 def _publication_equivalent(
     existing: Path,
     candidate: Path,
