@@ -356,7 +356,7 @@ def _derived_row(symbol: str, period: str, report_type: str, field: str,
 
 
 def select_event_revisions(rows, *, policy, knowledge_cutoff):
-    """Break same-retrieval ties by explicit publication order within PR7 reports.
+    """Break same-retrieval ties by explicit publication order within event reports.
 
     Every candidate is first selected by the shared PIT visibility rule. Thus a
     later publication cannot affect an earlier cutoff. Distinct content with
@@ -373,6 +373,6 @@ def select_event_revisions(rows, *, policy, knowledge_cutoff):
     result=[]
     for key,candidates in sorted(groups.items()):
         order=max(k for k,_ in candidates);winners=[r for k,r in candidates if k==order]
-        if len({r['revision_id'] for r in winners})!=1:raise ArtifactError('ambiguous simultaneous PR7 revisions: '+key)
+        if len({r['revision_id'] for r in winners})!=1:raise ArtifactError('ambiguous simultaneous event revisions: '+key)
         result.append(winners[0])
     return tuple(result)

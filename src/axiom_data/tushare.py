@@ -1,4 +1,4 @@
-"""Minimal Tushare adapter for the reviewed Phase 1 market vertical slice."""
+"""Tushare market source adapter and canonical mapper."""
 
 from __future__ import annotations
 
@@ -362,7 +362,7 @@ def _merge_canonical(
 
 
 class TushareMarketBuilder(MarketDomainBuilder):
-    """Map only the frozen PR3 Tushare profiles through the PR2 publisher."""
+    """Map the versioned market source profiles through the canonical publisher."""
 
     implementation_revision = "tushare-market-builder.v2"
 
@@ -569,7 +569,7 @@ class TushareMarketBuilder(MarketDomainBuilder):
             delist_session = _source_date(row.get("delist_date"), nullable=True)
             if delist_session is not None:
                 raise ArtifactError(
-                    "PR3 cannot promote an unverified Tushare delist_date boundary"
+                    "unverified Tushare delist_date boundary cannot be promoted"
                 )
             rows.append(
                 {

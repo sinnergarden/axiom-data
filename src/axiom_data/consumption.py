@@ -221,7 +221,7 @@ class SnapshotReader:
         from axiom_data.pit import select_revisions, select_financial_revisions
         from axiom_data.domains.events import EVENT_DOMAINS, DAILY_DOMAINS
         if (start_session is not None or end_session is not None) and domain not in DAILY_DOMAINS:
-            raise ArtifactError('session-bounded PIT requires a daily PR7 domain')
+            raise ArtifactError('session-bounded PIT requires a daily event domain')
         if domain in EVENT_DOMAINS:
             from axiom_data.pit import select_event_revisions
             return select_event_revisions(self.facts(domain,symbols=symbols,
@@ -860,7 +860,7 @@ class QlibViewReader:
                     'validated_scope':self.view.manifest['validated_scope'],
                     'rows':tuple({'symbol':r['symbol'],'session':r['session'],'fields':r['facts']} for r in self.view.rows)}
         if self.view.manifest.get('artifact_type') != 'pr6_fact_view':
-            raise ArtifactError('PR6 FactView metadata required')
+            raise ArtifactError('financial FactView metadata required')
         if self.view.manifest['schema_version']=='pr6_fact_view.v1':
             raise ArtifactError('METADATA_NOT_IN_V1_CONTRACT')
         return {'view_id':self.view.ref.view_id,'snapshot_ref':self.view.manifest['snapshot_ref'],
@@ -1329,7 +1329,7 @@ __all__ = [
 def request_coverage(reader,domain,symbol,session):
     """Admit bounded requests, including explicit empty supplier responses."""
     if symbol not in {r['symbol'] for r in reader.security_master()}:raise ArtifactError('unknown security')
-    if domain not in reader.commits:raise ArtifactError('Snapshot lacks PR7 domain')
+    if domain not in reader.commits:raise ArtifactError('Snapshot lacks event domain')
     # Only this checked Reader owns the index. New Readers validate their closure
     # again; no disk cache or execution report can supply request authority.
     if not hasattr(reader,'_pr7_request_intervals'):reader._pr7_request_intervals={}
@@ -1356,7 +1356,7 @@ def dependency_session(reader, domain, session):
     cutoff from returned rows or a different security's observed coverage.
     """
     if domain not in reader.commits:
-        raise ArtifactError('Snapshot lacks PR7 domain')
+        raise ArtifactError('Snapshot lacks event domain')
     end = reader.commits[domain].manifest['builder_config'].get('end_session')
     return min(session, validate_session(end, 'source end_session')) if end is not None else session
 
@@ -1397,7 +1397,7 @@ def select_latest_report(period_winners,target_session):
 def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
     from axiom_data.domains.events import LEAF_DOMAINS, DAILY_DOMAINS
     from axiom_data.pit import instant
-    if leaf not in LEAF_DOMAINS:raise ArtifactError('unknown PR7 leaf')
+    if leaf not in LEAF_DOMAINS:raise ArtifactError('unknown event leaf')
     validate_session(target_session,'target_session');instant(knowledge_cutoff)
     domain=LEAF_DOMAINS[leaf];field=leaf.split('.',1)[1]
     if not exchange_sessions(reader,[symbol],target_session,target_session)[symbol]['sessions']:

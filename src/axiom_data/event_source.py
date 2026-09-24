@@ -11,7 +11,7 @@ from axiom_data.pit import fingerprint, instant
 
 
 def load_event_source_profile(version='tushare_pr7.v1'):
-    if version not in {'tushare_pr7.v1','tushare_pr7_holder.v2','tushare_pr7_holder.v3'}:raise ArtifactError('unsupported PR7 source version')
+    if version not in {'tushare_pr7.v1','tushare_pr7_holder.v2','tushare_pr7_holder.v3'}:raise ArtifactError('unsupported event source version')
     return json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
 
 
@@ -65,9 +65,9 @@ def validate_payload(endpoint, params, records, *, profile_version='tushare_pr7.
 
 def _validate_payload_shape(endpoint, params, records, *, profile_version='tushare_pr7.v1'):
     definition=load_event_source_profile(profile_version)['endpoints'].get(endpoint)
-    if definition is None:raise ArtifactError('unsupported PR7 endpoint')
+    if definition is None:raise ArtifactError('unsupported event endpoint')
     if not isinstance(params,dict) or set(params)!={'ts_code','start_date','end_date'}:
-        raise ArtifactError('PR7 requires a single security and explicit date bounds')
+        raise ArtifactError('event request requires a single security and explicit date bounds')
     from axiom_data.domains.market import _symbol
     _symbol(params['ts_code'])
     source_date(params['start_date']);source_date(params['end_date'])
@@ -133,7 +133,7 @@ def normalize(raw, domain, *, top10_qualification=None, margin_qualification=Non
     if (d is None or d['domain']!=domain or m['domain']!=domain or m['schema_version']!='raw_batch.v2'
         or m['source_profile_digest']!=profile_digest(version)
         or m['source_profile_ref']!='tushare.pr7.'+endpoint or request['fields']!=d['fields']):
-        raise ArtifactError('PR7 profile/domain binding mismatch')
+        raise ArtifactError('event profile/domain binding mismatch')
     records=json.loads(raw.payload);validate_payload(endpoint,request['params'],records,profile_version=version)
     excluded=source_qualification(records,version)
     if version=='tushare_pr7_holder.v3' and m['summary'].get('source_qualification')!=excluded:
@@ -260,11 +260,11 @@ class EventBuilder(MarketDomainBuilder):
 
 
 def extend_snapshot(data_root, parent_snapshot_id, domain, raw_batch_ids):
-    """Extend one explicit PR7 domain; all other immutable domain refs are reused."""
+    """Extend one explicit event domain; all other immutable domain refs are reused."""
     from axiom_data import BuildApplication,SnapshotReader,create_snapshot
     from axiom_data.artifacts import _DOMAIN_DEPENDENCIES
     from axiom_data.domains.events import EVENT_DOMAINS
-    if domain not in EVENT_DOMAINS:raise ArtifactError('PR7 extension domain required')
+    if domain not in EVENT_DOMAINS:raise ArtifactError('event extension domain required')
     reader=SnapshotReader(data_root,parent_snapshot_id)
     ids={d:c.ref.commit_id for d,c in reader.commits.items()}
     if domain not in ids:raise ArtifactError('parent Snapshot lacks extension domain')

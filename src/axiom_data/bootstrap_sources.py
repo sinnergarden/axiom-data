@@ -64,6 +64,7 @@ def plan_truncated_raw_split(raw):
     for first,last in ((start,middle),(middle+timedelta(days=1),end)):
         child=copy.deepcopy(params)
         child.update(start_date=first.strftime('%Y%m%d'),end_date=last.strftime('%Y%m%d'))
+        # Split children are persisted checkpoint identity, not the presentation plan.
         family={'tushare_phase1.v1':'market','tushare_dm1.v1':'dm1','tushare_pr6.v1':'pr6','tushare_pr6.v2':'pr6_bulk',
                 'tushare_fina_indicator.v1':'pr6_indicator','tushare_pr7.v1':'pr7',
                 'tushare_pr7_holder.v2':'pr7_holder','tushare_pr7_holder.v3':'pr7_holder_v3'}.get(manifest['source_profile_version'])
@@ -103,16 +104,16 @@ def plan_bootstrap_sources(*, symbols, start_session, end_session,
             add('market','market_daily',ep,params,'session_close')
         for domain,ep in [('security_status','daily'),('security_status','suspend_d'),
                           ('price_limits','stk_limit'),('adjustment_factors','adj_factor'),('security_capital','daily_basic')]:
-            add('dm1',domain,ep,params,'session_close')
-        add('dm1','corporate_actions','dividend',{'ts_code':symbol},'revision_scan')
-        add('pr6','valuation_daily','daily_basic',params,'session_close')
+            add('reference',domain,ep,params,'session_close')
+        add('reference','corporate_actions','dividend',{'ts_code':symbol},'revision_scan')
+        add('fundamentals','valuation_daily','daily_basic',params,'session_close')
         for first,last in _windows(financial_start,end,5):
             for ep in ('income','balancesheet','cashflow'):
                 p={'ts_code':symbol,'start_date':first,'end_date':last}
                 p['report_type']='1'
-                add('pr6','financial_events',ep,p,'revision_scan',financial_start,end)
+                add('fundamentals','financial_events',ep,p,'revision_scan',financial_start,end)
         for first,last in _quarters(financial_start,end):
-            add('pr6_indicator','financial_events','fina_indicator',
+            add('financial_indicator','financial_events','fina_indicator',
                 {'ts_code':symbol,'start_date':first,'end_date':last},'revision_scan',financial_start,end)
         for domain,ep,policy in [('holder_count_events','stk_holdernumber','revision_scan'),
                                  ('top_holders_reports','top10_holders','revision_scan'),
@@ -123,10 +124,10 @@ def plan_bootstrap_sources(*, symbols, start_session, end_session,
             # ten rows per report. The collector still rejects an at-cap result.
             windows=_windows(start,end,5) if ep=='top10_holders' else [(bounds['start_date'],bounds['end_date'])]
             for first,last in windows:
-                add('pr7_holder_v3' if domain=='holder_count_events' else 'pr7',domain,ep,
+                add('holder_reports_v3' if domain=='holder_count_events' else 'events',domain,ep,
                     {'ts_code':symbol,'start_date':first,'end_date':last},policy)
     for symbol in benchmarks:
-        add('dm1','benchmark_daily','index_daily',dict(bounds,ts_code=symbol),'session_close')
+        add('reference','benchmark_daily','index_daily',dict(bounds,ts_code=symbol),'session_close')
     # Index-weight history is sampled by its published observation sessions;
     # collecting monthly bounds does not invent a daily membership observation.
     cursor=date.fromisoformat(start);stop=date.fromisoformat(end)
@@ -134,7 +135,7 @@ def plan_bootstrap_sources(*, symbols, start_session, end_session,
         next_month=date(cursor.year+int(cursor.month==12),cursor.month%12+1,1)
         upper=min(stop,next_month-timedelta(days=1))
         for symbol in universe_ids:
-            add('pr6','universe_membership','index_weight',{'index_code':symbol,
+            add('fundamentals','universe_membership','index_weight',{'index_code':symbol,
                 'start_date':cursor.strftime('%Y%m%d'),'end_date':upper.strftime('%Y%m%d')},'reference_observation')
         cursor=next_month
     return {'schema_version':'v1_bootstrap_sources.v1','scope':{'symbols':list(selected),

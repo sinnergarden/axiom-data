@@ -15,11 +15,14 @@ It binds the current Git revision, installed Python/JSON bytes, profile/policy
 digests, planner/config identity and validator version. `validate_gate_a_report`
 recomputes this binding; an earlier PASS cannot stand in for changed code.
 
-The executable admission routes have frozen function-body digests in the Gate A
-contract, including bootstrap's canonical-checkpoint branch and shared Raw
-admission. The AST call inventory alone is not acceptance: retaining a validator
-name in dead code does not preserve the reviewed executable binding. Changes to
-these routes require an updated binding and independent review.
+Gate A checks the public route and current writable contract through small
+behavioral probes. It rejects legacy writes, an empty View plan and capped source
+responses; the sparse pack tests complete children and destructive gaps, partial
+responses and selector conflicts. Keeping a call in dead code is insufficient.
+Implementation digests remain in Gate A evidence and each View operation's frozen
+plan, but Gate A does not compare Python function bodies with an older release.
+An ordinary implementation change therefore needs fresh review evidence, not a
+manual source-digest update to regain READY.
 
 Gate B has a separate execution-status field. Its immutable artifact/ref schema
 is checked before bulk; missing future admission/daily/Notebook executors remain

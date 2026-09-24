@@ -13,6 +13,9 @@ Frozen artifact names, source profile versions, View kinds and old reader module
 remain interpretable. Historical labels in those records are version identifiers,
 not instructions to use a separate current implementation path.
 
+The [historical identifier map](compatibility-identifiers.md) explains the few
+old names still present in published plans, manifests and import paths.
+
 ## Naming inventory
 
 The repository was searched for `pr[0-9]+`, `dm[0-9]+`, `phase`, `stage` and

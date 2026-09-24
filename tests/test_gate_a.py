@@ -26,6 +26,41 @@ class GateATest(unittest.TestCase):
         self.assertFalse(result['ready_for_consumption'])
         self.assertEqual(result['gate_b_status'], 'NOT_ASSESSED')
 
+    def test_changed_implementation_digest_does_not_block_current_behavior(self):
+        import axiom_data
+        from axiom_data import view_operation
+        original = view_operation.materialize_views
+        def equivalent(data_root, *, run_id, snapshot_id, views):
+            return original(data_root, run_id=run_id, snapshot_id=snapshot_id, views=views)
+        with patch.object(axiom_data, 'materialize_views', equivalent), \
+                patch.object(view_operation, 'materialize_views', equivalent):
+            result = gate_a.validate_gate_a(self.plan)
+        self.assertEqual(result['status'], 'GATE_A_READY_FOR_BULK_BUILD', result['findings'])
+        self.assertNotEqual(result['evidence']['public_routes']['implementation_provenance'],
+                            gate_a.admission_route_identity())
+
+    def test_wrong_contract_version_blocks(self):
+        contract = gate_a._contract()
+        contract['schema_version'] = 'gate_a_contract.v2'
+        with patch.object(gate_a, '_contract', return_value=contract):
+            result = gate_a.validate_gate_a(self.plan)
+        self.assertEqual(result['status'], 'GATE_A_BLOCKED')
+        self.assertTrue(any(f['section'] == 'plan' and 'contract version' in f['reason']
+                            for f in result['findings']))
+
+    def test_pagination_selector_bypass_blocks(self):
+        def bypass(policy, records, params, reject):
+            return None
+        from axiom_data import sw_source
+        def bypass_source(endpoint, params, records, *, profile_version):
+            return None
+        with patch.object(source_completeness, '_validate_scoped_response', bypass), \
+                patch.object(sw_source, 'validate_payload_scope', bypass_source):
+            result = gate_a.validate_gate_a(self.plan)
+        self.assertEqual(result['status'], 'GATE_A_BLOCKED')
+        self.assertTrue(any(f['section'] == 'public_routes' and 'pagination' in f['reason']
+                            for f in result['findings']))
+
     def test_missing_required_profile_blocks_its_real_source(self):
         real = gate_a._profile
         def missing(version):
@@ -126,6 +161,9 @@ class GateATest(unittest.TestCase):
         self.assertEqual(result['views']['adjusted_price-600036.SH']['config']['anchor_session'], '2025-06-11')
         self.assertEqual(result['views']['adjusted_price-000001.SZ']['config']['anchor_session'], '2025-06-13')
         self.assertEqual(len(result['views']), 10)
+        self.assertIn('financial_fact-600036.SH', result['views'])
+        self.assertIn('event_fact-600036.SH', result['views'])
+        self.assertFalse(any(key.startswith(('pr6_', 'pr7_')) for key in result['views']))
         self.assertEqual({g['reason'] for g in result['identity_exclusions']}, {'delisted', 'not_yet_listed'})
         self.assertEqual(result['full_admission'], 'PENDING')
         next(row for row in security if row['symbol'] == '600036.SH')['list_session'] = None

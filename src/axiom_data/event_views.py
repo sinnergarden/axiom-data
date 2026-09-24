@@ -25,7 +25,7 @@ def project(reader,scope,policy,cutoff,*,source_cutoffs=True):
     calendars=exchange_sessions(reader,symbols,start,end)
     if not any(item['sessions'] for item in calendars.values()):
         raise ArtifactError('INSUFFICIENT_SCOPE: no open exchange sessions')
-    if any(d not in reader.commits for d in EVENT_DOMAINS):raise ArtifactError('PR7 Snapshot required')
+    if any(d not in reader.commits for d in EVENT_DOMAINS):raise ArtifactError('event Snapshot domains required')
     wide=[];event_history={}
     open_days={symbol:set(item['sessions']) for symbol,item in calendars.items()}
     for session in sorted({day for item in calendars.values() for day in item['sessions']}):
@@ -124,14 +124,14 @@ def load_event_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
     reader=checked_reader or SnapshotReader(data_root,manifest['snapshot_ref']['snapshot_id'])
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or
         reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
-        raise ArtifactError('checked Reader does not match PR7 View Snapshot')
+        raise ArtifactError('checked Reader does not match event View Snapshot')
     payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):raise ArtifactError('invalid code bundle')
     expected=make_manifest(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'],payload,bundle)
-    if {k:v for k,v in manifest.items() if k not in {'view_id','identity_digest','created_at'}}!=expected:raise ArtifactError('PR7 View semantic closure mismatch')
+    if {k:v for k,v in manifest.items() if k not in {'view_id','identity_digest','created_at'}}!=expected:raise ArtifactError('event View semantic closure mismatch')
     for path,content in make_files(payload,manifest['scope']['symbols'],bundle).items():
-        if _safe_path(layout.root,target/path,closure=target).read_bytes()!=content:raise ArtifactError('PR7 file differs from Snapshot projection')
+        if _safe_path(layout.root,target/path,closure=target).read_bytes()!=content:raise ArtifactError('event View file differs from Snapshot projection')
     return DerivedView(DerivedViewRef('pr7_fact',view_id,digest),manifest,tuple(payload['wide']))
 
 
