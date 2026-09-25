@@ -2,12 +2,14 @@
 
 import copy
 import gzip
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 
 from axiom_data import FactView
 from axiom_data.artifacts import ArtifactError, _json_bytes
-from axiom_data.consumption import QlibViewReader
+from axiom_data.consumption import QlibViewReader, feature_bytes
 from axiom_data.domains.events import LEAF_DOMAINS, NUMERIC_FIELDS
 from axiom_data.view_states import SparseDailyRows, encode_states, session_cutoff, unpacked_states
 
@@ -54,15 +56,41 @@ class SparseViewStatesTest(unittest.TestCase):
                 qlib=object.__new__(QlibViewReader)
                 qlib.view=SimpleNamespace(manifest=manifest,rows=sparse,
                                           ref=SimpleNamespace(view_id='view-test'))
+                temporary_root=tempfile.TemporaryDirectory()
+                self.addCleanup(temporary_root.cleanup)
+                legacy=object.__new__(QlibViewReader)
+                legacy.data_root=Path(temporary_root.name)
+                legacy.path=legacy.data_root/'legacy'
+                legacy.calendar=lambda: tuple(days)
+                legacy_manifest=dict(manifest,schema_version=
+                    'pr6_fact_view.v4' if kind=='financial' else 'pr7_fact_view.v3')
+                legacy_manifest['instrument_storage_scope']=[
+                    {'symbol':symbol,'storage_path':symbol,
+                     'start_session':days[0],'end_session':days[-1],
+                     'valid_sessions':days} for symbol in symbols]
+                legacy.view=SimpleNamespace(manifest=legacy_manifest,rows=tuple(rows),
+                                            ref=SimpleNamespace(view_id='view-test'))
+                for symbol in symbols:
+                    directory=legacy.path/symbol
+                    directory.mkdir(parents=True)
+                    for field in manifest['fields']:
+                        values=[row['values'][field] for row in rows if row['symbol']==symbol]
+                        (directory/f'{field}.day.bin').write_bytes(feature_bytes(0,values))
                 for requested in (symbols,tuple(reversed(symbols))):
                     expected=[(day,symbol) for day in days for symbol in requested]
                     self.assertEqual([(r['session'],r['symbol']) for r in sparse.range(symbols=requested)],expected)
                     self.assertEqual([(r['session'],r['symbol']) for r in sparse.range(
                         days[0],days[0],requested)],expected[:2])
+                    self.assertEqual(qlib.market_daily(include_missing=True,symbols=requested),
+                                     legacy.market_daily(include_missing=True,symbols=requested))
+                    self.assertEqual(qlib.market_daily(symbols=requested),
+                                     legacy.market_daily(symbols=requested))
                     self.assertEqual([(r['session'],r['symbol']) for r in qlib.market_daily(
-                        include_missing=True,symbols=requested)],expected)
+                        include_missing=True,symbols=requested)],sorted(expected))
                     self.assertEqual([r['symbol'] for r in qlib.as_of(days[0],symbols=requested)],
-                                     list(requested))
+                                     sorted(requested))
+                    self.assertEqual(qlib.as_of(days[0],symbols=requested),
+                                     legacy.as_of(days[0],symbols=requested))
                     if kind=='financial':
                         manifest.update(pit_policy='best_effort_vendor_v1',cutoff_policy='session_end',
                             knowledge_cutoff=CUTOFF,pit_qualification='best_effort',domain_refs={},
@@ -75,11 +103,9 @@ class SparseViewStatesTest(unittest.TestCase):
                         self.assertEqual([(r['session'],r['symbol']) for r in result['facts']],expected)
                 self.assertEqual([(r['session'],r['symbol']) for r in qlib.fact_metadata()['rows']],
                                  [(day,symbol) for day in days for symbol in symbols])
-                legacy=object.__new__(QlibViewReader)
-                legacy.view=SimpleNamespace(manifest=dict(manifest,schema_version=
-                    'pr6_fact_view.v4' if kind=='financial' else 'pr7_fact_view.v3'),
-                    rows=tuple(rows),ref=SimpleNamespace(view_id='view-test'))
                 self.assertEqual(qlib.fact_metadata()['rows'],legacy.fact_metadata()['rows'])
+                self.assertEqual(qlib.market_daily(),legacy.market_daily())
+                self.assertEqual(qlib.as_of(days[0]),legacy.as_of(days[0]))
 
     def test_financial_revision_ambiguity_and_membership_boundaries(self):
         fields=('income.revenue','universe.membership','industry.membership')

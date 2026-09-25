@@ -1054,7 +1054,7 @@ class QlibViewReader:
                         for field in fields}
                 if include_missing or any(value is not None for value in values.values()):
                     rows.append({'session':row['session'],'symbol':row['symbol'],**values})
-            return tuple(rows)
+            return tuple(sorted(rows, key=lambda row: (row["session"], row["symbol"])))
         calendar = self.calendar()
         fields = tuple(self.view.manifest["fields"])
         rows: list[dict[str, Any]] = []
