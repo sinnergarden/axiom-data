@@ -100,6 +100,8 @@ def adjusted_price_batch(reader, configs):
                 if row["symbol"] in grouped and start <= row["session"] <= end:
                     grouped[row["symbol"]].append(row)
             sources[domain] = grouped
+    if hasattr(reader, '_remember_consumed_metadata'):
+        reader._remember_consumed_metadata(observed)
     prior = getattr(reader, "_adjusted_price_batch", None)
     reader._adjusted_price_batch = (start, end, symbols, sources)
     try:
@@ -142,6 +144,7 @@ def build_adjusted_price_view(
 
 def _build_adjusted_price_view(reader, *, symbols, start_session, end_session,
                                anchor_session, pit_policy, decision_cutoff, created_at=None):
+    reader._check_consumed_metadata(force=True)
     data_root = reader.data_root
     snapshot = reader.snapshot
     selected = validate_symbols(symbols)
@@ -617,6 +620,7 @@ def build_market_replay_view(
 
 
 def _build_market_replay_view(reader, *, symbols, start_session, end_session, created_at=None):
+    reader._check_consumed_metadata(force=True)
     data_root = reader.data_root
     selected = validate_symbols(symbols)
     start = validate_session(start_session, "start_session")

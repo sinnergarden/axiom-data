@@ -68,6 +68,8 @@ def _event_view_batch(reader, configs):
             bounds = daily_bounds.get(domain)
             rows[domain] = reader.facts(domain, symbols=symbols,
                 **({'start_session':bounds[0], 'end_session':bounds[1]} if bounds else {}))
+    if hasattr(reader, '_remember_consumed_metadata'):
+        reader._remember_consumed_metadata(observed)
     by_symbol = {domain: {symbol: [] for symbol in symbols} for domain in EVENT_DOMAINS}
     for domain in EVENT_DOMAINS:
         for row in rows[domain]:
@@ -83,6 +85,8 @@ def _event_view_batch(reader, configs):
 
 
 def project(reader,scope,policy,cutoff,*,source_cutoffs=True):
+    if hasattr(reader, '_check_consumed_metadata'):
+        reader._check_consumed_metadata(force=True)
     with getattr(reader, 'consumed_inputs', nullcontext)():
         return _project(reader,scope,policy,cutoff,source_cutoffs=source_cutoffs)
 

@@ -30,7 +30,11 @@ def _prepared_selection(reader, slot, key, prepare):
     if key in selections:
         value=selections.pop(key)
     else:
-        value=prepare()
+        from axiom_data.verification_cache import validation_paths
+        with validation_paths() as consumed:
+            value=prepare()
+        if hasattr(reader, '_remember_consumed_metadata'):
+            reader._remember_consumed_metadata(consumed)
         if len(selections)==2:selections.popitem(last=False)
     selections[key]=value
     return value
@@ -109,6 +113,8 @@ def _valuation_scope(reader,symbols,start,end):
                 for row in reader.session_rows('valuation_daily',batch['start'],batch['end']):
                     if row['symbol'] in batch['symbols'] and batch['start']<=row['session']<=batch['end']:
                         grouped.setdefault((row['symbol'],row['session']),[]).append(row)
+            if hasattr(reader, '_remember_consumed_metadata'):
+                reader._remember_consumed_metadata(observed)
             batch['rows'],batch['observed']=grouped,observed
         return {day:[row for symbol in symbols for row in batch['rows'].get((symbol,day),())]
                 for day in sorted({day for symbol,day in batch['rows'] if symbol in selected and start<=day<=end})}
@@ -126,6 +132,8 @@ def _valuation_at(reader,symbols,session,policy,cutoff,*,prepared=None):
 
 
 def project(reader, scope, policy, cutoff, *, financial_resolution=True, membership_ref=False):
+    if hasattr(reader, '_check_consumed_metadata'):
+        reader._check_consumed_metadata(force=True)
     from axiom_data.financial_coverage import prepared_input
     symbols=scope['symbols'];start=scope['start_session'];end=scope['end_session']
     validate_symbols(symbols);validate_session(start,'start');validate_session(end,'end');instant(cutoff)

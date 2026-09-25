@@ -119,6 +119,8 @@ def market_view_batch(reader, configs, kind):
         for domain in domains:
             rows[domain] = (reader.market_daily(requested, start, end) if domain == 'market_daily'
                             else reader.facts(domain, symbols=requested, start_session=start, end_session=end))
+    if hasattr(reader, '_remember_consumed_metadata'):
+        reader._remember_consumed_metadata(observed)
     grouped = {domain: {symbol: [] for symbol in symbols} for domain in domains}
     for domain in domains:
         for row in rows[domain]:
@@ -172,12 +174,12 @@ class SnapshotReader:
         self._security_projection = OrderedDict()
         self._security_projection_bytes = 0
 
-    def _check_consumed_metadata(self):
-        """Reject a changed file previously admitted by this Reader."""
+    def _check_consumed_metadata(self, *, force=False):
+        """Reject changed inputs; force checks each View inside a prepared batch."""
         from axiom_data.verification_cache import file_state
         if getattr(self, '_invalidated', False):
             raise ArtifactError('Reader consumed input changed after validation')
-        if getattr(self, '_consumed_use_depth', 0):
+        if not force and getattr(self, '_consumed_use_depth', 0):
             return
         observed = getattr(self, '_view_validation_paths', None)
         # Initial loads checked metadata content against its declared digest/ref.
@@ -194,6 +196,9 @@ class SnapshotReader:
         self._security_projection_bytes = 0
         self.__dict__.pop('_financial_preparation', None)
         self.__dict__.pop('_pr7_request_intervals', None)
+        for name in ('_adjusted_price_batch', '_market_view_batch',
+                     '_financial_view_batch', '_event_view_batch', '_financial_batch'):
+            self.__dict__.pop(name, None)
 
     @contextmanager
     def consumed_inputs(self):
@@ -626,6 +631,7 @@ def _validate_qlib_inputs(reader, *, symbols, start_session, end_session, fields
 def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARKET_VIEW_FIELDS,
                      adjusted_price_view_id=None, price_basis='unadjusted',pit_policy='best_effort',
                      decision_cutoff=None,created_at=None):
+    reader._check_consumed_metadata(force=True)
     selected, start, end, view_fields, adjusted = _validate_qlib_inputs(reader,
         symbols=symbols, start_session=start_session, end_session=end_session, fields=fields,
         adjusted_price_view_id=adjusted_price_view_id, price_basis=price_basis,
