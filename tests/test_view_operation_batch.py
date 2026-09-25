@@ -240,6 +240,6 @@ class ViewOperationBatchTest(unittest.TestCase):
                     self.assertEqual(projection.call_count,1)
                     loader(root,ref.view_id,checked_reader=reader)
                     self.assertEqual(projection.call_count,1)
-                rows=root/'derived'/kind/'commits'/ref.view_id/'rows.json'
+                rows=root/'derived'/kind/'commits'/ref.view_id/'states.json.gz'
                 rows.write_bytes(rows.read_bytes()+b'corrupt')
                 with self.assertRaises(ArtifactError):loader(root,ref.view_id,checked_reader=reader)

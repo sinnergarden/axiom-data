@@ -102,6 +102,9 @@ class Pr6IntegrationTest(unittest.TestCase):
             path.write_bytes(original)
             binary=QlibViewReader(root,view.view_id).market_daily(include_missing=True)
             self.assertEqual(direct,binary)
+            self.assertEqual(QlibViewReader(root,view.view_id).as_of('2026-01-05'),binary)
+            self.assertEqual(QlibViewReader(root,view.view_id).market_daily(
+                include_missing=True,start_session='2026-01-05',end_session='2026-01-05'),binary)
             self.assertEqual(direct[-1]['financial.single_quarter_revenue'],100)
             # Available income/cost do not silently replace a missing supplier margin.
             self.assertIsNone(direct[-1]['indicator.gross_margin'])
@@ -125,7 +128,7 @@ class Pr6IntegrationTest(unittest.TestCase):
             self.assertEqual(sum(len(r['observations']) for r in canonical),3)
             changed_view=build_pr6_fact_view(root,changed.snapshot_id,**build_args)
             loaded=load_pr6_fact_view(root,changed_view.view_id)
-            self.assertEqual(loaded.manifest['schema_version'],'pr6_fact_view.v4')
+            self.assertEqual(loaded.manifest['schema_version'],'pr6_fact_view.v5')
             self.assertTrue(loaded.manifest['actual_available_scope']['financial_ambiguities'])
             public=FactView(root,changed.snapshot_id,pr6_fact_view_id=changed_view.view_id).read('pr6')
             metadata=public['facts'][0]['fields']

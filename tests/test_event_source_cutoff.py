@@ -11,7 +11,6 @@ import zipfile
 from collections import OrderedDict
 from dataclasses import replace
 from datetime import date, timedelta
-from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -92,7 +91,7 @@ class EventSourceCutoffTest(unittest.TestCase):
                 **self.scope, pit_policy='best_effort_vendor_v1', knowledge_cutoff=CUTOFF)
             view = pr7_views.load_pr7_fact_view(self.root, ref.view_id)
             qlib = QlibViewReader(self.root, ref.view_id).market_daily(include_missing=True)
-        self.assertEqual(view.manifest['schema_version'], 'pr7_fact_view.v3')
+        self.assertEqual(view.manifest['schema_version'], 'pr7_fact_view.v4')
         self.assertEqual(view.manifest['scope'], self.scope)
         self.assertEqual([r['session'] for r in view.rows], ['2026-09-10', '2026-09-11'])
         before, after = view.rows
@@ -112,6 +111,13 @@ class EventSourceCutoffTest(unittest.TestCase):
             target_session='2026-09-11', knowledge_cutoff=CUTOFF, pit_policy='best_effort_vendor_v1'))
         self.assertEqual([r['session'] for r in qlib], ['2026-09-10', '2026-09-11'])
         self.assertIsNone(qlib[-1]['margin.balance'])
+        with patch.object(pr7_views, 'SnapshotReader', return_value=self.reader):
+            public = QlibViewReader(self.root, ref.view_id)
+        self.assertEqual(public.as_of('2026-09-11'), (qlib[-1],))
+        self.assertEqual(public.market_daily(include_missing=True,
+            start_session='2026-09-10',end_session='2026-09-10'), (qlib[0],))
+        self.assertEqual(public.fact_metadata(start_session='2026-09-11',
+            end_session='2026-09-11')['rows'][0]['fields'], after['facts'])
 
     def test_operational_visibility_still_uses_real_observation_time(self):
         fact = self.reader.leaf_fact('margin.balance', symbol=SYMBOL,
@@ -146,13 +152,21 @@ class EventSourceCutoffTest(unittest.TestCase):
 
     def test_legacy_v2_still_loads_with_frozen_strict_semantics(self):
         legacy_scope = dict(self.scope, end_session='2026-09-10')
-        with patch.object(pr7_views, 'SnapshotReader', return_value=self.reader), \
-             patch.object(pr7_views, 'project', partial(pr7_views.project, source_cutoffs=False)), \
-             patch.object(pr7_views, 'manifest_for', partial(pr7_views.manifest_for, schema_version='pr7_fact_view.v2')):
-            ref = pr7_views.build_pr7_fact_view(self.root, self.reader.snapshot.ref.snapshot_id,
-                **legacy_scope, pit_policy='best_effort_vendor_v1', knowledge_cutoff=CUTOFF)
+        from axiom_data.artifacts import _derived_identity, _identity_digest, _layout, _write_file, _write_manifest
+        payload=pr7_views.project(self.reader,legacy_scope,'best_effort_vendor_v1',CUTOFF,source_cutoffs=False)
+        bundle={'frozen.py':'legacy source'}
+        manifest=pr7_views.manifest_for(self.reader,legacy_scope,'best_effort_vendor_v1',CUTOFF,
+            payload,bundle,schema_version='pr7_fact_view.v2')
+        identity=_identity_digest(manifest,'view_id')
+        view_id=_derived_identity('pr7-fact',identity)
+        manifest.update(view_id=view_id,identity_digest=identity,created_at='2026-09-24T00:00:00+00:00')
+        target=_layout(self.root).derived_commits('pr7_fact')/view_id
+        target.mkdir(parents=True)
+        for name,content in pr7_views.payload_files(payload,legacy_scope['symbols'],bundle).items():
+            path=target/name;path.parent.mkdir(parents=True,exist_ok=True);_write_file(path,content)
+        _write_manifest(target,manifest)
         with patch.object(pr7_views, 'SnapshotReader', return_value=self.reader):
-            old = pr7_views.load_pr7_fact_view(self.root, ref.view_id)
+            old = pr7_views.load_pr7_fact_view(self.root, view_id)
         self.assertEqual(old.manifest['schema_version'], 'pr7_fact_view.v2')
         with self.assertRaisesRegex(ArtifactError, 'INSUFFICIENT_SCOPE'):
             self.project(source_cutoffs=False)

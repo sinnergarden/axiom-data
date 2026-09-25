@@ -1003,11 +1003,16 @@ class QlibViewReader:
                      if view_id.startswith("pr7-fact-") else _layout(self.data_root).derived_commits("pr6_fact") / view_id
                      if view_id.startswith("pr6-fact-") else _layout(self.data_root).qlib_exports / view_id)
 
-    def fact_metadata(self):
+    def fact_metadata(self, *, start_session=None, end_session=None):
+        rows=(self.view.rows.range(start_session,end_session)
+              if self.view.manifest.get('schema_version') in {'pr6_fact_view.v5','pr7_fact_view.v4'}
+              else (r for r in self.view.rows
+                    if (start_session is None or r['session']>=start_session)
+                    and (end_session is None or r['session']<=end_session)))
         if self.view.manifest.get('artifact_type') == 'pr7_fact_view':
             return {'view_id':self.view.ref.view_id,'snapshot_ref':self.view.manifest['snapshot_ref'],
                     'validated_scope':self.view.manifest['validated_scope'],
-                    'rows':tuple({'symbol':r['symbol'],'session':r['session'],'fields':r['facts']} for r in self.view.rows)}
+                    'rows':tuple({'symbol':r['symbol'],'session':r['session'],'fields':r['facts']} for r in rows)}
         if self.view.manifest.get('artifact_type') != 'pr6_fact_view':
             raise ArtifactError('financial FactView metadata required')
         if self.view.manifest['schema_version']=='pr6_fact_view.v1':
@@ -1015,7 +1020,7 @@ class QlibViewReader:
         return {'view_id':self.view.ref.view_id,'snapshot_ref':self.view.manifest['snapshot_ref'],
                 'industry_mapping':self.view.manifest['industry_mapping'],
                 'validated_scope':self.view.manifest['validated_scope'],
-                'rows':tuple({'symbol':r['symbol'],'session':r['session'],'fields':r['facts']} for r in self.view.rows)}
+                'rows':tuple({'symbol':r['symbol'],'session':r['session'],'fields':r['facts']} for r in rows)}
 
     def calendar(self) -> tuple[str, ...]:
         layout = _layout(self.data_root)
@@ -1031,7 +1036,25 @@ class QlibViewReader:
             for item in self.view.manifest["instrument_storage_scope"]
         )
 
-    def market_daily(self, *, include_missing: bool = False) -> tuple[dict[str, Any], ...]:
+    def market_daily(self, *, include_missing: bool = False, start_session=None,
+                     end_session=None, symbols=None) -> tuple[dict[str, Any], ...]:
+        if self.view.manifest['schema_version'] in {'pr6_fact_view.v5','pr7_fact_view.v4'}:
+            selected=set(validate_symbols(symbols)) if symbols is not None else None
+            if selected is not None and not selected<=set(self.view.manifest['scope']['symbols']):
+                raise ArtifactError('INSUFFICIENT_SCOPE: View symbols')
+            start=validate_session(start_session,'start_session') if start_session else None
+            end=validate_session(end_session,'end_session') if end_session else None
+            if start and end and start>end:
+                raise ArtifactError('reversed View range')
+            fields=self.view.manifest['fields']
+            rows=[]
+            for row in self.view.rows.iter_range(start,end,selected):
+                values={field:(None if row['values'][field] is None else
+                               struct.unpack('<f',struct.pack('<f',float(row['values'][field])))[0])
+                        for field in fields}
+                if include_missing or any(value is not None for value in values.values()):
+                    rows.append({'session':row['session'],'symbol':row['symbol'],**values})
+            return tuple(rows)
         calendar = self.calendar()
         fields = tuple(self.view.manifest["fields"])
         rows: list[dict[str, Any]] = []
@@ -1090,7 +1113,20 @@ class QlibViewReader:
                             **values,
                         }
                     )
+        if start_session is not None:
+            start=validate_session(start_session,'start_session')
+            rows=[row for row in rows if row['session']>=start]
+        if end_session is not None:
+            end=validate_session(end_session,'end_session')
+            rows=[row for row in rows if row['session']<=end]
+        if symbols is not None:
+            selected=set(validate_symbols(symbols))
+            rows=[row for row in rows if row['symbol'] in selected]
         return tuple(sorted(rows, key=lambda row: (row["session"], row["symbol"])))
+
+    def as_of(self, session: str, *, include_missing: bool = True) -> tuple[dict[str, Any], ...]:
+        day=validate_session(session,'session')
+        return self.market_daily(include_missing=include_missing,start_session=day,end_session=day)
 
 
 def compare_direct_and_qlib(

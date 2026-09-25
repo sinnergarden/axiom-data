@@ -216,7 +216,7 @@ class FinancialPreparationTest(unittest.TestCase):
             rebuilt = materialize_views(self.root, **args)
         self.assertEqual(rebuilt['status'], 'VIEWS_BUILT', rebuilt.get('failed'))
         self.assertEqual(builder.call_count, 1)
-        payload = target / 'rows.json'
+        payload = target / 'states.json.gz'
         payload.chmod(0o600)
         payload.write_bytes(b'corrupt')
         with patch('axiom_data.financial_views.build_financial_fact_view_from_reader', wraps=_build_pr6_fact_view) as builder:
