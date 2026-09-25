@@ -1,0 +1,378 @@
+{
+  "categories": {
+    "PLAN_SEMANTICS_ERROR": 15
+  },
+  "domains": {
+    "adjustment_factors": {
+      "end": "2026-09-11",
+      "observations": 3601,
+      "parent": null,
+      "partition_bytes": 3156321996,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "benchmark_daily": {
+      "end": "2026-09-11",
+      "observations": 1,
+      "parent": null,
+      "partition_bytes": 1074118,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "corporate_actions": {
+      "end": "2026-09-11",
+      "observations": 3601,
+      "parent": null,
+      "partition_bytes": 27803962,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "financial_events": {
+      "end": "2026-09-13",
+      "observations": 230464,
+      "parent": null,
+      "partition_bytes": 734667472,
+      "partitions": 90,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "forecast_observations": {
+      "end": "2026-09-13",
+      "observations": 3601,
+      "parent": null,
+      "partition_bytes": 77206623,
+      "partitions": 15,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "holder_count_events": {
+      "end": "2026-09-13",
+      "observations": 3601,
+      "parent": null,
+      "partition_bytes": 353857578,
+      "partitions": 21,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "industry_membership": {
+      "end": "2026-09-11",
+      "observations": 12,
+      "parent": null,
+      "partition_bytes": 9131528,
+      "partitions": 3601,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "margin_daily": {
+      "end": "2026-09-10",
+      "observations": 3601,
+      "parent": null,
+      "partition_bytes": 5859302168,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "market_daily": {
+      "end": "2026-09-11",
+      "observations": 18005,
+      "parent": null,
+      "partition_bytes": 3093242130,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "moneyflow_daily": {
+      "end": "2026-09-11",
+      "observations": 3601,
+      "parent": null,
+      "partition_bytes": 9636198176,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "price_limits": {
+      "end": "2026-09-11",
+      "observations": 3601,
+      "parent": null,
+      "partition_bytes": 3860249700,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "security_capital": {
+      "end": "2026-09-11",
+      "observations": 3601,
+      "parent": null,
+      "partition_bytes": 3854711936,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "security_master": {
+      "end": "2026-09-11",
+      "observations": 8,
+      "parent": null,
+      "partition_bytes": 428698,
+      "partitions": 2,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "security_status": {
+      "end": "2026-09-11",
+      "observations": 7202,
+      "parent": null,
+      "partition_bytes": 4154675082,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "top_holders_reports": {
+      "end": "2026-09-13",
+      "observations": 10803,
+      "parent": null,
+      "partition_bytes": 575848304,
+      "partitions": 13,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "trading_calendar": {
+      "end": "2026-09-11",
+      "observations": 2,
+      "parent": null,
+      "partition_bytes": 879612,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "universe_membership": {
+      "end": "2026-09-11",
+      "observations": 306,
+      "parent": null,
+      "partition_bytes": 355120213,
+      "partitions": 13,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    },
+    "valuation_daily": {
+      "end": "2026-09-11",
+      "observations": 3601,
+      "parent": null,
+      "partition_bytes": 8455711564,
+      "partitions": 153,
+      "start": "2014-01-01",
+      "unaccepted_observations": []
+    }
+  },
+  "elapsed_seconds": 27.898045792011544,
+  "executed_implementation_digest": "sha256:3f2fcc4d94ce87e852e0276be6d62c312653c8cc8a72e217bfd2751a43276ffe",
+  "families": {
+    "adjusted_price": {
+      "BLOCKED": 15,
+      "UNKNOWN": 3564
+    },
+    "market_qlib": {
+      "UNKNOWN": 3579
+    },
+    "market_replay": {
+      "UNKNOWN": 3579
+    },
+    "pr6_fact": {
+      "UNKNOWN": 3579
+    },
+    "pr7_fact": {
+      "UNKNOWN": 3579
+    }
+  },
+  "frozen_plan_sha256": "e910beafee563d112beaab7b76008b20cc51d9ea151c881ed28493d5d996550e",
+  "input_implementation_digest": "sha256:decdcff3e9bbc649f8b771e95198a1e73c689509bf80f749f632604ba1623a41",
+  "limitations": [
+    "No View rebuilt; no complete Snapshot closure revalidation.",
+    "UNKNOWN is retained for unchecked row-level prerequisites, not reported as READY.",
+    "Request metadata proves accepted request intervals, not presence of observations.",
+    "No Raw payloads read; no automatic source disagreement reclassification."
+  ],
+  "missing_anchors": [
+    {
+      "anchor": "2020-08-27",
+      "identity": {
+        "delist_session": "2020-08-28",
+        "exchange": "SSE",
+        "list_session": "1997-04-30",
+        "status": "source-current-D",
+        "symbol": "600069.SH"
+      },
+      "symbol": "600069.SH"
+    },
+    {
+      "anchor": "2020-06-02",
+      "identity": {
+        "delist_session": "2020-06-03",
+        "exchange": "SSE",
+        "list_session": "1997-06-23",
+        "status": "source-current-D",
+        "symbol": "600074.SH"
+      },
+      "symbol": "600074.SH"
+    },
+    {
+      "anchor": "2021-03-17",
+      "identity": {
+        "delist_session": "2021-03-18",
+        "exchange": "SSE",
+        "list_session": "1997-06-06",
+        "status": "source-current-D",
+        "symbol": "600086.SH"
+      },
+      "symbol": "600086.SH"
+    },
+    {
+      "anchor": "2020-08-14",
+      "identity": {
+        "delist_session": "2020-08-17",
+        "exchange": "SSE",
+        "list_session": "1999-04-08",
+        "status": "source-current-D",
+        "symbol": "600175.SH"
+      },
+      "symbol": "600175.SH"
+    },
+    {
+      "anchor": "2025-07-25",
+      "identity": {
+        "delist_session": "2025-07-28",
+        "exchange": "SSE",
+        "list_session": "1999-06-09",
+        "status": "source-current-D",
+        "symbol": "600190.SH"
+      },
+      "symbol": "600190.SH"
+    },
+    {
+      "anchor": "2020-02-05",
+      "identity": {
+        "delist_session": "2020-02-06",
+        "exchange": "SSE",
+        "list_session": "2000-06-28",
+        "status": "source-current-D",
+        "symbol": "600240.SH"
+      },
+      "symbol": "600240.SH"
+    },
+    {
+      "anchor": "2022-07-13",
+      "identity": {
+        "delist_session": "2022-07-14",
+        "exchange": "SSE",
+        "list_session": "2001-03-28",
+        "status": "source-current-D",
+        "symbol": "600555.SH"
+      },
+      "symbol": "600555.SH"
+    },
+    {
+      "anchor": "2021-07-21",
+      "identity": {
+        "delist_session": "2021-07-22",
+        "exchange": "SSE",
+        "list_session": "1992-08-28",
+        "status": "source-current-D",
+        "symbol": "600614.SH"
+      },
+      "symbol": "600614.SH"
+    },
+    {
+      "anchor": "2021-07-21",
+      "identity": {
+        "delist_session": "2021-07-22",
+        "exchange": "SSE",
+        "list_session": "1993-03-04",
+        "status": "source-current-D",
+        "symbol": "600634.SH"
+      },
+      "symbol": "600634.SH"
+    },
+    {
+      "anchor": "2021-03-03",
+      "identity": {
+        "delist_session": "2021-03-04",
+        "exchange": "SSE",
+        "list_session": "1993-11-08",
+        "status": "source-current-D",
+        "symbol": "600687.SH"
+      },
+      "symbol": "600687.SH"
+    },
+    {
+      "anchor": "2022-06-14",
+      "identity": {
+        "delist_session": "2022-06-15",
+        "exchange": "SSE",
+        "list_session": "1993-11-22",
+        "status": "source-current-D",
+        "symbol": "600695.SH"
+      },
+      "symbol": "600695.SH"
+    },
+    {
+      "anchor": "2021-04-30",
+      "identity": {
+        "delist_session": "2021-05-06",
+        "exchange": "SSE",
+        "list_session": "1996-05-28",
+        "status": "source-current-D",
+        "symbol": "600701.SH"
+      },
+      "symbol": "600701.SH"
+    },
+    {
+      "anchor": "2019-12-12",
+      "identity": {
+        "delist_session": "2019-12-13",
+        "exchange": "SSE",
+        "list_session": "1996-09-16",
+        "status": "source-current-D",
+        "symbol": "600747.SH"
+      },
+      "symbol": "600747.SH"
+    },
+    {
+      "anchor": "2015-05-20",
+      "identity": {
+        "delist_session": "2015-05-21",
+        "exchange": "SSE",
+        "list_session": "2010-02-02",
+        "status": "source-current-D",
+        "symbol": "601268.SH"
+      },
+      "symbol": "601268.SH"
+    },
+    {
+      "anchor": "2020-07-02",
+      "identity": {
+        "delist_session": "2020-07-03",
+        "exchange": "SSE",
+        "list_session": "2011-01-13",
+        "status": "source-current-D",
+        "symbol": "601558.SH"
+      },
+      "symbol": "601558.SH"
+    }
+  ],
+  "peak_rss_kib": 2832668,
+  "plan_sha256": "1ee29fe65d29fe7439a3a35a6b58a6230cecc5692661a4571366bdb5ef0eb609",
+  "read_bytes": {
+    "canonical_bytes": 2128601766,
+    "metadata_bytes": 849841456,
+    "plan_bytes": 4549108
+  },
+  "request_equality": true,
+  "snapshot_id": "snapshot-1d69dc236a358f1627ae91080c33cf993b9e2acb55bbd2c2cb7a37129ce6b5a5",
+  "statuses": {
+    "BLOCKED": 15,
+    "UNKNOWN": 17880
+  },
+  "total": 17895
+}

@@ -1,0 +1,110 @@
+{
+  "raw_batches": 8,
+  "raw_payload_bytes": 868784,
+  "scoped_securities": 3601,
+  "termination_date_differences": [
+    {
+      "official": "2020-08-28",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2020-08-27",
+      "symbol": "600069.SH"
+    },
+    {
+      "official": "2020-06-03",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2020-06-02",
+      "symbol": "600074.SH"
+    },
+    {
+      "official": "2021-03-18",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2021-03-17",
+      "symbol": "600086.SH"
+    },
+    {
+      "official": "2020-08-17",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2020-08-14",
+      "symbol": "600175.SH"
+    },
+    {
+      "official": "2025-07-28",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2025-07-25",
+      "symbol": "600190.SH"
+    },
+    {
+      "official": "2020-02-06",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2020-02-05",
+      "symbol": "600240.SH"
+    },
+    {
+      "official": "2019-07-15",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2019-07-12",
+      "symbol": "600401.SH"
+    },
+    {
+      "official": "2022-07-14",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2022-07-13",
+      "symbol": "600555.SH"
+    },
+    {
+      "official": "2021-07-22",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2021-07-21",
+      "symbol": "600614.SH"
+    },
+    {
+      "official": "2021-07-22",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2021-07-21",
+      "symbol": "600634.SH"
+    },
+    {
+      "official": "2019-05-24",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2019-05-23",
+      "symbol": "600680.SH"
+    },
+    {
+      "official": "2021-03-04",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2021-03-03",
+      "symbol": "600687.SH"
+    },
+    {
+      "official": "2022-06-15",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2022-06-14",
+      "symbol": "600695.SH"
+    },
+    {
+      "official": "2021-05-06",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2021-04-30",
+      "symbol": "600701.SH"
+    },
+    {
+      "official": "2019-12-13",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2019-12-12",
+      "symbol": "600747.SH"
+    },
+    {
+      "official": "2008-03-24",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2008-03-18",
+      "symbol": "600786.SH"
+    },
+    {
+      "official": "2020-07-03",
+      "resolution": "exchange_security.v1 official exclusive identity end",
+      "supplier": "2020-07-02",
+      "symbol": "601558.SH"
+    }
+  ],
+  "unresolved_identity_contradictions": []
+}
