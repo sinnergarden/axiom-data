@@ -62,11 +62,14 @@ undated action observations and forecast source labels likewise retain their
 original evidence under their explicit profiles/contracts. A supplier fix creates
 new observation/build lineage; it never rewrites a previously published Snapshot.
 
-The full closure validator checks identities, bytes, contracts, provenance and
-applicable source replay. Snapshot publication can reuse the composition checked
-within that same call when verifying its newly published manifest. Every public
-load starts a new closure validation. No persistent cache or execution PASS flag
-stands in for artifact validation.
+Publication validates new Raw, DomainCommit and Snapshot objects and their
+required closure. `SnapshotReader` verifies the concrete Snapshot, its direct
+DomainCommit refs and each partition actually consumed by a request. Event
+request coverage reads bound Raw request manifests without decoding supplier
+payloads. This ordinary read does not claim that unconsumed history was checked.
+Use `validate_snapshot_closure(root, snapshot_id)` for an explicit full-history
+audit of ancestors, Raw payloads, mapping and cross-domain checks. No persistent
+cache or execution PASS flag stands in for either kind of validation.
 
 ## Release decisions
 

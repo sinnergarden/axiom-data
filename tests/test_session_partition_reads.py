@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from axiom_data import ArtifactError, BuildApplication, MarketDomainBuilder, SnapshotReader, create_snapshot
+from axiom_data import ArtifactError, BuildApplication, MarketDomainBuilder, SnapshotReader, create_snapshot, validate_snapshot_closure
 from test_artifacts import market_row, security_row, write_rows, synthetic_source_fixture
 
 
@@ -105,9 +105,13 @@ class SessionPartitionReadTest(unittest.TestCase):
                 path.chmod(0o600); path.write_text(json.dumps(values))
                 with self.assertRaisesRegex(ArtifactError,'partition content digest'):
                     reader.market_daily([symbols[0]],'2024-02-02','2024-02-04')
-                # Every new Reader validates all objects, including other months.
+                # Ordinary reads verify consumed files; an explicit audit still
+                # rejects damage anywhere in the immutable Snapshot closure.
+                SnapshotReader(root,snapshot.snapshot_id)
+                self.assertEqual(reader.market_daily([symbols[0]],'2024-01-01','2024-01-02'),
+                                 tuple(r for r in market if r['symbol']==symbols[0] and r['session'] in days[:2]))
                 with self.assertRaisesRegex(ArtifactError,'partition content digest'):
-                    SnapshotReader(root,snapshot.snapshot_id)
+                    validate_snapshot_closure(root,snapshot.snapshot_id)
 
     def test_projection_exhausts_full_input_and_bounds_cache(self):
         from types import SimpleNamespace
