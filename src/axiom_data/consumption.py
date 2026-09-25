@@ -1039,8 +1039,8 @@ class QlibViewReader:
     def market_daily(self, *, include_missing: bool = False, start_session=None,
                      end_session=None, symbols=None) -> tuple[dict[str, Any], ...]:
         if self.view.manifest['schema_version'] in {'pr6_fact_view.v5','pr7_fact_view.v4'}:
-            selected=set(validate_symbols(symbols)) if symbols is not None else None
-            if selected is not None and not selected<=set(self.view.manifest['scope']['symbols']):
+            selected=validate_symbols(symbols) if symbols is not None else None
+            if selected is not None and not set(selected)<=set(self.view.manifest['scope']['symbols']):
                 raise ArtifactError('INSUFFICIENT_SCOPE: View symbols')
             start=validate_session(start_session,'start_session') if start_session else None
             end=validate_session(end_session,'end_session') if end_session else None
@@ -1124,9 +1124,11 @@ class QlibViewReader:
             rows=[row for row in rows if row['symbol'] in selected]
         return tuple(sorted(rows, key=lambda row: (row["session"], row["symbol"])))
 
-    def as_of(self, session: str, *, include_missing: bool = True) -> tuple[dict[str, Any], ...]:
+    def as_of(self, session: str, *, include_missing: bool = True,
+              symbols=None) -> tuple[dict[str, Any], ...]:
         day=validate_session(session,'session')
-        return self.market_daily(include_missing=include_missing,start_session=day,end_session=day)
+        return self.market_daily(include_missing=include_missing,start_session=day,end_session=day,
+                                 symbols=symbols)
 
 
 def compare_direct_and_qlib(

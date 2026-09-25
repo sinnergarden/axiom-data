@@ -3,8 +3,11 @@
 import copy
 import gzip
 import unittest
+from types import SimpleNamespace
 
+from axiom_data import FactView
 from axiom_data.artifacts import ArtifactError, _json_bytes
+from axiom_data.consumption import QlibViewReader
 from axiom_data.domains.events import LEAF_DOMAINS, NUMERIC_FIELDS
 from axiom_data.view_states import SparseDailyRows, encode_states, session_cutoff, unpacked_states
 
@@ -15,6 +18,69 @@ SYMBOL = '600000.SH'
 
 
 class SparseViewStatesTest(unittest.TestCase):
+    def test_multi_security_public_reads_follow_requested_order(self):
+        symbols=('688981.SH','600036.SH')
+        days=DAYS[:2]
+        for kind,fields,version in (('financial',('income.revenue',),'pr6_fact_view.v5'),
+                                    ('event',LEAF_DOMAINS,'pr7_fact_view.v4')):
+            with self.subTest(kind=kind):
+                rows=[]
+                for day in days:
+                    for symbol in symbols:
+                        facts={field:{'value':1 if symbol==symbols[0] else 2,
+                                      'knowledge_cutoff':session_cutoff(CUTOFF,day),
+                                      **({'target_session':day} if kind=='event' else {})}
+                               for field in fields}
+                        if kind=='financial':
+                            rows.append({'session':day,'symbol':symbol,
+                                         'values':{field:facts[field]['value'] for field in fields},
+                                         'facts':facts,'provenance':{},
+                                         'knowledge_cutoff':session_cutoff(CUTOFF,day)})
+                        else:
+                            rows.append({'session':day,'symbol':symbol,'facts':facts,
+                                         'values':{field:facts[field]['value'] for field in NUMERIC_FIELDS}})
+                states=encode_states(rows,sessions=days,
+                    symbol_sessions={symbol:days for symbol in reversed(symbols)},
+                    fields=fields,kind=kind,cutoff=CUTOFF)
+                sparse=SparseDailyRows(states,symbols=symbols,fields=fields,kind=kind,cutoff=CUTOFF)
+                manifest={'schema_version':version,'artifact_type':'pr6_fact_view' if kind=='financial'
+                          else 'pr7_fact_view','scope':{'symbols':list(symbols),
+                          'start_session':days[0],'end_session':days[-1]},
+                          'validated_scope':{'symbols':list(symbols),
+                          'start_session':days[0],'end_session':days[-1]},
+                          'fields':list(fields if kind=='financial' else NUMERIC_FIELDS),
+                          'snapshot_ref':{'snapshot_id':'snapshot-test'},
+                          'industry_mapping':{}}
+                qlib=object.__new__(QlibViewReader)
+                qlib.view=SimpleNamespace(manifest=manifest,rows=sparse,
+                                          ref=SimpleNamespace(view_id='view-test'))
+                for requested in (symbols,tuple(reversed(symbols))):
+                    expected=[(day,symbol) for day in days for symbol in requested]
+                    self.assertEqual([(r['session'],r['symbol']) for r in sparse.range(symbols=requested)],expected)
+                    self.assertEqual([(r['session'],r['symbol']) for r in sparse.range(
+                        days[0],days[0],requested)],expected[:2])
+                    self.assertEqual([(r['session'],r['symbol']) for r in qlib.market_daily(
+                        include_missing=True,symbols=requested)],expected)
+                    self.assertEqual([r['symbol'] for r in qlib.as_of(days[0],symbols=requested)],
+                                     list(requested))
+                    if kind=='financial':
+                        manifest.update(pit_policy='best_effort_vendor_v1',cutoff_policy='session_end',
+                            knowledge_cutoff=CUTOFF,pit_qualification='best_effort',domain_refs={},
+                            actual_available_scope={},membership_ref={})
+                        public=object.__new__(FactView)
+                        public.financial=qlib.view
+                        result=public.read('financial',symbols=requested,
+                            start_session=days[0],end_session=days[-1])
+                        self.assertEqual([(r['session'],r['symbol']) for r in result['rows']],expected)
+                        self.assertEqual([(r['session'],r['symbol']) for r in result['facts']],expected)
+                self.assertEqual([(r['session'],r['symbol']) for r in qlib.fact_metadata()['rows']],
+                                 [(day,symbol) for day in days for symbol in symbols])
+                legacy=object.__new__(QlibViewReader)
+                legacy.view=SimpleNamespace(manifest=dict(manifest,schema_version=
+                    'pr6_fact_view.v4' if kind=='financial' else 'pr7_fact_view.v3'),
+                    rows=tuple(rows),ref=SimpleNamespace(view_id='view-test'))
+                self.assertEqual(qlib.fact_metadata()['rows'],legacy.fact_metadata()['rows'])
+
     def test_financial_revision_ambiguity_and_membership_boundaries(self):
         fields=('income.revenue','universe.membership','industry.membership')
         rows=[]

@@ -99,6 +99,7 @@ class SparseDailyRows(Sequence):
         for day in sessions:
             date.fromisoformat(day)
         self.sessions = tuple(sessions)
+        self.symbols = tuple(symbols)
         self.symbol_sessions = {}
         self.fields = tuple(fields)
         self.states = states
@@ -161,8 +162,14 @@ class SparseDailyRows(Sequence):
         return self.iter_range()
 
     def iter_range(self, start=None, end=None, symbols=None) -> Iterator[dict[str, Any]]:
-        selected = self.symbol_sessions if symbols is None else {
-            symbol: self.symbol_sessions[symbol] for symbol in symbols if symbol in self.symbol_sessions}
+        requested = self.symbols if symbols is None else tuple(symbols)
+        selected = []
+        seen = set()
+        for symbol in requested:
+            if symbol in self.symbol_sessions and symbol not in seen:
+                selected.append((symbol, self.symbol_sessions[symbol]))
+                seen.add(symbol)
+        position = {symbol: index for index, (symbol, _) in enumerate(selected)}
         # Each field enters the requested interval once, then advances only at
         # its own change points. Merge symbols without buffering all daily rows.
         def sweep(symbol, calendar):
@@ -198,8 +205,8 @@ class SparseDailyRows(Sequence):
                     yield {"symbol": symbol, "session": day,
                            "values": {field: facts[field]["value"] for field in NUMERIC_FIELDS},
                            "facts": facts}
-        yield from heapq.merge(*(sweep(symbol, calendar) for symbol, calendar in selected.items()),
-                               key=lambda row: (row["session"], row["symbol"]))
+        yield from heapq.merge(*(sweep(symbol, calendar) for symbol, calendar in selected),
+                               key=lambda row: (row["session"], position[row["symbol"]]))
 
     def range(self, start=None, end=None, symbols=None) -> tuple[dict[str, Any], ...]:
         return tuple(self.iter_range(start, end, symbols))

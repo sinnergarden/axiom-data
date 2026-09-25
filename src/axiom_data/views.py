@@ -503,7 +503,8 @@ class FactView:
                                end_session or manifest['validated_scope']['end_session'],selected_fields)
             if not selected_fields or len(selected_fields)!=len(set(selected_fields)) or set(selected_fields)-set(manifest["fields"]):
                 raise ArtifactError("invalid financial FactView fields")
-            source_rows=(self.financial.rows.range(start_session,end_session,selected)
+            source_rows=(self.financial.rows.range(start_session,end_session,
+                         tuple(symbols) if symbols is not None else tuple(manifest['validated_scope']['symbols']))
                          if manifest['schema_version']=='pr6_fact_view.v5' else
                          tuple(r for r in self.financial.rows if r['symbol'] in selected
                                and (start_session is None or r['session']>=start_session)
