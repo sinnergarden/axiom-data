@@ -156,6 +156,48 @@ class ViewValidationTest(unittest.TestCase):
         with self.assertRaisesRegex(ArtifactError,'payload file is missing'):
             request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
 
+    def test_reader_rejects_replaced_direct_contract_after_first_read(self):
+        reader=SnapshotReader(self.root,self.snapshot)
+        self.assertTrue(reader.market_daily(['688981.SH'],'2025-06-10','2025-06-13'))
+        commit=reader.commits['market_daily'].ref.commit_id
+        target=self.root/'canonical/market_daily/commits'/commit
+        contract=target/'contract.json'
+        target.chmod(0o755)
+        replacement=target/'replacement.json'
+        replacement.write_bytes(contract.read_bytes())
+        replacement.replace(contract)
+        with self.assertRaisesRegex(ArtifactError,'Reader consumed input changed'):
+            reader.market_daily(['688981.SH'],'2025-06-10','2025-06-13')
+        self.assertTrue(reader._invalidated)
+
+    def test_reader_rejects_changed_raw_request_after_interval_cache_hit(self):
+        reader=SnapshotReader(self.root,self.snapshot)
+        request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+        self.assertIn('margin_daily',reader._pr7_request_intervals)
+        raw_id=reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
+        target=self.root/'raw/batches'/raw_id
+        manifest_path=target/'manifest.json'
+        manifest=json.loads(manifest_path.read_bytes())
+        manifest['request']['params']['start_date']='19000101'
+        payload=artifacts._json_bytes(manifest)
+        manifest_path.chmod(0o600);manifest_path.write_bytes(payload)
+        digest_path=target/'manifest.sha256'
+        digest_path.chmod(0o600);digest_path.write_text(artifacts._digest(payload)+'\n')
+        with self.assertRaisesRegex(ArtifactError,'Reader consumed input changed'):
+            request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+        self.assertNotIn('margin_daily',getattr(reader,'_pr7_request_intervals',{}))
+
+    def test_reader_rejects_changed_raw_checksum_after_interval_cache_hit(self):
+        reader=SnapshotReader(self.root,self.snapshot)
+        request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+        raw_id=reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
+        digest_path=self.root/'raw/batches'/raw_id/'manifest.sha256'
+        digest_path.chmod(0o600)
+        digest_path.write_text('sha256:'+'0'*64+'\n')
+        with self.assertRaisesRegex(ArtifactError,'Reader consumed input changed'):
+            request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+        self.assertNotIn('margin_daily',getattr(reader,'_pr7_request_intervals',{}))
+
     def test_implementation_change_revalidates(self):
         source=Path(self.temp.name)/'code';source.mkdir()
         module=source/'validation.py';module.write_text('revision = 1')

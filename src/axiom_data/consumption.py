@@ -172,7 +172,57 @@ class SnapshotReader:
         self._security_projection = OrderedDict()
         self._security_projection_bytes = 0
 
+    def _check_consumed_metadata(self):
+        """Reject a changed file previously admitted by this Reader."""
+        from axiom_data.verification_cache import file_state
+        if getattr(self, '_invalidated', False):
+            raise ArtifactError('Reader consumed input changed after validation')
+        if getattr(self, '_consumed_use_depth', 0):
+            return
+        observed = getattr(self, '_view_validation_paths', None)
+        # Initial loads checked metadata content against its declared digest/ref.
+        # Preserve that binding only while every checked file and ancestor keeps
+        # its original state; reject replacements instead of replaying closure.
+        if observed is not None and any(file_state(path) != state for path, state in observed.items()):
+            self._invalidate_consumed_metadata()
+            raise ArtifactError('Reader consumed input changed after validation')
+
+    def _invalidate_consumed_metadata(self):
+        self._invalidated = True
+        if hasattr(self, '_security_projection'):
+            self._security_projection.clear()
+        self._security_projection_bytes = 0
+        self.__dict__.pop('_financial_preparation', None)
+        self.__dict__.pop('_pr7_request_intervals', None)
+
+    @contextmanager
+    def consumed_inputs(self):
+        """One public projection checks its consumed metadata at both boundaries."""
+        depth = getattr(self, '_consumed_use_depth', 0)
+        if not depth:
+            self._check_consumed_metadata()
+        self._consumed_use_depth = depth + 1
+        try:
+            yield
+        finally:
+            self._consumed_use_depth -= 1
+            if not self._consumed_use_depth:
+                self._check_consumed_metadata()
+
+    def _remember_consumed_metadata(self, observed):
+        from axiom_data.verification_cache import file_state
+        if any(file_state(path) != state for path, state in observed.items()):
+            self._invalidate_consumed_metadata()
+            raise ArtifactError('Reader consumed input changed during validation')
+        previous = getattr(self, '_view_validation_paths', None)
+        if previous is not None:
+            if any(path in previous and previous[path] != state for path, state in observed.items()):
+                self._invalidate_consumed_metadata()
+                raise ArtifactError('Reader consumed input changed during validation')
+            previous.update(observed)
+
     def schema(self, domain: str) -> tuple[str, ...]:
+        self._check_consumed_metadata()
         try:
             fields = self.commits[domain].contract["fields"]
         except KeyError as exc:
@@ -227,6 +277,7 @@ class SnapshotReader:
         )
 
     def session_rows(self, domain, start, end, symbols=None):
+        self._check_consumed_metadata()
         from axiom_data.partition_rows import PartitionRows, SESSION_PARTITION_DOMAINS
         rows = self.commits[domain].rows
         if (isinstance(rows, PartitionRows) and domain in SESSION_PARTITION_DOMAINS
@@ -1420,6 +1471,8 @@ __all__ = [
 
 def request_coverage(reader,domain,symbol,session):
     """Admit bounded requests, including explicit empty supplier responses."""
+    if hasattr(reader, '_check_consumed_metadata'):
+        reader._check_consumed_metadata()
     known=getattr(reader,'_event_known_symbols',None)
     if known is None:
         known={r['symbol'] for r in reader.security_master()}
@@ -1430,50 +1483,54 @@ def request_coverage(reader,domain,symbol,session):
     # payloads were admitted at publication and are not consumed here.
     if not hasattr(reader,'_pr7_request_intervals'):reader._pr7_request_intervals={}
     if domain not in reader._pr7_request_intervals:
-        identity=reader.commits[domain].ref.commit_id
-        if (domain, identity) not in reader._verified_lineage:
-            pending={}
-            seen=set()
-            expected_ref=_commit_ref(reader.commits[domain])
-            current=identity
-            while current:
-                if current in seen:
-                    raise ArtifactError('event lineage contains a cycle')
-                seen.add(current)
-                commit=(reader.commits[domain] if current==identity else
-                        _load_domain_commit(reader.data_root,domain,current,verify_rows=False))
-                if _commit_ref(commit)!=expected_ref:
-                    raise ArtifactError('event lineage parent ref mismatch')
-                parent=commit.manifest['parent_commit_ref']
-                pending[(domain,current)]={
-                    'parent_commit_id':parent['domain_commit_id'] if parent else None,
-                    'raw_batch_ids':tuple(ref['raw_batch_id'] for ref in
-                                          commit.manifest['ordered_raw_batch_refs']),
-                    'raw_refs':commit.manifest['ordered_raw_batch_refs'],
-                }
-                current=parent['domain_commit_id'] if parent else None
-                expected_ref=parent
-            reader._verified_lineage.update(pending)
-        refs={}
-        while identity:
-            node=reader._verified_lineage[(domain,identity)]
-            for raw_ref in node.get('raw_refs', ()):
-                raw_id=raw_ref['raw_batch_id']
-                if raw_id in refs and refs[raw_id] not in (None,raw_ref):
-                    raise ArtifactError('event lineage RawBatch refs disagree')
-                refs[raw_id]=raw_ref
-            for raw_id in node['raw_batch_ids']:
-                refs.setdefault(raw_id,None)
-            identity=node['parent_commit_id']
-        intervals={}
-        for ref in sorted(refs):
-            manifest, digest, _, _ = _load_raw_manifest(reader.data_root, ref)
-            if refs[ref] is not None and _raw_manifest_ref(manifest, digest) != refs[ref]:
-                raise ArtifactError('event request RawBatch ref mismatch')
-            if manifest['domain'] != domain:
-                raise ArtifactError('event request RawBatch domain mismatch')
-            params=manifest['request']['params']
-            intervals.setdefault(params['ts_code'],[]).append((params['start_date'],params['end_date']))
+        from axiom_data.verification_cache import validation_paths
+        with validation_paths() as consumed:
+            identity=reader.commits[domain].ref.commit_id
+            if (domain, identity) not in reader._verified_lineage:
+                pending={}
+                seen=set()
+                expected_ref=_commit_ref(reader.commits[domain])
+                current=identity
+                while current:
+                    if current in seen:
+                        raise ArtifactError('event lineage contains a cycle')
+                    seen.add(current)
+                    commit=(reader.commits[domain] if current==identity else
+                            _load_domain_commit(reader.data_root,domain,current,verify_rows=False))
+                    if _commit_ref(commit)!=expected_ref:
+                        raise ArtifactError('event lineage parent ref mismatch')
+                    parent=commit.manifest['parent_commit_ref']
+                    pending[(domain,current)]={
+                        'parent_commit_id':parent['domain_commit_id'] if parent else None,
+                        'raw_batch_ids':tuple(ref['raw_batch_id'] for ref in
+                                              commit.manifest['ordered_raw_batch_refs']),
+                        'raw_refs':commit.manifest['ordered_raw_batch_refs'],
+                    }
+                    current=parent['domain_commit_id'] if parent else None
+                    expected_ref=parent
+                reader._verified_lineage.update(pending)
+            refs={}
+            while identity:
+                node=reader._verified_lineage[(domain,identity)]
+                for raw_ref in node.get('raw_refs', ()):
+                    raw_id=raw_ref['raw_batch_id']
+                    if raw_id in refs and refs[raw_id] not in (None,raw_ref):
+                        raise ArtifactError('event lineage RawBatch refs disagree')
+                    refs[raw_id]=raw_ref
+                for raw_id in node['raw_batch_ids']:
+                    refs.setdefault(raw_id,None)
+                identity=node['parent_commit_id']
+            intervals={}
+            for ref in sorted(refs):
+                manifest, digest, _, _ = _load_raw_manifest(reader.data_root, ref)
+                if refs[ref] is not None and _raw_manifest_ref(manifest, digest) != refs[ref]:
+                    raise ArtifactError('event request RawBatch ref mismatch')
+                if manifest['domain'] != domain:
+                    raise ArtifactError('event request RawBatch domain mismatch')
+                params=manifest['request']['params']
+                intervals.setdefault(params['ts_code'],[]).append((params['start_date'],params['end_date']))
+        if hasattr(reader, '_remember_consumed_metadata'):
+            reader._remember_consumed_metadata(consumed)
         reader._pr7_request_intervals[domain]=intervals
     day=session.replace('-','')
     if any(start<=day<=end for start,end in reader._pr7_request_intervals[domain].get(symbol,())):return
