@@ -9,6 +9,7 @@ from axiom_data.artifacts import (ArtifactError,_layout,_json_bytes,_digest,_ide
     _declared_content_files)
 from axiom_data.consumption import SnapshotReader,feature_bytes,qlib_symbol,validate_symbols,validate_session
 from axiom_data.views import DerivedView,DerivedViewRef
+from axiom_data.view_states import SparseDailyRows, encode_states, packed_states, unpacked_states
 from axiom_data.domains.events import EVENT_DOMAINS,DAILY_DOMAINS
 from axiom_data.pit import instant, visibility_times
 from axiom_data.pit import select_event_revisions
@@ -168,18 +169,36 @@ def payload_files(payload,symbols,bundle):
     return output
 
 
-def manifest_for(reader,scope,policy,cutoff,payload,bundle,*,schema_version='pr7_fact_view.v3',contents=None):
-    if contents is None:contents=payload_files(payload,scope['symbols'],bundle)
+def sparse_files(states,symbols,bundle):
+    sessions=states['sessions']
+    return {'states.json.gz':packed_states(states),'code_bundle.json':_json_bytes(bundle),
+        'calendars/day.txt':('\n'.join(sessions)+'\n').encode(),
+        'instruments/all.txt':''.join(f'{qlib_symbol(s)}\t{sessions[0]}\t{sessions[-1]}\n'
+                                       for s in symbols).encode()}
+
+
+def manifest_for(reader,scope,policy,cutoff,payload,bundle,*,schema_version='pr7_fact_view.v3',
+                 contents=None,sparse_states=None):
+    if contents is None:contents=(sparse_files(sparse_states,scope['symbols'],bundle)
+                                 if sparse_states is not None else payload_files(payload,scope['symbols'],bundle))
     return {'artifact_type':'pr7_fact_view','schema_version':schema_version,
+        **({'state_encoding':'leaf_intervals.v1',
+            'state_uncompressed_bytes':len(_json_bytes(sparse_states))} if sparse_states is not None else {}),
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
         'scope':scope,'validated_scope':dict(scope,fields=list(LEAF_DOMAINS)),
         'pit_policy':policy,'knowledge_cutoff':instant(cutoff).isoformat(),
         'cutoff_policy':'min_knowledge_cutoff_session_end_Asia_Shanghai.v1',
         'fields':list(NUMERIC_FIELDS),'fact_fields':list(LEAF_DOMAINS),'qlib_field_mapping':{f:f.replace('.','__') for f in NUMERIC_FIELDS},
-        'instrument_storage_scope':[{'symbol':s,'qlib_symbol':qlib_symbol(s),'storage_path':'features/'+qlib_symbol(s).lower(),'start_session':payload['sessions'][0],'end_session':payload['sessions'][-1],'exchange':payload['symbol_calendars'][s]['exchange'],'valid_sessions':payload['symbol_calendars'][s]['sessions']} for s in scope['symbols']],
+        'instrument_storage_scope':[{'symbol':s,'qlib_symbol':qlib_symbol(s),
+            'storage_path':'states.json.gz' if sparse_states is not None else 'features/'+qlib_symbol(s).lower(),
+            'start_session':payload['sessions'][0],'end_session':payload['sessions'][-1],
+            'exchange':payload['symbol_calendars'][s]['exchange'],
+            'valid_sessions':payload['symbol_calendars'][s]['sessions']} for s in scope['symbols']],
         'implementation_digests':{n:_digest(c.encode()) for n,c in sorted(bundle.items())},
         'files':[{'path':p,'content_digest':_digest(b),'size':len(b)} for p,b in sorted(contents.items())],
-        'validation_summary':{'status':'PASS','rows':len(payload['wide']),'leaves':len(LEAF_DOMAINS)}}
+        'validation_summary':{'status':'PASS','rows':len(payload['wide']),'leaves':len(LEAF_DOMAINS),
+            **({'state_changes':sum(len(spans) for by_field in sparse_states['states'].values()
+                                   for spans in by_field.values())} if sparse_states is not None else {})}}
 
 
 def build_event_fact_view(data_root,snapshot_id,*,symbols,start_session,end_session,pit_policy,knowledge_cutoff):
@@ -190,13 +209,20 @@ def build_event_fact_view(data_root,snapshot_id,*,symbols,start_session,end_sess
 def build_event_fact_view_from_reader(reader,*,symbols,start_session,end_session,pit_policy,knowledge_cutoff):
     data_root=reader.data_root;scope={'symbols':list(validate_symbols(symbols)),'start_session':start_session,'end_session':end_session}
     payload=project(reader,scope,pit_policy,knowledge_cutoff)
+    states=encode_states(payload['wide'],sessions=payload['sessions'],
+        symbol_sessions={s:payload['symbol_calendars'][s]['sessions'] for s in scope['symbols']},
+        fields=LEAF_DOMAINS,kind='event',cutoff=knowledge_cutoff)
+    SparseDailyRows(states,symbols=scope['symbols'],fields=LEAF_DOMAINS,
+        kind='event',cutoff=knowledge_cutoff)
     source=Path(str(files('axiom_data')));bundle={p.relative_to(source).as_posix():p.read_text() for p in sorted(source.rglob('*')) if p.is_file() and p.suffix in {'.py','.json'}}
-    manifest=manifest_for(reader,scope,pit_policy,knowledge_cutoff,payload,bundle)
+    contents=sparse_files(states,scope['symbols'],bundle)
+    manifest=manifest_for(reader,scope,pit_policy,knowledge_cutoff,payload,bundle,
+        schema_version='pr7_fact_view.v4',contents=contents,sparse_states=states)
     identity=_identity_digest(manifest,'view_id');view_id=_derived_identity('pr7-fact',identity)
     manifest.update(view_id=view_id,identity_digest=identity,created_at=_timestamp(None))
     layout=_layout(data_root);target=layout.derived_commits('pr7_fact')/view_id
     def prepare(candidate):
-        for path,content in payload_files(payload,scope['symbols'],bundle).items():
+        for path,content in contents.items():
             (candidate/path).parent.mkdir(parents=True,exist_ok=True);_write_file(candidate/path,content)
         _write_manifest(candidate,manifest)
     _publish_directory(layout,target,prepare,identity_digest=identity)
@@ -209,7 +235,9 @@ def load_event_fact_view(data_root,view_id):
 
 def load_event_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
     view_id=_identity('view_id',view_id);layout=_layout(data_root);target=layout.derived_commits('pr7_fact')/view_id
-    manifest,digest=_load_manifest(layout.root,target,artifact_type='pr7_fact_view',schema_version=('pr7_fact_view.v1','pr7_fact_view.v2','pr7_fact_view.v3'),identity_field='view_id',identity=view_id)
+    manifest,digest=_load_manifest(layout.root,target,artifact_type='pr7_fact_view',
+        schema_version=('pr7_fact_view.v1','pr7_fact_view.v2','pr7_fact_view.v3','pr7_fact_view.v4'),
+        identity_field='view_id',identity=view_id)
     _validate_manifest_identity(manifest,'view_id','pr7-fact',view_id)
     if manifest['schema_version']=='pr7_fact_view.v1':
         from axiom_data.pr7_views_v1 import project as projection, manifest_for as make_manifest, payload_files as make_files
@@ -224,6 +252,38 @@ def load_event_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or
         reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
         raise ArtifactError('checked Reader does not match event View Snapshot')
+    if manifest['schema_version']=='pr7_fact_view.v4':
+        contents=_declared_content_files(layout.root,target,manifest.get('files'))
+        try:
+            states=unpacked_states(contents['states.json.gz'],manifest['state_uncompressed_bytes'])
+            bundle=json.loads(contents['code_bundle.json'])
+            scope=manifest['scope'];symbols=validate_symbols(scope['symbols'])
+            rows=SparseDailyRows(states,symbols=symbols,fields=LEAF_DOMAINS,kind='event',
+                cutoff=manifest['knowledge_cutoff'])
+            instruments=manifest['instrument_storage_scope']
+            if (scope['symbols']!=list(symbols) or not isinstance(instruments,list) or
+                len(instruments)!=len(symbols) or
+                not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()) or
+                not scope['start_session']<=states['sessions'][0]<=states['sessions'][-1]<=scope['end_session'] or
+                manifest['snapshot_ref']!={'snapshot_id':reader.snapshot.ref.snapshot_id,
+                    'identity_digest':reader.snapshot.manifest['identity_digest']} or
+                manifest['state_encoding']!='leaf_intervals.v1'):
+                raise ArtifactError('sparse event View structure is invalid')
+            calendars={s:{'exchange':instruments[i]['exchange'],
+                          'sessions':states['symbol_sessions'][s]} for i,s in enumerate(symbols)}
+            expected_payload={'wide':rows,'sessions':states['sessions'],'symbol_calendars':calendars}
+            expected_files=sparse_files(states,symbols,bundle)
+            expected_files['states.json.gz']=contents['states.json.gz']
+            expected=manifest_for(reader,scope,manifest['pit_policy'],manifest['knowledge_cutoff'],
+                expected_payload,bundle,schema_version='pr7_fact_view.v4',
+                contents=expected_files,sparse_states=states)
+        except (KeyError,IndexError,TypeError,ValueError) as exc:
+            raise ArtifactError('sparse event View structure is invalid') from exc
+        if {k:v for k,v in manifest.items() if k not in {'view_id','identity_digest','created_at'}}!=expected:
+            raise ArtifactError('sparse event View structural closure mismatch')
+        if contents!=expected_files:
+            raise ArtifactError('sparse event View files differ from declared states')
+        return DerivedView(DerivedViewRef('pr7_fact',view_id,digest),manifest,rows)
     if manifest['schema_version']=='pr7_fact_view.v3':
         contents=_declared_content_files(layout.root,target,manifest.get('files'))
         try:

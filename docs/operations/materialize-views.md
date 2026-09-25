@@ -32,7 +32,7 @@ builds and their written-artifact checks. Individual public builders still creat
 a fresh Reader. A new operation or public load revalidates the Snapshot closure;
 there is no cross-call correctness cache.
 
-Event View v3 keeps its requested calendar interval while planning each source
+Event View v3 and later keep their requested calendar interval while planning each source
 against that DomainCommit's frozen `builder_config.end_session`. For example,
 a View can end on 2026-09-11 while margin input ends on 2026-09-10. The 09-11
 margin facts are null with `source_scope_not_available`; 09-10 values are not
@@ -43,3 +43,11 @@ The frozen bound does not replace request coverage: a missing security or a gap
 inside the required source interval still fails. Commits without an explicit
 source end retain strict coverage checks. Published Event Views v1/v2 continue
 to load with their original projection rules; source contracts are unchanged.
+
+Current financial and event Views store field state intervals instead of one copy
+of an unchanged fact for every trading day. The public Readers still return daily
+rows: for example, a report visible on Monday remains available on Tuesday
+without storing the same report again. A new revision, missing reason, membership,
+or industry state starts a new interval. Financial Views reference the Snapshot's
+immutable universe and industry commits; they do not contain complete member
+sets. Previously published daily financial/event Views remain readable.

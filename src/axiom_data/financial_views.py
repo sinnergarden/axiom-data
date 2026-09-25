@@ -17,6 +17,7 @@ from axiom_data.pit import (instant, financial_derived, financial_derived_from_s
     select_revisions, select_financial_revisions, select_group_states, active_members,
     visibility_times, latest_financial_income_window, AMBIGUOUS_SOURCE_REVISION, POLICIES)
 from axiom_data.views import DerivedView, DerivedViewRef
+from axiom_data.view_states import SparseDailyRows, encode_states, packed_states, unpacked_states
 
 from axiom_data.domains.fundamentals import FIELD_MAP, DERIVED_FIELDS, WIDE_FIELDS
 FINANCIAL_VIEW_BATCH_SIZE = 50
@@ -361,6 +362,15 @@ def _membership_ref(reader,scope,policy,cutoff):
             'pit_policy':policy,'knowledge_cutoff':instant(cutoff).isoformat()}
 
 
+def _industry_ref(reader,scope,policy,cutoff):
+    return {'snapshot_id':reader.snapshot.ref.snapshot_id,
+            'domain_commit_id':reader.commits['industry_membership'].ref.commit_id,
+            'identity_digest':reader.snapshot.manifest['domain_refs']['industry_membership']['identity_digest'],
+            'classification_system':scope['industry_system'],
+            'start_session':scope['start_session'],'end_session':scope['end_session'],
+            'pit_policy':policy,'knowledge_cutoff':instant(cutoff).isoformat()}
+
+
 def _files(payload, symbols, bundle, *, membership_ref=False):
     stored=({key:payload[key] for key in ('wide','sessions')}
             if membership_ref else payload)
@@ -375,12 +385,27 @@ def _files(payload, symbols, bundle, *, membership_ref=False):
     return output
 
 
-def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resolution=True, membership_ref=False):
-    contents=_files(payload,scope['symbols'],bundle,membership_ref=membership_ref)
-    return {'artifact_type':'pr6_fact_view','schema_version':('pr6_fact_view.v4' if membership_ref else
+def _sparse_files(states, symbols, bundle):
+    sessions=states['sessions']
+    return {'code_bundle.json':_json_bytes(bundle), 'states.json.gz':packed_states(states),
+            'calendars/day.txt':('\n'.join(sessions)+'\n').encode(),
+            'instruments/all.txt':''.join(f'{qlib_symbol(s)}\t{sessions[0]}\t{sessions[-1]}\n'
+                                           for s in symbols).encode()}
+
+
+def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resolution=True,
+              membership_ref=False, sparse_states=None, contents=None):
+    sparse=sparse_states is not None
+    if contents is None:
+        contents=(_sparse_files(sparse_states,scope['symbols'],bundle) if sparse else
+                  _files(payload,scope['symbols'],bundle,membership_ref=membership_ref))
+    return {'artifact_type':'pr6_fact_view','schema_version':('pr6_fact_view.v5' if sparse else
+        'pr6_fact_view.v4' if membership_ref else
         'pr6_fact_view.v3' if financial_resolution else 'pr6_fact_view.v2'),
         **({'financial_resolution_policy':'financial_leaf_resolution.v1'} if financial_resolution else {}),
         **({'membership_ref':_membership_ref(reader,scope,policy,cutoff)} if membership_ref else {}),
+        **({'industry_ref':_industry_ref(reader,scope,policy,cutoff), 'state_encoding':'leaf_intervals.v1',
+            'state_uncompressed_bytes':len(_json_bytes(sparse_states))} if sparse else {}),
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
         'domain_refs':reader.snapshot.manifest['domain_refs'],'scope':scope,
         'requested_scope':dict(scope,fields=list(WIDE_FIELDS)),
@@ -388,7 +413,9 @@ def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resol
         'validated_scope':dict(scope,fields=list(WIDE_FIELDS)),
         'pit_policy':policy,'knowledge_cutoff':instant(cutoff).isoformat(),
         'cutoff_policy':'min_knowledge_cutoff_session_end_Asia_Shanghai.v1',
-        'instrument_storage_scope':[{'symbol':s,'qlib_symbol':qlib_symbol(s),'storage_path':'features/'+qlib_symbol(s).lower(),'start_session':payload['sessions'][0],'end_session':payload['sessions'][-1]} for s in scope['symbols']],
+        'instrument_storage_scope':[{'symbol':s,'qlib_symbol':qlib_symbol(s),
+            'storage_path':'states.json.gz' if sparse else 'features/'+qlib_symbol(s).lower(),
+            'start_session':payload['sessions'][0],'end_session':payload['sessions'][-1]} for s in scope['symbols']],
         'fields':list(WIDE_FIELDS),'qlib_field_mapping':{f:f.replace('.','__') for f in WIDE_FIELDS},
         'industry_encoding':payload['industry_encoding'],'industry_mapping':payload['industry_mapping'],
         'fact_metadata_schema':'typed_fact.v2' if financial_resolution else 'typed_fact.v1',
@@ -400,7 +427,9 @@ def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resol
             ([{'pit_qualification':payload['membership_qualification']}] if membership_ref and
              payload['membership_qualification']!='unknown' else [] if membership_ref else payload['memberships'])),
         'validation_summary':{'status':'PASS','wide_rows':len(payload['wide']),
-            'derived_rows':payload['compact_derived_count'] if membership_ref else len(payload['derived'])}}
+            'derived_rows':payload['compact_derived_count'] if membership_ref else len(payload['derived']),
+            **({'state_changes':sum(len(spans) for by_field in sparse_states['states'].values()
+                                   for spans in by_field.values())} if sparse else {})}}
 
 
 def build_financial_fact_view(data_root,snapshot_id,*,symbols,start_session,end_session,universe_ids,
@@ -416,14 +445,21 @@ def build_financial_fact_view_from_reader(reader,*,symbols,start_session,end_ses
     scope={'symbols':list(validate_symbols(symbols)),'start_session':start_session,'end_session':end_session,
            'universe_ids':list(universe_ids),'industry_system':industry_system}
     payload=project(reader,scope,pit_policy,knowledge_cutoff,membership_ref=True)
+    states=encode_states(payload['wide'],sessions=payload['sessions'],
+        symbol_sessions={s:payload['sessions'] for s in scope['symbols']},fields=WIDE_FIELDS,
+        kind='financial',cutoff=knowledge_cutoff)
+    SparseDailyRows(states,symbols=scope['symbols'],fields=WIDE_FIELDS,
+        kind='financial',cutoff=knowledge_cutoff)
     source_root=Path(str(files("axiom_data")))
     bundle={p.relative_to(source_root).as_posix():p.read_text() for p in sorted(source_root.rglob("*")) if p.is_file() and p.suffix in {".py",".json"}}
-    manifest=_manifest(reader,scope,pit_policy,knowledge_cutoff,payload,bundle,membership_ref=True)
+    contents=_sparse_files(states,scope['symbols'],bundle)
+    manifest=_manifest(reader,scope,pit_policy,knowledge_cutoff,payload,bundle,
+        membership_ref=True,sparse_states=states,contents=contents)
     identity=_identity_digest(manifest,'view_id');view_id=_derived_identity('pr6-fact',identity)
     manifest.update(view_id=view_id,identity_digest=identity,created_at=_timestamp(None))
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
     def prepare(candidate):
-        for path,content in _files(payload,scope['symbols'],bundle,membership_ref=True).items():
+        for path,content in contents.items():
             (candidate/path).parent.mkdir(parents=True,exist_ok=True);_write_file(candidate/path,content)
         _write_manifest(candidate,manifest)
     _publish_directory(layout,target,prepare,identity_digest=identity)
@@ -438,13 +474,14 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
     view_id=_identity('view_id',view_id)
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
     manifest,digest=_load_manifest(layout.root,target,artifact_type='pr6_fact_view',
-        schema_version=('pr6_fact_view.v1','pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4'),identity_field='view_id',identity=view_id)
+        schema_version=('pr6_fact_view.v1','pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4',
+                        'pr6_fact_view.v5'),identity_field='view_id',identity=view_id)
     declared=manifest['schema_version']
     if declared=='pr6_fact_view.v1':
         from axiom_data.pr6_views_v1 import LegacyReader, project as projection, _manifest as manifest_builder, _files as payload_files
     else:
-        resolution=declared in {'pr6_fact_view.v3','pr6_fact_view.v4'}
-        refs=declared=='pr6_fact_view.v4'
+        resolution=declared in {'pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5'}
+        refs=declared in {'pr6_fact_view.v4','pr6_fact_view.v5'}
         LegacyReader=SnapshotReader
         projection=partial(project,financial_resolution=resolution,membership_ref=refs)
         manifest_builder=partial(_manifest,financial_resolution=resolution,membership_ref=refs)
@@ -456,6 +493,50 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or
         reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
         raise ArtifactError('checked Reader does not match financial View Snapshot')
+    if declared=='pr6_fact_view.v5':
+        contents=_declared_content_files(layout.root,target,manifest.get('files'))
+        try:
+            scope=manifest['scope'];policy=manifest['pit_policy'];cutoff=manifest['knowledge_cutoff']
+            symbols=validate_symbols(scope['symbols'])
+            states=unpacked_states(contents['states.json.gz'],manifest['state_uncompressed_bytes'])
+            bundle=json.loads(contents['code_bundle.json'])
+            rows=SparseDailyRows(states,symbols=symbols,fields=WIDE_FIELDS,kind='financial',cutoff=cutoff)
+            summary=manifest['validation_summary']
+            expected_scope=dict(scope,fields=list(WIDE_FIELDS))
+            expected_instruments=[{'symbol':s,'qlib_symbol':qlib_symbol(s),
+                'storage_path':'states.json.gz','start_session':states['sessions'][0],
+                'end_session':states['sessions'][-1]} for s in symbols]
+            if (scope['symbols']!=list(symbols) or policy not in POLICIES or
+                not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()) or
+                not scope['start_session']<=states['sessions'][0]<=states['sessions'][-1]<=scope['end_session'] or
+                manifest['snapshot_ref']!={'snapshot_id':reader.snapshot.ref.snapshot_id,
+                    'identity_digest':reader.snapshot.manifest['identity_digest']} or
+                manifest['domain_refs']!=reader.snapshot.manifest['domain_refs'] or
+                manifest['membership_ref']!=_membership_ref(reader,scope,policy,cutoff) or
+                manifest['industry_ref']!=_industry_ref(reader,scope,policy,cutoff) or
+                manifest['state_encoding']!='leaf_intervals.v1' or
+                manifest['requested_scope']!=expected_scope or manifest['validated_scope']!=expected_scope or
+                manifest['instrument_storage_scope']!=expected_instruments or
+                manifest['fields']!=list(WIDE_FIELDS) or
+                manifest['qlib_field_mapping']!={f:f.replace('.','__') for f in WIDE_FIELDS} or
+                manifest['implementation_digests']!={n:_digest(c.encode()) for n,c in sorted(bundle.items())} or
+                manifest['financial_resolution_policy']!='financial_leaf_resolution.v1' or
+                manifest['fact_metadata_schema']!='typed_fact.v2' or
+                manifest['cutoff_policy']!='min_knowledge_cutoff_session_end_Asia_Shanghai.v1' or
+                manifest['pit_qualification'] not in {'observed','best_effort','unknown'} or
+                not isinstance(manifest['actual_available_scope'],dict) or
+                summary.get('status')!='PASS' or summary.get('wide_rows')!=len(rows) or
+                summary.get('state_changes')!=sum(len(spans) for by_field in states['states'].values()
+                    for spans in by_field.values()) or
+                type(summary.get('derived_rows')) is not int or summary['derived_rows']<0):
+                raise ArtifactError('sparse financial View structural closure mismatch')
+        except (KeyError,IndexError,TypeError,ValueError) as exc:
+            raise ArtifactError('sparse financial View structure is invalid') from exc
+        expected_files=_sparse_files(states,symbols,bundle)
+        expected_files['states.json.gz']=contents['states.json.gz']
+        if contents!=expected_files:
+            raise ArtifactError('sparse financial View files differ from declared states')
+        return DerivedView(DerivedViewRef('pr6_fact',view_id,digest),manifest,rows)
     if declared=='pr6_fact_view.v4':
         contents=_declared_content_files(layout.root,target,manifest.get('files'))
         try:
