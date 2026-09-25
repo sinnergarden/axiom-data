@@ -6,7 +6,7 @@ from pathlib import Path
 from fixture_locations import fixture_root
 from unittest.mock import patch
 
-from axiom_data import ArtifactError, SnapshotReader, load_raw_batch
+from axiom_data import ArtifactError, SnapshotReader, load_raw_batch, validate_snapshot_closure
 from axiom_data import event_views
 from test_pr7_source import current_pr7_snapshot
 
@@ -38,17 +38,20 @@ class RequestCoverageIndexTest(unittest.TestCase):
                     parent=BuildApplication(domain,builder).build(parent,[raw.raw_batch_id],[],old.ref.contract_version).commit_id
                     if depth not in (3,6):continue
                     snapshot=create_snapshot(root,dict(ids,**{domain:parent}))
-                    with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as loaded:
+                    with patch.object(artifacts,'_load_domain_commit',wraps=artifacts._load_domain_commit) as loaded:
                         reader=SnapshotReader(root,snapshot.snapshot_id)
                         before=Counter((call.args[1],call.args[2]) for call in loaded.call_args_list)
                         self.assertTrue(all(n==1 for n in before.values()))
-                        counts.append(sum(n for (d,_),n in before.items() if d==domain))
-                        with patch('axiom_data.consumption.load_raw_batch',wraps=load_raw_batch) as raw_loaded:
+                        with patch('axiom_data.consumption._load_domain_commit',wraps=artifacts._load_domain_commit) as parents, \
+                             patch('axiom_data.consumption._load_raw_manifest',wraps=artifacts._load_raw_manifest) as raw_loaded:
                             event_views.request_coverage(reader,domain,'688981.SH','2025-06-13')
                             first=raw_loaded.call_count
+                            self.assertGreater(first,0)
+                            counts.append(parents.call_count)
                             for _ in range(10):event_views.request_coverage(reader,domain,'688981.SH','2025-06-13')
                             self.assertEqual(raw_loaded.call_count,first)
-                        self.assertEqual(len(loaded.call_args_list),sum(before.values()))
+                            self.assertEqual(parents.call_count,counts[-1])
+                        self.assertEqual(len(loaded.call_args_list),sum(before.values())+counts[-1])
                 self.assertEqual(counts[1]-counts[0],3)
             finally:
                 for path in root.rglob('*'):
@@ -61,7 +64,8 @@ class RequestCoverageIndexTest(unittest.TestCase):
             try:
                 reader=SnapshotReader(root,run['refs']['snapshot_id'])
                 domain='margin_daily'
-                with patch('axiom_data.consumption.load_raw_batch',wraps=load_raw_batch) as loaded:
+                from axiom_data import artifacts
+                with patch('axiom_data.consumption._load_raw_manifest',wraps=artifacts._load_raw_manifest) as loaded:
                     event_views.request_coverage(reader,domain,'688981.SH','2025-06-13')
                     first=loaded.call_count;self.assertGreater(first,0)
                     for _ in range(100):
@@ -78,7 +82,9 @@ class RequestCoverageIndexTest(unittest.TestCase):
                 raw=load_raw_batch(root,raw_id)
                 payload=root/'raw/batches'/raw_id/raw.manifest['payload_files'][0]['path']
                 payload.chmod(0o600);payload.write_bytes(raw.payload+b' ')
-                with self.assertRaises(ArtifactError):SnapshotReader(root,run['refs']['snapshot_id'])
+                with self.assertRaisesRegex(ArtifactError,'Reader consumed input changed'):
+                    event_views.request_coverage(reader,domain,'688981.SH','2025-06-13')
+                with self.assertRaises(ArtifactError):validate_snapshot_closure(root,run['refs']['snapshot_id'])
             finally:
                 for path in root.rglob('*'):
                     if path.is_dir():path.chmod(0o755)

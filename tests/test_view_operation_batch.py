@@ -5,12 +5,68 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from axiom_data import SnapshotReader, materialize_views
+from axiom_data import ArtifactError, SnapshotReader, materialize_views
 from axiom_data import consumption, views, event_views, financial_views, financial_coverage
 from fixture_locations import fixture_root
 
 
 class ViewOperationBatchTest(unittest.TestCase):
+    def test_market_replay_batch_rejects_changed_contract_before_next_build(self):
+        run = json.loads(Path('reports/pr7/run_manifest.json').read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'data'
+            shutil.copytree(fixture_root(run['source_root']), root)
+            reader = SnapshotReader(root, run['refs']['snapshot_id'])
+            common = dict(start_session='2025-06-10', end_session='2025-06-13',
+                          created_at='2026-09-24T00:00:00+08:00')
+            configs = [dict(common, symbols=[symbol]) for symbol in ('600036.SH', '688981.SH')]
+            with consumption.market_view_batch(reader, configs, 'market_replay'):
+                views._build_market_replay_view(reader, **configs[0])
+                commit = reader.commits['market_daily'].ref.commit_id
+                contract = root / 'canonical/market_daily/commits' / commit / 'contract.json'
+                contract.chmod(0o600)
+                contract.write_bytes(contract.read_bytes() + b' ')
+                with self.assertRaisesRegex(ArtifactError, 'Reader consumed input changed'):
+                    views._build_market_replay_view(reader, **configs[1])
+                self.assertTrue(reader._invalidated)
+
+    def test_event_operation_rejects_changed_raw_request_before_next_builder(self):
+        run = json.loads(Path('reports/pr7/run_manifest.json').read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'data'
+            shutil.copytree(fixture_root(run['source_root']), root)
+            reader = SnapshotReader(root, run['refs']['snapshot_id'])
+            common = dict(start_session='2025-06-10', end_session='2025-06-13',
+                          pit_policy='best_effort_vendor_v1',
+                          knowledge_cutoff='2025-06-13T23:59:59+08:00')
+            symbols = ('600036.SH', '688981.SH')
+            configs = [dict(common, symbols=[symbol]) for symbol in symbols]
+            plan = {symbol: dict(kind='event_fact', config=config)
+                    for symbol, config in zip(symbols, configs)}
+            build = event_views.build_event_fact_view_from_reader
+            calls = []
+            def change_after_first(checked_reader, **config):
+                calls.append(config['symbols'][0])
+                ref = build(checked_reader, **config)
+                if len(calls) == 1:
+                    raw_id = reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
+                    manifest = root / 'raw/batches' / raw_id / 'manifest.json'
+                    manifest.chmod(0o600)
+                    manifest.write_bytes(manifest.read_bytes() + b' ')
+                return ref
+            with patch('axiom_data.consumption.SnapshotReader', return_value=reader), \
+                 patch('axiom_data.event_views.build_event_fact_view_from_reader',
+                       side_effect=change_after_first), \
+                 patch('axiom_data.event_views._project', wraps=event_views._project) as projection:
+                result = materialize_views(root, run_id='event-changed-input',
+                                           snapshot_id=run['refs']['snapshot_id'], views=plan)
+            self.assertEqual(result['status'], 'FAILED')
+            self.assertEqual(calls, list(symbols))
+            self.assertEqual(projection.call_count, 1)
+            self.assertIn(symbols[0], result['published_views'])
+            self.assertNotIn(symbols[1], result['published_views'])
+            self.assertTrue(reader._invalidated)
+
     def test_public_batch_matches_serial_artifacts_and_resume(self):
         run = json.loads(Path('reports/pr7/run_manifest.json').read_text())
         symbols = ('600036.SH', '688981.SH')

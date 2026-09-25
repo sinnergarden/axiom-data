@@ -14,6 +14,7 @@ from axiom_data.publication import writer
 
 def _completed_view(reader, spec, record, builder, loader, code):
     """Validate the artifact itself and bind its declared inputs to this request."""
+    reader._check_consumed_metadata(force=True)
     from axiom_data.consumption import validate_symbols
     from axiom_data.pit import instant
     if record['kind'] != spec['kind']:

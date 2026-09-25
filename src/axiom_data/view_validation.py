@@ -40,7 +40,7 @@ class ViewValidationSession:
 
     Use inputs() around a small View projection. The yielded Reader is scoped to
     these dependencies, not proof of full Snapshot validity. Do not retain it
-    outside the context. Gate/public loaders always do their own full validation.
+    outside the context. Formal full-closure audit remains a separate operation.
     """
     def __init__(self, data_root, snapshot_id):
         self.root = _layout(data_root).root

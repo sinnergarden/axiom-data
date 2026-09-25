@@ -84,7 +84,7 @@ class FactPublicationValidationTest(unittest.TestCase):
                 built=[]
                 for options in [{},dict(adjusted_price_view_id=adjusted.view_id,price_basis='anchor_adjusted',
                                         pit_policy='research_non_pit',decision_cutoff='2025-06-13')]:
-                    with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as checked:
+                    with patch.object(artifacts,'_load_domain_commit',wraps=artifacts._load_domain_commit) as checked:
                         ref=build_qlib_view(root,run['refs']['snapshot_id'],**common,fields=['close'],**options)
                         self.assertEqual(checked.call_count,18)
                         self.assertEqual(load_qlib_view(root,ref.view_id).ref,ref)

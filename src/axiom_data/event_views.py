@@ -1,7 +1,7 @@
 """Snapshot-bound event Fact/Qlib materialization."""
 import json
 from bisect import bisect_right
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from importlib.resources import files
 from axiom_data.artifacts import (ArtifactError,_layout,_json_bytes,_digest,_identity_digest,_derived_identity,
@@ -25,6 +25,13 @@ EVENT_BATCH_SIZE = 50
 
 @contextmanager
 def event_view_batch(reader, configs):
+    with getattr(reader, 'consumed_inputs', nullcontext)():
+        with _event_view_batch(reader, configs):
+            yield
+
+
+@contextmanager
+def _event_view_batch(reader, configs):
     """Admit and read event inputs once for a bounded group of ordinary Views."""
     from axiom_data.verification_cache import file_state, validation_paths
 
@@ -61,6 +68,8 @@ def event_view_batch(reader, configs):
             bounds = daily_bounds.get(domain)
             rows[domain] = reader.facts(domain, symbols=symbols,
                 **({'start_session':bounds[0], 'end_session':bounds[1]} if bounds else {}))
+    if hasattr(reader, '_remember_consumed_metadata'):
+        reader._remember_consumed_metadata(observed)
     by_symbol = {domain: {symbol: [] for symbol in symbols} for domain in EVENT_DOMAINS}
     for domain in EVENT_DOMAINS:
         for row in rows[domain]:
@@ -76,6 +85,13 @@ def event_view_batch(reader, configs):
 
 
 def project(reader,scope,policy,cutoff,*,source_cutoffs=True):
+    if hasattr(reader, '_check_consumed_metadata'):
+        reader._check_consumed_metadata(force=True)
+    with getattr(reader, 'consumed_inputs', nullcontext)():
+        return _project(reader,scope,policy,cutoff,source_cutoffs=source_cutoffs)
+
+
+def _project(reader,scope,policy,cutoff,*,source_cutoffs=True):
     from axiom_data.contracts import load_contract
     symbols=validate_symbols(scope['symbols']);start=validate_session(scope['start_session'],'start');end=validate_session(scope['end_session'],'end')
     if start>end:raise ArtifactError('reversed View range')

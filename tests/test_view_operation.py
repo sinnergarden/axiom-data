@@ -62,7 +62,7 @@ class ViewOperationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)/'data';shutil.copytree(original,root)
             try:
-                with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as checked:
+                with patch.object(artifacts,'_load_domain_commit',wraps=artifacts._load_domain_commit) as checked:
                     result=materialize_views(root,run_id='five',snapshot_id=run['refs']['snapshot_id'],views=plan)
                     self.assertEqual(result['status'],'VIEWS_BUILT',result.get('failed'))
                     self.assertEqual(checked.call_count,18)

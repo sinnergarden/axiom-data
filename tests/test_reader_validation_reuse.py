@@ -8,14 +8,19 @@ from axiom_data import artifacts
 from test_pr3_vertical_slice import load_fixture,collect_fixture,build_fixture
 
 class ReaderValidationReuseTest(unittest.TestCase):
-    def test_market_dependency_scan_once_per_checked_snapshot(self):
+    def test_market_dependency_scan_only_during_explicit_full_validation(self):
+        from axiom_data import validate_snapshot_closure
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);fixture=load_fixture('listing_slice')
             ids,_=collect_fixture(root,fixture);refs=build_fixture(root,fixture,ids)
             with patch.object(artifacts,'_validate_market_dependencies',wraps=artifacts._validate_market_dependencies) as checked:
                 SnapshotReader(root,refs['snapshot'])
-                self.assertEqual(checked.call_count,1)
+                self.assertEqual(checked.call_count,0)
                 SnapshotReader(root,refs['snapshot'])
+                self.assertEqual(checked.call_count,0)
+                validate_snapshot_closure(root,refs['snapshot'])
+                self.assertEqual(checked.call_count,1)
+                validate_snapshot_closure(root,refs['snapshot'])
                 self.assertEqual(checked.call_count,2)
 
     def test_publication_checks_composition_once_and_public_load_checks_again(self):
@@ -45,7 +50,7 @@ class ReaderValidationReuseTest(unittest.TestCase):
             pointer=DataRootLayout(root).current_pointer
             pointer.parent.mkdir(parents=True,exist_ok=True)
             pointer.write_text(json.dumps({'snapshot_id':refs['snapshot']}))
-            with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as checked, \
+            with patch.object(artifacts,'_load_domain_commit',wraps=artifacts._load_domain_commit) as checked, \
                  patch.object(SnapshotReader,'facts',side_effect=AssertionError('inspection must stream canonical rows')):
                 a=inspect_snapshot(root,'current')
                 self.assertEqual(checked.call_count,3)
@@ -63,7 +68,7 @@ class ReaderValidationReuseTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);fixture=load_fixture('listing_slice')
             ids,_=collect_fixture(root,fixture);refs=build_fixture(root,fixture,ids)
-            with patch.object(artifacts,'load_domain_commit',wraps=artifacts.load_domain_commit) as checked:
+            with patch.object(artifacts,'_load_domain_commit',wraps=artifacts._load_domain_commit) as checked:
                 first=SnapshotReader(root,refs['snapshot'])
                 self.assertEqual(checked.call_count,3)
                 again=SnapshotReader(root,refs['snapshot'])

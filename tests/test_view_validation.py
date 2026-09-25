@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from axiom_data import ArtifactError, SnapshotReader
 from axiom_data import artifacts
+from axiom_data.consumption import request_coverage
 from axiom_data.domains import PR7_DOMAINS
 from axiom_data.pr7_views import project
 from axiom_data.view_validation import ViewValidationSession
@@ -119,6 +120,83 @@ class ViewValidationTest(unittest.TestCase):
                 pass
         self.assertTrue(checks)
         self.assertTrue(all(count == 0 for _, count in checks), checks)
+
+    def test_ordinary_event_request_uses_bound_raw_metadata_once(self):
+        reader=SnapshotReader(self.root,self.snapshot)
+        with patch('axiom_data.artifacts._payload_file',side_effect=AssertionError('unused Raw payload')):
+            with patch('axiom_data.consumption._load_raw_manifest',
+                       wraps=artifacts._load_raw_manifest) as metadata:
+                request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+                self.assertGreater(metadata.call_count,0)
+                metadata.reset_mock()
+                request_coverage(reader,'margin_daily','688981.SH','2025-06-11')
+                self.assertEqual(metadata.call_count,0)
+
+    def test_event_request_rejects_changed_raw_manifest_ref(self):
+        reader=SnapshotReader(self.root,self.snapshot)
+        raw_id=reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
+        target=self.root/'raw/batches'/raw_id
+        path=target/'manifest.json'
+        manifest=json.loads(path.read_bytes())
+        manifest['request']['params']['start_date']='19000101'
+        payload=artifacts._json_bytes(manifest)
+        path.chmod(0o600);path.write_bytes(payload)
+        digest_path=target/'manifest.sha256'
+        digest_path.chmod(0o600)
+        digest_path.write_text(artifacts._digest(payload)+'\n')
+        with self.assertRaisesRegex(ArtifactError,'ref mismatch'):
+            request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+
+    def test_event_request_rejects_missing_raw_payload_without_decoding_it(self):
+        reader=SnapshotReader(self.root,self.snapshot)
+        raw_id=reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
+        target=self.root/'raw/batches'/raw_id
+        target.chmod(0o755)
+        (target/'payload.bin').unlink()
+        with self.assertRaisesRegex(ArtifactError,'payload file is missing'):
+            request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+
+    def test_reader_rejects_replaced_direct_contract_after_first_read(self):
+        reader=SnapshotReader(self.root,self.snapshot)
+        self.assertTrue(reader.market_daily(['688981.SH'],'2025-06-10','2025-06-13'))
+        commit=reader.commits['market_daily'].ref.commit_id
+        target=self.root/'canonical/market_daily/commits'/commit
+        contract=target/'contract.json'
+        target.chmod(0o755)
+        replacement=target/'replacement.json'
+        replacement.write_bytes(contract.read_bytes())
+        replacement.replace(contract)
+        with self.assertRaisesRegex(ArtifactError,'Reader consumed input changed'):
+            reader.market_daily(['688981.SH'],'2025-06-10','2025-06-13')
+        self.assertTrue(reader._invalidated)
+
+    def test_reader_rejects_changed_raw_request_after_interval_cache_hit(self):
+        reader=SnapshotReader(self.root,self.snapshot)
+        request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+        self.assertIn('margin_daily',reader._pr7_request_intervals)
+        raw_id=reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
+        target=self.root/'raw/batches'/raw_id
+        manifest_path=target/'manifest.json'
+        manifest=json.loads(manifest_path.read_bytes())
+        manifest['request']['params']['start_date']='19000101'
+        payload=artifacts._json_bytes(manifest)
+        manifest_path.chmod(0o600);manifest_path.write_bytes(payload)
+        digest_path=target/'manifest.sha256'
+        digest_path.chmod(0o600);digest_path.write_text(artifacts._digest(payload)+'\n')
+        with self.assertRaisesRegex(ArtifactError,'Reader consumed input changed'):
+            request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+        self.assertNotIn('margin_daily',getattr(reader,'_pr7_request_intervals',{}))
+
+    def test_reader_rejects_changed_raw_checksum_after_interval_cache_hit(self):
+        reader=SnapshotReader(self.root,self.snapshot)
+        request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+        raw_id=reader.commits['margin_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
+        digest_path=self.root/'raw/batches'/raw_id/'manifest.sha256'
+        digest_path.chmod(0o600)
+        digest_path.write_text('sha256:'+'0'*64+'\n')
+        with self.assertRaisesRegex(ArtifactError,'Reader consumed input changed'):
+            request_coverage(reader,'margin_daily','688981.SH','2025-06-10')
+        self.assertNotIn('margin_daily',getattr(reader,'_pr7_request_intervals',{}))
 
     def test_implementation_change_revalidates(self):
         source=Path(self.temp.name)/'code';source.mkdir()

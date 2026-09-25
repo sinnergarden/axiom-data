@@ -597,6 +597,14 @@ def write_raw_batch(
 def load_raw_batch(data_root: str | Path, raw_batch_id: str) -> RawBatch:
     """Load and verify one exact RawBatch without consulting a pointer or catalog."""
 
+    manifest, manifest_digest, layout, target = _load_raw_manifest(data_root, raw_batch_id)
+    payload = _payload_file(layout.root, manifest, target)
+    return RawBatch(RawBatchRef(raw_batch_id, manifest_digest), manifest, payload)
+
+
+def _load_raw_manifest(data_root: str | Path, raw_batch_id: str):
+    """Verify Raw identity and request metadata without reading an unused payload."""
+
     layout = _layout(data_root)
     raw_batch_id = _identity("raw_batch_id", raw_batch_id)
     target = layout.raw_batches / raw_batch_id
@@ -630,8 +638,16 @@ def load_raw_batch(data_root: str | Path, raw_batch_id: str) -> RawBatch:
     _timestamp(manifest["retrieved_at"])
     if not isinstance(manifest.get("status"), str) or not manifest["status"]:
         raise ArtifactError("RawBatch status must be non-empty text")
-    payload = _payload_file(layout.root, manifest, target)
-    return RawBatch(RawBatchRef(raw_batch_id, manifest_digest), manifest, payload)
+    payload_files = manifest.get("payload_files")
+    if not isinstance(payload_files, list) or len(payload_files) != 1 or not isinstance(payload_files[0], dict):
+        raise ArtifactError("RawBatch payload declaration is invalid")
+    payload_entry = payload_files[0]
+    if not _relative_file(layout.root, target, payload_entry.get("path")).is_file():
+        raise ArtifactError("RawBatch payload file is missing")
+    _validated_digest("RawBatch payload digest", payload_entry.get("content_digest"))
+    if type(payload_entry.get("bytes")) is not int or payload_entry["bytes"] < 0:
+        raise ArtifactError("RawBatch payload size is invalid")
+    return manifest, manifest_digest, layout, target
 
 
 def _find_exact_artifact_type(layout: DataRootLayout, artifact_id: str) -> str | None:
@@ -765,18 +781,22 @@ def _commit_ref(commit: DomainCommit) -> dict[str, Any]:
 
 
 def _raw_ref(raw: RawBatch) -> dict[str, Any]:
+    return _raw_manifest_ref(raw.manifest, raw.ref.manifest_digest)
+
+
+def _raw_manifest_ref(manifest: Mapping[str, Any], manifest_digest: str) -> dict[str, Any]:
     ref = {
-        "raw_batch_id": raw.ref.raw_batch_id,
-        "manifest_digest": raw.ref.manifest_digest,
-        "payload_digest": raw.manifest["payload_files"][0]["content_digest"],
+        "raw_batch_id": manifest["raw_batch_id"],
+        "manifest_digest": manifest_digest,
+        "payload_digest": manifest["payload_files"][0]["content_digest"],
     }
-    if raw.manifest["schema_version"] == _RAW_BATCH_WRITE_SCHEMA:
+    if manifest["schema_version"] == _RAW_BATCH_WRITE_SCHEMA:
         ref.update(
             {
                 "schema_version": _RAW_BATCH_WRITE_SCHEMA,
-                "source_profile_ref": raw.manifest["source_profile_ref"],
-                "source_profile_version": raw.manifest["source_profile_version"],
-                "source_profile_digest": raw.manifest["source_profile_digest"],
+                "source_profile_ref": manifest["source_profile_ref"],
+                "source_profile_version": manifest["source_profile_version"],
+                "source_profile_digest": manifest["source_profile_digest"],
             }
         )
     return ref
@@ -1204,6 +1224,11 @@ def load_domain_commit(
     domain_commit_id: str,
 ) -> DomainCommit:
     """Load one exact immutable DomainCommit and verify its local closure."""
+    return _load_domain_commit(data_root, domain, domain_commit_id, verify_rows=True)
+
+
+def _load_domain_commit(data_root, domain, domain_commit_id, *, verify_rows):
+    """Reader-only metadata load can defer partition checks until consumption."""
 
     layout = _layout(data_root)
     if domain not in ALL_CANONICAL_DOMAINS:
@@ -1264,7 +1289,7 @@ def load_domain_commit(
         partition_rows = PartitionRows(layout, domain, manifest, contract)
         # Membership overlap/group checks and calendar predecessor checks remain
         # whole-state validators. Other contracts have row checks plus global keys.
-        if len(partition_rows) >= STREAM_ROW_THRESHOLD and domain not in WHOLE_STATE_DOMAINS:
+        if not verify_rows or (len(partition_rows) >= STREAM_ROW_THRESHOLD and domain not in WHOLE_STATE_DOMAINS):
             rows = partition_rows
         else:
             rows = read_partitions(layout, domain, manifest, contract)
@@ -1292,7 +1317,8 @@ def load_domain_commit(
             raise ArtifactError("DomainCommit rows must be a JSON array of objects")
         if output.get("rows") != len(rows):
             raise ArtifactError("DomainCommit row count mismatch")
-    _validate_domain_rows(domain, rows,contract=contract)
+    if verify_rows:
+        _validate_domain_rows(domain, rows,contract=contract)
     expected_cross_domain = (
         "PASS" if _DOMAIN_DEPENDENCIES[domain] else "NOT_APPLICABLE"
     )
@@ -1596,6 +1622,7 @@ def _checked_snapshot_commits(
     data_root: Path,
     domain_commit_ids: Mapping[str, str],
     *, validation_cache=None, lineage_index=None, required_domains=None,
+    references_only=False,
 ) -> dict[str, DomainCommit]:
     requested_domains = set(domain_commit_ids)
     if requested_domains == _REQUIRED_SNAPSHOT_DOMAINS:
@@ -1618,14 +1645,13 @@ def _checked_snapshot_commits(
     from axiom_data.verification_cache import closure_cache
     cache, raw_closure_cache = closure_cache(data_root) if validation_cache is None else validation_cache
     commits = {
-        domain: _validate_domain_commit_closure(
-            data_root,
-            domain,
-            _identity("domain_commit_id", domain_commit_ids[domain]),
-            set(),
-            cache,
-            raw_closure_cache,
-        )
+        domain: (_load_domain_commit(data_root, domain,
+                                    _identity("domain_commit_id", domain_commit_ids[domain]),
+                                    verify_rows=False)
+                 if references_only else _validate_domain_commit_closure(
+                     data_root, domain,
+                     _identity("domain_commit_id", domain_commit_ids[domain]),
+                     set(), cache, raw_closure_cache))
         for domain in ordered_domains
     }
     if 'market_daily' in commits:
@@ -1648,12 +1674,12 @@ def _checked_snapshot_commits(
     # Each closure already checked its rows against these exact dependencies.
     # The ref comparisons above bind that check to the Snapshot composition;
     # scanning the entire market again would repeat the identical validation.
-    if set(REFERENCE_SNAPSHOT_DOMAINS).issubset(ordered_domains):
+    if not references_only and set(REFERENCE_SNAPSHOT_DOMAINS).issubset(ordered_domains):
         try:
             validate_reference_snapshot_rows(commits)
         except MarketContractError as exc:
             raise ArtifactError("D-M1 snapshot cross-domain validation failed") from exc
-    if lineage_index is not None:
+    if lineage_index is not None and not references_only:
         # Retain only verified ancestry metadata for this Reader, not ancestor
         # row/payload objects or a process-wide validation cache.
         for domain in EVENT_DOMAINS:
@@ -1729,7 +1755,12 @@ def load_snapshot(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
     return _load_snapshot_with_commits(data_root, snapshot_id)[0]
 
 
-def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, checked_commits=None, validation_cache=None, lineage_index=None, required_domains=None):
+def validate_snapshot_closure(data_root: str | Path, snapshot_id: str) -> DataSnapshot:
+    """Explicitly replay all ancestor, Raw and canonical validation for an audit."""
+    return load_snapshot(data_root, snapshot_id)
+
+
+def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, checked_commits=None, validation_cache=None, lineage_index=None, required_domains=None, references_only=False):
     """Return the already checked commits from this one Snapshot validation."""
 
     layout = _layout(data_root)
@@ -1775,9 +1806,11 @@ def _load_snapshot_with_commits(data_root: str | Path, snapshot_id: str, *, chec
         ids[domain] = ref["domain_commit_id"]
     # Publication has just validated this exact composition. Validate the stored
     # Snapshot manifest against those commits without repeating all source replay.
-    # Public loads supply no cache and always validate the complete closure.
+    # A Reader may defer historical replay; explicit closure validation remains
+    # the authoritative audit of every ancestor and Raw payload.
     commits = _checked_snapshot_commits(layout.root, ids, validation_cache=validation_cache,
-                                      lineage_index=lineage_index, required_domains=required_domains) if checked_commits is None else checked_commits
+                                      lineage_index=lineage_index, required_domains=required_domains,
+                                      references_only=references_only) if checked_commits is None else checked_commits
     expected_domains = set(ids) if required_domains is None else set(required_domains)
     if set(commits) != expected_domains:
         raise ArtifactError('checked Snapshot composition is incomplete')
@@ -2048,6 +2081,7 @@ __all__ = [
     "load_domain_commit",
     "load_raw_batch",
     "load_snapshot",
+    "validate_snapshot_closure",
     "lookup_catalog",
     "rebuild_catalog",
     "validate_domain_commit_closure",

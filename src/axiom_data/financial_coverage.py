@@ -28,7 +28,7 @@ def prepared_input(reader, slot, arguments, prepare):
     Encoded values prevent a consumer from mutating the cached admission result.
     """
     from axiom_data.artifacts import _json_bytes
-    from axiom_data.verification_cache import file_state
+    from axiom_data.verification_cache import file_state, validation_paths
     import json
     observed = getattr(reader, '_view_validation_paths', None)
     if observed is None:
@@ -38,8 +38,17 @@ def prepared_input(reader, slot, arguments, prepare):
         raise ValueError('unknown financial preparation slot')
     if batch is None and slot not in {'admission', 'financial_history'}:
         return prepare()
+    def checked_prepare():
+        with validation_paths() as consumed:
+            value = prepare()
+        if hasattr(reader, '_remember_consumed_metadata'):
+            reader._remember_consumed_metadata(consumed)
+        return value
     def check():
         if (getattr(reader,'_financial_view_batch',None) or {}).get('verified_paths'):
+            return
+        if hasattr(reader, '_check_consumed_metadata'):
+            reader._check_consumed_metadata(force=True)
             return
         if any(file_state(p) != state for p, state in observed.items()):
             reader._financial_preparation = {}
@@ -64,9 +73,12 @@ def prepared_input(reader, slot, arguments, prepare):
                 # Admission is performed by project before requesting history.
                 # Read the public full history once, then retain encoded groups
                 # so caller mutations cannot alter a later artifact.
-                grouped = {}
-                for index, row in enumerate(reader.facts('financial_events')):
-                    grouped.setdefault(row['symbol'], []).append((index, row))
+                with validation_paths() as consumed:
+                    grouped = {}
+                    for index, row in enumerate(reader.facts('financial_events')):
+                        grouped.setdefault(row['symbol'], []).append((index, row))
+                if hasattr(reader, '_remember_consumed_metadata'):
+                    reader._remember_consumed_metadata(consumed)
                 batch['histories'] = {s:_json_bytes(rows) for s,rows in grouped.items()}
                 check()
             if not arguments or not set(arguments) <= batch['histories'].keys():
@@ -77,7 +89,7 @@ def prepared_input(reader, slot, arguments, prepare):
             previous = batch.get(slot)
             if previous is not None and previous[0] == key:
                 return json.loads(previous[1])
-            value = prepare()
+            value = checked_prepare()
             check()
             batch[slot] = (key, _json_bytes(value))
             return value
@@ -85,7 +97,7 @@ def prepared_input(reader, slot, arguments, prepare):
     previous = cache.get(slot)
     if previous is not None and previous[0] == key:
         return json.loads(previous[1])
-    value = prepare()
+    value = checked_prepare()
     check()
     encoded = _json_bytes(value)
     cache.pop(slot, None)
