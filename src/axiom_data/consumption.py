@@ -8,6 +8,7 @@ import heapq
 import json
 from collections import OrderedDict
 from collections.abc import Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -54,6 +55,7 @@ MARKET_VIEW_FIELDS = (
 )
 _QLIB_EXPORTER_REVISION = "qlib-binary-market.v1"
 _ADJUSTED_PRICE_FIELDS = ("open", "high", "low", "close")
+MARKET_BATCH_SIZE = 50
 
 
 def validate_session(value: object, name: str) -> str:
@@ -82,6 +84,65 @@ def ordered_row(row: Mapping[str, Any], fields: Sequence[str]) -> dict[str, Any]
         return {field: row[field] for field in fields}
     except KeyError as exc:
         raise ArtifactError(f"canonical row has no field {exc.args[0]!r}") from exc
+
+
+@contextmanager
+def market_view_batch(reader, configs, kind):
+    """Read each complete market input once for a bounded group of Views."""
+    from axiom_data.verification_cache import file_state, validation_paths
+
+    if kind not in {'market_replay', 'market_qlib'} or len(configs) > MARKET_BATCH_SIZE:
+        raise ArtifactError('invalid market View batch')
+    symbols = set()
+    for config in configs:
+        selected = validate_symbols(config['symbols'])
+        if len(selected) != 1:
+            raise ArtifactError('market View batch requires one symbol per View')
+        if validate_session(config['start_session'], 'start_session') > validate_session(config['end_session'], 'end_session'):
+            raise ArtifactError('market View batch has a reversed scope')
+        if kind == 'market_qlib':
+            _validate_qlib_inputs(reader, **config, structural_only=True)
+        symbols.add(selected[0])
+    start = min(validate_session(c['start_session'], 'start_session') for c in configs)
+    end = max(validate_session(c['end_session'], 'end_session') for c in configs)
+    requested = tuple(sorted(symbols))
+    domains = ('market_daily', 'security_status', 'price_limits', 'corporate_actions') if kind == 'market_replay' else ('market_daily',)
+    with validation_paths() as observed:
+        rows = {
+            'security_master': reader.security_master(requested),
+            'trading_calendar': reader.trading_calendar(start_session=start, end_session=end),
+        }
+        for domain in domains:
+            rows[domain] = (reader.market_daily(requested, start, end) if domain == 'market_daily'
+                            else reader.facts(domain, symbols=requested, start_session=start, end_session=end))
+    grouped = {domain: {symbol: [] for symbol in symbols} for domain in domains}
+    for domain in domains:
+        for row in rows[domain]:
+            grouped[domain][row['symbol']].append(row)
+    rows.update(grouped)
+    previous = getattr(reader, '_market_view_batch', None)
+    reader._market_view_batch = (kind, start, end, symbols, rows)
+    try:
+        yield
+    finally:
+        reader._market_view_batch = previous
+        if any(file_state(path) != state for path, state in observed.items()):
+            raise ArtifactError('market View source changed during batch')
+
+
+def prepared_market_view_rows(reader, kind, domain, selected, start, end):
+    batch = getattr(reader, '_market_view_batch', None)
+    if batch is None or len(selected) != 1:
+        return None
+    prepared_kind, lower, upper, symbols, rows = batch
+    if prepared_kind != kind or start < lower or end > upper or selected[0] not in symbols:
+        return None
+    if domain == 'security_master':
+        return tuple(row for row in rows[domain] if row['symbol'] == selected[0])
+    if domain == 'trading_calendar':
+        return tuple(row for row in rows[domain] if start <= row['session'] <= end)
+    date_key = 'effective_date' if domain == 'corporate_actions' else 'session'
+    return tuple(row for row in rows[domain][selected[0]] if start <= row[date_key] <= end)
 
 
 class SnapshotReader:
@@ -265,6 +326,25 @@ class SnapshotReader:
                        group_states=self.commits[domain].manifest.get("group_states"))
         return self._project_membership(domain, result, symbols)
 
+    def members_from_view_ref(self, ref, group_id, target_session, *, symbols=None):
+        """Read a financial View's Snapshot-bound universe membership reference."""
+        from axiom_data.pit import instant
+        required={'snapshot_id','domain_commit_id','identity_digest','universe_ids',
+                  'start_session','end_session','pit_policy','knowledge_cutoff'}
+        domain_ref=self.snapshot.manifest['domain_refs']['universe_membership']
+        if (not isinstance(ref,dict) or set(ref)!=required or
+            ref['snapshot_id']!=self.snapshot.ref.snapshot_id or
+            ref['domain_commit_id']!=self.commits['universe_membership'].ref.commit_id or
+            ref['identity_digest']!=domain_ref['identity_digest'] or
+            not isinstance(ref['universe_ids'],list) or group_id not in ref['universe_ids']):
+            raise ArtifactError('financial membership ref does not match Snapshot')
+        day=validate_session(target_session,'target_session')
+        if not (validate_session(ref['start_session'],'start_session')<=day<=
+                validate_session(ref['end_session'],'end_session')):
+            raise ArtifactError('financial membership ref does not cover session')
+        cutoff=min(instant(ref['knowledge_cutoff']),instant(day+'T23:59:59+08:00')).isoformat()
+        return self.members(group_id,day,knowledge_cutoff=cutoff,pit_policy=ref['pit_policy'],symbols=symbols)
+
     def industry_facts(self, group_id, target_session, *, knowledge_cutoff, pit_policy, symbols=None):
         from axiom_data.financial_coverage import membership_coverage
         from axiom_data.sw_industry import project_state
@@ -431,7 +511,7 @@ def build_qlib_view(
 
 def _validate_qlib_inputs(reader, *, symbols, start_session, end_session, fields=MARKET_VIEW_FIELDS,
                           adjusted_price_view_id=None, price_basis='unadjusted', pit_policy='best_effort',
-                          decision_cutoff=None, created_at=None):
+                          decision_cutoff=None, created_at=None, structural_only=False):
     """Shared request admission for first publication and completed-View reuse."""
     data_root = reader.data_root
     selected = validate_symbols(symbols)
@@ -458,7 +538,8 @@ def _validate_qlib_inputs(reader, *, symbols, start_session, end_session, fields
             raise ArtifactError("adjusted QlibView requires an explicit Derived ref")
         from axiom_data.views import _load_adjusted_price_view
 
-        adjusted = _load_adjusted_price_view(data_root, adjusted_price_view_id, checked_reader=reader)
+        adjusted = _load_adjusted_price_view(data_root, adjusted_price_view_id,
+            checked_reader=reader, structural_only=structural_only)
         if adjusted.manifest["snapshot_ref"]["snapshot_id"] != reader.snapshot.ref.snapshot_id:
             raise ArtifactError("QlibView Derived ref belongs to another Snapshot")
         if adjusted.manifest["scope"] != {
@@ -488,30 +569,31 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
     selected, start, end, view_fields, adjusted = _validate_qlib_inputs(reader,
         symbols=symbols, start_session=start_session, end_session=end_session, fields=fields,
         adjusted_price_view_id=adjusted_price_view_id, price_basis=price_basis,
-        pit_policy=pit_policy, decision_cutoff=decision_cutoff, created_at=created_at)
+        pit_policy=pit_policy, decision_cutoff=decision_cutoff, created_at=created_at,
+        structural_only=True)
     data_root = reader.data_root
 
     if adjusted is not None:
         cutoff = adjusted.manifest['decision_cutoff']
 
+    prepared_calendar = prepared_market_view_rows(reader, 'market_qlib', 'trading_calendar', selected, start, end)
     calendar = sorted(
         {
             row["session"]
-            for row in reader.trading_calendar(
-                start_session=start, end_session=end
-            )
+            for row in (prepared_calendar if prepared_calendar is not None else reader.trading_calendar(
+                start_session=start, end_session=end))
             if row["is_open"] is True
         }
     )
     if not calendar:
         raise ArtifactError("QlibView scope has no open calendar sessions")
-    security = {row["symbol"]: row for row in reader.security_master(selected)}
+    prepared_security = prepared_market_view_rows(reader, 'market_qlib', 'security_master', selected, start, end)
+    security = {row["symbol"]: row for row in (prepared_security if prepared_security is not None else reader.security_master(selected))}
     if set(security) != set(selected):
         raise ArtifactError("QlibView scope includes an unknown security identity")
-    market = {
-        (row["session"], row["symbol"]): row
-        for row in reader.market_daily(selected, start, end)
-    }
+    prepared_market = prepared_market_view_rows(reader, 'market_qlib', 'market_daily', selected, start, end)
+    market = {(row["session"], row["symbol"]): dict(row) for row in
+              (prepared_market if prepared_market is not None else reader.market_daily(selected, start, end))}
     if adjusted is not None:
         adjusted_rows = {
             (row["session"], row["symbol"]): row for row in adjusted.rows
@@ -642,7 +724,7 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
         _write_manifest(candidate, manifest)
 
     _publish_directory(layout, target, prepare, identity_digest=identity_digest)
-    return _load_qlib_view(layout.root, view_id, checked_reader=reader).ref
+    return _load_qlib_view(layout.root, view_id, checked_reader=reader, structural_only=True).ref
 
 
 def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
@@ -650,7 +732,7 @@ def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
     return _load_qlib_view(data_root, view_id)
 
 
-def _load_qlib_view(data_root, view_id, *, checked_reader=None):
+def _load_qlib_view(data_root, view_id, *, checked_reader=None, structural_only=False):
 
     if isinstance(view_id, str) and view_id.startswith("pr7-fact-"):
         from axiom_data.event_views import load_event_fact_view
@@ -692,7 +774,8 @@ def _load_qlib_view(data_root, view_id, *, checked_reader=None):
         ref = derived_refs[0]
         if not isinstance(ref, dict) or not isinstance(ref.get("view_id"), str):
             raise ArtifactError("adjusted QlibView Derived ref is invalid")
-        adjusted = _load_adjusted_price_view(layout.root, ref["view_id"], checked_reader=reader)
+        adjusted = _load_adjusted_price_view(layout.root, ref["view_id"],
+            checked_reader=reader, structural_only=structural_only)
         if ref != {
             "view_id": adjusted.ref.view_id,
             "identity_digest": adjusted.manifest["identity_digest"],
@@ -1328,7 +1411,11 @@ __all__ = [
 
 def request_coverage(reader,domain,symbol,session):
     """Admit bounded requests, including explicit empty supplier responses."""
-    if symbol not in {r['symbol'] for r in reader.security_master()}:raise ArtifactError('unknown security')
+    known=getattr(reader,'_event_known_symbols',None)
+    if known is None:
+        known={r['symbol'] for r in reader.security_master()}
+        reader._event_known_symbols=known
+    if symbol not in known:raise ArtifactError('unknown security')
     if domain not in reader.commits:raise ArtifactError('Snapshot lacks event domain')
     # Only this checked Reader owns the index. New Readers validate their closure
     # again; no disk cache or execution report can supply request authority.
@@ -1409,7 +1496,7 @@ def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
     return event_leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected,source_session=source_session)
 
 
-def event_leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected,*,source_session=None):
+def event_leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected,*,source_session=None,value_unit=None):
     from axiom_data.domains.events import LEAF_DOMAINS, DAILY_DOMAINS
     from axiom_data.pit import instant, fingerprint
     from axiom_data.contracts import load_contract
@@ -1425,7 +1512,7 @@ def event_leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_p
     contract_version=reader.commits[domain].ref.contract_version
     metadata={'leaf':leaf,'symbol':symbol,'target_session':target_session,'snapshot_id':reader.snapshot.ref.snapshot_id,
         'contract_version':contract_version,'domain_commit_id':reader.commits[domain].ref.commit_id,
-        'value':value,'unit':load_contract(contract_version)['value_units'][field],
+        'value':value,'unit':value_unit if value_unit is not None else load_contract(contract_version)['value_units'][field],
         'validity':'valid' if value is not None else 'missing','missing_reason':reason,
         'pit_policy':pit_policy,'knowledge_cutoff':instant(knowledge_cutoff).isoformat(),
         'pit_qualification':row['pit_qualification'] if row else 'unknown',

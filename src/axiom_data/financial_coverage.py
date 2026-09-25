@@ -39,6 +39,8 @@ def prepared_input(reader, slot, arguments, prepare):
     if batch is None and slot not in {'admission', 'financial_history'}:
         return prepare()
     def check():
+        if (getattr(reader,'_financial_view_batch',None) or {}).get('verified_paths'):
+            return
         if any(file_state(p) != state for p, state in observed.items()):
             reader._financial_preparation = {}
             if batch is not None:
@@ -212,9 +214,16 @@ def admit_view(reader,scope,policy,cutoff,*,financial_resolution=True):
         sessions.update(d for d in dates if rows[d]['is_open'])
     if not sessions:raise ArtifactError('INSUFFICIENT_SCOPE: no open sessions')
     universes=[membership_coverage(reader,'universe_membership',g,start,end,policy,cutoff,symbols) for g in scope['universe_ids']]
-    # Classification is daily: closed days need no observation, open-day holes fail.
-    for session in sorted(sessions):
-        membership_coverage(reader,'industry_membership',scope['industry_system'],session,session,policy,cutoff,symbols)
+    # SW2021 v3 has one continuous coverage interval per security under this
+    # fixed cutoff. Check its full-scope selection once over the open-session
+    # bounds; unavailable classifications inside it remain explicit states.
+    # Historical interval contracts retain their per-open-session gap check.
+    if reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3':
+        membership_coverage(reader,'industry_membership',scope['industry_system'],
+            min(sessions),max(sessions),policy,cutoff,symbols)
+    else:
+        for session in sorted(sessions):
+            membership_coverage(reader,'industry_membership',scope['industry_system'],session,session,policy,cutoff,symbols)
     inputs=_admission_inputs(reader,policy,cutoff,financial_resolution,symbols,sessions)
     indexes=inputs['session_index']
     if any(e not in inputs['endpoints'].get(s,())

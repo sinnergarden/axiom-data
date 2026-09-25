@@ -1,13 +1,16 @@
 """Snapshot-bound event Fact/Qlib materialization."""
 import json
+from bisect import bisect_right
+from contextlib import contextmanager
 from pathlib import Path
 from importlib.resources import files
 from axiom_data.artifacts import (ArtifactError,_layout,_json_bytes,_digest,_identity_digest,_derived_identity,
-    _timestamp,_write_file,_write_manifest,_publish_directory,_load_manifest,_validate_manifest_identity,_safe_path,_identity)
+    _timestamp,_write_file,_write_manifest,_publish_directory,_load_manifest,_validate_manifest_identity,_safe_path,_identity,
+    _declared_content_files)
 from axiom_data.consumption import SnapshotReader,feature_bytes,qlib_symbol,validate_symbols,validate_session
 from axiom_data.views import DerivedView,DerivedViewRef
 from axiom_data.domains.events import EVENT_DOMAINS,DAILY_DOMAINS
-from axiom_data.pit import instant
+from axiom_data.pit import instant, visibility_times
 from axiom_data.pit import select_event_revisions
 
 from axiom_data.domains.events import LEAF_DOMAINS, NUMERIC_FIELDS
@@ -17,15 +20,76 @@ from axiom_data.consumption import (
 )
 # Historical imports of this helper continue to resolve to the same implementation.
 _leaf_metadata = event_leaf_metadata
+EVENT_BATCH_SIZE = 50
+
+
+@contextmanager
+def event_view_batch(reader, configs):
+    """Admit and read event inputs once for a bounded group of ordinary Views."""
+    from axiom_data.verification_cache import file_state, validation_paths
+
+    if not 1 < len(configs) <= EVENT_BATCH_SIZE:
+        raise ArtifactError('invalid event View batch')
+    symbols = []
+    for config in configs:
+        selected = validate_symbols(config['symbols'])
+        if len(selected) != 1:
+            raise ArtifactError('event View batch requires one symbol per View')
+        symbols.append(selected[0])
+    start = min(validate_session(c['start_session'], 'start') for c in configs)
+    end = max(validate_session(c['end_session'], 'end') for c in configs)
+    with validation_paths() as observed:
+        calendars = exchange_sessions(reader, symbols, start, end)
+        if any(d not in reader.commits for d in EVENT_DOMAINS):
+            raise ArtifactError('event Snapshot domains required')
+        daily_bounds = {}
+        for domain in EVENT_DOMAINS:
+            required = []
+            for config in configs:
+                symbol = config['symbols'][0]
+                sessions = (s for s in calendars[symbol]['sessions']
+                            if config['start_session'] <= s <= config['end_session'])
+                for session in sessions:
+                    source_session = dependency_session(reader, domain, session)
+                    request_coverage(reader, domain, symbol, source_session)
+                    if domain in DAILY_DOMAINS:
+                        required.append(source_session)
+            if required:
+                daily_bounds[domain] = (min(required), max(required))
+        rows = {}
+        for domain in EVENT_DOMAINS:
+            bounds = daily_bounds.get(domain)
+            rows[domain] = reader.facts(domain, symbols=symbols,
+                **({'start_session':bounds[0], 'end_session':bounds[1]} if bounds else {}))
+    by_symbol = {domain: {symbol: [] for symbol in symbols} for domain in EVENT_DOMAINS}
+    for domain in EVENT_DOMAINS:
+        for row in rows[domain]:
+            by_symbol[domain][row['symbol']].append(row)
+    previous = getattr(reader, '_event_view_batch', None)
+    reader._event_view_batch = (start, end, set(symbols), calendars, by_symbol)
+    try:
+        yield
+    finally:
+        reader._event_view_batch = previous
+        if any(file_state(path) != state for path, state in observed.items()):
+            raise ArtifactError('event View source changed during batch')
 
 
 def project(reader,scope,policy,cutoff,*,source_cutoffs=True):
+    from axiom_data.contracts import load_contract
     symbols=validate_symbols(scope['symbols']);start=validate_session(scope['start_session'],'start');end=validate_session(scope['end_session'],'end')
     if start>end:raise ArtifactError('reversed View range')
-    calendars=exchange_sessions(reader,symbols,start,end)
+    batch=getattr(reader,'_event_view_batch',None)
+    prepared=(batch is not None and batch[0]<=start and end<=batch[1]
+              and set(symbols)<=batch[2] and source_cutoffs)
+    calendars=({symbol:{'exchange':batch[3][symbol]['exchange'],
+                        'sessions':[s for s in batch[3][symbol]['sessions'] if start<=s<=end]}
+                for symbol in symbols} if prepared else exchange_sessions(reader,symbols,start,end))
     if not any(item['sessions'] for item in calendars.values()):
         raise ArtifactError('INSUFFICIENT_SCOPE: no open exchange sessions')
     if any(d not in reader.commits for d in EVENT_DOMAINS):raise ArtifactError('event Snapshot domains required')
+    units={domain:load_contract(reader.commits[domain].ref.contract_version)['value_units']
+           for domain in EVENT_DOMAINS}
     wide=[];event_history={}
     open_days={symbol:set(item['sessions']) for symbol,item in calendars.items()}
     for session in sorted({day for item in calendars.values() for day in item['sessions']}):
@@ -35,24 +99,43 @@ def project(reader,scope,policy,cutoff,*,source_cutoffs=True):
         for domain in EVENT_DOMAINS:
             source_session=dependency_session(reader,domain,session) if source_cutoffs else session
             source_sessions[domain]=source_session
-            for symbol in active:request_coverage(reader,domain,symbol,source_session)
+            if not prepared:
+                for symbol in active:request_coverage(reader,domain,symbol,source_session)
             bounds={'start_session':source_session,'end_session':source_session} if domain in DAILY_DOMAINS else {}
             groups={symbol:[] for symbol in active}
             if domain in DAILY_DOMAINS:
-                selected_rows=reader.as_of(domain,symbols=active,pit_policy=policy,knowledge_cutoff=effective,**bounds)
+                if prepared:
+                    selected_rows=select_event_revisions(
+                        [row for symbol in active for row in batch[4][domain][symbol]
+                         if row['session']==source_session],policy=policy,knowledge_cutoff=effective)
+                else:
+                    selected_rows=reader.as_of(domain,symbols=active,pit_policy=policy,knowledge_cutoff=effective,**bounds)
             else:
                 # Coverage checks remain above preparation. Histories are scoped
                 # to requested securities and released when this View returns.
                 if domain not in event_history:
-                    event_history[domain]=reader.facts(domain,symbols=symbols)
-                selected_rows=select_event_revisions(
-                    [row for row in event_history[domain] if row['symbol'] in groups],
-                    policy=policy,knowledge_cutoff=effective)
+                    rows=(tuple(row for symbol in symbols for row in batch[4][domain][symbol])
+                          if prepared else reader.facts(domain,symbols=symbols))
+                    by_symbol={symbol:tuple(row for row in rows if row['symbol']==symbol) for symbol in symbols}
+                    event_history[domain]={'rows':by_symbol,
+                        'times':{symbol:visibility_times(by_symbol[symbol],policy) for symbol in symbols},
+                        'index':{},'selected':{}}
+                history=event_history[domain]
+                selected_rows=[]
+                for symbol in active:
+                    visibility=bisect_right(history['times'][symbol],instant(effective))
+                    if (not source_cutoffs or history['index'].get(symbol)!=visibility):
+                        history['selected'][symbol]=select_event_revisions(
+                            history['rows'][symbol],policy=policy,knowledge_cutoff=effective)
+                        history['index'][symbol]=visibility
+                    selected_rows.extend(history['selected'][symbol])
             for row in selected_rows:
                 groups[row['symbol']].append(row)
             selected[domain]=groups
         for symbol in active:
-            facts={leaf:event_leaf_metadata(reader,leaf,symbol,session,effective,policy,selected[domain][symbol],source_session=source_sessions[domain]) for leaf,domain in LEAF_DOMAINS.items()}
+            facts={leaf:event_leaf_metadata(reader,leaf,symbol,session,effective,policy,selected[domain][symbol],
+                source_session=source_sessions[domain],value_unit=units[domain][leaf.split('.',1)[1]])
+                for leaf,domain in LEAF_DOMAINS.items()}
             wide.append({'symbol':symbol,'session':session,'values':{f:facts[f]['value'] for f in NUMERIC_FIELDS},'facts':facts})
     wide.sort(key=lambda r:r['session'])
     return {'wide':wide,'sessions':sorted({r['session'] for r in wide}),'symbol_calendars':calendars}
@@ -69,8 +152,8 @@ def payload_files(payload,symbols,bundle):
     return output
 
 
-def manifest_for(reader,scope,policy,cutoff,payload,bundle,*,schema_version='pr7_fact_view.v3'):
-    contents=payload_files(payload,scope['symbols'],bundle)
+def manifest_for(reader,scope,policy,cutoff,payload,bundle,*,schema_version='pr7_fact_view.v3',contents=None):
+    if contents is None:contents=payload_files(payload,scope['symbols'],bundle)
     return {'artifact_type':'pr7_fact_view','schema_version':schema_version,
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
         'scope':scope,'validated_scope':dict(scope,fields=list(LEAF_DOMAINS)),
@@ -125,6 +208,25 @@ def load_event_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or
         reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
         raise ArtifactError('checked Reader does not match event View Snapshot')
+    if manifest['schema_version']=='pr7_fact_view.v3':
+        contents=_declared_content_files(layout.root,target,manifest.get('files'))
+        try:
+            payload=json.loads(contents['rows.json'])
+            bundle=json.loads(contents['code_bundle.json'])
+            if not isinstance(payload,dict) or set(payload)!={'wide','sessions','symbol_calendars'}:
+                raise ArtifactError('event View rows have invalid structure')
+            if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):
+                raise ArtifactError('invalid code bundle')
+            outputs=payload_files(payload,manifest['scope']['symbols'],bundle)
+            expected=manifest_for(reader,manifest['scope'],manifest['pit_policy'],
+                manifest['knowledge_cutoff'],payload,bundle,contents=outputs)
+        except (KeyError,IndexError,TypeError,ValueError) as exc:
+            raise ArtifactError('event View structure is invalid') from exc
+        if {k:v for k,v in manifest.items() if k not in {'view_id','identity_digest','created_at'}}!=expected:
+            raise ArtifactError('event View structural closure mismatch')
+        if contents!=outputs:
+            raise ArtifactError('event View files differ from declared rows')
+        return DerivedView(DerivedViewRef('pr7_fact',view_id,digest),manifest,tuple(payload['wide']))
     payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):raise ArtifactError('invalid code bundle')
