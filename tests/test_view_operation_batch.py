@@ -98,10 +98,10 @@ class ViewOperationBatchTest(unittest.TestCase):
                     result = materialize_views(batch_root, run_id='market-batch',
                                                snapshot_id=run['refs']['snapshot_id'], views=plan)
                 self.assertEqual(result['status'], 'VIEWS_BUILT', result.get('failed'))
-                self.assertEqual(sum(call.args[0] == 'market_daily' for call in reads.call_args_list), 1)
+                self.assertEqual(sum(call.args[0] == 'market_daily' for call in reads.call_args_list), 2)
                 if kind == 'market_replay':
                     for domain in ('security_status', 'price_limits'):
-                        self.assertEqual(sum(call.args[0] == domain for call in reads.call_args_list), 1, reads.call_args_list)
+                        self.assertEqual(sum(call.args[0] == domain for call in reads.call_args_list), 2, reads.call_args_list)
                 for symbol, ref in zip(symbols, expected):
                     self.assertEqual(result['published_views'][symbol]['view_id'], ref.view_id)
                     left = serial_root / path / ref.view_id
@@ -140,7 +140,7 @@ class ViewOperationBatchTest(unittest.TestCase):
                                            snapshot_id=run['refs']['snapshot_id'], views=plan)
             self.assertEqual(result['status'], 'VIEWS_BUILT', result.get('failed'))
             for domain in ('margin_daily', 'moneyflow_daily'):
-                self.assertEqual(sum(call.args[0] == domain for call in reads.call_args_list), 1)
+                self.assertEqual(sum(call.args[0] == domain for call in reads.call_args_list), 2)
             for symbol, ref in zip(symbols, expected):
                 self.assertEqual(result['published_views'][symbol]['view_id'], ref.view_id)
                 left = serial_root / 'derived/pr7_fact/commits' / ref.view_id
@@ -191,7 +191,7 @@ class ViewOperationBatchTest(unittest.TestCase):
                 result = materialize_views(batch_root, run_id='financial-batch',
                                            snapshot_id=run['refs']['snapshot_id'], views=plan)
             self.assertEqual(result['status'], 'VIEWS_BUILT', result.get('failed'))
-            self.assertEqual(admissions.call_count, 1)
+            self.assertEqual(admissions.call_count, 2)  # preflight + build; shared full-domain summary
             self.assertEqual(membership.call_count, len({
                 (call.kwargs['group_id'], call.kwargs['target_session'])
                 for call in membership.call_args_list}))

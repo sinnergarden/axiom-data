@@ -96,6 +96,36 @@ def project(reader,scope,policy,cutoff,*,source_cutoffs=True):
         return _project(reader,scope,policy,cutoff,source_cutoffs=source_cutoffs)
 
 
+def admit_event_view(reader, scope, policy, cutoff, *, source_cutoffs=True):
+    from axiom_data.pit import POLICIES
+    symbols=validate_symbols(scope['symbols'])
+    start=validate_session(scope['start_session'],'start');end=validate_session(scope['end_session'],'end')
+    if start>end:raise ArtifactError('reversed View range')
+    if policy not in POLICIES:raise ArtifactError('invalid fact PIT policy')
+    instant(cutoff)
+    batch=getattr(reader,'_event_view_batch',None)
+    prepared=source_cutoffs and batch is not None and batch[0]<=start and end<=batch[1] and set(symbols)<=batch[2]
+    calendars=({s:{'exchange':batch[3][s]['exchange'],
+        'sessions':[d for d in batch[3][s]['sessions'] if start<=d<=end]} for s in symbols}
+        if prepared else exchange_sessions(reader,symbols,start,end))
+    if not any(item['sessions'] for item in calendars.values()):
+        raise ArtifactError('INSUFFICIENT_SCOPE: no open exchange sessions')
+    if any(d not in reader.commits for d in EVENT_DOMAINS):raise ArtifactError('event Snapshot domains required')
+    for domain in (() if prepared else EVENT_DOMAINS):
+        for symbol in symbols:
+            for session in calendars[symbol]['sessions']:
+                request_coverage(reader,domain,symbol,
+                    dependency_session(reader,domain,session) if source_cutoffs else session)
+        if domain in DAILY_DOMAINS:
+            days=[dependency_session(reader,domain,day) if source_cutoffs else day
+                  for item in calendars.values() for day in item['sessions']]
+            rows=reader.facts(domain,symbols=symbols,start_session=min(days),end_session=max(days))
+        else:
+            rows=reader.facts(domain,symbols=symbols)
+        visibility_times(rows,policy)
+    return calendars
+
+
 def _project(reader,scope,policy,cutoff,*,source_cutoffs=True):
     from axiom_data.contracts import load_contract
     symbols=validate_symbols(scope['symbols']);start=validate_session(scope['start_session'],'start');end=validate_session(scope['end_session'],'end')
@@ -105,7 +135,7 @@ def _project(reader,scope,policy,cutoff,*,source_cutoffs=True):
               and set(symbols)<=batch[2] and source_cutoffs)
     calendars=({symbol:{'exchange':batch[3][symbol]['exchange'],
                         'sessions':[s for s in batch[3][symbol]['sessions'] if start<=s<=end]}
-                for symbol in symbols} if prepared else exchange_sessions(reader,symbols,start,end))
+                for symbol in symbols} if prepared else admit_event_view(reader,scope,policy,cutoff,source_cutoffs=source_cutoffs))
     if not any(item['sessions'] for item in calendars.values()):
         raise ArtifactError('INSUFFICIENT_SCOPE: no open exchange sessions')
     if any(d not in reader.commits for d in EVENT_DOMAINS):raise ArtifactError('event Snapshot domains required')
@@ -337,3 +367,13 @@ load_pr7_fact_view = load_event_fact_view
 _load_pr7_fact_view = load_event_fact_view_with_reader
 
 select_pr7_revisions = select_event_revisions
+
+
+def rebound_event_states(reader, view, source):
+    from axiom_data.consumption import bind_event_snapshot
+    states=unpacked_states((source/'states.json.gz').read_bytes(),view.manifest['state_uncompressed_bytes'])
+    for by_field in states['states'].values():
+        for spans in by_field.values():
+            for span in spans:
+                bind_event_snapshot(span['state']['fact'],reader.snapshot.ref.snapshot_id)
+    return packed_states(states), len(_json_bytes(states))

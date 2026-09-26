@@ -136,9 +136,7 @@ def _valuation_at(reader,symbols,session,policy,cutoff,*,prepared=None):
     return select_revisions(rows.get(session,()),policy=policy,knowledge_cutoff=cutoff)
 
 
-def project(reader, scope, policy, cutoff, *, financial_resolution=True, membership_ref=False):
-    if hasattr(reader, '_check_consumed_metadata'):
-        reader._check_consumed_metadata(force=True)
+def admit_financial_view(reader, scope, policy, cutoff, *, financial_resolution=True, membership_ref=True):
     from axiom_data.financial_coverage import prepared_input
     symbols=scope['symbols'];start=scope['start_session'];end=scope['end_session']
     validate_symbols(symbols);validate_session(start,'start');validate_session(end,'end');instant(cutoff)
@@ -158,6 +156,16 @@ def project(reader, scope, policy, cutoff, *, financial_resolution=True, members
         actual_scope=dict(admitted,financial_report_periods={s:admitted['financial_report_periods'][s] for s in symbols})
     else:
         actual_scope=admit_view(reader,scope,policy,cutoff,financial_resolution=financial_resolution)
+    return symbols, start, end, sessions, actual_scope
+
+
+def project(reader, scope, policy, cutoff, *, financial_resolution=True, membership_ref=False):
+    if hasattr(reader, '_check_consumed_metadata'):
+        reader._check_consumed_metadata(force=True)
+    from axiom_data.financial_coverage import prepared_input
+    symbols, start, end, sessions, actual_scope = admit_financial_view(
+        reader, scope, policy, cutoff, financial_resolution=financial_resolution,
+        membership_ref=membership_ref)
     valuation_scope=_valuation_scope(reader,symbols,start,end)
     sw_state=reader.commits['industry_membership'].ref.contract_version=='industry_membership.v3'
     taxonomy=prepared_input(reader,'taxonomy',(policy,cutoff),lambda:

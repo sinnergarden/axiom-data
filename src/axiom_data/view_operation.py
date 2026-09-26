@@ -14,7 +14,7 @@ from axiom_data.operations import save_progress
 from axiom_data.publication import writer
 
 
-def _completed_view(reader, spec, record, builder, loader, code):
+def _completed_view(reader, spec, record, builder, loader, code, *, return_view=False):
     """Validate the artifact itself and bind its declared inputs to this request."""
     reader._check_consumed_metadata(force=True)
     from axiom_data.consumption import validate_symbols
@@ -57,7 +57,7 @@ def _completed_view(reader, spec, record, builder, loader, code):
         refs = manifest.get('derived_refs', [])
         if [r['view_id'] for r in refs] != ([config['adjusted_price_view_id']] if config['adjusted_price_view_id'] else []):
             raise ArtifactError('completed View Derived input mismatch')
-    return view.ref
+    return view if return_view else view.ref
 
 
 @frozen_operation('views')
@@ -96,7 +96,7 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
     frozen=json.loads(_json_bytes(views))
     for label,spec in frozen.items():
         _identity('view_label',label)
-        if not isinstance(spec,dict) or set(spec)!={'kind','config'} or not isinstance(spec['kind'],str) or not isinstance(spec['config'],dict):
+        if not isinstance(spec,dict) or not {'kind','config'} <= set(spec) or set(spec)-{'kind','config','reuse_candidate'} or not isinstance(spec['kind'],str) or not isinstance(spec['config'],dict):
             raise ArtifactError('required View needs a registered kind and config')
         spec['kind'] = _stored_view_kind(spec['kind'])
         if spec['kind'] not in builders:
@@ -131,18 +131,32 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
         save_progress(path,state)
         try:reader=SnapshotReader(layout.root,concrete)
         except Exception as exc:
-            state.update(status='FAILED',failed={'snapshot':{'error_type':type(exc).__name__}})
+            state.update(status='FAILED',failed={'snapshot':{'error_type':type(exc).__name__,'reason':str(exc)}},
+                preflight={k:{'status':'NOT_ASSESSED','reason':'Snapshot admission failed'} for k in frozen})
             save_progress(path,state);return dict(state,plan=plan)
         try:
             from axiom_data.admission_plan import resolve_price_anchors
             resolve_price_anchors(reader, frozen)
         except Exception as exc:
+            state['preflight'] = {k:{'status':'NOT_ASSESSED','reason':'anchor preparation failed'} for k in frozen}
+            if getattr(exc,'view_label',None) in frozen:
+                state['preflight'][exc.view_label] = {'status':'BLOCKED','reason':str(exc)}
             state.update(status='FAILED', failed={getattr(exc, 'view_label', 'price_anchor_preflight'): {
                 'stage': 'price_anchor_preflight', 'error_type': type(exc).__name__, 'reason': str(exc)}})
             save_progress(path, state)
             return dict(state, plan=plan)
         from axiom_data.financial_coverage import financial_batch
         with financial_batch(reader):
+            from axiom_data.admission_plan import preflight_views
+            state['preflight'] = preflight_views(reader, frozen)
+            blocked = {k:v for k,v in state['preflight'].items() if v['status']!='READY'}
+            if blocked:
+                for label in blocked:
+                    state['published_views'].pop(label, None)
+                state.update(status='FAILED', failed=blocked)
+                save_progress(path,state)
+                return dict(state,plan=plan)
+            candidate_readers = {}
             items = list(frozen.items())
             offset = 0
             def batchable(item):
@@ -185,9 +199,22 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
                                 save_progress(path,state)
                             else:
                                 continue
+                        if candidate_spec.get('reuse_candidate'):
+                            started = time.monotonic()
+                            ref = _reuse_view(reader,candidate_spec,builders[candidate_spec['kind']],
+                                loaders[candidate_spec['kind']],code,candidate_readers)
+                            if ref is not None:
+                                state['published_views'][candidate_label] = {'kind':candidate_spec['kind'],
+                                    'view_id':ref.view_id,'manifest_digest':ref.manifest_digest}
+                                state.setdefault('reused_views',[]).append(candidate_label)
+                                state.setdefault('build_seconds',{})[candidate_label]=time.monotonic()-started
+                                save_progress(path,state)
+                                continue
                         pending.append((candidate_label,candidate_spec))
                     if not pending:
                         continue
+                    state['active_view'] = None
+                    state['shared_preparation'] = {'kind':spec['kind'], 'labels':[k for k,_ in pending]}
                     context = (adjusted_price_batch(reader, [item['config'] for _, item in pending])
                                if spec['kind'] == 'adjusted_price' and len(pending) > 1 else
                                market_view_batch(reader, [item['config'] for _, item in pending], spec['kind'])
@@ -206,8 +233,55 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
                             state.setdefault('build_seconds',{})[label]=time.monotonic()-started
                             save_progress(path,state)
                 except Exception as exc:
-                    state.update(status='FAILED',failed={state['active_view']:{'error_type':type(exc).__name__}})
+                    state.update(status='FAILED',failed={state['active_view'] or 'shared_preparation':{'error_type':type(exc).__name__, 'reason':str(exc), 'scope':state.get('shared_preparation')}})
                     save_progress(path,state);return dict(state,plan=plan)
         if set(state['published_views'])!=set(frozen):raise ArtifactError('required View closure incomplete')
-        state.update(status='VIEWS_BUILT',stage='FULL_ADMISSION');state.pop('active_view',None)
+        state.update(status='VIEWS_BUILT',stage='FULL_ADMISSION');state.pop('active_view',None);state.pop('shared_preparation',None)
         save_progress(path,state);return dict(state,plan=plan)
+
+
+def _reuse_view(reader, spec, builder, loader, code, candidate_readers):
+    """Validate one explicit candidate; dependency changes follow ordinary build."""
+    from axiom_data.consumption import SnapshotReader
+    from axiom_data.views import publish_rebound_view
+    from axiom_data.frozen_execution import executed_code_ref
+    from axiom_data.domains import FUNDAMENTAL_DOMAINS, EVENT_DOMAINS
+    kind = spec['kind']
+    record = spec['reuse_candidate']
+    try:
+        identity = _identity('view_id', record['view_id'])
+        layout = _layout(reader.data_root)
+        target = layout.qlib_exports / identity if kind=='market_qlib' else layout.derived_commits(kind) / identity
+        manifest = json.loads(_safe_path(layout.root,target/'manifest.json').read_bytes())
+        snapshot = manifest['snapshot_ref']['snapshot_id']
+        old_reader = candidate_readers.get(snapshot)
+        if old_reader is None:
+            # A bounded operation-local checked Reader, not a persistent cache.
+            candidate_readers.clear()
+            old_reader = SnapshotReader(reader.data_root,snapshot)
+            candidate_readers[snapshot] = old_reader
+        view = _completed_view(old_reader,spec,record,builder,loader,code,return_view=True)
+        if view.manifest.get('executed_code_ref') != executed_code_ref():
+            return None
+        # Historical market formats do not identify executed package bytes.
+        if executed_code_ref() is None and kind not in {'pr6_fact','pr7_fact'}:
+            return None
+        domains = {
+            'adjusted_price': {'market_daily','adjustment_factors'},
+            'market_replay': {'market_daily','security_status','price_limits','corporate_actions'},
+            'market_qlib': {'market_daily'},
+            'pr6_fact': set(FUNDAMENTAL_DOMAINS), 'pr7_fact': set(EVENT_DOMAINS),
+        }[kind] | {'security_master','trading_calendar'}
+        if kind=='market_qlib' and spec['config'].get('adjusted_price_view_id'):
+            domains.add('adjustment_factors')
+            # Explicit Derived refs are Snapshot-bound; the ordinary builder
+            # validates the requested new ref rather than silently substituting.
+            return None
+        if any(old_reader.snapshot.manifest['domain_refs'][d] != reader.snapshot.manifest['domain_refs'][d]
+               for d in domains):
+            return None
+        old_reader._check_consumed_metadata(force=True)
+        reader._check_consumed_metadata(force=True)
+        return publish_rebound_view(reader,kind,view)
+    except (ArtifactError,OSError,ValueError,KeyError,TypeError):
+        return None

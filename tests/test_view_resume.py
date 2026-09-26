@@ -119,7 +119,7 @@ class ViewResumeTest(unittest.TestCase):
         with patch('axiom_data.consumption._build_qlib_view',wraps=_build_qlib_view) as builder:
             rejected=self.run_views()
         self.assertEqual(rejected['status'],'FAILED')
-        self.assertEqual(builder.call_count,1)
+        self.assertEqual(builder.call_count,0)  # invalid request fails before any publication
         self.assertNotIn('qlib',rejected['published_views'])
 
     def test_qlib_adjusted_exact_resume_and_v1_substitution(self):
