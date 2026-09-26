@@ -416,7 +416,7 @@ class Pr5Dm1Test(unittest.TestCase):
                     faulted_reader = SnapshotReader(root, artifacts['snapshot'])
                 if expected_domain == 'corporate_actions':
                     with self.assertRaisesRegex(ArtifactError, 'qualified D-M1 observations differ from RawBatch mapping'):
-                        SnapshotReader(root, artifacts['snapshot'])
+                        load_snapshot(root, artifacts['snapshot'])
                 # The independent row checker also detects the faulty values
                 # already captured while the deliberately broken mapper ran.
                 with patch('axiom_data.dm1_reconciliation.SnapshotReader', return_value=faulted_reader):
