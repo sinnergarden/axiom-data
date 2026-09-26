@@ -3,8 +3,17 @@
 Axiom Data 将供应商响应整理成不可变的数据版本，提供行情、成分与行业、财务、股东、
 融资融券、资金流和业绩预告，以及绑定数据版本的查询和导出。
 
-先读 **[架构、数据与使用示例](docs/overview.md)**：一页了解数据从哪里来、怎样形成版本、
-历史查询如何选择数据，以及如何用 Python 读取。
+第一次了解这个仓库，先看 **[从一条行情看懂 Data](notebooks/data_acceptance.ipynb)**。
+它用中芯国际四天的历史样本，按“原始响应 → 整理单位 → 固定版本 → 当时可知 → 用途视图”
+讲解，保存了小样本运行输出，可以先读而不运行。演示通过不等于全量生产数据通过验收。
+
+需要 Python 查询示例或查找实现时，再看 [架构与公共接口](docs/overview.md)。
+
+## 只记住这条流程
+
+供应商响应原样保存，按各类数据的规则整理，再固定成一个 Snapshot。
+研究与回测通过 Reader 或已生成的 View 读取这个版本。后来的修订生成新版本，旧研究的输入保留。
+Data 提供事实、来源、时间和缺失解释；它不训练模型、不决定买卖。
 
 ## 文档入口
 
@@ -14,6 +23,9 @@ Axiom Data 将供应商响应整理成不可变的数据版本，提供行情、
 - [目录布局](docs/operations/physical-layout.md)
 - [股东人数缺少报告期时的处理](docs/operations/holder-source-admission.md)
 - [脚本用途](scripts/README.md) / [历史决策与运行证据](docs/history/README.md)
+
+日常先用 notebook 和操作文档；`reports/`、历史脚本无需按目录顺序阅读，也不要当作生产入口。
+其中一些记录仍是回归测试和恢复的依据，清理时应保留引用关系。
 
 代码位于 `src/axiom_data/`，测试位于 `tests/`。本机正式数据根为 `/var/lib/axiom-data`；
 旧 workspace `data/` 仅作历史证据留存。仓库里的 `reports/` 是各次验证记录，不是完整生产数据。

@@ -3,6 +3,9 @@
 Axiom Data 把供应商数据整理成可以重复读取、追溯来源的数据版本，供研究和其他应用使用。
 它提供数据，不计算研究 Feature、训练模型或执行交易。
 
+第一次阅读请从 [带真实小样本输出的 notebook](../notebooks/data_acceptance.ipynb) 开始。
+本页是接口与实现索引，适合看完例子以后查阅。
+
 ## 从原始数据到读取
 
 ```text
@@ -102,16 +105,6 @@ rows = facts.read("financial", symbols=["000001.SZ"])["rows"]
 `bootstrap` 构建初始版本，`daily` 在明确的父 Snapshot 上处理增量，`repair` 用固定 Raw 修复数据。
 失败后通过原 run 和 checkpoint 继续，已通过验证的 Raw 不必重新抓取。
 新版本复用未变化的数据分区；没有新事实或覆盖变化时，不应制造新 Snapshot。
-
-## 在哪里找实现
-
-| 位置 | 职责 |
-| --- | --- |
-| `src/axiom_data/*source*.py`、`tushare.py` | 供应商请求、字段转换及来源规则 |
-| `contracts/`、`domains/`（均在包内） | 数据格式、单位和类别校验 |
-| `artifacts.py`、`publication.py` | 不可变文件、版本 ID 和发布 |
-| `operations.py`、`cli.py` | bootstrap、daily、repair 等公共入口 |
-| `consumption.py`、`pit.py`、`*views*.py` | 查询、历史版本选择、计算与导出 |
 
 本机正式数据根为 `/var/lib/axiom-data`，代码和数据分别存放。`catalog.sqlite` 是可重建索引，
 恢复仍需要原始文件、版本说明及依赖；只有代码和一个空目录，无法恢复原来的观察历史。
