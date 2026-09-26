@@ -822,7 +822,8 @@ def validate_terminal_evidence(data_root, evidence, *, plan):
         if view.ref.manifest_digest != spec['manifest_digest'] or view.manifest['snapshot_ref']['snapshot_id'] != snapshot_id:
             raise ArtifactError('terminal View identity mismatch')
         kinds.add(spec['kind'])
-    if kinds != set(_contract()['historical_view_policy']['view_kinds']):
+    from axiom_data.views import _stored_view_kind
+    if kinds != {_stored_view_kind(kind) for kind in _contract()['historical_view_policy']['view_kinds']}:
         raise ArtifactError('required terminal View family missing')
     admission = evidence['full_admission']
     if (admission['snapshot_id'] != snapshot_id or admission['target_digest'] != plan['target_digest']

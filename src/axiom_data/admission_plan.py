@@ -233,6 +233,13 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
 PR7_SNAPSHOT_DOMAINS = EVENT_SNAPSHOT_DOMAINS
 
 
+class PriceAnchorError(ArtifactError):
+    """A price preflight failure tied to its requested View."""
+    def __init__(self, label, reason):
+        self.view_label = label
+        super().__init__(f'{label}: {reason}')
+
+
 def resolve_price_anchors(reader, views, *, historical=False):
     """Resolve nonstrict historical anchors, or preflight explicit anchors.
 
@@ -240,14 +247,18 @@ def resolve_price_anchors(reader, views, *, historical=False):
     Coverage and other View families remain separate admission requirements.
     """
     from copy import deepcopy
-    from axiom_data.domains.reference import validate_strict_decision_time
+    from axiom_data.domains.reference import validate_strict_decision_time, validate_adjustment_factor_rows
+    from axiom_data.domains import MarketContractError
     resolved = deepcopy(views)
     requests = {}
     for label, spec in resolved.items():
         if _stored_view_kind(spec['kind']) != 'adjusted_price':
             continue
-        config = _config(_builders()['adjusted_price'], reader.data_root,
-                         reader.snapshot.ref.snapshot_id, spec['config'])
+        try:
+            config = _config(_builders()['adjusted_price'], reader.data_root,
+                             reader.snapshot.ref.snapshot_id, spec['config'])
+        except ArtifactError as exc:
+            raise PriceAnchorError(label, str(exc)) from exc
         requests[label] = config
     if not requests:
         return resolved, {}
@@ -264,7 +275,14 @@ def resolve_price_anchors(reader, views, *, historical=False):
     anchors = {}
     for row in reader.session_rows('adjustment_factors', start, end):
         symbol, day = row['symbol'], row['session']
-        for label, config in by_symbol.get(symbol, ()):
+        relevant = [(label, config) for label, config in by_symbol.get(symbol, ())
+                    if config['start_session'] <= day <= config['anchor_session']]
+        if relevant:
+            try:
+                validate_adjustment_factor_rows([row])
+            except MarketContractError as exc:
+                raise PriceAnchorError(relevant[0][0], f'invalid factor {symbol}/{day}: {exc}') from exc
+        for label, config in relevant:
             search = historical and config['pit_policy'] == 'research_non_pit'
             if (config['start_session'] <= day <= config['anchor_session'] and
                     (search or day == config['anchor_session']) and day in sessions[symbol] and
@@ -276,18 +294,54 @@ def resolve_price_anchors(reader, views, *, historical=False):
     for label, config in requests.items():
         rows = [anchors.get((label, s)) for s in config['symbols']]
         if any(r is None for r in rows):
-            raise ArtifactError('adjusted-price anchor factor is unavailable: ' + label)
+            raise PriceAnchorError(label, 'adjusted-price anchor factor is unavailable')
         if config['pit_policy'] == 'strict_decision_time':
-            validate_strict_decision_time(rows, config['decision_cutoff'])
+            try:
+                validate_strict_decision_time(rows, config['decision_cutoff'])
+            except MarketContractError as exc:
+                raise PriceAnchorError(label, str(exc)) from exc
         days = {r['session'] for r in rows}
         if len(days) != 1:
-            raise ArtifactError('historical anchor resolution requires per-security View shards')
+            raise PriceAnchorError(label, 'historical anchor resolution requires per-security View shards')
         actual = days.pop()
         resolved[label]['config']['anchor_session'] = actual
         evidence[label] = dict(requested_anchor_upper_bound=config['anchor_session'],
             actual_anchor_session=actual, factor_rows=rows,
             selection_rule=('last_observed_factor_in_applicable_interval.v1'
                             if historical and config['pit_policy'] == 'research_non_pit' else 'explicit_anchor.v1'))
+    # Resolve actual source artifacts once across all chosen anchors. Parent
+    # commits are checked with the existing loader, without mapping replay.
+    from axiom_data.artifacts import _load_domain_commit, load_raw_batch, _raw_ref, _validate_dm1_observation_refs
+    commit = reader.commits['adjustment_factors']
+    raw_refs = {}
+    visited = set()
+    required_sources = {row['source_ref'] for row in anchors.values()}
+    while commit.ref.commit_id not in visited:
+        visited.add(commit.ref.commit_id)
+        raw_refs.update({ref['raw_batch_id']: ref for ref in commit.manifest['ordered_raw_batch_refs']})
+        parent = commit.manifest['parent_commit_ref']
+        if required_sources <= raw_refs.keys() or parent is None:
+            break
+        commit = _load_domain_commit(reader.data_root, 'adjustment_factors', parent['domain_commit_id'], verify_rows=False)
+        if _commit_ref(commit) != parent:
+            raise ArtifactError('factor parent reference mismatch')
+    from datetime import datetime
+    verified_sources = {}
+    for (label, symbol), row in anchors.items():
+        try:
+            source = row['source_ref']
+            if source not in raw_refs:
+                raise ArtifactError('factor source_ref outside DomainCommit Raw lineage')
+            if source not in verified_sources:
+                raw = load_raw_batch(reader.data_root, source)
+                if raw.manifest['domain'] != 'adjustment_factors' or _raw_ref(raw) != raw_refs[source]:
+                    raise ArtifactError('factor Raw source reference mismatch')
+                verified_sources[source] = (raw.manifest['domain'], source,
+                    datetime.fromisoformat(raw.manifest['retrieved_at'].replace('Z', '+00:00')))
+            _validate_dm1_observation_refs(reader.data_root, 'adjustment_factors', [row], set(raw_refs),
+                                           verified_evidence=verified_sources)
+        except ArtifactError as exc:
+            raise PriceAnchorError(label, str(exc)) from exc
     reader._check_consumed_metadata(force=True)
     return resolved, dict(schema_version='price_anchor_resolution.v1',
         snapshot_id=reader.snapshot.ref.snapshot_id,

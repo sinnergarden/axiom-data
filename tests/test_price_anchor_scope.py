@@ -20,15 +20,20 @@ class HistoricalAnchorTest(unittest.TestCase):
         calendar = [dict(exchange='SSE', session=d, is_open=True, previous_open_session=p)
                     for d, p in [('2020-08-26', None), ('2020-08-27', '2020-08-26'),
                                  ('2020-08-28', '2020-08-27')]]
-        return SimpleNamespace(data_root='fixture', snapshot=SimpleNamespace(
+        return SimpleNamespace(data_root='fixture', commits={'adjustment_factors': SimpleNamespace(
+            ref=SimpleNamespace(commit_id='fixed-factor'), manifest={'ordered_raw_batch_refs': [{'raw_batch_id': 'fixed-source'}], 'parent_commit_ref': None})}, snapshot=SimpleNamespace(
             ref=SimpleNamespace(snapshot_id='fixture-snapshot', manifest_digest='fixed-digest'),
             manifest={'domain_refs': {'adjustment_factors': {'domain_commit_id': 'fixed-factor'}}}),
             security_master=lambda: security, trading_calendar=lambda **kw: calendar,
             session_rows=Mock(return_value=iter(dict(symbol='600069.SH', session=d,
-                factor=2, source_ref='fixed-source') for d in days)), _check_consumed_metadata=Mock())
+                factor=2, source_ref='fixed-source', source_available_at=None,
+                first_observed_at='2020-08-28T12:00:00+08:00',
+                availability_basis='terminal_history_observed', pit_qualification='best_effort') for d in days)), _check_consumed_metadata=Mock())
 
-    def plan(self, reader):
-        with patch('axiom_data.consumption.SnapshotReader', return_value=reader):
+    def plan(self, reader, raw_error=None):
+        with patch('axiom_data.consumption.SnapshotReader', return_value=reader), \
+                patch('axiom_data.artifacts.load_raw_batch', side_effect=raw_error, return_value=SimpleNamespace(manifest={'domain': 'adjustment_factors', 'retrieved_at': '2020-08-28T12:00:00+08:00'})), \
+                patch('axiom_data.artifacts._raw_ref', return_value={'raw_batch_id': 'fixed-source'}):
             return plan_historical_views(target=dict(symbols=['600069.SH'], start_session='2020-08-26',
                 end_session='2020-08-28'), security_rows=reader.security_master(),
                 calendar_rows=reader.trading_calendar(), universe_ids=['000906.SH'],
@@ -53,6 +58,36 @@ class HistoricalAnchorTest(unittest.TestCase):
             with self.subTest(days=days), self.assertRaisesRegex(ArtifactError, 'anchor factor is unavailable'):
                 self.plan(self.reader(days))
 
+    def test_invalid_factor_or_provenance_rejects_instead_of_searching_back(self):
+        for field, value in [('factor', v) for v in (0, -2, 'bad', float('nan'), float('inf'), True)] + [
+                ('source_ref', ''), ('first_observed_at', 'invalid'), ('pit_qualification', 'invalid')]:
+            reader = self.reader(('2020-08-26', '2020-08-27'))
+            rows = list(reader.session_rows())
+            rows[-1][field] = value
+            reader.session_rows = Mock(return_value=iter(rows))
+            with self.subTest(field=field, value=value), self.assertRaisesRegex(ArtifactError, 'adjusted_price-600069.SH: invalid factor'):
+                self.plan(reader)
+
+    def test_unbound_source_ref_is_rejected(self):
+        reader = self.reader()
+        rows = list(reader.session_rows()); rows[0]['source_ref'] = 'unbound-source'
+        reader.session_rows = Mock(return_value=iter(rows))
+        with self.assertRaisesRegex(ArtifactError, 'source_ref outside DomainCommit Raw lineage'):
+            self.plan(reader)
+
+    def test_source_load_failure_retains_label(self):
+        with self.assertRaisesRegex(ArtifactError, 'adjusted_price-600069.SH: raw content corrupt'):
+            self.plan(self.reader(), raw_error=ArtifactError('raw content corrupt'))
+
+    def test_observed_anchor_must_not_predate_its_raw_retrieval(self):
+        reader = self.reader()
+        rows = list(reader.session_rows())
+        rows[0].update(pit_qualification='observed', availability_basis='first_observation',
+                       first_observed_at='2020-08-27T12:00:00+08:00')
+        reader.session_rows = Mock(return_value=iter(rows))
+        with self.assertRaisesRegex(ArtifactError, 'first_observed_at predates its RawBatch retrieval'):
+            self.plan(reader)
+
     def test_strict_explicit_anchor_does_not_search_back(self):
         spec = {'a': {'kind': 'adjusted_price', 'config': dict(symbols=['600069.SH'],
             start_session='2020-08-26', end_session='2020-08-27', anchor_session='2020-08-27',
@@ -60,7 +95,7 @@ class HistoricalAnchorTest(unittest.TestCase):
         with self.assertRaisesRegex(ArtifactError, 'anchor factor is unavailable'):
             resolve_price_anchors(self.reader(), spec, historical=True)
         spec['a']['config']['decision_cutoff'] = '2020-08-26'
-        with self.assertRaisesRegex(ArtifactError, 'future adjusted anchor'):
+        with self.assertRaisesRegex(ArtifactError, 'a: future adjusted anchor'):
             resolve_price_anchors(self.reader(), spec, historical=True)
 
 
@@ -114,7 +149,8 @@ class FixedArtifactScopeTest(unittest.TestCase):
                        'bad': dict(kind='adjusted_price', config=bad)})
             self.assertEqual(failed['status'], 'FAILED')
             self.assertEqual(failed['published_views'], {})
-            self.assertIn('price_anchor_preflight', failed['failed'])
+            self.assertEqual(failed['failed']['bad']['stage'], 'price_anchor_preflight')
+            self.assertIn('anchor factor is unavailable', failed['failed']['bad']['reason'])
             path = root_copy / 'canonical/adjustment_factors/commits' / reader.commits['adjustment_factors'].ref.commit_id / 'rows.json'
             path.chmod(0o600); path.write_bytes(path.read_bytes() + b' ')
             with self.assertRaises(ArtifactError):

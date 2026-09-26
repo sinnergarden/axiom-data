@@ -53,8 +53,9 @@ actual anchors plus factor provenance under `price_anchor_resolution`. Save the
 complete returned plan with the operation evidence; pass its concrete `views` to
 `materialize_views`. Geometry-only calls report `price_anchor_validation=NOT_READY`.
 The Gate A v4 policy selects the last observed valid factor within the applicable
-interval for nonstrict history. For example, if 600069.SH ends identity on August
-28 and August 27 has no factor, August 26 can be the conversion anchor; August 27
+interval for nonstrict history. For example, the synthetic regression uses the
+old fixed Snapshot input for 600069.SH: identity end August 28 and no August 27
+factor. August 26 can be the conversion anchor; August 27
 remains in scope and its source gap still needs admission. Strict requests retain
 explicit anchors. Materialization preflights all price anchors before publishing
 any View; other families and source gaps require their own admission.
@@ -64,3 +65,7 @@ the materialized scope. Default and subset reads keep the existing values, missi
 states and PIT semantics. Scope validation alone does not prove source coverage.
 Published View schemas and old Gate A policy files remain unchanged; old readiness
 reports must be recomputed when implementation/policy changes, as before.
+
+The 600069 example does not settle the conflict between the historical SSE list
+date and the contemporaneous SSE delisting announcement. That source conflict
+continues to block real-data admission until separately resolved.
