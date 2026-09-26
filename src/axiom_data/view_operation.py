@@ -99,7 +99,7 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
         if spec['kind'] not in builders:
             raise ArtifactError('required View needs a registered kind and config')
         try:inspect.signature(builders[spec['kind']]).bind(data_root,concrete,**spec['config'])
-        except TypeError as exc:raise ArtifactError('invalid required View arguments') from exc
+        except TypeError as exc:raise ArtifactError('invalid required View arguments: ' + label) from exc
     source=files('axiom_data')
     code={p.relative_to(source).as_posix():_digest(p.read_bytes()) for p in sorted(source.rglob('*')) if p.is_file() and p.suffix in {'.py','.json'}}
     plan={'snapshot_id':concrete,'views':frozen,'implementation_digest':_digest(_json_bytes(code))}
@@ -130,6 +130,14 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
         except Exception as exc:
             state.update(status='FAILED',failed={'snapshot':{'error_type':type(exc).__name__}})
             save_progress(path,state);return dict(state,plan=plan)
+        try:
+            from axiom_data.admission_plan import resolve_price_anchors
+            resolve_price_anchors(reader, frozen)
+        except Exception as exc:
+            state.update(status='FAILED', failed={getattr(exc, 'view_label', 'price_anchor_preflight'): {
+                'stage': 'price_anchor_preflight', 'error_type': type(exc).__name__, 'reason': str(exc)}})
+            save_progress(path, state)
+            return dict(state, plan=plan)
         from axiom_data.financial_coverage import financial_batch
         with financial_batch(reader):
             items = list(frozen.items())

@@ -157,6 +157,8 @@ class GateATest(unittest.TestCase):
         result = gate_a.plan_historical_views(target=target, security_rows=security, calendar_rows=calendar,
                                              universe_ids=['000906.SH'], knowledge_cutoff='2025-06-13T23:59:59+08:00')
         self.assertEqual(result['status'], 'GEOMETRY_DEFINED')
+        self.assertEqual(result['price_anchor_validation'], 'NOT_READY')
+        self.assertEqual(result['schema_version'], 'historical_view_execution_plan.v2')
         self.assertEqual(result['target'], target)
         self.assertEqual(result['views']['adjusted_price-600036.SH']['config']['anchor_session'], '2025-06-11')
         self.assertEqual(result['views']['adjusted_price-000001.SZ']['config']['anchor_session'], '2025-06-13')
@@ -171,3 +173,28 @@ class GateATest(unittest.TestCase):
                                               universe_ids=['000906.SH'], knowledge_cutoff='2025-06-13T23:59:59+08:00')
         self.assertEqual(blocked['status'], 'GEOMETRY_BLOCKED')
         self.assertEqual(blocked['target'], target)
+
+
+class TerminalFamilyNamesTest(unittest.TestCase):
+    def test_stored_names_reach_full_admission_but_missing_family_rejects(self):
+        from types import SimpleNamespace
+        from axiom_data.views import _stored_view_kind
+        kinds = [_stored_view_kind(k) for k in gate_a._contract()['historical_view_policy']['view_kinds']]
+        plan = dict(target_digest='target', scope_registry_digest='registry', requirements={
+            'baseline': {'required': []}, 'views': {'required': []},
+            'full_admission': {'required': [], 'validator': 'next-admission'}})
+        refs = {k: dict(kind=k, view_id=k, manifest_digest='digest') for k in kinds}
+        evidence = dict(baseline=dict(snapshot_id='fixed', manifest_digest='digest', target_digest='target'),
+            views=dict(snapshot_id='fixed', target_digest='target', refs=refs),
+            full_admission=dict(snapshot_id='fixed', target_digest='target', scope_registry_digest='registry'))
+        loaded = SimpleNamespace(ref=SimpleNamespace(manifest_digest='digest'),
+                                 manifest={'snapshot_ref': {'snapshot_id': 'fixed'}})
+        with patch.object(gate_a, 'validate_terminal_evidence_plan', return_value={'missing_capabilities': []}), \
+                patch('axiom_data.artifacts.load_snapshot', return_value=loaded), \
+                patch('axiom_data.recovery._view_loaders', return_value={k: lambda *a: loaded for k in kinds}), \
+                patch.object(gate_a, '_entry', side_effect=RuntimeError('full admission reached')):
+            with self.assertRaisesRegex(RuntimeError, 'full admission reached'):
+                gate_a.validate_terminal_evidence('/tmp', evidence, plan=plan)
+            del refs['pr7_fact']
+            with self.assertRaisesRegex(ArtifactError, 'required terminal View family missing'):
+                gate_a.validate_terminal_evidence('/tmp', evidence, plan=plan)

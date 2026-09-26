@@ -20,7 +20,7 @@ from axiom_data.consumption import exchange_sessions
 
 
 def _contract():
-    return json.loads(files('axiom_data.scope').joinpath('gate_a.v3.json').read_bytes())
+    return json.loads(files('axiom_data.scope').joinpath('gate_a.v4.json').read_bytes())
 
 
 def code_identity():
@@ -582,7 +582,7 @@ def validate_gate_a(plan):
             findings.append({'section': section, 'reason': str(exc), 'error_type': type(exc).__name__})
     try:
         contract = _contract()
-        if contract.get('schema_version') != 'gate_a_contract.v3':
+        if contract.get('schema_version') != 'gate_a_contract.v4':
             raise ArtifactError('Gate A contract version differs from current policy')
         if not isinstance(plan, dict) or set(plan) != set(make_gate_a_plan(plan.get('scope', {}))):
             raise ArtifactError('complete Gate A plan required')
@@ -715,8 +715,9 @@ def validate_gate_a_report(report, *, plan):
     return report['status']
 
 
-def plan_historical_views(*, target, security_rows, calendar_rows, universe_ids, knowledge_cutoff):
-    """Per-security last eligible anchor; explicit geometry, never fill source gaps."""
+def plan_historical_views(*, target, security_rows, calendar_rows, universe_ids, knowledge_cutoff,
+                          data_root=None, snapshot_id=None):
+    """Versioned historical plan: fixed observed anchors, or unready geometry."""
     if not isinstance(target, dict) or set(target) != {'symbols', 'start_session', 'end_session'}:
         raise ArtifactError('complete historical target required')
     target = dict(target, symbols=list(validate_symbols(target['symbols'])),
@@ -724,8 +725,17 @@ def plan_historical_views(*, target, security_rows, calendar_rows, universe_ids,
                   end_session=validate_session(target['end_session'], 'end_session'))
     groups = list(validate_symbols(universe_ids))
     cutoff = instant(knowledge_cutoff).isoformat()
+    if (data_root is None) != (snapshot_id is None):
+        raise ArtifactError('historical resolution requires explicit root and Snapshot')
     security_rows = list(security_rows)
     calendar_rows = list(calendar_rows)
+    checked_reader = None
+    if data_root is not None:
+        from axiom_data.consumption import SnapshotReader
+        checked_reader = SnapshotReader(data_root, snapshot_id)
+        if (list(security_rows) != list(checked_reader.security_master()) or
+                list(calendar_rows) != list(checked_reader.trading_calendar())):
+            raise ArtifactError('historical geometry differs from fixed Snapshot references')
     validate_security_master_rows(security_rows)
     validate_trading_calendar_rows(calendar_rows)
     reader = SimpleNamespace(security_master=lambda: security_rows, trading_calendar=lambda: calendar_rows)
@@ -757,7 +767,15 @@ def plan_historical_views(*, target, security_rows, calendar_rows, universe_ids,
             from axiom_data.views import _stored_view_kind
             _config(_builders()[_stored_view_kind(kind)], 'FUTURE_VALIDATED_ROOT', 'FUTURE_EXPLICIT_SNAPSHOT', config)
             views[kind + '-' + symbol] = {'kind': kind, 'config': config}
-    return {'schema_version': 'historical_view_execution_plan.v1',
+    resolution = None
+    if checked_reader is not None:
+        if any(g['qualification'] == 'BLOCKED' for g in gaps):
+            raise ArtifactError('historical geometry is blocked')
+        from axiom_data.admission_plan import resolve_price_anchors
+        views, resolution = resolve_price_anchors(checked_reader, views, historical=True)
+    return {'schema_version': 'historical_view_execution_plan.v2',
+            'price_anchor_resolution': resolution,
+            'price_anchor_validation': 'RESOLVED' if resolution else 'NOT_READY',
             'status': 'GEOMETRY_BLOCKED' if any(g['qualification'] == 'BLOCKED' for g in gaps) else 'GEOMETRY_DEFINED',
             'target': target, 'geometry_digest': _digest(_json_bytes(target)),
             'expected_sessions': expected, 'identity_exclusions': gaps, 'views': views,
@@ -804,7 +822,8 @@ def validate_terminal_evidence(data_root, evidence, *, plan):
         if view.ref.manifest_digest != spec['manifest_digest'] or view.manifest['snapshot_ref']['snapshot_id'] != snapshot_id:
             raise ArtifactError('terminal View identity mismatch')
         kinds.add(spec['kind'])
-    if kinds != set(_contract()['historical_view_policy']['view_kinds']):
+    from axiom_data.views import _stored_view_kind
+    if kinds != {_stored_view_kind(kind) for kind in _contract()['historical_view_policy']['view_kinds']}:
         raise ArtifactError('required terminal View family missing')
     admission = evidence['full_admission']
     if (admission['snapshot_id'] != snapshot_id or admission['target_digest'] != plan['target_digest']
