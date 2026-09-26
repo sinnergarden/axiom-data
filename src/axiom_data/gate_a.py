@@ -480,7 +480,8 @@ def _coverage_readiness(contract):
         raise ArtifactError('source coverage policy/entry mismatch')
     profile = _profile('tushare_fina_indicator.v1')
     payload = b'[]'
-    manifest = {'schema_version': 'raw_batch.v2', 'status': 'success', 'domain': 'financial_events',
+    manifest = {'schema_version': 'raw_batch.v2', 'raw_batch_id': 'gate-a-code-canary-1',
+                'status': 'success', 'domain': 'financial_events',
                 'source_profile_ref': 'tushare.pr6.fina_indicator',
                 'source_profile_version': profile['profile_version'],
                 'source_profile_digest': _digest(_json_bytes(profile)),

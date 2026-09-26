@@ -6,6 +6,7 @@ import re
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .market import (
     MARKET_DOMAINS,
@@ -109,7 +110,10 @@ def weakest_pit_qualification(rows: Sequence[Mapping[str, Any]]) -> str:
 def validate_strict_decision_time(
     rows: Sequence[Mapping[str, Any]], cutoff_session: str
 ) -> str:
-    """Prove every consumed observation was available by one decision cutoff."""
+    """Prove availability through the inclusive Asia/Shanghai cutoff day.
+
+    This date-only contract does not grant intraday decision eligibility.
+    """
 
     cutoff = _date("decision cutoff", cutoff_session)
     for row in rows:
@@ -122,7 +126,7 @@ def validate_strict_decision_time(
         timestamp_name = "first_observed_at"
         timestamp = _timestamp(timestamp_name, row.get(timestamp_name))
         assert timestamp is not None
-        if datetime.fromisoformat(timestamp.replace("Z", "+00:00")).date() > cutoff:
+        if datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone(ZoneInfo("Asia/Shanghai")).date() > cutoff:
             raise MarketContractError(
                 f"{timestamp_name} is later than the strict decision cutoff"
             )

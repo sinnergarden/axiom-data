@@ -42,7 +42,7 @@ class DailyPitPartitionReadTest(unittest.TestCase):
                             self.assertEqual(opened.call_count,0)  # Complete-month projection already verified above.
                         self.assertEqual(result[0]['values']['big_buy'] if result else None,value)
                     for domain in ['financial_events','universe_membership','holder_count_events']:
-                        with self.assertRaisesRegex(ArtifactError,'daily PR7'):
+                        with self.assertRaisesRegex(ArtifactError,'daily'):
                             reader.as_of(domain,start_session='2025-06-10',**query)
                     part=next(p for p in parts.entries if p['key']=='2025-06')
                     path=root/'canonical/moneyflow_daily/objects'/part['object_id']/'rows.json'

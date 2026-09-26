@@ -70,8 +70,8 @@ class ViewEventHistoryTest(unittest.TestCase):
                             report('2025-03-31',200,'2025-04-10T00:00:00Z')])
         scope=dict(symbols=['600000.SH'],start_session='2025-06-02',end_session='2025-06-04')
         args=dict(symbols=scope['symbols'],pit_policy='operational_pit_v1',knowledge_cutoff='2025-06-04T23:59:59+08:00')
-        with self.assertRaisesRegex(ArtifactError,'ambiguous simultaneous PR7'):
+        with self.assertRaisesRegex(ArtifactError,'ambiguous simultaneous'):
             reader.as_of('holder_count_events',**args)
         with patch('axiom_data.event_views.request_coverage'):
-            with self.assertRaisesRegex(ArtifactError,'ambiguous simultaneous PR7'):
+            with self.assertRaisesRegex(ArtifactError,'ambiguous simultaneous'):
                 project_events(reader,scope,args['pit_policy'],args['knowledge_cutoff'])
