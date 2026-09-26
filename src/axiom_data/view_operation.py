@@ -130,6 +130,13 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
         except Exception as exc:
             state.update(status='FAILED',failed={'snapshot':{'error_type':type(exc).__name__}})
             save_progress(path,state);return dict(state,plan=plan)
+        try:
+            from axiom_data.admission_plan import resolve_price_anchors
+            resolve_price_anchors(reader, frozen)
+        except Exception as exc:
+            state.update(status='FAILED', failed={'price_anchor_preflight': {'error_type': type(exc).__name__}})
+            save_progress(path, state)
+            return dict(state, plan=plan)
         from axiom_data.financial_coverage import financial_batch
         with financial_batch(reader):
             items = list(frozen.items())

@@ -157,6 +157,8 @@ class GateATest(unittest.TestCase):
         result = gate_a.plan_historical_views(target=target, security_rows=security, calendar_rows=calendar,
                                              universe_ids=['000906.SH'], knowledge_cutoff='2025-06-13T23:59:59+08:00')
         self.assertEqual(result['status'], 'GEOMETRY_DEFINED')
+        self.assertEqual(result['price_anchor_validation'], 'NOT_READY')
+        self.assertEqual(result['schema_version'], 'historical_view_execution_plan.v2')
         self.assertEqual(result['target'], target)
         self.assertEqual(result['views']['adjusted_price-600036.SH']['config']['anchor_session'], '2025-06-11')
         self.assertEqual(result['views']['adjusted_price-000001.SZ']['config']['anchor_session'], '2025-06-13')

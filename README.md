@@ -45,3 +45,22 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 支持的代码能力与某个数据版本是否通过验收是两件事。使用数据时指定具体 Snapshot ID，
 并检查该版本的范围、质量和验收结果。
+
+Historical adjusted-price plans use `plan_historical_views(..., data_root=...,
+ snapshot_id=...)` with the fixed Snapshot's security and calendar rows. The v2
+plan retains the original target and eligible interval and records requested and
+actual anchors plus factor provenance under `price_anchor_resolution`. Save the
+complete returned plan with the operation evidence; pass its concrete `views` to
+`materialize_views`. Geometry-only calls report `price_anchor_validation=NOT_READY`.
+The Gate A v4 policy selects the last observed valid factor within the applicable
+interval for nonstrict history. For example, if 600069.SH ends identity on August
+28 and August 27 has no factor, August 26 can be the conversion anchor; August 27
+remains in scope and its source gap still needs admission. Strict requests retain
+explicit anchors. Materialization preflights all price anchors before publishing
+any View; other families and source gaps require their own admission.
+
+Fixed adjusted FactView reads reject requested symbols, dates or fields outside
+the materialized scope. Default and subset reads keep the existing values, missing
+states and PIT semantics. Scope validation alone does not prove source coverage.
+Published View schemas and old Gate A policy files remain unchanged; old readiness
+reports must be recomputed when implementation/policy changes, as before.

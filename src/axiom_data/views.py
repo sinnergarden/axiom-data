@@ -528,16 +528,20 @@ class FactView:
                 raise ArtifactNotFoundError("adjusted-price view unavailable; build-required")
             rows = self.adjusted.rows
             available = ("session", "symbol", *_ADJUSTED_FIELDS, "adjustment_state")
-            selected_fields = tuple(fields or available)
+            selected_fields = tuple(available if fields is None else fields)
             if not selected_fields or len(selected_fields) != len(set(selected_fields)) or any(
                 field not in available for field in selected_fields
             ):
                 raise ArtifactError("adjusted FactView fields are invalid")
             if price_basis != "anchor_adjusted":
                 raise ArtifactError("adjusted price requires anchor_adjusted price_basis")
-            selected_symbols = set(validate_symbols(symbols)) if symbols is not None else None
-            start = validate_session(start_session, "start_session") if start_session else None
-            end = validate_session(end_session, "end_session") if end_session else None
+            scope = self.adjusted.manifest["scope"]
+            selected_symbols = set(validate_symbols(scope["symbols"] if symbols is None else symbols))
+            start = validate_session(scope["start_session"] if start_session is None else start_session, "start_session")
+            end = validate_session(scope["end_session"] if end_session is None else end_session, "end_session")
+            if (not selected_symbols <= set(scope["symbols"]) or
+                    not scope["start_session"] <= start <= end <= scope["end_session"]):
+                raise ArtifactError("INSUFFICIENT_SCOPE: adjusted FactView request exceeds materialized scope")
             values = tuple(
                 {field: row[field] for field in selected_fields}
                 for row in rows

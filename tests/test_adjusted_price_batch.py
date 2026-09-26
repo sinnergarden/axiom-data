@@ -45,7 +45,7 @@ class AdjustedPriceBatchTest(unittest.TestCase):
             source_reads = [call.args[0] for call in reads.call_args_list
                             if call.args[0] in {'market_daily', 'adjustment_factors'}]
             self.assertEqual(source_reads.count('market_daily'), 1)
-            self.assertEqual(source_reads.count('adjustment_factors'), 1)
+            self.assertEqual(source_reads.count('adjustment_factors'), 2)  # shared preflight + bounded build
             for symbol, expected in zip(symbols, serial):
                 actual = result['published_views'][symbol]
                 self.assertEqual(actual['view_id'], expected.view_id)

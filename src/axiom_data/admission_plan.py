@@ -231,3 +231,65 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
 
 # Compatibility exports for historical callers.
 PR7_SNAPSHOT_DOMAINS = EVENT_SNAPSHOT_DOMAINS
+
+
+def resolve_price_anchors(reader, views, *, historical=False):
+    """Resolve nonstrict historical anchors, or preflight explicit anchors.
+
+    One trusted partition scan retains only candidate anchors, not full history.
+    Coverage and other View families remain separate admission requirements.
+    """
+    from copy import deepcopy
+    from axiom_data.domains.reference import validate_strict_decision_time
+    resolved = deepcopy(views)
+    requests = {}
+    for label, spec in resolved.items():
+        if _stored_view_kind(spec['kind']) != 'adjusted_price':
+            continue
+        config = _config(_builders()['adjusted_price'], reader.data_root,
+                         reader.snapshot.ref.snapshot_id, spec['config'])
+        requests[label] = config
+    if not requests:
+        return resolved, {}
+    start = min(c['start_session'] for c in requests.values())
+    end = max(c['anchor_session'] for c in requests.values())
+    symbols = sorted({s for c in requests.values() for s in c['symbols']})
+    calendars = exchange_sessions(reader, symbols, start, end)
+    identities = {r['symbol']: r for r in reader.security_master()}
+    sessions = {s: set(c['sessions']) for s, c in calendars.items()}
+    by_symbol = {s: [] for s in symbols}
+    for label, config in requests.items():
+        for symbol in config['symbols']:
+            by_symbol[symbol].append((label, config))
+    anchors = {}
+    for row in reader.session_rows('adjustment_factors', start, end):
+        symbol, day = row['symbol'], row['session']
+        for label, config in by_symbol.get(symbol, ()):
+            search = historical and config['pit_policy'] == 'research_non_pit'
+            if (config['start_session'] <= day <= config['anchor_session'] and
+                    (search or day == config['anchor_session']) and day in sessions[symbol] and
+                    _checked_security_identity_state(identities[symbol], day) == 'within_identity_interval'):
+                key = (label, symbol)
+                if key not in anchors or day > anchors[key]['session']:
+                    anchors[key] = row
+    evidence = {}
+    for label, config in requests.items():
+        rows = [anchors.get((label, s)) for s in config['symbols']]
+        if any(r is None for r in rows):
+            raise ArtifactError('adjusted-price anchor factor is unavailable: ' + label)
+        if config['pit_policy'] == 'strict_decision_time':
+            validate_strict_decision_time(rows, config['decision_cutoff'])
+        days = {r['session'] for r in rows}
+        if len(days) != 1:
+            raise ArtifactError('historical anchor resolution requires per-security View shards')
+        actual = days.pop()
+        resolved[label]['config']['anchor_session'] = actual
+        evidence[label] = dict(requested_anchor_upper_bound=config['anchor_session'],
+            actual_anchor_session=actual, factor_rows=rows,
+            selection_rule=('last_observed_factor_in_applicable_interval.v1'
+                            if historical and config['pit_policy'] == 'research_non_pit' else 'explicit_anchor.v1'))
+    reader._check_consumed_metadata(force=True)
+    return resolved, dict(schema_version='price_anchor_resolution.v1',
+        snapshot_id=reader.snapshot.ref.snapshot_id,
+        snapshot_manifest_digest=reader.snapshot.ref.manifest_digest,
+        factor_domain_ref=reader.snapshot.manifest['domain_refs']['adjustment_factors'], anchors=evidence)
