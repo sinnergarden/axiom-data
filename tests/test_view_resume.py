@@ -14,6 +14,8 @@ from fixture_locations import fixture_root
 
 class ViewResumeTest(unittest.TestCase):
     def setUp(self):
+        # Internal checkpoint unit tests inject in-process builder failures.
+        self.enterContext(patch('axiom_data.frozen_execution.is_frozen', return_value=True))
         self.temp=tempfile.TemporaryDirectory()
         self.root=Path(self.temp.name)/'data'
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())

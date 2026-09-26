@@ -553,7 +553,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         def broken_volume(value: object) -> int:
             return int(float(value) * 0.01)  # type: ignore[arg-type]
 
-        with patch("axiom_data.tushare._volume_shares", side_effect=broken_volume):
+        with patch("axiom_data.frozen_execution.is_frozen", return_value=True), patch("axiom_data.tushare._volume_shares", side_effect=broken_volume):
             artifacts = build_fixture(self.root, fixture, ids)
         source = independent_tushare_market_expectations(
             self.root,
@@ -604,7 +604,7 @@ class Pr3VerticalSliceTest(unittest.TestCase):
         )
 
         changed_root = Path(self.temporary.name) / "changed-profile"
-        with patch(
+        with patch("axiom_data.frozen_execution.is_frozen", return_value=True), patch(
             "axiom_data.tushare.load_tushare_source_profile",
             return_value=changed_profile,
         ):

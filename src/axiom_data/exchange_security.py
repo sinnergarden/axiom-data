@@ -86,6 +86,9 @@ class ExchangeSecurityBuilder(MarketDomainBuilder):
         super().__init__(data_root,domain,builder_config=config,**kwargs)
 
     def __call__(self,request):
+        from axiom_data.frozen_execution import is_frozen, execute_builder
+        if not is_frozen():
+            return execute_builder(self, request)
         if request.parent_commit:
             parent=validate_domain_commit_closure(self.layout.root,self.domain,request.parent_commit)
             if parent.manifest['builder_implementation_ref']['revision']!=self.implementation_revision:

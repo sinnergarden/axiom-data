@@ -47,7 +47,7 @@ class GateAFinalizationTest(unittest.TestCase):
         result = gate_a.validate_gate_a(self.plan)
         self.assertEqual(result['status'], 'GATE_A_READY_FOR_BULK_BUILD', result['findings'])
         self.assertEqual(result['evidence']['terminal_plan']['schema_status'], 'PLAN_DEFINED')
-        self.assertEqual(result['evidence']['terminal_plan']['execution_status'], 'CAPABILITY_BLOCKED')
+        self.assertEqual(result['evidence']['terminal_plan']['execution_status'], 'CAPABILITY_READY')
         self.assertFalse(result['bulk_authorized'])
         self.assertFalse(result['ready_for_consumption'])
         self.assertEqual(result['gate_b_status'], 'NOT_ASSESSED')

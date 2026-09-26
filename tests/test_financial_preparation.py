@@ -18,6 +18,8 @@ from fixture_locations import fixture_root
 
 class FinancialPreparationTest(unittest.TestCase):
     def setUp(self):
+        # Internal publication/projection instrumentation; real public isolation has separate tests.
+        self.enterContext(patch('axiom_data.frozen_execution.is_frozen', return_value=True))
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / 'data'

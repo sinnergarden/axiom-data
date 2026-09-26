@@ -3,7 +3,8 @@
 `verify_recovery` validates a root restored from an explicitly identified backup.
 It does not copy files, collect source data, or approve a V1 baseline. Preserve
 Raw payloads/manifests, canonical objects/commits and their parents/dependencies,
-the exact Snapshot, and required View artifacts. Install the pinned implementation
+the exact Snapshot, required View artifacts, and referenced `code_bundles`.
+Preserve operation invocations to resume their captured code after root relocation. Install the pinned implementation
 and retain the original source profiles, contracts and configuration. A partial
 copy is rejected by the ordinary closure validators.
 

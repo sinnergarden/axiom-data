@@ -223,7 +223,7 @@ def _derived_identity(prefix: str, identity_digest: str) -> str:
     return f"{prefix}-{identity_digest.removeprefix('sha256:')}"
 
 
-def _builder_implementation_ref(builder: object) -> dict[str, str]:
+def _builder_implementation_ref(builder: object) -> dict[str, Any]:
     implementation = f"{type(builder).__module__}.{type(builder).__qualname__}"
     revision = getattr(builder, "implementation_revision", None)
     if not isinstance(revision, str) or not revision:
@@ -232,22 +232,26 @@ def _builder_implementation_ref(builder: object) -> dict[str, str]:
         "implementation": implementation,
         "revision": revision,
     }
+    from axiom_data.frozen_execution import executed_code_ref
+    if executed_code_ref() is not None:
+        descriptor['executed_code_ref'] = executed_code_ref()
     return {**descriptor, "digest": _digest(_json_bytes(descriptor))}
 
 
 def _validate_builder_implementation_ref(value: object) -> None:
-    if not isinstance(value, dict) or set(value) != {
-        "implementation",
-        "revision",
-        "digest",
-    }:
+    if not isinstance(value, dict) or set(value) not in (
+        {"implementation", "revision", "digest"},
+        {"implementation", "revision", "digest", "executed_code_ref"},
+    ):
         raise ArtifactError("builder implementation ref is invalid")
     descriptor = {
         "implementation": value["implementation"],
         "revision": value["revision"],
     }
+    if 'executed_code_ref' in value:
+        descriptor['executed_code_ref'] = value['executed_code_ref']
     if (
-        not all(isinstance(item, str) and item for item in descriptor.values())
+        not all(isinstance(descriptor[key], str) and descriptor[key] for key in ('implementation', 'revision'))
         or value["digest"] != _digest(_json_bytes(descriptor))
     ):
         raise ArtifactError("builder implementation ref digest mismatch")
@@ -382,6 +386,9 @@ def _load_manifest(
         or manifest.get(identity_field) != identity
     ):
         raise ArtifactError(f"{artifact_type} manifest identity mismatch")
+    from axiom_data.frozen_execution import VIEW_EXECUTION_SCHEMAS, validate_code
+    if manifest['schema_version'] in VIEW_EXECUTION_SCHEMAS:
+        validate_code(root, manifest.get('executed_code_ref'))
     return manifest, actual_digest
 
 
@@ -988,6 +995,9 @@ class MarketDomainBuilder:
         return _merge_rows(self.domain, contract, parent_rows, raw_batches)
 
     def __call__(self, request: BuildRequest) -> DomainCommitRef:
+        from axiom_data.frozen_execution import is_frozen, execute_builder
+        if not is_frozen() and type(self).__module__.startswith('axiom_data.'):
+            return execute_builder(self, request)
         from axiom_data.contracts import require_writable_contract, writable_contracts
         try:
             require_writable_contract(self.domain, request.contract_version)
@@ -1177,6 +1187,9 @@ class MarketDomainBuilder:
             manifest['group_states'] = self.group_states
         if coverage_enabled:
             manifest['source_coverage'] = coverage
+        if 'executed_code_ref' in builder_implementation_ref:
+            manifest['schema_version'] = ('domain_commit.v4' if manifest['schema_version'] in {'domain_commit.v2', 'domain_commit.v4'}
+                                          else 'domain_commit.v3')
         identity_digest = _identity_digest(manifest, "domain_commit_id")
         commit_id = _derived_identity(self.domain, identity_digest)
         if self.expected_commit_id is not None and self.expected_commit_id != commit_id:
@@ -1188,7 +1201,7 @@ class MarketDomainBuilder:
 
         def prepare(candidate: Path) -> None:
             _write_file(candidate / "contract.json", contract_content)
-            if manifest['schema_version'] == 'domain_commit.v2':
+            if manifest['schema_version'] in {'domain_commit.v2', 'domain_commit.v4'}:
                 from axiom_data.partitions import read_partitions
                 staged_rows = (PartitionRows(self.layout, self.domain, manifest, contract)
                     if self.domain not in WHOLE_STATE_DOMAINS else
@@ -1245,7 +1258,7 @@ def _load_domain_commit(data_root, domain, domain_commit_id, *, verify_rows):
         layout.root,
         target,
         artifact_type="domain_commit",
-        schema_version=("domain_commit.v1", "domain_commit.v2"),
+        schema_version=("domain_commit.v1", "domain_commit.v2", "domain_commit.v3", "domain_commit.v4"),
         identity_field="domain_commit_id",
         identity=domain_commit_id,
     )
@@ -1253,6 +1266,12 @@ def _load_domain_commit(data_root, domain, domain_commit_id, *, verify_rows):
         raise ArtifactError("DomainCommit domain mismatch")
     _validate_manifest_identity(manifest, "domain_commit_id", domain, domain_commit_id)
     _validate_builder_implementation_ref(manifest.get("builder_implementation_ref"))
+    if (manifest['schema_version'] in {'domain_commit.v3', 'domain_commit.v4'}) != (
+            'executed_code_ref' in manifest['builder_implementation_ref']):
+        raise ArtifactError('DomainCommit execution protocol mismatch')
+    if 'executed_code_ref' in manifest['builder_implementation_ref']:
+        from axiom_data.frozen_execution import validate_code
+        validate_code(data_root, manifest['builder_implementation_ref']['executed_code_ref'])
     builder_config = manifest.get("builder_config")
     if not isinstance(builder_config, dict) or manifest.get(
         "builder_config_digest"
@@ -1283,7 +1302,7 @@ def _load_domain_commit(data_root, domain, domain_commit_id, *, verify_rows):
     except BuildContractError as exc:
         raise ArtifactError("DomainCommit uses an unsupported contract") from exc
 
-    if manifest['schema_version'] == 'domain_commit.v2':
+    if manifest['schema_version'] in {'domain_commit.v2', 'domain_commit.v4'}:
         from axiom_data.partition_rows import PartitionRows, STREAM_ROW_THRESHOLD, WHOLE_STATE_DOMAINS
         from axiom_data.partitions import read_partitions
         partition_rows = PartitionRows(layout, domain, manifest, contract)
@@ -1934,7 +1953,7 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
     for artifact_dir in _artifact_directories(layout.root, layout.derived_commits("pr6_fact")):
         reader, version = view_reader(artifact_dir)
         view = load_financial_fact_view_with_reader(layout.root, artifact_dir.name,
-            checked_reader=reader if version in {'pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5'} else None)
+            checked_reader=reader if version in {'pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'} else None)
         for artifact_type in ("pr6_fact_view", "qlib_view"):
             entries.append(CatalogEntry(artifact_type, view.ref.view_id, "pr6_fact",
                 view.manifest["schema_version"],

@@ -10,6 +10,10 @@ from axiom_data import ArtifactError, BuildContractError, materialize_views
 
 
 class ViewOperationTest(unittest.TestCase):
+    def setUp(self):
+        # Internal checkpoint tests; public real-process coverage is separate.
+        self.enterContext(patch('axiom_data.frozen_execution.is_frozen', return_value=True))
+
     def test_required_failure_resume_and_execution_record_substitution(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         common=dict(symbols=['688981.SH'],start_session='2025-06-10',end_session='2025-06-13')

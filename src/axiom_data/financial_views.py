@@ -1,5 +1,9 @@
 """Snapshot-bound financial Fact/Qlib materialization."""
 from __future__ import annotations
+
+from axiom_data.frozen_execution import (frozen_operation, bind_view_execution, executed_code_ref,
+                                         source_bundle, view_source_bundle)
+from axiom_data import frozen_execution
 import json
 from bisect import bisect_right
 from collections import OrderedDict
@@ -385,9 +389,9 @@ def _files(payload, symbols, bundle, *, membership_ref=False):
     return output
 
 
-def _sparse_files(states, symbols, bundle):
+def _sparse_files(states, symbols, bundle, *, code_ref=None):
     sessions=states['sessions']
-    return {'code_bundle.json':_json_bytes(bundle), 'states.json.gz':packed_states(states),
+    return {'code_bundle.json':_json_bytes(code_ref if code_ref is not None else bundle), 'states.json.gz':packed_states(states),
             'calendars/day.txt':('\n'.join(sessions)+'\n').encode(),
             'instruments/all.txt':''.join(f'{qlib_symbol(s)}\t{sessions[0]}\t{sessions[-1]}\n'
                                            for s in symbols).encode()}
@@ -432,6 +436,7 @@ def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resol
                                    for spans in by_field.values())} if sparse else {})}}
 
 
+@frozen_operation()
 def build_financial_fact_view(data_root,snapshot_id,*,symbols,start_session,end_session,universe_ids,
                         industry_system,pit_policy,knowledge_cutoff):
     return build_financial_fact_view_from_reader(SnapshotReader(data_root,snapshot_id),symbols=symbols,
@@ -441,6 +446,11 @@ def build_financial_fact_view(data_root,snapshot_id,*,symbols,start_session,end_
 
 def build_financial_fact_view_from_reader(reader,*,symbols,start_session,end_session,universe_ids,
                          industry_system,pit_policy,knowledge_cutoff):
+    if not frozen_execution.is_frozen():
+        return build_financial_fact_view(reader.data_root, reader.snapshot.ref.snapshot_id,
+            symbols=symbols, start_session=start_session, end_session=end_session,
+            universe_ids=universe_ids, industry_system=industry_system,
+            pit_policy=pit_policy, knowledge_cutoff=knowledge_cutoff)
     data_root=reader.data_root
     scope={'symbols':list(validate_symbols(symbols)),'start_session':start_session,'end_session':end_session,
            'universe_ids':list(universe_ids),'industry_system':industry_system}
@@ -450,11 +460,16 @@ def build_financial_fact_view_from_reader(reader,*,symbols,start_session,end_ses
         kind='financial',cutoff=knowledge_cutoff)
     SparseDailyRows(states,symbols=scope['symbols'],fields=WIDE_FIELDS,
         kind='financial',cutoff=knowledge_cutoff)
-    source_root=Path(str(files("axiom_data")))
-    bundle={p.relative_to(source_root).as_posix():p.read_text() for p in sorted(source_root.rglob("*")) if p.is_file() and p.suffix in {".py",".json"}}
-    contents=_sparse_files(states,scope['symbols'],bundle)
+    code_ref=executed_code_ref()
+    if code_ref is not None:
+        bundle=source_bundle(data_root,code_ref)
+    else:
+        source_root=Path(str(files("axiom_data")))
+        bundle={p.relative_to(source_root).as_posix():p.read_text() for p in sorted(source_root.rglob("*")) if p.is_file() and p.suffix in {".py",".json"}}
+    contents=_sparse_files(states,scope['symbols'],bundle,code_ref=code_ref)
     manifest=_manifest(reader,scope,pit_policy,knowledge_cutoff,payload,bundle,
         membership_ref=True,sparse_states=states,contents=contents)
+    bind_view_execution(manifest,'pr6_fact_view.v6')
     identity=_identity_digest(manifest,'view_id');view_id=_derived_identity('pr6-fact',identity)
     manifest.update(view_id=view_id,identity_digest=identity,created_at=_timestamp(None))
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
@@ -475,13 +490,13 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
     layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
     manifest,digest=_load_manifest(layout.root,target,artifact_type='pr6_fact_view',
         schema_version=('pr6_fact_view.v1','pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4',
-                        'pr6_fact_view.v5'),identity_field='view_id',identity=view_id)
+                        'pr6_fact_view.v5','pr6_fact_view.v6'),identity_field='view_id',identity=view_id)
     declared=manifest['schema_version']
     if declared=='pr6_fact_view.v1':
         from axiom_data.pr6_views_v1 import LegacyReader, project as projection, _manifest as manifest_builder, _files as payload_files
     else:
-        resolution=declared in {'pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5'}
-        refs=declared in {'pr6_fact_view.v4','pr6_fact_view.v5'}
+        resolution=declared in {'pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'}
+        refs=declared in {'pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'}
         LegacyReader=SnapshotReader
         projection=partial(project,financial_resolution=resolution,membership_ref=refs)
         manifest_builder=partial(_manifest,financial_resolution=resolution,membership_ref=refs)
@@ -493,13 +508,13 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or
         reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
         raise ArtifactError('checked Reader does not match financial View Snapshot')
-    if declared=='pr6_fact_view.v5':
+    if declared in {'pr6_fact_view.v5','pr6_fact_view.v6'}:
         contents=_declared_content_files(layout.root,target,manifest.get('files'))
         try:
             scope=manifest['scope'];policy=manifest['pit_policy'];cutoff=manifest['knowledge_cutoff']
             symbols=validate_symbols(scope['symbols'])
             states=unpacked_states(contents['states.json.gz'],manifest['state_uncompressed_bytes'])
-            bundle=json.loads(contents['code_bundle.json'])
+            bundle=view_source_bundle(data_root,manifest,contents['code_bundle.json'])
             rows=SparseDailyRows(states,symbols=symbols,fields=WIDE_FIELDS,kind='financial',cutoff=cutoff)
             summary=manifest['validation_summary']
             expected_scope=dict(scope,fields=list(WIDE_FIELDS))
@@ -532,7 +547,7 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
                 raise ArtifactError('sparse financial View structural closure mismatch')
         except (KeyError,IndexError,TypeError,ValueError) as exc:
             raise ArtifactError('sparse financial View structure is invalid') from exc
-        expected_files=_sparse_files(states,symbols,bundle)
+        expected_files=_sparse_files(states,symbols,bundle,code_ref=manifest.get('executed_code_ref'))
         expected_files['states.json.gz']=contents['states.json.gz']
         if contents!=expected_files:
             raise ArtifactError('sparse financial View files differ from declared states')

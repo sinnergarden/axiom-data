@@ -123,7 +123,7 @@ class FinancialMembershipRefTest(unittest.TestCase):
             self.assertEqual(view.manifest['pit_qualification'],legacy_manifest['pit_qualification'])
             self.assertEqual({k:view.manifest['validation_summary'][k] for k in
                               ('status','wide_rows','derived_rows')},legacy_manifest['validation_summary'])
-            self.assertEqual(view.manifest['schema_version'], 'pr6_fact_view.v5')
+            self.assertEqual(view.manifest['schema_version'], 'pr6_fact_view.v6')
             self.assertEqual(list(view.rows), compact['wide'])
             target = root / 'derived/pr6_fact/commits' / ref.view_id
             stored = target / 'states.json.gz'

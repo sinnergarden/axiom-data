@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from axiom_data.frozen_execution import frozen_operation, bind_view_execution
+
 import math
 import struct
 import heapq
@@ -552,6 +554,7 @@ def feature_bytes(start_index: int, values: Sequence[object]) -> bytes:
     return struct.pack(f"<{len(encoded)}f", *encoded)
 
 
+@frozen_operation()
 def build_qlib_view(
     data_root: str | Path,
     snapshot_id: str,
@@ -773,6 +776,7 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
                 "source_quality_refs": adjusted.manifest["domain_refs"],
             }
         )
+    bind_view_execution(manifest, "qlib_view.v4" if adjusted is not None else "qlib_view.v3")
     identity_digest = _identity_digest(manifest, "view_id")
     view_id = _derived_identity("qlib", identity_digest)
     manifest["view_id"] = view_id
@@ -813,7 +817,7 @@ def _load_qlib_view(data_root, view_id, *, checked_reader=None, structural_only=
         layout.root,
         target,
         artifact_type="qlib_view",
-        schema_version=("qlib_view.v1", "qlib_view.v2"),
+        schema_version=("qlib_view.v1", "qlib_view.v2", "qlib_view.v3", "qlib_view.v4"),
         identity_field="view_id",
         identity=view_id,
     )
@@ -831,7 +835,7 @@ def _load_qlib_view(data_root, view_id, *, checked_reader=None, structural_only=
         "identity_digest": snapshot.manifest["identity_digest"],
     }:
         raise ArtifactError("QlibView snapshot ref does not match its artifact")
-    if manifest.get("schema_version") == "qlib_view.v2":
+    if manifest.get("schema_version") in {"qlib_view.v2", "qlib_view.v4"}:
         from axiom_data.views import _load_adjusted_price_view
 
         derived_refs = manifest.get("derived_refs")
@@ -1005,7 +1009,7 @@ class QlibViewReader:
 
     def fact_metadata(self, *, start_session=None, end_session=None):
         rows=(self.view.rows.range(start_session,end_session)
-              if self.view.manifest.get('schema_version') in {'pr6_fact_view.v5','pr7_fact_view.v4'}
+              if self.view.manifest.get('schema_version') in {'pr6_fact_view.v5','pr6_fact_view.v6','pr7_fact_view.v4','pr7_fact_view.v5'}
               else (r for r in self.view.rows
                     if (start_session is None or r['session']>=start_session)
                     and (end_session is None or r['session']<=end_session)))
@@ -1038,7 +1042,7 @@ class QlibViewReader:
 
     def market_daily(self, *, include_missing: bool = False, start_session=None,
                      end_session=None, symbols=None) -> tuple[dict[str, Any], ...]:
-        if self.view.manifest['schema_version'] in {'pr6_fact_view.v5','pr7_fact_view.v4'}:
+        if self.view.manifest['schema_version'] in {'pr6_fact_view.v5','pr6_fact_view.v6','pr7_fact_view.v4','pr7_fact_view.v5'}:
             selected=validate_symbols(symbols) if symbols is not None else None
             if selected is not None and not set(selected)<=set(self.view.manifest['scope']['symbols']):
                 raise ArtifactError('INSUFFICIENT_SCOPE: View symbols')
@@ -1153,7 +1157,7 @@ def compare_direct_and_qlib(
             scope["symbols"], scope["start_session"], scope["end_session"]
         )
     }
-    if manifest.get("schema_version") == "qlib_view.v2":
+    if manifest.get("schema_version") in {"qlib_view.v2", "qlib_view.v4"}:
         from axiom_data.views import load_adjusted_price_view
 
         adjusted = load_adjusted_price_view(
@@ -1243,7 +1247,7 @@ def compare_direct_and_qlib(
         "manifest_digest": view.view.ref.manifest_digest,
         "identity_digest": view.view.manifest["identity_digest"],
     }
-    if manifest.get("schema_version") == "qlib_view.v2":
+    if manifest.get("schema_version") in {"qlib_view.v2", "qlib_view.v4"}:
         qlib_report_ref.update(
             {
                 "content_digest": _digest(

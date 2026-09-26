@@ -22,6 +22,8 @@ _COLLECTOR_ALIASES = {
 }
 
 
+from axiom_data.frozen_execution import frozen_operation
+
 def normalize_source_request(spec):
     """Use the existing persisted collector name before request identity or plan freeze."""
     if isinstance(spec, dict) and isinstance(spec.get('collector'), str):
@@ -743,6 +745,7 @@ def repair(data_root, *, run_id, snapshot_id, domain_inputs):
                               parent_snapshot_id=concrete)
 
 
+@frozen_operation('canonical')
 @candidate_verification
 def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=None):
     """Build explicit changed domains and an immutable candidate; never promote it.

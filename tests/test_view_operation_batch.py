@@ -11,6 +11,10 @@ from fixture_locations import fixture_root
 
 
 class ViewOperationBatchTest(unittest.TestCase):
+    def setUp(self):
+        # Internal publication/projection instrumentation; real public isolation has separate tests.
+        self.enterContext(patch('axiom_data.frozen_execution.is_frozen', return_value=True))
+
     def test_market_replay_batch_rejects_changed_contract_before_next_build(self):
         run = json.loads(Path('reports/pr7/run_manifest.json').read_text())
         with tempfile.TemporaryDirectory() as directory:

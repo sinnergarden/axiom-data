@@ -11,6 +11,10 @@ from axiom_data import pr6_views, pr7_views
 
 
 class FactPublicationValidationTest(unittest.TestCase):
+    def setUp(self):
+        # Internal publication/projection instrumentation; real public isolation has separate tests.
+        self.enterContext(patch('axiom_data.frozen_execution.is_frozen', return_value=True))
+
     def test_each_fact_build_validates_snapshot_once_and_later_load_revalidates(self):
         run=json.loads(Path('reports/pr7/run_manifest.json').read_bytes())
         with tempfile.TemporaryDirectory() as directory:

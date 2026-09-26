@@ -155,7 +155,15 @@ class BuildApplication:
             require_writable_contract(self.domain, request.contract_version)
         except ValueError as exc:
             raise BuildContractError(str(exc)) from exc
-        result = self.executor(request)
+        from axiom_data.artifacts import MarketDomainBuilder
+        from axiom_data.frozen_execution import is_frozen, execute_builder
+        if (isinstance(self.executor, MarketDomainBuilder)
+                and type(self.executor).__module__.startswith('axiom_data.')
+                and not is_frozen()):
+            # The frozen child validates the complete built-in application result.
+            return execute_builder(self.executor, request, application=True)
+        else:
+            result = self.executor(request)
         if not isinstance(result, DomainCommitRef):
             raise BuildContractError("executor must return DomainCommitRef")
         returned_domain = _validate_identity("result.domain", result.domain)
