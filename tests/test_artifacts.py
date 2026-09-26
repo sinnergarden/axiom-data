@@ -77,7 +77,10 @@ def synthetic_source_profiles():
                 or manifest.get("summary", {}).get("synthetic_source_proof") != proof):
             raise completeness.SourceCompletenessError("invalid synthetic source proof", raw_batch_id=raw.ref.raw_batch_id)
 
-    with patch.object(completeness, 'completeness_policy', policy), patch.object(
+    # These are in-process mapping/publication tests with synthetic policy injection.
+    # Real public frozen execution is covered by test_frozen_execution.
+    with patch('axiom_data.frozen_execution.is_frozen', return_value=True), patch.object(
+            completeness, 'completeness_policy', policy), patch.object(
             completeness, '_validate_raw_binding', binding):
         yield
 

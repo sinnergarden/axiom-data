@@ -4,6 +4,9 @@ import io
 import os
 import socket
 from contextlib import ExitStack,contextmanager
+from contextvars import ContextVar
+
+active_offline_guard = ContextVar("axiom_offline_guard", default=None)
 from pathlib import Path
 from unittest.mock import patch
 
@@ -26,4 +29,8 @@ def deny_external_data(data_root):
     with ExitStack() as stack:
         for owner,name in [(builtins,'open'),(io,'open'),(os,'open')]:stack.enter_context(patch.object(owner,name,wrap(getattr(owner,name))))
         for owner,name in [(socket.socket,'connect'),(socket.socket,'connect_ex'),(socket,'create_connection'),(socket,'getaddrinfo')]:stack.enter_context(patch.object(owner,name,no_network))
-        yield attempts
+        token = active_offline_guard.set((root, attempts))
+        try:
+            yield attempts
+        finally:
+            active_offline_guard.reset(token)

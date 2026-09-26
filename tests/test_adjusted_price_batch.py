@@ -18,6 +18,10 @@ FIXED_TIME = '2026-09-23T00:00:00+08:00'
 
 
 class AdjustedPriceBatchTest(unittest.TestCase):
+    def setUp(self):
+        # Internal publication/projection instrumentation; real public isolation has separate tests.
+        self.enterContext(patch('axiom_data.frozen_execution.is_frozen', return_value=True))
+
     def test_serial_and_operation_batch_publish_the_same_independent_views(self):
         symbols = ('600000.SH', '600036.SH')
         with tempfile.TemporaryDirectory() as directory:

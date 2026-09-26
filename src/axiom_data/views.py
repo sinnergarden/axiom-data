@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from axiom_data.frozen_execution import frozen_operation, bind_view_execution
+
 import json
 from contextlib import contextmanager
 from collections.abc import Mapping, Sequence
@@ -123,6 +125,7 @@ def _adjusted_batch_rows(reader, domain, selected, start, end):
                  if start <= row["session"] <= end)
 
 
+@frozen_operation()
 def build_adjusted_price_view(
     data_root: str | Path,
     snapshot_id: str,
@@ -270,6 +273,7 @@ def _build_adjusted_price_view(reader, *, symbols, start_session, end_session,
             "availability_qualification": qualification,
         },
     }
+    bind_view_execution(manifest, "adjusted_price_view.v2")
     identity_digest = _identity_digest(manifest, "view_id")
     view_id = _derived_identity("adjusted-price", identity_digest)
     manifest["view_id"] = view_id
@@ -305,7 +309,7 @@ def _load_adjusted_price_view(data_root, view_id, *, checked_reader=None, struct
         layout.root,
         target,
         artifact_type="adjusted_price_view",
-        schema_version="adjusted_price_view.v1",
+        schema_version=("adjusted_price_view.v1", "adjusted_price_view.v2"),
         identity_field="view_id",
         identity=view_id,
     )
@@ -436,12 +440,12 @@ class FactView:
             layout = _layout(data_root)
             identity = _identity('view_id', financial_fact_view_id)
             manifest, _ = _load_manifest(layout.root, layout.derived_commits('pr6_fact') / identity,
-                artifact_type='pr6_fact_view', schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2', 'pr6_fact_view.v3', 'pr6_fact_view.v4', 'pr6_fact_view.v5'),
+                artifact_type='pr6_fact_view', schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2', 'pr6_fact_view.v3', 'pr6_fact_view.v4', 'pr6_fact_view.v5', 'pr6_fact_view.v6'),
                 identity_field='view_id', identity=identity)
             # v1 keeps its frozen LegacyReader projection. v2 can share the
             # complete closure checked in this constructor invocation.
             self.financial = load_financial_fact_view_with_reader(data_root, identity,
-                checked_reader=self.reader if manifest['schema_version'] in {'pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5'} else None)
+                checked_reader=self.reader if manifest['schema_version'] in {'pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'} else None)
             if self.financial.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
                 raise ArtifactError("financial FactView belongs to another Snapshot")
         self.pr6 = self.financial  # Historical attribute alias.
@@ -505,7 +509,7 @@ class FactView:
                 raise ArtifactError("invalid financial FactView fields")
             source_rows=(self.financial.rows.range(start_session,end_session,
                          tuple(symbols) if symbols is not None else tuple(manifest['validated_scope']['symbols']))
-                         if manifest['schema_version']=='pr6_fact_view.v5' else
+                         if manifest['schema_version'] in {'pr6_fact_view.v5','pr6_fact_view.v6'} else
                          tuple(r for r in self.financial.rows if r['symbol'] in selected
                                and (start_session is None or r['session']>=start_session)
                                and (end_session is None or r['session']<=end_session)))
@@ -520,7 +524,7 @@ class FactView:
                         "end_session":end_session or manifest['scope']['end_session'],"fields":list(selected_fields)},
                     "actual_available_scope":manifest['actual_available_scope'],"validated_scope":manifest['validated_scope'],
                     **({'membership_ref':manifest['membership_ref']} if manifest['schema_version'] in
-                        {'pr6_fact_view.v4','pr6_fact_view.v5'} else {}),
+                        {'pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'} else {}),
                     "facts":tuple({'symbol':r['symbol'],'session':r['session'],
                         'fields':{f:r['facts'][f] for f in selected_fields}} for r in source_rows)}
         if domain == "adjusted_price":
@@ -610,6 +614,7 @@ class FactView:
         }
 
 
+@frozen_operation()
 def build_market_replay_view(
     data_root: str | Path,
     snapshot_id: str,
@@ -710,6 +715,7 @@ def _build_market_replay_view(reader, *, symbols, start_session, end_session, cr
         "output": {"path": "rows.json", "content_digest": _digest(rows_content), "rows": len(rows)},
         "validation_summary": {"status": "PASS", "fact_only": True, "rows": len(rows)},
     }
+    bind_view_execution(manifest, "market_replay_view.v2")
     identity_digest = _identity_digest(manifest, "view_id")
     view_id = _derived_identity("market-replay", identity_digest)
     manifest["view_id"] = view_id
@@ -733,7 +739,7 @@ def _load_market_replay_view(data_root, view_id, *, checked_reader=None, structu
     layout = _layout(data_root)
     view_id = _identity("view_id", view_id)
     target = _view_target(data_root, "market_replay", view_id)
-    manifest, manifest_digest = _load_manifest(layout.root, target, artifact_type="market_replay_view", schema_version="market_replay_view.v1", identity_field="view_id", identity=view_id)
+    manifest, manifest_digest = _load_manifest(layout.root, target, artifact_type="market_replay_view", schema_version=("market_replay_view.v1", "market_replay_view.v2"), identity_field="view_id", identity=view_id)
     _validate_manifest_identity(manifest, "view_id", "market-replay", view_id)
     snapshot_ref = manifest.get("snapshot_ref")
     if not isinstance(snapshot_ref, dict) or not isinstance(snapshot_ref.get("snapshot_id"), str):

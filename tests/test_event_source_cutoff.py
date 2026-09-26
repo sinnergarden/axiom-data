@@ -86,7 +86,8 @@ class EventSourceCutoffTest(unittest.TestCase):
         return pr7_views.project(self.reader, self.scope, 'best_effort_vendor_v1', CUTOFF, **kwargs)
 
     def test_real_public_view_keeps_end_and_missing_matches_direct_and_qlib(self):
-        with patch.object(pr7_views, 'SnapshotReader', return_value=self.reader):
+        # Bounded synthetic Reader test; actual public subprocess builds use real Snapshots.
+        with patch('axiom_data.frozen_execution.is_frozen', return_value=True), patch.object(pr7_views, 'SnapshotReader', return_value=self.reader):
             ref = pr7_views.build_pr7_fact_view(self.root, self.reader.snapshot.ref.snapshot_id,
                 **self.scope, pit_policy='best_effort_vendor_v1', knowledge_cutoff=CUTOFF)
             view = pr7_views.load_pr7_fact_view(self.root, ref.view_id)
@@ -111,7 +112,8 @@ class EventSourceCutoffTest(unittest.TestCase):
             target_session='2026-09-11', knowledge_cutoff=CUTOFF, pit_policy='best_effort_vendor_v1'))
         self.assertEqual([r['session'] for r in qlib], ['2026-09-10', '2026-09-11'])
         self.assertIsNone(qlib[-1]['margin.balance'])
-        with patch.object(pr7_views, 'SnapshotReader', return_value=self.reader):
+        # Bounded synthetic Reader test; actual public subprocess builds use real Snapshots.
+        with patch('axiom_data.frozen_execution.is_frozen', return_value=True), patch.object(pr7_views, 'SnapshotReader', return_value=self.reader):
             public = QlibViewReader(self.root, ref.view_id)
         self.assertEqual(public.as_of('2026-09-11'), (qlib[-1],))
         self.assertEqual(public.market_daily(include_missing=True,
@@ -165,7 +167,8 @@ class EventSourceCutoffTest(unittest.TestCase):
         for name,content in pr7_views.payload_files(payload,legacy_scope['symbols'],bundle).items():
             path=target/name;path.parent.mkdir(parents=True,exist_ok=True);_write_file(path,content)
         _write_manifest(target,manifest)
-        with patch.object(pr7_views, 'SnapshotReader', return_value=self.reader):
+        # Bounded synthetic Reader test; actual public subprocess builds use real Snapshots.
+        with patch('axiom_data.frozen_execution.is_frozen', return_value=True), patch.object(pr7_views, 'SnapshotReader', return_value=self.reader):
             old = pr7_views.load_pr7_fact_view(self.root, view_id)
         self.assertEqual(old.manifest['schema_version'], 'pr7_fact_view.v2')
         with self.assertRaisesRegex(ArtifactError, 'INSUFFICIENT_SCOPE'):

@@ -1,4 +1,6 @@
 """Resumable required-View stage over the existing immutable public builders."""
+
+from axiom_data.frozen_execution import frozen_operation, bind_view_execution
 import inspect
 import json
 import time
@@ -30,7 +32,7 @@ def _completed_view(reader, spec, record, builder, loader, code):
         from axiom_data.consumption import _validate_qlib_inputs
         _validate_qlib_inputs(reader,structural_only=True,
             **{k:v for k,v in config.items() if k not in {'data_root','snapshot_id'}})
-        actual_basis = ('unadjusted' if manifest['schema_version'] == 'qlib_view.v1'
+        actual_basis = ('unadjusted' if manifest['schema_version'] in {'qlib_view.v1','qlib_view.v3'}
                         else manifest['price_basis'])
         if actual_basis != config['price_basis']:
             raise ArtifactError('completed Qlib View price basis mismatch')
@@ -58,6 +60,7 @@ def _completed_view(reader, spec, record, builder, loader, code):
     return view.ref
 
 
+@frozen_operation('views')
 def materialize_views(data_root, *, run_id, snapshot_id, views):
     """Build frozen View requests; required failures keep the candidate unready.
 

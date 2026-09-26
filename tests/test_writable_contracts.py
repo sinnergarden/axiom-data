@@ -90,7 +90,8 @@ class WritableContractsTest(unittest.TestCase):
     def test_missing_current_policy_cannot_be_bypassed_by_legacy_contract_or_coverage(self):
         extension = source_completeness._extension()
         extension['endpoints'].pop('forecast')
-        with patch.object(source_completeness, '_extension', return_value=extension):
+        # Fault injection targets admission logic, not the captured-package transport.
+        with patch('axiom_data.frozen_execution.is_frozen', return_value=True), patch.object(source_completeness, '_extension', return_value=extension):
             for version, config in [('forecast_observations.v1', {}),
                                     ('forecast_observations.v2', {'coverage_state_policy': 'source_observations.v1'}),
                                     ('forecast_observations.v2', {})]:
