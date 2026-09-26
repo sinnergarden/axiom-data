@@ -20,7 +20,7 @@ class GateATest(unittest.TestCase):
         self.assertEqual(len(result['evidence']['requirement_bindings']), 56)
         self.assertEqual(result['evidence']['source_plan']['scope'], self.scope)
         self.assertEqual(result['evidence']['terminal_plan']['schema_status'], 'PLAN_DEFINED')
-        self.assertTrue(result['evidence']['terminal_plan']['missing_capabilities'])
+        self.assertEqual(result['evidence']['terminal_plan']['missing_capabilities'], [])
         self.assertTrue(result['external_review_required'])
         self.assertFalse(result['bulk_authorized'])
         self.assertFalse(result['ready_for_consumption'])
@@ -125,9 +125,8 @@ class GateATest(unittest.TestCase):
             gate_a.validate_terminal_evidence('/unused', {'status': 'PASS'}, plan=self.plan['terminal_evidence_plan'])
         evidence = {name: {field: 'PASS' for field in spec['required']}
                     for name, spec in self.plan['terminal_evidence_plan']['requirements'].items()}
-        result = gate_a.validate_terminal_evidence('/unused', evidence, plan=self.plan['terminal_evidence_plan'])
-        self.assertEqual(result['status'], 'EVIDENCE_BLOCKED')
-        self.assertFalse(result['ready_for_consumption'])
+        with self.assertRaises(ArtifactError):
+            gate_a.validate_terminal_evidence('/unused', evidence, plan=self.plan['terminal_evidence_plan'])
 
     def test_evidence_entry_signature_is_checked(self):
         real = gate_a._entry

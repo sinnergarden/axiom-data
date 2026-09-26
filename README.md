@@ -20,6 +20,7 @@ Data 提供事实、来源、时间和缺失解释；它不训练模型、不决
 - [首次构建](docs/operations/bootstrap.md) / [每日增量](docs/operations/daily.md)
 - [生成 Views](docs/operations/materialize-views.md) / [数据修复](docs/operations/repair.md)
 - [离线恢复](docs/operations/recovery.md) / [独立验收](docs/operations/v1-independent-review.md)
+- [完整范围准入与终端证据](docs/operations/full-admission.md)
 - [目录布局](docs/operations/physical-layout.md)
 - [股东人数缺少报告期时的处理](docs/operations/holder-source-admission.md)
 - [脚本用途](scripts/README.md) / [历史决策与运行证据](docs/history/README.md)

@@ -74,8 +74,14 @@ from .view_operation import materialize_views
 from .recovery import verify_recovery
 from .admission_plan import requirement_registry_digest, validate_admission_plan
 from .gate_a import make_gate_a_plan, validate_gate_a, plan_historical_views, validate_terminal_evidence_plan, validate_terminal_evidence
+from .full_admission import full_admission, validate_full_admission
+from .daily_acceptance import execute_daily_case, validate_daily_evidence
+from .notebook_acceptance import execute_notebook_smoke, validate_notebook_smoke
+
 
 __all__ = [
+    "full_admission", "validate_full_admission", "execute_daily_case",
+    "validate_daily_evidence", "execute_notebook_smoke", "validate_notebook_smoke",
     "make_gate_a_plan",
     "validate_gate_a",
     "plan_historical_views",
