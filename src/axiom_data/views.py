@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from axiom_data.frozen_execution import frozen_operation, bind_view_execution
+from axiom_data.deprecated.view_protocols import view_schema
 
 import json
 from contextlib import contextmanager
@@ -48,7 +49,8 @@ ADJUSTED_BATCH_SIZE = 50
 
 def _stored_view_kind(kind: str) -> str:
     """Resolve public names to the immutable View kinds used in published plans."""
-    return {"financial_fact": "pr6_fact", "event_fact": "pr7_fact"}.get(kind, kind)
+    from axiom_data.deprecated.view_protocols import current_view_kind
+    return current_view_kind(kind)
 
 
 @dataclass(frozen=True, slots=True)
@@ -440,28 +442,18 @@ class FactView:
         snapshot_id: str,
         *,
         adjusted_price_view_id: str | None = None,
-        pr6_fact_view_id: str | None = None,
         financial_fact_view_id: str | None = None,
     ) -> None:
-        if pr6_fact_view_id is not None and financial_fact_view_id is not None:
-            raise ArtifactError("provide one financial FactView ID")
-        financial_fact_view_id = financial_fact_view_id or pr6_fact_view_id
         self.reader = SnapshotReader(data_root, snapshot_id)
         self.financial = None
         if financial_fact_view_id is not None:
             from axiom_data.financial_views import load_financial_fact_view_with_reader
-            layout = _layout(data_root)
+            from axiom_data.deprecated.view_protocols import financial_checked_reader
             identity = _identity('view_id', financial_fact_view_id)
-            manifest, _ = _load_manifest(layout.root, layout.derived_commits('pr6_fact') / identity,
-                artifact_type='pr6_fact_view', schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2', 'pr6_fact_view.v3', 'pr6_fact_view.v4', 'pr6_fact_view.v5', 'pr6_fact_view.v6'),
-                identity_field='view_id', identity=identity)
-            # v1 keeps its frozen LegacyReader projection. v2 can share the
-            # complete closure checked in this constructor invocation.
             self.financial = load_financial_fact_view_with_reader(data_root, identity,
-                checked_reader=self.reader if manifest['schema_version'] in {'pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'} else None)
+                checked_reader=financial_checked_reader(data_root, identity, self.reader))
             if self.financial.manifest["snapshot_ref"]["snapshot_id"] != snapshot_id:
                 raise ArtifactError("financial FactView belongs to another Snapshot")
-        self.pr6 = self.financial  # Historical attribute alias.
         self.adjusted = (
             _load_adjusted_price_view(data_root, adjusted_price_view_id, checked_reader=self.reader)
             if adjusted_price_view_id is not None
@@ -492,7 +484,7 @@ class FactView:
         pit_policy: str = "actual",
         cutoff_policy: str | None = None,
     ) -> dict[str, Any]:
-        if domain in {"pr6", "financial"}:
+        if domain == "financial":
             if self.financial is None:
                 raise ArtifactNotFoundError("VIEW_NOT_BUILT: explicit financial FactView required")
             manifest = self.financial.manifest
@@ -500,7 +492,7 @@ class FactView:
                 raise ArtifactError("financial FactView policy differs from materialization")
             if cutoff_policy is not None and cutoff_policy != manifest["cutoff_policy"]:
                 raise ArtifactError("financial FactView cutoff differs from materialization")
-            if manifest['schema_version']=='pr6_fact_view.v1':
+            if view_schema(manifest)=='financial_fact_view.v1':
                 selected=set(symbols) if symbols is not None else None
                 selected_fields=tuple(fields or manifest['fields'])
                 if not selected_fields or set(selected_fields)-set(manifest['fields']):
@@ -522,7 +514,7 @@ class FactView:
                 raise ArtifactError("invalid financial FactView fields")
             source_rows=(self.financial.rows.range(start_session,end_session,
                          tuple(symbols) if symbols is not None else tuple(manifest['validated_scope']['symbols']))
-                         if manifest['schema_version'] in {'pr6_fact_view.v5','pr6_fact_view.v6'} else
+                         if view_schema(manifest) in {'financial_fact_view.v5','financial_fact_view.v6'} else
                          tuple(r for r in self.financial.rows if r['symbol'] in selected
                                and (start_session is None or r['session']>=start_session)
                                and (end_session is None or r['session']<=end_session)))
@@ -536,8 +528,8 @@ class FactView:
                     "requested_scope":{"symbols":sorted(selected),"start_session":start_session or manifest['scope']['start_session'],
                         "end_session":end_session or manifest['scope']['end_session'],"fields":list(selected_fields)},
                     "actual_available_scope":manifest['actual_available_scope'],"validated_scope":manifest['validated_scope'],
-                    **({'membership_ref':manifest['membership_ref']} if manifest['schema_version'] in
-                        {'pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'} else {}),
+                    **({'membership_ref':manifest['membership_ref']} if view_schema(manifest) in
+                        {'financial_fact_view.v4','financial_fact_view.v5','financial_fact_view.v6'} else {}),
                     "facts":tuple({'symbol':r['symbol'],'session':r['session'],
                         'fields':{f:r['facts'][f] for f in selected_fields}} for r in source_rows)}
         if domain == "adjusted_price":
@@ -846,11 +838,11 @@ def publish_rebound_view(reader, kind, view):
                                'identity_digest':reader.snapshot.manifest['identity_digest']}
     if 'domain_refs' in manifest:
         manifest['domain_refs'] = {d:reader.snapshot.manifest['domain_refs'][d] for d in manifest['domain_refs']}
-    if kind=='pr6_fact':
+    if kind=='financial_fact':
         for name in ('membership_ref','industry_ref'):
             manifest[name]['snapshot_id'] = reader.snapshot.ref.snapshot_id
     replacement = {}
-    if kind=='pr7_fact':
+    if kind=='event_fact':
         from axiom_data.event_views import rebound_event_states
         content, size = rebound_event_states(reader,view,source)
         replacement['states.json.gz'] = content
@@ -860,7 +852,7 @@ def publish_rebound_view(reader, kind, view):
                 entry.update(content_digest=_digest(content),size=len(content))
     identity = _identity_digest(manifest, 'view_id')
     prefix = {'adjusted_price':'adjusted-price','market_replay':'market-replay',
-              'market_qlib':'qlib','pr6_fact':'pr6-fact','pr7_fact':'pr7-fact'}[kind]
+              'market_qlib':'qlib','financial_fact':'financial-fact','event_fact':'event-fact'}[kind]
     view_id = _derived_identity(prefix, identity)
     manifest.update(view_id=view_id, identity_digest=identity, created_at=_timestamp(None))
     target = layout.qlib_exports / view_id if kind=='market_qlib' else layout.derived_commits(kind) / view_id

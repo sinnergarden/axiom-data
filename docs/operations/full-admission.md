@@ -21,7 +21,7 @@ The explicit `full_admission_plan.v1` object has these fields:
 - `views`: the exact `materialize_views` label → `{kind, config}` plan.
 - `view_refs`: matching labels → `{kind, view_id, manifest_digest}` returned by
   `materialize_views`. Reference kinds use their stored names, including
-  `pr6_fact` and `pr7_fact`; configuration kinds also accept public aliases.
+  `financial_fact` and `event_fact`.
 
 The entire target must be covered. Actual manifest scopes, policies, cutoffs,
 anchors, universes and Snapshot refs must match the plan. Benchmark IDs are

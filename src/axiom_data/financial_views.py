@@ -411,9 +411,9 @@ def _manifest(reader, scope, policy, cutoff, payload, bundle, *, financial_resol
     if contents is None:
         contents=(_sparse_files(sparse_states,scope['symbols'],bundle) if sparse else
                   _files(payload,scope['symbols'],bundle,membership_ref=membership_ref))
-    return {'artifact_type':'pr6_fact_view','schema_version':('pr6_fact_view.v5' if sparse else
-        'pr6_fact_view.v4' if membership_ref else
-        'pr6_fact_view.v3' if financial_resolution else 'pr6_fact_view.v2'),
+    return {'artifact_type':'financial_fact_view','schema_version':('financial_fact_view.v5' if sparse else
+        'financial_fact_view.v4' if membership_ref else
+        'financial_fact_view.v3' if financial_resolution else 'financial_fact_view.v2'),
         **({'financial_resolution_policy':'financial_leaf_resolution.v1'} if financial_resolution else {}),
         **({'membership_ref':_membership_ref(reader,scope,policy,cutoff)} if membership_ref else {}),
         **({'industry_ref':_industry_ref(reader,scope,policy,cutoff), 'state_encoding':'leaf_intervals.v1',
@@ -477,10 +477,10 @@ def build_financial_fact_view_from_reader(reader,*,symbols,start_session,end_ses
     contents=_sparse_files(states,scope['symbols'],bundle,code_ref=code_ref)
     manifest=_manifest(reader,scope,pit_policy,knowledge_cutoff,payload,bundle,
         membership_ref=True,sparse_states=states,contents=contents)
-    bind_view_execution(manifest,'pr6_fact_view.v6')
-    identity=_identity_digest(manifest,'view_id');view_id=_derived_identity('pr6-fact',identity)
+    bind_view_execution(manifest,'financial_fact_view.v6')
+    identity=_identity_digest(manifest,'view_id');view_id=_derived_identity('financial-fact',identity)
     manifest.update(view_id=view_id,identity_digest=identity,created_at=_timestamp(None))
-    layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
+    layout=_layout(data_root);target=layout.derived_commits('financial_fact')/view_id
     def prepare(candidate):
         for path,content in contents.items():
             (candidate/path).parent.mkdir(parents=True,exist_ok=True);_write_file(candidate/path,content)
@@ -494,29 +494,28 @@ def load_financial_fact_view(data_root,view_id):
 
 
 def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
+    from axiom_data.deprecated.view_protocols import historical_view_kind
+    if historical_view_kind(view_id):
+        from axiom_data.deprecated.financial_views import load_financial_fact_view_with_reader as load_historical
+        return load_historical(data_root, view_id, checked_reader=checked_reader)
     view_id=_identity('view_id',view_id)
-    layout=_layout(data_root);target=layout.derived_commits('pr6_fact')/view_id
-    manifest,digest=_load_manifest(layout.root,target,artifact_type='pr6_fact_view',
-        schema_version=('pr6_fact_view.v1','pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4',
-                        'pr6_fact_view.v5','pr6_fact_view.v6'),identity_field='view_id',identity=view_id)
+    layout=_layout(data_root);target=layout.derived_commits('financial_fact')/view_id
+    manifest,digest=_load_manifest(layout.root,target,artifact_type='financial_fact_view',
+        schema_version=('financial_fact_view.v1','financial_fact_view.v2','financial_fact_view.v3','financial_fact_view.v4',
+                        'financial_fact_view.v5','financial_fact_view.v6'),identity_field='view_id',identity=view_id)
     declared=manifest['schema_version']
-    if declared=='pr6_fact_view.v1':
-        from axiom_data.pr6_views_v1 import LegacyReader, project as projection, _manifest as manifest_builder, _files as payload_files
-    else:
-        resolution=declared in {'pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'}
-        refs=declared in {'pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'}
-        LegacyReader=SnapshotReader
-        projection=partial(project,financial_resolution=resolution,membership_ref=refs)
-        manifest_builder=partial(_manifest,financial_resolution=resolution,membership_ref=refs)
-        payload_files=partial(_files,membership_ref=refs)
-    _validate_manifest_identity(manifest,'view_id','pr6-fact',view_id)
-    if checked_reader is not None and declared=='pr6_fact_view.v1':
-        raise ArtifactError('legacy PR6 View requires its declared Reader')
+    LegacyReader=SnapshotReader
+    projection=project
+    manifest_builder=_manifest
+    payload_files=_files
+    _validate_manifest_identity(manifest,'view_id','financial-fact',view_id)
+    if checked_reader is not None and declared=='financial_fact_view.v1':
+        raise ArtifactError('legacy financial View requires its declared Reader')
     reader=checked_reader or LegacyReader(data_root,manifest['snapshot_ref']['snapshot_id'])
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or
         reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
         raise ArtifactError('checked Reader does not match financial View Snapshot')
-    if declared in {'pr6_fact_view.v5','pr6_fact_view.v6'}:
+    if declared in {'financial_fact_view.v5','financial_fact_view.v6'}:
         contents=_declared_content_files(layout.root,target,manifest.get('files'))
         try:
             scope=manifest['scope'];policy=manifest['pit_policy'];cutoff=manifest['knowledge_cutoff']
@@ -559,8 +558,8 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
         expected_files['states.json.gz']=contents['states.json.gz']
         if contents!=expected_files:
             raise ArtifactError('sparse financial View files differ from declared states')
-        return DerivedView(DerivedViewRef('pr6_fact',view_id,digest),manifest,rows)
-    if declared=='pr6_fact_view.v4':
+        return DerivedView(DerivedViewRef('financial_fact',view_id,digest),manifest,rows)
+    if declared=='financial_fact_view.v4':
         contents=_declared_content_files(layout.root,target,manifest.get('files'))
         try:
             payload=json.loads(contents['rows.json'])
@@ -613,7 +612,7 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
             raise ArtifactError('financial View structure is invalid') from exc
         if contents!=expected_files:
             raise ArtifactError('financial View files differ from declared rows')
-        return DerivedView(DerivedViewRef('pr6_fact',view_id,digest),manifest,tuple(payload['wide']))
+        return DerivedView(DerivedViewRef('financial_fact',view_id,digest),manifest,tuple(payload['wide']))
     payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):
@@ -625,12 +624,7 @@ def load_financial_fact_view_with_reader(data_root,view_id,*,checked_reader=None
         checked=_safe_path(layout.root,target/path,closure=target)
         if checked.read_bytes()!=content:
             raise ArtifactError('financial Fact/Qlib file differs from source projection')
-    return DerivedView(DerivedViewRef("pr6_fact",view_id,digest),manifest,tuple(payload['wide']))
+    return DerivedView(DerivedViewRef("financial_fact",view_id,digest),manifest,tuple(payload['wide']))
 
 
 # Compatibility exports for historical callers.
-PR6_DOMAINS = FUNDAMENTAL_DOMAINS
-build_pr6_fact_view = build_financial_fact_view
-_build_pr6_fact_view = build_financial_fact_view_from_reader
-load_pr6_fact_view = load_financial_fact_view
-_load_pr6_fact_view = load_financial_fact_view_with_reader

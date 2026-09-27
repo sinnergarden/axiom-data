@@ -71,7 +71,7 @@ def bootstrap_references(data_root, *, run_id, parent_run_id, source_plan_path, 
     builds = {
         'trading_calendar': {'contract_version': 'trading_calendar.v1',
                              'config': dict(common, symbols=calendar_symbols)},
-        'security_master': {'contract_version': 'security_master.v1',
+        'security_master': {'contract_version': 'security_master.v2',
                             'config': dict(common, security_boundary_policy='exchange_security.v1')},
         'industry_membership': {'contract_version': 'industry_membership.v3',
                                 'config': dict(common, industry_source_profile='tushare_sw2021.v1')},

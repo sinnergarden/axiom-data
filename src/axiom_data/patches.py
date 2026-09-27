@@ -251,7 +251,8 @@ def validate_incremental_replay(root, commit, parent, raw_refs, patches):
     from axiom_data.exchange_security import ExchangeSecurityBuilder
     builders = {cls.__module__ + '.' + cls.__qualname__: cls for cls in
         (MarketDomainBuilder, TushareMarketBuilder, TushareReferenceBuilder, ExchangeSecurityBuilder)}
-    name = commit.manifest['builder_implementation_ref']['implementation']
+    from axiom_data.deprecated.resources import builder_implementation
+    name = builder_implementation(commit.manifest['builder_implementation_ref']['implementation'])
     if name not in builders:
         raise ArtifactError('unsupported canonical correction replay builder')
     deps = {domain: ref['domain_commit_id'] for domain,ref in commit.manifest['dependency_commit_refs'].items()}

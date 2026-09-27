@@ -25,13 +25,13 @@ Data 提供事实、来源、时间和缺失解释；它不训练模型、不决
 - [完整范围准入与终端证据](docs/operations/full-admission.md)
 - [目录布局](docs/operations/physical-layout.md)
 - [股东人数缺少报告期时的处理](docs/operations/holder-source-admission.md)
-- [脚本用途](scripts/README.md) / [历史决策与运行证据](docs/history/README.md)
+- [脚本用途](scripts/README.md) / [历史决策与运行证据](deprecated/history/index.md)
 
-日常先用 notebook 和操作文档；`reports/`、历史脚本无需按目录顺序阅读，也不要当作生产入口。
+日常先用 notebook 和操作文档；[历史报告](deprecated/history/index.md)、历史脚本无需按目录顺序阅读，也不要当作生产入口。
 其中一些记录仍是回归测试和恢复的依据，清理时应保留引用关系。
 
 代码位于 `src/axiom_data/`，测试位于 `tests/`。本机正式数据根为 `/var/lib/axiom-data`；
-旧 workspace `data/` 仅作历史证据留存。仓库里的 `reports/` 是各次验证记录，不是完整生产数据。
+旧 workspace `data/` 仅作历史证据留存。仓库里的 [历史报告](deprecated/history/index.md) 是各次验证记录，不是完整生产数据。
 供应商凭据通过运行环境或既有安全配置读取，不写入仓库。
 
 公共 View 计划使用 `financial_fact`、`event_fact` 等职责名称；读取财务

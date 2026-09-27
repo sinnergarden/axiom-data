@@ -50,8 +50,8 @@ def reconcile(root,refs,reference):
                 actual=row['values'][field]
                 status='unavailable_historical_evidence' if not values else 'exact_match' if any(v==actual or v is not None and actual is not None and math.isclose(v,actual,rel_tol=1e-8,abs_tol=1e-6) for v in values) else 'supplier_drift'
                 legacy.append({'domain':domain,'symbol':row['symbol'],'period':row['report_period'],'announcement':row['announcement'],'axiom':actual,'frozen_qsys_values':values,'status':status})
-        if domain not in tables:legacy.append({'domain':domain,'status':'unavailable_historical_evidence','reason':'PR4 frozen package contains no immutable fact rows for this endpoint; mutable Qsys not read'})
-    view=load_event_fact_view(root,refs['pr7_view_id']);binary=QlibViewReader(root,refs['pr7_view_id']).market_daily(include_missing=True)
+        if domain not in tables:legacy.append({'domain':domain,'status':'unavailable_historical_evidence','reason':'frozen reference frozen package contains no immutable fact rows for this endpoint; mutable Qsys not read'})
+    view=load_event_fact_view(root,refs['event_view_id']);binary=QlibViewReader(root,refs['event_view_id']).market_daily(include_missing=True)
     direct={(r['symbol'],r['session']):r for r in view.rows};checks=0
     if set(direct)!={(r['symbol'],r['session']) for r in binary}:raise ArtifactError('Qlib key mismatch')
     for r in binary:
@@ -64,5 +64,3 @@ def reconcile(root,refs,reference):
 
 
 # Compatibility exports for historical callers.
-PR7_DOMAINS = EVENT_DOMAINS
-load_pr7_fact_view = load_event_fact_view

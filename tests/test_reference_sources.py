@@ -116,8 +116,8 @@ class ReferenceSourcesTest(unittest.TestCase):
 
     def test_identity_matches_direct_public_collector(self):
         stamp = '2026-09-13T00:00:00+00:00'
-        with patch('axiom_data.tushare._retrieved_at', return_value=stamp), \
-             patch('axiom_data.sw_source._retrieved_at', return_value=stamp), \
+        with patch('axiom_data.tushare._retrieved_at', return_value=stamp),\
+             patch('axiom_data.sw_source._retrieved_at', return_value=stamp),\
              tempfile.TemporaryDirectory() as direct_root:
             result = self.run_source(Client(1))
             direct = collect_requests(direct_root, run_id='direct',

@@ -8,7 +8,7 @@ class ApplicabilityTest(unittest.TestCase):
     def test_normal_new_day_does_not_expire_semantics_but_data_checks_remain(self):
         def signature(day, code='builder.v1', **semantic_config):
             commit=SimpleNamespace(ref=SimpleNamespace(domain='market_daily',commit_id=day,
-                contract_version='market_daily.v1'),manifest={'contract_digest':'contract',
+                contract_version='market_daily.v2'),manifest={'contract_digest':'contract',
                 'builder_config':{'end_session':day,**semantic_config}, 'builder_implementation_ref':{'revision':code},
                 'ordered_raw_batch_refs':[],'parent_commit_ref':None})
             return validation_signature(SimpleNamespace(commits={'market_daily':commit}),

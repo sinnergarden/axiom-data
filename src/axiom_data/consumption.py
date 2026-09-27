@@ -1,6 +1,7 @@
 """Snapshot-bound market Reader and minimal Qlib-compatible binary view."""
 
 from __future__ import annotations
+from axiom_data.deprecated.view_protocols import view_schema, view_artifact_type, view_storage_kind, current_view_kind
 
 from axiom_data.frozen_execution import frozen_operation, bind_view_execution
 
@@ -198,7 +199,7 @@ class SnapshotReader:
             self._security_projection.clear()
         self._security_projection_bytes = 0
         self.__dict__.pop('_financial_preparation', None)
-        self.__dict__.pop('_pr7_request_intervals', None)
+        self.__dict__.pop('_event_request_intervals', None)
         for name in ('_adjusted_price_batch', '_market_view_batch',
                      '_financial_view_batch', '_event_view_batch', '_financial_batch'):
             self.__dict__.pop(name, None)
@@ -810,10 +811,10 @@ def load_qlib_view(data_root: str | Path, view_id: str) -> QlibView:
 
 def _load_qlib_view(data_root, view_id, *, checked_reader=None, structural_only=False):
 
-    if isinstance(view_id, str) and view_id.startswith("pr7-fact-"):
+    if isinstance(view_id, str) and current_view_kind(view_storage_kind(view_id)) == "event_fact":
         from axiom_data.event_views import load_event_fact_view
         return load_event_fact_view(data_root, view_id)
-    if isinstance(view_id, str) and view_id.startswith("pr6-fact-"):
+    if isinstance(view_id, str) and current_view_kind(view_storage_kind(view_id)) == "financial_fact":
         from axiom_data.financial_views import load_financial_fact_view
         return load_financial_fact_view(data_root, view_id)
     layout = _layout(data_root)
@@ -1009,23 +1010,23 @@ class QlibViewReader:
     def __init__(self, data_root: str | Path, view_id: str) -> None:
         self.data_root = Path(data_root)
         self.view = load_qlib_view(self.data_root, view_id)
-        self.path = (_layout(self.data_root).derived_commits("pr7_fact") / view_id
-                     if view_id.startswith("pr7-fact-") else _layout(self.data_root).derived_commits("pr6_fact") / view_id
-                     if view_id.startswith("pr6-fact-") else _layout(self.data_root).qlib_exports / view_id)
+        self.path = (_layout(self.data_root).derived_commits(view_storage_kind(view_id)) / view_id
+                     if current_view_kind(view_storage_kind(view_id)) == "event_fact" else _layout(self.data_root).derived_commits(view_storage_kind(view_id)) / view_id
+                     if current_view_kind(view_storage_kind(view_id)) == "financial_fact" else _layout(self.data_root).qlib_exports / view_id)
 
     def fact_metadata(self, *, start_session=None, end_session=None):
         rows=(self.view.rows.range(start_session,end_session)
-              if self.view.manifest.get('schema_version') in {'pr6_fact_view.v5','pr6_fact_view.v6','pr7_fact_view.v4','pr7_fact_view.v5'}
+              if view_schema(self.view.manifest) in {'financial_fact_view.v5','financial_fact_view.v6','event_fact_view.v4','event_fact_view.v5'}
               else (r for r in self.view.rows
                     if (start_session is None or r['session']>=start_session)
                     and (end_session is None or r['session']<=end_session)))
-        if self.view.manifest.get('artifact_type') == 'pr7_fact_view':
+        if view_artifact_type(self.view.manifest) == 'event_fact_view':
             return {'view_id':self.view.ref.view_id,'snapshot_ref':self.view.manifest['snapshot_ref'],
                     'validated_scope':self.view.manifest['validated_scope'],
                     'rows':tuple({'symbol':r['symbol'],'session':r['session'],'fields':r['facts']} for r in rows)}
-        if self.view.manifest.get('artifact_type') != 'pr6_fact_view':
+        if view_artifact_type(self.view.manifest) != 'financial_fact_view':
             raise ArtifactError('financial FactView metadata required')
-        if self.view.manifest['schema_version']=='pr6_fact_view.v1':
+        if view_schema(self.view.manifest)=='financial_fact_view.v1':
             raise ArtifactError('METADATA_NOT_IN_V1_CONTRACT')
         return {'view_id':self.view.ref.view_id,'snapshot_ref':self.view.manifest['snapshot_ref'],
                 'industry_mapping':self.view.manifest['industry_mapping'],
@@ -1048,7 +1049,7 @@ class QlibViewReader:
 
     def market_daily(self, *, include_missing: bool = False, start_session=None,
                      end_session=None, symbols=None) -> tuple[dict[str, Any], ...]:
-        if self.view.manifest['schema_version'] in {'pr6_fact_view.v5','pr6_fact_view.v6','pr7_fact_view.v4','pr7_fact_view.v5'}:
+        if view_schema(self.view.manifest) in {'financial_fact_view.v5','financial_fact_view.v6','event_fact_view.v4','event_fact_view.v5'}:
             selected=validate_symbols(symbols) if symbols is not None else None
             if selected is not None and not set(selected)<=set(self.view.manifest['scope']['symbols']):
                 raise ArtifactError('INSUFFICIENT_SCOPE: View symbols')
@@ -1103,7 +1104,7 @@ class QlibViewReader:
             ):
                 raise ArtifactError("Qlib feature range does not match instrument scope")
             for offset in range(length):
-                if (self.view.manifest['schema_version'] in {'pr7_fact_view.v2','pr7_fact_view.v3'}
+                if (view_schema(self.view.manifest) in {'event_fact_view.v2','event_fact_view.v3'}
                     and calendar[first_index+offset] not in item['valid_sessions']):
                     continue
                 values: dict[str, Any] = {}
@@ -1293,7 +1294,7 @@ def compare_direct_and_qlib(
 
 def _report_mapping(value: object, name: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
-        raise ArtifactError(f"PR3 report {name} must be an object")
+        raise ArtifactError(f"market evidence report {name} must be an object")
     return value
 
 
@@ -1303,7 +1304,7 @@ def _report_ref(
     mapping = _report_mapping(value, name)
     missing = [field for field in fields if field not in mapping]
     if missing:
-        raise ArtifactError(f"PR3 report {name} is missing immutable refs")
+        raise ArtifactError(f"market evidence report {name} is missing immutable refs")
     return {field: mapping[field] for field in fields}
 
 
@@ -1316,15 +1317,15 @@ def _validate_pass_comparison(report: Mapping[str, Any], name: str) -> None:
         or any(value is not True for value in checks.values())
         or report.get("mismatches") != []
     ):
-        raise ArtifactError(f"PR3 {name} PASS is inconsistent with its results")
+        raise ArtifactError(f"market evidence {name} PASS is inconsistent with its results")
 
 
-def validate_pr3_report_refs(
+def validate_market_evidence_report_refs(
     run_manifest: Mapping[str, Any],
     direct_qlib_report: Mapping[str, Any],
     offline_rebuild_report: Mapping[str, Any],
 ) -> None:
-    """Cross-check the immutable refs in the three fixed PR3 evidence reports."""
+    """Cross-check the immutable refs in the three fixed market evidence evidence reports."""
 
     run = _report_mapping(run_manifest, "run manifest")
     direct = _report_mapping(direct_qlib_report, "direct/Qlib report")
@@ -1351,11 +1352,11 @@ def validate_pr3_report_refs(
         direct.get("qlib_view_ref"), tuple(run_view), "direct QlibView ref"
     )
     if direct_snapshot != run_snapshot or direct_view != run_view:
-        raise ArtifactError("PR3 direct/Qlib report refs do not match the run manifest")
+        raise ArtifactError("market evidence direct/Qlib report refs do not match the run manifest")
     if direct.get("scope") != run_view_value.get("scope"):
-        raise ArtifactError("PR3 direct/Qlib report scope does not match the run manifest")
+        raise ArtifactError("market evidence direct/Qlib report scope does not match the run manifest")
     if direct.get("fields") != run_view_value.get("fields"):
-        raise ArtifactError("PR3 direct/Qlib report fields do not match the run manifest")
+        raise ArtifactError("market evidence direct/Qlib report fields do not match the run manifest")
 
     run_commits_value = _report_mapping(run.get("domain_commits"), "run DomainCommit refs")
     run_commits = {
@@ -1380,7 +1381,7 @@ def validate_pr3_report_refs(
     )
     run_raw_value = run.get("raw_batches")
     if not isinstance(run_raw_value, list):
-        raise ArtifactError("PR3 run RawBatch refs must be a list")
+        raise ArtifactError("market evidence run RawBatch refs must be a list")
     run_raw = [
         _report_ref(value, raw_fields, "run RawBatch ref") for value in run_raw_value
     ]
@@ -1396,7 +1397,7 @@ def validate_pr3_report_refs(
         "qlib_view": run_view["view_id"],
     }
     if offline.get("source_root_artifact_map") != expected_root_map:
-        raise ArtifactError("PR3 offline source root artifact map is inconsistent")
+        raise ArtifactError("market evidence offline source root artifact map is inconsistent")
 
     source_refs = _report_mapping(
         offline.get("source_artifact_refs"), "offline source artifact refs"
@@ -1432,7 +1433,7 @@ def validate_pr3_report_refs(
         if not isinstance(raw_ids, list) or any(
             not isinstance(raw_id, str) for raw_id in raw_ids
         ):
-            raise ArtifactError(f"PR3 report {name} RawBatch IDs must be a list")
+            raise ArtifactError(f"market evidence report {name} RawBatch IDs must be a list")
         return snapshot_ref, commits, raw, view_ref
 
     source_snapshot, source_commits, source_raw, source_view = checked_artifact_refs(
@@ -1447,7 +1448,7 @@ def validate_pr3_report_refs(
         or source_raw != run_raw_summary
         or source_view != run_view
     ):
-        raise ArtifactError("PR3 offline source refs do not match the run manifest")
+        raise ArtifactError("market evidence offline source refs do not match the run manifest")
 
     rebuilt_map = offline.get("rebuilt_root_artifact_map")
     if not isinstance(rebuilt_map, Mapping) or rebuilt_map != {
@@ -1458,7 +1459,7 @@ def validate_pr3_report_refs(
         "snapshot": rebuilt_snapshot["snapshot_id"],
         "qlib_view": rebuilt_view["view_id"],
     }:
-        raise ArtifactError("PR3 offline rebuilt root artifact map is inconsistent")
+        raise ArtifactError("market evidence offline rebuilt root artifact map is inconsistent")
 
     offline_direct = _report_mapping(
         offline.get("direct_qlib_equivalence"), "offline direct/Qlib report"
@@ -1478,7 +1479,7 @@ def validate_pr3_report_refs(
         )
         != rebuilt_view
     ):
-        raise ArtifactError("PR3 offline direct/Qlib refs do not match rebuilt refs")
+        raise ArtifactError("market evidence offline direct/Qlib refs do not match rebuilt refs")
 
     expected_identity = {
         "root_artifact_maps": offline.get("source_root_artifact_map")
@@ -1499,7 +1500,7 @@ def validate_pr3_report_refs(
         and source_view["identity_digest"] == rebuilt_view["identity_digest"],
     }
     if offline.get("identity_equality") != expected_identity:
-        raise ArtifactError("PR3 offline identity equality summary is inconsistent")
+        raise ArtifactError("market evidence offline identity equality summary is inconsistent")
     logical = _report_mapping(offline.get("logical_equality"), "offline logical equality")
     catalog = _report_mapping(offline.get("catalog_rebuild"), "offline catalog rebuild")
     if offline.get("status") == "PASS" and (
@@ -1508,7 +1509,7 @@ def validate_pr3_report_refs(
         or catalog.get("status") != "PASS"
         or offline_direct.get("status") != "PASS"
     ):
-        raise ArtifactError("PR3 offline PASS is not supported by its artifact refs")
+        raise ArtifactError("market evidence offline PASS is not supported by its artifact refs")
 
 
 __all__ = [
@@ -1535,8 +1536,8 @@ def request_coverage(reader,domain,symbol,session):
     if domain not in reader.commits:raise ArtifactError('Snapshot lacks event domain')
     # This Reader keeps only metadata from the exact immutable lineage. Raw
     # payloads were admitted at publication and are not consumed here.
-    if not hasattr(reader,'_pr7_request_intervals'):reader._pr7_request_intervals={}
-    if domain not in reader._pr7_request_intervals:
+    if not hasattr(reader,'_event_request_intervals'):reader._event_request_intervals={}
+    if domain not in reader._event_request_intervals:
         from axiom_data.verification_cache import validation_paths
         with validation_paths() as consumed:
             identity=reader.commits[domain].ref.commit_id
@@ -1585,9 +1586,9 @@ def request_coverage(reader,domain,symbol,session):
                 intervals.setdefault(params['ts_code'],[]).append((params['start_date'],params['end_date']))
         if hasattr(reader, '_remember_consumed_metadata'):
             reader._remember_consumed_metadata(consumed)
-        reader._pr7_request_intervals[domain]=intervals
+        reader._event_request_intervals[domain]=intervals
     day=session.replace('-','')
-    if any(start<=day<=end for start,end in reader._pr7_request_intervals[domain].get(symbol,())):return
+    if any(start<=day<=end for start,end in reader._event_request_intervals[domain].get(symbol,())):return
     raise ArtifactError('INSUFFICIENT_SCOPE: no bounded supplier request for '+symbol+' '+session)
 
 

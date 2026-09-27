@@ -211,11 +211,11 @@ def sparse_files(states,symbols,bundle,*,code_ref=None):
                                        for s in symbols).encode()}
 
 
-def manifest_for(reader,scope,policy,cutoff,payload,bundle,*,schema_version='pr7_fact_view.v3',
+def manifest_for(reader,scope,policy,cutoff,payload,bundle,*,schema_version='event_fact_view.v3',
                  contents=None,sparse_states=None):
     if contents is None:contents=(sparse_files(sparse_states,scope['symbols'],bundle)
                                  if sparse_states is not None else payload_files(payload,scope['symbols'],bundle))
-    return {'artifact_type':'pr7_fact_view','schema_version':schema_version,
+    return {'artifact_type':'event_fact_view','schema_version':schema_version,
         **({'state_encoding':'leaf_intervals.v1',
             'state_uncompressed_bytes':len(_json_bytes(sparse_states))} if sparse_states is not None else {}),
         'snapshot_ref':{'snapshot_id':reader.snapshot.ref.snapshot_id,'identity_digest':reader.snapshot.manifest['identity_digest']},
@@ -260,11 +260,11 @@ def build_event_fact_view_from_reader(reader,*,symbols,start_session,end_session
         source=Path(str(files('axiom_data')));bundle={p.relative_to(source).as_posix():p.read_text() for p in sorted(source.rglob('*')) if p.is_file() and p.suffix in {'.py','.json'}}
     contents=sparse_files(states,scope['symbols'],bundle,code_ref=code_ref)
     manifest=manifest_for(reader,scope,pit_policy,knowledge_cutoff,payload,bundle,
-        schema_version='pr7_fact_view.v4',contents=contents,sparse_states=states)
-    bind_view_execution(manifest,'pr7_fact_view.v5')
-    identity=_identity_digest(manifest,'view_id');view_id=_derived_identity('pr7-fact',identity)
+        schema_version='event_fact_view.v4',contents=contents,sparse_states=states)
+    bind_view_execution(manifest,'event_fact_view.v5')
+    identity=_identity_digest(manifest,'view_id');view_id=_derived_identity('event-fact',identity)
     manifest.update(view_id=view_id,identity_digest=identity,created_at=_timestamp(None))
-    layout=_layout(data_root);target=layout.derived_commits('pr7_fact')/view_id
+    layout=_layout(data_root);target=layout.derived_commits('event_fact')/view_id
     def prepare(candidate):
         for path,content in contents.items():
             (candidate/path).parent.mkdir(parents=True,exist_ok=True);_write_file(candidate/path,content)
@@ -278,25 +278,21 @@ def load_event_fact_view(data_root,view_id):
 
 
 def load_event_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
-    view_id=_identity('view_id',view_id);layout=_layout(data_root);target=layout.derived_commits('pr7_fact')/view_id
-    manifest,digest=_load_manifest(layout.root,target,artifact_type='pr7_fact_view',
-        schema_version=('pr7_fact_view.v1','pr7_fact_view.v2','pr7_fact_view.v3','pr7_fact_view.v4','pr7_fact_view.v5'),
+    from axiom_data.deprecated.view_protocols import historical_view_kind
+    if historical_view_kind(view_id):
+        from axiom_data.deprecated.event_views import load_event_fact_view_with_reader as load_historical
+        return load_historical(data_root, view_id, checked_reader=checked_reader)
+    view_id=_identity('view_id',view_id);layout=_layout(data_root);target=layout.derived_commits('event_fact')/view_id
+    manifest,digest=_load_manifest(layout.root,target,artifact_type='event_fact_view',
+        schema_version=('event_fact_view.v1','event_fact_view.v2','event_fact_view.v3','event_fact_view.v4','event_fact_view.v5'),
         identity_field='view_id',identity=view_id)
-    _validate_manifest_identity(manifest,'view_id','pr7-fact',view_id)
-    if manifest['schema_version']=='pr7_fact_view.v1':
-        from axiom_data.pr7_views_v1 import project as projection, manifest_for as make_manifest, payload_files as make_files
-    elif manifest['schema_version']=='pr7_fact_view.v2':
-        from functools import partial
-        projection=partial(project,source_cutoffs=False)
-        make_manifest=partial(manifest_for,schema_version='pr7_fact_view.v2')
-        make_files=payload_files
-    else:
-        projection,make_manifest,make_files=project,manifest_for,payload_files
+    _validate_manifest_identity(manifest,'view_id','event-fact',view_id)
+    projection,make_manifest,make_files=project,manifest_for,payload_files
     reader=checked_reader or SnapshotReader(data_root,manifest['snapshot_ref']['snapshot_id'])
     if (Path(reader.data_root).resolve()!=layout.root.resolve() or
         reader.snapshot.ref.snapshot_id!=manifest['snapshot_ref']['snapshot_id']):
         raise ArtifactError('checked Reader does not match event View Snapshot')
-    if manifest['schema_version'] in {'pr7_fact_view.v4','pr7_fact_view.v5'}:
+    if manifest['schema_version'] in {'event_fact_view.v4','event_fact_view.v5'}:
         contents=_declared_content_files(layout.root,target,manifest.get('files'))
         try:
             states=unpacked_states(contents['states.json.gz'],manifest['state_uncompressed_bytes'])
@@ -329,8 +325,8 @@ def load_event_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
             raise ArtifactError('sparse event View structural closure mismatch')
         if contents!=expected_files:
             raise ArtifactError('sparse event View files differ from declared states')
-        return DerivedView(DerivedViewRef('pr7_fact',view_id,digest),manifest,rows)
-    if manifest['schema_version']=='pr7_fact_view.v3':
+        return DerivedView(DerivedViewRef('event_fact',view_id,digest),manifest,rows)
+    if manifest['schema_version']=='event_fact_view.v3':
         contents=_declared_content_files(layout.root,target,manifest.get('files'))
         try:
             payload=json.loads(contents['rows.json'])
@@ -348,7 +344,7 @@ def load_event_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
             raise ArtifactError('event View structural closure mismatch')
         if contents!=outputs:
             raise ArtifactError('event View files differ from declared rows')
-        return DerivedView(DerivedViewRef('pr7_fact',view_id,digest),manifest,tuple(payload['wide']))
+        return DerivedView(DerivedViewRef('event_fact',view_id,digest),manifest,tuple(payload['wide']))
     payload=projection(reader,manifest['scope'],manifest['pit_policy'],manifest['knowledge_cutoff'])
     bundle=json.loads(_safe_path(layout.root,target/'code_bundle.json',closure=target).read_bytes())
     if not isinstance(bundle,dict) or not bundle or any(not isinstance(v,str) for v in bundle.values()):raise ArtifactError('invalid code bundle')
@@ -356,17 +352,11 @@ def load_event_fact_view_with_reader(data_root,view_id,*,checked_reader=None):
     if {k:v for k,v in manifest.items() if k not in {'view_id','identity_digest','created_at'}}!=expected:raise ArtifactError('event View semantic closure mismatch')
     for path,content in make_files(payload,manifest['scope']['symbols'],bundle).items():
         if _safe_path(layout.root,target/path,closure=target).read_bytes()!=content:raise ArtifactError('event View file differs from Snapshot projection')
-    return DerivedView(DerivedViewRef('pr7_fact',view_id,digest),manifest,tuple(payload['wide']))
+    return DerivedView(DerivedViewRef('event_fact',view_id,digest),manifest,tuple(payload['wide']))
 
 
 # Compatibility exports for historical callers.
-PR7_DOMAINS = EVENT_DOMAINS
-build_pr7_fact_view = build_event_fact_view
-_build_pr7_fact_view = build_event_fact_view_from_reader
-load_pr7_fact_view = load_event_fact_view
-_load_pr7_fact_view = load_event_fact_view_with_reader
 
-select_pr7_revisions = select_event_revisions
 
 
 def rebound_event_states(reader, view, source):

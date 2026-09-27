@@ -98,7 +98,7 @@ BLOCKED). Both share the exported public services. The global `--data-root`
 argument is accepted for CLI consistency; these commands do not read or write
 that root.
 
-`reports/pr8/gate_a_probe_scope.json` is a single-security 2014–2026 date-range
+[归档范围证据](../../deprecated/history/index.md) is a single-security 2014–2026 date-range
 code probe with explicit earlier financial lookback. Its result checks all 56
 requirement bindings but is not 3,601-security source availability/admission
 or a bulk-build plan approval. Missing code/profile capabilities block every

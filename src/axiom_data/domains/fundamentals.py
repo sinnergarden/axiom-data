@@ -118,4 +118,3 @@ WIDE_FIELDS=tuple(FIELD_MAP)+tuple('financial.'+f for f in DERIVED_FIELDS)+('val
 
 
 # Compatibility exports for historical callers.
-PR6_DOMAINS = FUNDAMENTAL_DOMAINS

@@ -132,7 +132,7 @@ rows = facts.read("financial", symbols=["000001.SZ"])["rows"]
 选出可见修订；`event_views` 使用同一查询规则生成 View。Reader 不通过供应商采集代码选择修订。
 财务字段定义在 `domains/fundamentals`，范围校验与 View 共用它。
 
-旧 `pr6_*`、`pr7_*`、`dm*` 模块只保留导入兼容入口；`*_v1` 保留已发布版本的读取规则。
+历史读取规则与原始标识集中在 `axiom_data.deprecated`；当前入口按业务职责命名。
 已保存的 schema、source profile、View kind 和 ID 前缀沿用原协议名称。
 代码整理不会改写或要求重建已有数据。新执行如涉及实现摘要，使用实际新代码的摘要；
 已冻结旧实现的 operation 仍遵守原有输入匹配检查。

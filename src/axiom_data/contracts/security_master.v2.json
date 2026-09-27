@@ -1,0 +1,40 @@
+{
+  "contract_version": "security_master.v2",
+  "domain": "security_master",
+  "primary_key": ["symbol"],
+  "sort_order": ["symbol"],
+  "semantics": {
+    "symbol": {
+      "canonical_pattern": "^[0-9]{6}\\.(SH|SZ)$",
+      "suffix_exchange": {"SH": "SSE", "SZ": "SZSE"},
+      "supplier_symbols_are_forbidden": true
+    },
+    "exchange": {
+      "canonical_values": ["SSE", "SZSE"],
+      "must_match_symbol_suffix": true
+    },
+    "identity_effective_interval": {
+      "start": "list_session is the inclusive date on which the listed security identity begins to be effective",
+      "end": "delist_session is the exclusive delisting-effective date, not the last date with a market_daily row",
+      "notation": "[list_session, delist_session)",
+      "market_history_clipping": "these identity bounds do not authorize initial market contract to crop or synthesize market_daily history"
+    },
+    "status": {
+      "meaning": "the source/current listing-status observation stored with this identity row",
+      "not_a_promise": "status is not historical PIT eligibility, tradability, or a replacement for a future security_status domain"
+    }
+  },
+  "fields": [
+    {"name": "symbol", "type": "string", "nullable": false, "unit": "canonical exchange-qualified security code"},
+    {"name": "exchange", "type": "string", "nullable": false, "unit": null},
+    {"name": "list_session", "type": "date", "nullable": true, "unit": "Asia/Shanghai calendar date, inclusive"},
+    {"name": "delist_session", "type": "date", "nullable": true, "unit": "Asia/Shanghai calendar date, exclusive delisting-effective boundary"},
+    {"name": "status", "type": "string", "nullable": false, "unit": "source/current listing-status observation"}
+  ],
+  "validation": [
+    "primary keys are unique",
+    "rows are emitted in declared sort order",
+    "symbol is canonical and its suffix matches the finite canonical exchange value",
+    "delist_session is not earlier than list_session when both are present"
+  ]
+}

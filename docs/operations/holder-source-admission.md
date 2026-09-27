@@ -1,6 +1,6 @@
 # Holder-count source admission
 
-For `tushare_pr7_holder.v3` / `stk_holdernumber`, `end_date` is required
+For `tushare_holder_reports.v3` / `stk_holdernumber`, `end_date` is required
 for the canonical holder-count logical event identity. A null `end_date`
 is never inferred from `ann_date`, surrounding records, or a quarter end.
 The complete supplier response remains in RawBatch, including non-null

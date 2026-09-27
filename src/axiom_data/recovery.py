@@ -21,8 +21,8 @@ def _view_loaders():
     from axiom_data.event_views import load_event_fact_view_with_reader
     return {
         'market_qlib': _load_qlib_view, 'adjusted_price': _load_adjusted_price_view,
-        'market_replay': _load_market_replay_view, 'pr6_fact': load_financial_fact_view_with_reader,
-        'pr7_fact': load_event_fact_view_with_reader,
+        'market_replay': _load_market_replay_view, 'financial_fact': load_financial_fact_view_with_reader,
+        'event_fact': load_event_fact_view_with_reader,
     }
 
 
@@ -97,8 +97,10 @@ def verify_recovery(data_root, *, run_id, snapshot_id,
             raise ArtifactError('recovery run already active') from exc
         if path.exists():
             old = json.loads(path.read_bytes())
-            if old.get('plan') != plan or old.get('plan_digest') != _digest(_json_bytes(plan)):
+            from axiom_data.deprecated.view_protocols import equivalent_recovery_plan
+            if old.get('plan_digest') != _digest(_json_bytes(old.get('plan'))) or not equivalent_recovery_plan(old['plan'], plan):
                 raise ArtifactError('recovery resume plan changed')
+            plan = old['plan']
         state = {
             'schema_version': 'recovery_run.v1', 'run_id': run_id,
             'data_root': str(layout.root),
@@ -133,17 +135,11 @@ def verify_recovery(data_root, *, run_id, snapshot_id,
                     state['active_view'] = label
                     _save(path, state)
                     checked_reader = reader
-                    if spec['kind'] == 'pr6_fact':
-                        manifest, _ = _load_manifest(
-                            layout.root, layout.derived_commits('pr6_fact') / spec['view_id'],
-                            artifact_type='pr6_fact_view',
-                            schema_version=('pr6_fact_view.v1', 'pr6_fact_view.v2', 'pr6_fact_view.v3', 'pr6_fact_view.v4', 'pr6_fact_view.v5', 'pr6_fact_view.v6'),
-                            identity_field='view_id', identity=spec['view_id'],
-                        )
-                        if manifest['schema_version'] == 'pr6_fact_view.v1':
-                            checked_reader = None
-                    view = loaders[spec['kind']](
-                        layout.root, spec['view_id'], checked_reader=checked_reader)
+                    kind = _stored_view_kind(spec['kind'])
+                    if kind == 'financial_fact':
+                        from axiom_data.deprecated.view_protocols import financial_checked_reader
+                        checked_reader = financial_checked_reader(layout.root, spec['view_id'], reader)
+                    view = loaders[kind](layout.root, spec['view_id'], checked_reader=checked_reader)
                     if (view.ref.manifest_digest != spec['manifest_digest']
                             or view.manifest['snapshot_ref']['snapshot_id'] != concrete):
                         raise ArtifactError('restored View differs from frozen Snapshot/View reference')

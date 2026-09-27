@@ -1,27 +1,106 @@
 {
   "schema_version": "writable_contracts.v1",
   "domains": {
-    "trading_calendar": {"current": "trading_calendar.v1", "legacy_read_only": []},
-    "security_master": {"current": "security_master.v1", "legacy_read_only": []},
-    "market_daily": {"current": "market_daily.v1", "legacy_read_only": []},
-    "security_status": {"current": "security_status.v1", "legacy_read_only": []},
-    "price_limits": {"current": "price_limits.v1", "legacy_read_only": []},
-    "corporate_actions": {"current": "corporate_actions.v2", "legacy_read_only": ["corporate_actions.v1"]},
-    "adjustment_factors": {"current": "adjustment_factors.v1", "legacy_read_only": []},
-    "benchmark_daily": {"current": "benchmark_daily.v1", "legacy_read_only": []},
-    "security_capital": {"current": "security_capital.v2", "legacy_read_only": ["security_capital.v1"]},
-    "financial_events": {"current": "financial_events.v4", "legacy_read_only": ["financial_events.v1", "financial_events.v2", "financial_events.v3"]},
-    "valuation_daily": {"current": "valuation_daily.v2", "legacy_read_only": ["valuation_daily.v1"]},
-    "universe_membership": {"current": "universe_membership.v3", "legacy_read_only": ["universe_membership.v1", "universe_membership.v2"]},
-    "industry_membership": {"current": "industry_membership.v3", "legacy_read_only": ["industry_membership.v1", "industry_membership.v2"]},
-    "holder_count_events": {"current": "holder_count_events.v1", "legacy_read_only": []},
-    "top_holders_reports": {"current": "top_holders_reports.v1", "legacy_read_only": []},
-    "margin_daily": {"current": "margin_daily.v1", "legacy_read_only": []},
-    "moneyflow_daily": {"current": "moneyflow_daily.v1", "legacy_read_only": []},
-    "forecast_observations": {"current": "forecast_observations.v2", "legacy_read_only": ["forecast_observations.v1"]}
+    "trading_calendar": {
+      "current": "trading_calendar.v1",
+      "legacy_read_only": []
+    },
+    "security_master": {
+      "current": "security_master.v2",
+      "legacy_read_only": [
+        "security_master.v1"
+      ]
+    },
+    "market_daily": {
+      "current": "market_daily.v2",
+      "legacy_read_only": [
+        "market_daily.v1"
+      ]
+    },
+    "security_status": {
+      "current": "security_status.v1",
+      "legacy_read_only": []
+    },
+    "price_limits": {
+      "current": "price_limits.v1",
+      "legacy_read_only": []
+    },
+    "corporate_actions": {
+      "current": "corporate_actions.v3",
+      "legacy_read_only": [
+        "corporate_actions.v1",
+        "corporate_actions.v2"
+      ]
+    },
+    "adjustment_factors": {
+      "current": "adjustment_factors.v1",
+      "legacy_read_only": []
+    },
+    "benchmark_daily": {
+      "current": "benchmark_daily.v1",
+      "legacy_read_only": []
+    },
+    "security_capital": {
+      "current": "security_capital.v2",
+      "legacy_read_only": [
+        "security_capital.v1"
+      ]
+    },
+    "financial_events": {
+      "current": "financial_events.v4",
+      "legacy_read_only": [
+        "financial_events.v1",
+        "financial_events.v2",
+        "financial_events.v3"
+      ]
+    },
+    "valuation_daily": {
+      "current": "valuation_daily.v2",
+      "legacy_read_only": [
+        "valuation_daily.v1"
+      ]
+    },
+    "universe_membership": {
+      "current": "universe_membership.v3",
+      "legacy_read_only": [
+        "universe_membership.v1",
+        "universe_membership.v2"
+      ]
+    },
+    "industry_membership": {
+      "current": "industry_membership.v3",
+      "legacy_read_only": [
+        "industry_membership.v1",
+        "industry_membership.v2"
+      ]
+    },
+    "holder_count_events": {
+      "current": "holder_count_events.v1",
+      "legacy_read_only": []
+    },
+    "top_holders_reports": {
+      "current": "top_holders_reports.v1",
+      "legacy_read_only": []
+    },
+    "margin_daily": {
+      "current": "margin_daily.v1",
+      "legacy_read_only": []
+    },
+    "moneyflow_daily": {
+      "current": "moneyflow_daily.v1",
+      "legacy_read_only": []
+    },
+    "forecast_observations": {
+      "current": "forecast_observations.v2",
+      "legacy_read_only": [
+        "forecast_observations.v1"
+      ]
+    }
   },
   "source_coverage": {
     "current": "source_observations.v2",
-    "legacy_read_only": ["source_observations.v1"]
+    "legacy_read_only": [
+      "source_observations.v1"
+    ]
   }
 }

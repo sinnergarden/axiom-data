@@ -1,3 +1,4 @@
+from axiom_data.contracts import writable_contracts
 import json
 import os
 import tempfile
@@ -61,7 +62,7 @@ class SessionPartitionReadTest(unittest.TestCase):
                 raw = 'raw-'+domain; write_rows(root,raw,domain,rows)
                 options = dict(calendar_commit_id=ids['trading_calendar'],security_master_commit_id=ids['security_master']) if domain=='market_daily' else {}
                 builder = MarketDomainBuilder(root,domain,builder_config={'storage_policy':'domain_time_blocks.v1'},**options)
-                ids[domain] = BuildApplication(domain,builder).build(None,[raw],[],domain+'.v1').commit_id
+                ids[domain] = BuildApplication(domain,builder).build(None,[raw],[],writable_contracts()["domains"][domain]["current"]).commit_id
             snapshot = create_snapshot(root,ids)
             with patch('axiom_data.partition_rows.STREAM_ROW_THRESHOLD',1):
                 reader = SnapshotReader(root,snapshot.snapshot_id)
@@ -127,7 +128,7 @@ class SessionPartitionReadTest(unittest.TestCase):
             path=root/'canonical/market_daily/objects'/identity/'rows.json'
             path.parent.mkdir(parents=True);path.write_bytes(payload)
             entry=dict(key='2024-02',object_id=identity,content_digest='sha256:'+identity,rows=3,bytes=len(payload))
-            parts=PartitionRows(DataRootLayout(root),'market_daily',dict(partition_policy='domain_time_blocks.v1',output_files=[],partitions=[entry]),load_contract('market_daily.v1'))
+            parts=PartitionRows(DataRootLayout(root),'market_daily',dict(partition_policy='domain_time_blocks.v1',output_files=[],partitions=[entry]),load_contract('market_daily.v2'))
             reader=SnapshotReader.__new__(SnapshotReader)
             reader.commits={'market_daily':SimpleNamespace(rows=parts)}
             reader._security_projection=OrderedDict();reader._security_projection_bytes=0

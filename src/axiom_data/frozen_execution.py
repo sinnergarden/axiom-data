@@ -161,9 +161,10 @@ def _freeze_invocation(root, invocation, *, run_id=None, stage=None):
             # A restored root changes the storage location, not the frozen refs.
             location = stored.get('kwargs', stored)
             location['data_root'] = str(layout.root.absolute())
-            if stored != invocation:
+            from axiom_data.deprecated.view_protocols import equivalent_invocation
+            if not equivalent_invocation(stored, invocation):
                 raise ArtifactError('frozen execution resume plan inputs changed; use a distinct run_id')
-            return dict(envelope, invocation=invocation)
+            return dict(envelope, invocation=stored)
     envelope = {'schema_version': 'frozen_invocation.v1', 'invocation': invocation,
                 'code': capture_code(root)}
     # Audit metadata never changes the stable code or artifact identity.
@@ -309,7 +310,8 @@ def _child(request_path, response_path):
         with guard as attempts:
             invocation = envelope['invocation']
             if 'builder' in invocation:
-                module, name = invocation['builder'].rsplit('.', 1)
+                from axiom_data.deprecated.resources import builder_implementation
+                module, name = builder_implementation(invocation['builder']).rsplit('.', 1)
                 cls = getattr(importlib.import_module(module), name)
                 from axiom_data.build import BuildApplication, BuildRequest
                 builder = cls(invocation['data_root'], invocation['domain'], **invocation['options'])
@@ -332,9 +334,11 @@ def _child(request_path, response_path):
     Path(response_path).write_bytes(_json_bytes(result))
 
 
-VIEW_EXECUTION_SCHEMAS = {
+from axiom_data.deprecated.view_protocols import EXECUTION_SCHEMAS as HISTORICAL_EXECUTION_SCHEMAS
+
+VIEW_EXECUTION_SCHEMAS = HISTORICAL_EXECUTION_SCHEMAS | {
     'adjusted_price_view.v2', 'market_replay_view.v2', 'qlib_view.v3', 'qlib_view.v4',
-    'pr6_fact_view.v6', 'pr7_fact_view.v5',
+    'financial_fact_view.v6', 'event_fact_view.v5',
 }
 
 
