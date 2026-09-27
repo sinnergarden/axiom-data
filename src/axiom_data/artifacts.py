@@ -1005,14 +1005,18 @@ class MarketDomainBuilder:
             raise ArtifactError(str(exc)) from exc
         if self.builder_config.get('coverage_state_policy') != writable_contracts()['source_coverage']['current']:
             raise ArtifactError('LEGACY_CONTRACT_READ_ONLY: current source coverage contract required for publication')
-        if request.patch_ids:
-            raise ArtifactError("this RawBatch contract does not support non-empty patch_ids")
         contract, contract_content, contract_digest = _contract_content(
             request.contract_version
         )
         if contract.get("domain") != self.domain:
             raise ArtifactError("build contract does not belong to the executor domain")
 
+        from axiom_data.patches import load_patch, patch_ref, build_rows, evidence_ids, PROTOCOL
+        patches = [load_patch(self.layout.root, identity) for identity in request.patch_ids]
+        if any(p['manifest']['domain'] != self.domain or p['manifest']['contract_digest'] != contract_digest for p in patches):
+            raise ArtifactError('patch ref/domain/contract mismatch')
+        patch_evidence_ids = {ref['raw_batch_id'] for patch in patches
+            for ref in patch['manifest']['source_evidence_refs']}
         raw_batches = RawBatches(self.layout.root, request.raw_batch_ids)
         coverage_policy = self.builder_config.get('coverage_state_policy')
         coverage_enabled = coverage_policy in {'source_observations.v1', 'source_observations.v2'}
@@ -1083,19 +1087,17 @@ class MarketDomainBuilder:
             requalify_sources(self.layout.root, inherited)
         if 'security_session_scope' in self.builder_config:
             from axiom_data.public_source_scope import validate_security_scope
-            validate_security_scope(self.domain, self.builder_config, raw_batches, loaded_dependencies)
+            validate_security_scope(self.domain, self.builder_config,
+                raw_batches if raw_batches else RawBatches(self.layout.root, sorted(parent_raw_batch_ids)), loaded_dependencies)
 
         self.parent_group_states = parent.manifest.get("group_states", []) if parent else []
-        rows = self._build_rows(
-            contract,
-            parent.rows if parent is not None else (),
-            raw_batches,
-        )
+        rows = build_rows(self, contract, parent, raw_batches, patches)
         from axiom_data.partition_rows import PartitionRows, WHOLE_STATE_DOMAINS, rows_digest
         published_partitions = None
         rows_content = None
         if self.builder_config.get('storage_policy') == 'domain_time_blocks.v1':
-            from axiom_data.partitions import POLICY, publish_partitions
+            from axiom_data.partitions import POLICY
+            from axiom_data.patches import publish_partitions
             logical_digest = rows_digest(rows)
             published_partitions = publish_partitions(self.layout, self.domain, rows)
             if self.domain not in WHOLE_STATE_DOMAINS:
@@ -1104,14 +1106,14 @@ class MarketDomainBuilder:
                     'partitions': published_partitions, 'logical_content_digest': logical_digest,
                 }, contract)
         else:
-            rows_content = _json_bytes(rows)
+            rows_content = _json_bytes(list(rows))
             logical_digest = _digest(rows_content)
         if self.domain in REFERENCE_DOMAINS + FUNDAMENTAL_DOMAINS + EVENT_DOMAINS:
             _validate_dm1_observation_refs(
                 self.layout.root,
                 self.domain,
                 rows,
-                parent_raw_batch_ids
+                parent_raw_batch_ids | patch_evidence_ids | evidence_ids(self.layout.root, parent)
                 | (frozenset(request.raw_batch_ids) if self.domain == "financial_events"
                    else frozenset(raw.ref.raw_batch_id for raw in raw_batches)),
             )
@@ -1119,12 +1121,12 @@ class MarketDomainBuilder:
             from axiom_data.fundamentals_source import FundamentalsBuilder
             replay = FundamentalsBuilder(self.layout.root, self.domain, builder_config=self.builder_config)
             replay.parent_group_states = self.parent_group_states
-            if not _equal_rows(replay._build_rows(contract, parent.rows if parent else (), raw_batches), rows):
+            if not _equal_rows(build_rows(replay, contract, parent, raw_batches, patches), rows):
                 raise ArtifactError("financial staged rows differ from their source mapping")
         if self.domain in EVENT_DOMAINS:
             from axiom_data.event_source import EventBuilder
             replay = EventBuilder(self.layout.root, self.domain, builder_config=self.builder_config)
-            if not _equal_rows(replay._build_rows(contract, parent.rows if parent else (), raw_batches), rows):
+            if not _equal_rows(build_rows(replay, contract, parent, raw_batches, patches), rows):
                 raise ArtifactError("event staged rows differ from RawBatch mapping")
         builder_config_digest = _digest(_json_bytes(self.builder_config))
         builder_implementation_ref = _builder_implementation_ref(self)
@@ -1133,7 +1135,7 @@ class MarketDomainBuilder:
         if coverage_enabled:
             from axiom_data.source_coverage import state as coverage_state
             coverage = coverage_state(parent, parent_raw_batch_ids, coverage_observations, policy=coverage_policy)
-        if (parent is not None and self.builder_config.get('no_change_policy') == 'reuse_equal_state.v1'
+        if (not patches and parent is not None and self.builder_config.get('no_change_policy') == 'reuse_equal_state.v1'
             and logical_digest == parent.manifest['logical_content_digest']
             and set(request.raw_batch_ids) <= parent_raw_batch_ids
             and self.builder_config == parent.manifest['builder_config']
@@ -1154,7 +1156,7 @@ class MarketDomainBuilder:
             "contract_path": "contract.json",
             "parent_commit_ref": parent_ref,
             "ordered_raw_batch_refs": raw_refs,
-            "ordered_patch_refs": [],
+            "ordered_patch_refs": [patch_ref(patch) for patch in patches],
             "builder_implementation_ref": builder_implementation_ref,
             "builder_config": self.builder_config,
             "builder_config_digest": builder_config_digest,
@@ -1174,7 +1176,6 @@ class MarketDomainBuilder:
             },
         }
         if self.builder_config.get('storage_policy') == 'domain_time_blocks.v1':
-            from axiom_data.partitions import POLICY, publish_partitions
             manifest['schema_version'] = 'domain_commit.v2'
             manifest['partition_policy'] = POLICY
             manifest['partitions'] = published_partitions
@@ -1185,6 +1186,8 @@ class MarketDomainBuilder:
             from axiom_data.domains.fundamentals import validate_group_states
             validate_group_states(rows,self.group_states)
             manifest['group_states'] = self.group_states
+        if patches or (parent and parent.manifest.get('patch_protocol')):
+            manifest['patch_protocol'] = PROTOCOL
         if coverage_enabled:
             manifest['source_coverage'] = coverage
         if 'executed_code_ref' in builder_implementation_ref:
@@ -1272,6 +1275,10 @@ def _load_domain_commit(data_root, domain, domain_commit_id, *, verify_rows):
     if 'executed_code_ref' in manifest['builder_implementation_ref']:
         from axiom_data.frozen_execution import validate_code
         validate_code(data_root, manifest['builder_implementation_ref']['executed_code_ref'])
+    from axiom_data.patches import PROTOCOL
+    if ('patch_protocol' in manifest and manifest['patch_protocol'] != PROTOCOL) or (
+            'patch_protocol' not in manifest and manifest.get('ordered_patch_refs') != []):
+        raise ArtifactError('DomainCommit patch protocol mismatch')
     builder_config = manifest.get("builder_config")
     if not isinstance(builder_config, dict) or manifest.get(
         "builder_config_digest"
@@ -1466,8 +1473,10 @@ def _validate_domain_commit_node(
             raise ArtifactError("DomainCommit raw refs must not contain duplicates")
         transitive_raw_batch_ids = set(raw_ids)
 
-        if commit.manifest.get("ordered_patch_refs") != []:
-            raise ArtifactError("market DomainCommit patch refs must be empty")
+        from axiom_data.patches import load_refs, build_rows, PROTOCOL
+        patches = load_refs(root, commit.manifest.get('ordered_patch_refs'), commit.contract)
+        patch_evidence_ids = {ref['raw_batch_id'] for patch in patches
+            for ref in patch['manifest']['source_evidence_refs']}
 
         parent_ref = commit.manifest.get("parent_commit_ref")
         parent = None
@@ -1506,12 +1515,18 @@ def _validate_domain_commit_node(
             if commit.manifest['source_coverage'] != expected_coverage:
                 raise ArtifactError('source coverage differs from validated Raw lineage')
 
+        if parent and parent.manifest.get('patch_protocol') and commit.manifest.get('patch_protocol') != PROTOCOL:
+            raise ArtifactError('inherited patch protocol missing')
+        if commit.manifest.get('patch_protocol') and not patches and not (parent and parent.manifest.get('patch_protocol')):
+            raise ArtifactError('patch protocol requires a correction lineage')
+        from axiom_data.patches import evidence_ids
+        source_closure_ids = transitive_raw_batch_ids | patch_evidence_ids | evidence_ids(root, parent)
         canonical_rows = commit.rows
         if domain in FUNDAMENTAL_DOMAINS + EVENT_DOMAINS:
             # Mapping replay below already consumes every canonical row. Check
             # its provenance in that pass instead of parsing all partitions again.
             canonical_rows = _observation_rows(
-                root, domain, commit.rows, transitive_raw_batch_ids,
+                root, domain, commit.rows, source_closure_ids,
                 verified_evidence=raw_evidence,
             )
         elif domain in REFERENCE_DOMAINS:
@@ -1519,17 +1534,16 @@ def _validate_domain_commit_node(
                 root,
                 domain,
                 commit.rows,
-                transitive_raw_batch_ids,
+                source_closure_ids,
                 verified_evidence=raw_evidence,
             )
 
         if domain in FUNDAMENTAL_DOMAINS:
             from axiom_data.fundamentals_source import FundamentalsBuilder
-            previous_rows = parent.rows if parent_ref is not None else ()
             replay = FundamentalsBuilder(root, domain, builder_config=commit.manifest["builder_config"])
             replay.parent_group_states = parent.manifest.get("group_states", []) if parent_ref is not None else []
-            expected_rows = replay._build_rows(commit.contract, previous_rows,
-                RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]))
+            expected_rows = build_rows(replay, commit.contract, parent,
+                RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]), patches)
             if commit.ref.contract_version == "universe_membership.v3" and commit.manifest.get("group_states") != replay.group_states:
                 raise ArtifactError("universe group states differ from RawBatch mapping")
             if commit.ref.contract_version == "universe_membership.v3":
@@ -1542,21 +1556,25 @@ def _validate_domain_commit_node(
         if domain in EVENT_DOMAINS:
             from axiom_data.event_source import EventBuilder
             replay = EventBuilder(root, domain, builder_config=commit.manifest["builder_config"])
-            expected_rows = replay._build_rows(commit.contract, parent.rows if parent_ref is not None else (),
-                RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]))
+            expected_rows = build_rows(replay, commit.contract, parent,
+                RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]), patches)
             if not _equal_rows(expected_rows, canonical_rows):
                 raise ArtifactError("event canonical rows differ from RawBatch mapping")
             del expected_rows
 
-        if commit.ref.contract_version in {'corporate_actions.v2', 'security_capital.v2'} or (domain == 'price_limits' and commit.manifest['builder_config'].get('limit_qualification')) or (domain == 'corporate_actions' and commit.manifest['builder_config'].get('corporate_action_reobservation')):
+        if not commit.manifest.get('patch_protocol') and (commit.ref.contract_version in {'corporate_actions.v2', 'security_capital.v2'} or (domain == 'price_limits' and commit.manifest['builder_config'].get('limit_qualification')) or (domain == 'corporate_actions' and commit.manifest['builder_config'].get('corporate_action_reobservation'))):
             from axiom_data.reference_source import TushareReferenceBuilder
             replay=TushareReferenceBuilder(root,domain,builder_config=commit.manifest['builder_config'],
                 dependency_commit_ids={d:ref['domain_commit_id'] for d,ref in commit.manifest['dependency_commit_refs'].items()})
-            expected_rows=replay._build_rows(commit.contract,parent.rows if parent_ref is not None else (),
-                RawBatches(root,[ref['raw_batch_id'] for ref in raw_refs]))
+            expected_rows=build_rows(replay, commit.contract, parent,
+                RawBatches(root,[ref['raw_batch_id'] for ref in raw_refs]), patches)
             if not _equal_rows(expected_rows,commit.rows):
                 raise ArtifactError('qualified D-M1 observations differ from RawBatch mapping')
             del expected_rows
+
+        if commit.manifest.get('patch_protocol') and domain not in FUNDAMENTAL_DOMAINS + EVENT_DOMAINS:
+            from axiom_data.patches import validate_incremental_replay
+            validate_incremental_replay(root, commit, parent, raw_refs, patches)
 
         dependency_refs = commit.manifest.get("dependency_commit_refs")
         required = set(_DOMAIN_DEPENDENCIES[domain])
@@ -1586,7 +1604,7 @@ def _validate_domain_commit_node(
             if 'security_session_scope' in commit.manifest['builder_config']:
                 from axiom_data.public_source_scope import validate_security_scope
                 validate_security_scope(domain, commit.manifest['builder_config'],
-                    RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs]), dependencies)
+                    RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs] or sorted(transitive_raw_batch_ids)), dependencies)
             if domain in FUNDAMENTAL_DOMAINS + EVENT_DOMAINS:
                 _validate_pr6_dependencies(domain, commit.rows, dependencies)
             if domain == "market_daily":

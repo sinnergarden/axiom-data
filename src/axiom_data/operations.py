@@ -552,7 +552,7 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
         raise ArtifactError('explicit registered domain input plan required')
     allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'security_session_scope', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition','top10_qualification','margin_qualification','corporate_action_observations','capital_qualification','limit_qualification','forecast_source_types','corporate_action_reobservation'}
     for domain, spec in domain_inputs.items():
-        if not isinstance(spec, dict) or set(spec) != {'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}:
+        if not isinstance(spec, dict) or set(spec) not in ({'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}, {'raw_batch_ids', 'patch_ids', 'contract_version', 'config', 'new_lineage'}):
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
         if not isinstance(spec['config'], dict) or set(spec['config'])-allowed_config:
             raise ArtifactError('unsupported public builder config')
@@ -605,12 +605,13 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
             from axiom_data.reference_source import _EXPECTED_ENDPOINTS
             if domain not in _EXPECTED_ENDPOINTS or spec['config']['dm1_source_partitioning']!='security.v1':
                 raise ArtifactError('unsupported D-M1 source partitioning')
-        from axiom_data.build import BuildRequest
+        from axiom_data.build import BuildRequest, _identities
+        _identities('patch_ids', spec.get('patch_ids', []))
         if domain in pending_domains and spec['raw_batch_ids'] == []:
             from axiom_data.build import _registered_contract
             _registered_contract('contract_version', spec['contract_version'])
         else:
-            BuildRequest(None, spec['raw_batch_ids'], [], spec['contract_version'])
+            BuildRequest('parent' if spec.get('patch_ids') and not spec['new_lineage'] else None, spec['raw_batch_ids'], spec.get('patch_ids', []), spec['contract_version'])
         if type(spec['new_lineage']) is not bool:
             raise ArtifactError('new_lineage must be boolean')
 
@@ -772,7 +773,12 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
         requalify_sources(layout.root, reused)
         if set(commits) | set(domain_inputs) != set(EVENT_SNAPSHOT_DOMAINS):
             raise ArtifactError('V1 candidate requires the complete registered domain set')
+        from axiom_data.patches import load_patch, patch_ref
+        patch_refs = {domain: [patch_ref(load_patch(layout.root, identity)) for identity in spec.get('patch_ids', [])]
+            for domain, spec in domain_inputs.items()}
         plan = {'parent_snapshot_id': parent_id, 'domains': domain_inputs}
+        if any(patch_refs.values()):
+            plan['patch_refs'] = patch_refs
         directory = layout.root/'operations'/run_id
         _ensure_directory(layout.root, directory)
         path = _safe_path(layout.root, directory/'build.json')
@@ -815,7 +821,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
                     if identity == previous:
                         # No-change reuse has no new input refs in the parent manifest;
                         # replay the explicit request to prove it still yields that state.
-                        replay = BuildApplication(domain,builder).build(previous,spec['raw_batch_ids'],[],spec['contract_version'])
+                        replay = BuildApplication(domain,builder).build(previous,spec['raw_batch_ids'],spec.get('patch_ids', []),spec['contract_version'])
                         if replay.commit_id != identity:
                             raise ArtifactError('resume no-change result differs from request')
                     else:
@@ -824,7 +830,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
                             'contract_version': spec['contract_version'],
                             'parent_commit_ref': parent_ref,
                             'ordered_raw_batch_refs': [_raw_ref(load_raw_batch(layout.root,r)) for r in spec['raw_batch_ids']],
-                            'ordered_patch_refs': [],
+                            'ordered_patch_refs': patch_refs[domain],
                             'builder_config': builder.builder_config,
                             'builder_implementation_ref': _builder_implementation_ref(builder),
                             'dependency_commit_refs': {d:_commit_ref(validate_domain_commit_closure(layout.root,d,i)) for d,i in deps.items()},
@@ -834,7 +840,7 @@ def assemble_candidate(data_root, *, run_id, domain_inputs, parent_snapshot_id=N
                     commits[domain] = identity
                     state['failed'].pop(domain,None)
                     continue
-                ref = BuildApplication(domain,builder).build(previous,spec['raw_batch_ids'],[],spec['contract_version'])
+                ref = BuildApplication(domain,builder).build(previous,spec['raw_batch_ids'],spec.get('patch_ids', []),spec['contract_version'])
                 commits[domain] = ref.commit_id
                 state['published_commits'][domain] = ref.commit_id
                 state['failed'].pop(domain,None)
