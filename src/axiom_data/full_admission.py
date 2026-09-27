@@ -108,6 +108,33 @@ def _view_groups(views):
             yield batch
 
 
+def _adjusted_ohlc_fact(row, status, qualification):
+    from axiom_data.domains.reference import weakest_pit_qualification
+    reason='missing_required_row' if row is None else None if row['adjustment_state']=='ok' else row['adjustment_state']
+    if reason in {'missing_required_row','no_market_price','missing_factor'} and status.get('status')=='suspended':
+        reason='suspended'
+        qualification=weakest_pit_qualification([{'pit_qualification':qualification},
+            {'pit_qualification':status.get('pit_qualification','unknown')}])
+    return dict(value=None if row is None else [row[f] for f in ('open','high','low','close')],
+        missing_reason=reason, source_ref=status.get('source_ref'), pit_qualification=qualification)
+
+
+def _canonical_fact(row, status, leaf, field, commit):
+    fact = dict(value=row.get(field) if row else None,
+        missing_reason='missing_required_row' if row is None else
+            ('suspended' if row.get('is_suspended') else 'no_limit' if row.get('limit_state')=='no_limit'
+             else row.get('missing_reason')) if row.get(field) is None else None,
+        pit_qualification=row.get('pit_qualification','best_effort') if row else 'unknown',
+        source_ref=row.get('source_ref') if row else None,
+        domain_commit_id=commit.ref.commit_id,contract_version=commit.ref.contract_version)
+    if (leaf in {'market.open','market.high','market.low','market.close'}
+            and row is not None and row.get('is_suspended') is True
+            and row.get(field) is None and status.get('status')=='suspended'):
+        fact.update(missing_reason='suspended',source_ref=status.get('source_ref'),
+            pit_qualification=status.get('pit_qualification','unknown'))
+    return fact
+
+
 def _fact_state(fact, leaf):
     reason = fact.get('missing_reason')
     # Only temporal absence, after the family's source coverage admission, is
@@ -243,13 +270,8 @@ def _assess(root, snapshot_id, plan):
                                 if not (scope['start_session']<=day<=scope['end_session'] and expected[symbol]&bits[day]):
                                     continue
                                 row=keyed.get((symbol,day));status=statuses.get((symbol,day),{})
-                                reason='missing_required_row' if row is None else None if row['adjustment_state']=='ok' else row['adjustment_state']
-                                if reason in {'missing_required_row','no_market_price'} and status.get('status')=='suspended':
-                                    reason='suspended'
                                 record('adjusted_price.anchored_ohlc',symbol,day,
-                                    dict(value=None if row is None else [row[f] for f in ('open','high','low','close')],
-                                         missing_reason=reason, source_ref=status.get('source_ref'),
-                                         pit_qualification=view.manifest['pit_qualification']),view.ref.view_id)
+                                    _adjusted_ohlc_fact(row,status,view.manifest['pit_qualification']),view.ref.view_id)
     # Consume canonical daily inputs once per month, not once per security or
     # session. Retain only that month's key index; never full-history payloads.
     domains = {}
@@ -274,14 +296,7 @@ def _assess(root, snapshot_id, plan):
                     key = identities[symbol]['exchange'] if domain == 'trading_calendar' else symbol
                     row = keyed.get((day,key))
                     for leaf, field in bindings:
-                        fact = dict(value=row.get(field) if row else None,
-                            missing_reason='missing_required_row' if row is None else
-                                ('suspended' if row.get('is_suspended') else 'no_limit' if row.get('limit_state')=='no_limit' else row.get('missing_reason')) if row.get(field) is None else None,
-                            pit_qualification=row.get('pit_qualification', 'best_effort') if row else 'unknown',
-                            source_ref=row.get('source_ref') if row else None,
-                            domain_commit_id=commit.ref.commit_id, contract_version=commit.ref.contract_version)
-                        if row is None and statuses.get((day,symbol),{}).get('status')=='suspended':
-                            fact.update(missing_reason='suspended',source_ref=statuses[(day,symbol)]['source_ref'])
+                        fact = _canonical_fact(row, statuses.get((day,symbol),{}), leaf, field, commit)
                         record(leaf, symbol, day, fact, commit.ref.commit_id)
     requirements = []
     for leaf in leaves:

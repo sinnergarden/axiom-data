@@ -145,7 +145,7 @@ def build_adjusted_price_view(
         pit_policy=pit_policy,decision_cutoff=decision_cutoff,created_at=created_at)
 
 
-def _build_adjusted_price_view(reader, *, symbols, start_session, end_session,
+def _prepare_adjusted_price_view(reader, *, symbols, start_session, end_session,
                                anchor_session, pit_policy, decision_cutoff, created_at=None):
     reader._check_consumed_metadata(force=True)
     data_root = reader.data_root
@@ -200,6 +200,19 @@ def _build_adjusted_price_view(reader, *, symbols, start_session, end_session,
         raise ArtifactError(
             f"adjusted-price PIT qualification is insufficient: {exc}"
         ) from exc
+    return selected, start, end, anchor, cutoff, market, factors, anchors, qualification
+
+
+def _build_adjusted_price_view(reader, *, symbols, start_session, end_session,
+                               anchor_session, pit_policy, decision_cutoff, created_at=None):
+    selected, start, end, anchor, cutoff, market, factors, anchors, qualification = _prepare_adjusted_price_view(
+        reader, symbols=symbols, start_session=start_session, end_session=end_session,
+        anchor_session=anchor_session, pit_policy=pit_policy, decision_cutoff=decision_cutoff,
+        created_at=created_at)
+    data_root = reader.data_root
+    snapshot = reader.snapshot
+    market_ref = _snapshot_domain_ref(snapshot, 'market_daily')
+    factor_ref = _snapshot_domain_ref(snapshot, 'adjustment_factors')
     rows: list[dict[str, Any]] = []
     for source in market:
         key = (source["session"], source["symbol"])
@@ -630,7 +643,7 @@ def build_market_replay_view(
         symbols=symbols,start_session=start_session,end_session=end_session,created_at=created_at)
 
 
-def _build_market_replay_view(reader, *, symbols, start_session, end_session, created_at=None):
+def _prepare_market_replay_view(reader, *, symbols, start_session, end_session, created_at=None):
     reader._check_consumed_metadata(force=True)
     data_root = reader.data_root
     selected = validate_symbols(symbols)
@@ -645,6 +658,8 @@ def _build_market_replay_view(reader, *, symbols, start_session, end_session, cr
         prepared = prepared_market_view_rows(reader, 'market_replay', domain, selected, start, end)
         return prepared if prepared is not None else read()
     security = {row["symbol"]: row for row in source('security_master', lambda: reader.security_master(selected))}
+    if set(security) != set(selected):
+        raise ArtifactError('MarketReplayView scope includes an unknown security identity')
     market = {(row["session"], row["symbol"]): row for row in source('market_daily', lambda: reader.market_daily(selected, start, end))}
     status = {(row["session"], row["symbol"]): row for row in source('security_status', lambda: reader.facts("security_status", symbols=selected, start_session=start, end_session=end))}
     limits = {(row["session"], row["symbol"]): row for row in source('price_limits', lambda: reader.facts("price_limits", symbols=selected, start_session=start, end_session=end))}
@@ -656,6 +671,14 @@ def _build_market_replay_view(reader, *, symbols, start_session, end_session, cr
         [*status.values(), *limits.values(), *action_rows]
     )
     calendars = source('trading_calendar', lambda: reader.trading_calendar(start_session=start, end_session=end))
+    return selected, start, end, required, security, market, status, limits, actions, replay_qualification, calendars
+
+
+def _build_market_replay_view(reader, *, symbols, start_session, end_session, created_at=None):
+    (selected, start, end, required, security, market, status, limits, actions,
+     replay_qualification, calendars) = _prepare_market_replay_view(reader,
+        symbols=symbols,start_session=start_session,end_session=end_session,created_at=created_at)
+    data_root = reader.data_root
     rows = []
     for cal in calendars:
         if cal["is_open"] is not True:
@@ -809,3 +832,46 @@ __all__ = [
     "load_adjusted_price_view",
     "load_market_replay_view",
 ]
+
+
+def publish_rebound_view(reader, kind, view):
+    """Publish checked immutable content with this Snapshot's manifest binding."""
+    from copy import deepcopy
+    from axiom_data.consumption import QlibViewRef
+    layout = _layout(reader.data_root)
+    old_id = view.ref.view_id
+    source = layout.qlib_exports / old_id if kind=='market_qlib' else layout.derived_commits(kind) / old_id
+    manifest = deepcopy(view.manifest)
+    manifest['snapshot_ref'] = {'snapshot_id':reader.snapshot.ref.snapshot_id,
+                               'identity_digest':reader.snapshot.manifest['identity_digest']}
+    if 'domain_refs' in manifest:
+        manifest['domain_refs'] = {d:reader.snapshot.manifest['domain_refs'][d] for d in manifest['domain_refs']}
+    if kind=='pr6_fact':
+        for name in ('membership_ref','industry_ref'):
+            manifest[name]['snapshot_id'] = reader.snapshot.ref.snapshot_id
+    replacement = {}
+    if kind=='pr7_fact':
+        from axiom_data.event_views import rebound_event_states
+        content, size = rebound_event_states(reader,view,source)
+        replacement['states.json.gz'] = content
+        manifest['state_uncompressed_bytes'] = size
+        for entry in manifest['files']:
+            if entry['path']=='states.json.gz':
+                entry.update(content_digest=_digest(content),size=len(content))
+    identity = _identity_digest(manifest, 'view_id')
+    prefix = {'adjusted_price':'adjusted-price','market_replay':'market-replay',
+              'market_qlib':'qlib','pr6_fact':'pr6-fact','pr7_fact':'pr7-fact'}[kind]
+    view_id = _derived_identity(prefix, identity)
+    manifest.update(view_id=view_id, identity_digest=identity, created_at=_timestamp(None))
+    target = layout.qlib_exports / view_id if kind=='market_qlib' else layout.derived_commits(kind) / view_id
+    def prepare(candidate):
+        for path in source.rglob('*'):
+            if path.is_file() and path.name not in {'manifest.json','manifest.sha256'}:
+                destination = candidate / path.relative_to(source)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                relative=path.relative_to(source).as_posix()
+                _write_file(destination, replacement[relative] if relative in replacement else path.read_bytes())
+        _write_manifest(candidate, manifest)
+    _publish_directory(layout, target, prepare, identity_digest=identity)
+    digest = _digest((target/'manifest.json').read_bytes())
+    return QlibViewRef(view_id,digest) if kind=='market_qlib' else DerivedViewRef(kind,view_id,digest)

@@ -347,3 +347,83 @@ def resolve_price_anchors(reader, views, *, historical=False):
         snapshot_id=reader.snapshot.ref.snapshot_id,
         snapshot_manifest_digest=reader.snapshot.ref.manifest_digest,
         factor_domain_ref=reader.snapshot.manifest['domain_refs']['adjustment_factors'], anchors=evidence)
+
+
+def _preflight_items(reader, views):
+    """Assess every deterministic prerequisite before the first publication.
+
+    Projection/value acceptance remains in the builders and full admission.
+    Financial preparation is shared by the enclosing operation context.
+    """
+    from axiom_data.views import _prepare_adjusted_price_view
+    from axiom_data.consumption import _validate_qlib_inputs, _qlib_geometry
+    from axiom_data.financial_views import admit_financial_view
+    from axiom_data.event_views import admit_event_view
+    results = {}
+    for label, spec in views.items():
+        kind, config = spec['kind'], spec['config']
+        try:
+            builder = _builders()[kind]
+            bound = inspect.signature(builder).bind(reader.data_root, reader.snapshot.ref.snapshot_id, **config)
+            bound.apply_defaults()
+            args = dict(bound.arguments)
+            args.pop('data_root'); args.pop('snapshot_id')
+            if args.get('created_at') is not None:
+                _timestamp(args['created_at'])
+            symbols = validate_symbols(args['symbols'])
+            start = validate_session(args['start_session'], 'start_session')
+            end = validate_session(args['end_session'], 'end_session')
+            if start > end:
+                raise ArtifactError('reversed View scope')
+            if kind == 'adjusted_price':
+                _prepare_adjusted_price_view(reader, **args)
+            elif kind == 'market_qlib':
+                selected, start, end, _, _ = _validate_qlib_inputs(reader, **args, structural_only=True)
+                _qlib_geometry(reader, selected, start, end)
+                from axiom_data.consumption import prepared_market_view_rows
+                if prepared_market_view_rows(reader,'market_qlib','market_daily',selected,start,end) is None:
+                    reader.market_daily(selected,start,end)
+            elif kind == 'market_replay':
+                from axiom_data.views import _prepare_market_replay_view
+                _prepare_market_replay_view(reader, **args)
+            else:
+                if args['pit_policy'] not in POLICIES:
+                    raise ArtifactError('invalid fact PIT policy')
+                instant(args['knowledge_cutoff'])
+                scope = {k:v for k,v in args.items() if k not in {'pit_policy','knowledge_cutoff'}}
+                if kind == 'pr6_fact':
+                    admit_financial_view(reader, scope, args['pit_policy'], args['knowledge_cutoff'])
+                else:
+                    admit_event_view(reader, scope, args['pit_policy'], args['knowledge_cutoff'])
+            results[label] = {'status':'READY', 'scope':'deterministic_prerequisites'}
+        except Exception as exc:
+            results[label] = {'status':'BLOCKED', 'stage':'view_preflight',
+                              'error_type':type(exc).__name__, 'reason':str(exc)}
+    return results
+
+
+def preflight_views(reader, views):
+    from contextlib import nullcontext
+    from axiom_data.view_operation import view_batches
+    from axiom_data.views import adjusted_price_batch
+    from axiom_data.consumption import market_view_batch
+    from axiom_data.financial_views import financial_view_batch
+    from axiom_data.event_views import event_view_batch
+    results = {}
+    for group in view_batches(views):
+        kind = group[0][1]['kind']
+        configs = [spec['config'] for _,spec in group]
+        try:
+            context = nullcontext()
+            if len(group)>1 and all(isinstance(c.get('symbols'),list) and len(c['symbols'])==1 for c in configs):
+                context = (adjusted_price_batch(reader,configs) if kind=='adjusted_price' else
+                    market_view_batch(reader,configs,kind) if kind in {'market_replay','market_qlib'} else
+                    financial_view_batch(reader,configs) if kind=='pr6_fact' else event_view_batch(reader,configs))
+            with context:
+                results.update(_preflight_items(reader,dict(group)))
+        except Exception as exc:
+            for label,_ in group:
+                results[label] = {'status':'BLOCKED','stage':'shared_preparation',
+                    'error_type':type(exc).__name__,'reason':str(exc),
+                    'scope':{'kind':kind,'labels':[k for k,_ in group]}}
+    return results

@@ -157,10 +157,11 @@ class SnapshotReader:
     """Read one explicit Snapshot, verifying referenced files as they are consumed.
 
     Historical Raw/mapping replay is available through load_snapshot; a Reader
-    does not repeat publication-time replay on every ordinary query.
+    does not repeat publication-time replay on every ordinary query. Operations
+    opt into one complete source closure and retain its checked commits/paths.
     """
 
-    def __init__(self, data_root: str | Path, snapshot_id: str) -> None:
+    def __init__(self, data_root: str | Path, snapshot_id: str, *, validate_sources: bool = False) -> None:
         self.data_root = Path(data_root)
         self._verified_lineage = {}
         from axiom_data.verification_cache import validation_paths, file_state
@@ -169,7 +170,7 @@ class SnapshotReader:
                              if p.is_file() and p.suffix in {'.py', '.json'}})
             self.snapshot, self.commits = _load_snapshot_with_commits(
                 self.data_root, snapshot_id, lineage_index=self._verified_lineage,
-                references_only=True)
+                references_only=not validate_sources)
         if any(file_state(p) != state for p, state in observed.items()):
             raise ArtifactError('Snapshot inputs changed during validation')
         self._view_validation_paths = observed
@@ -631,20 +632,7 @@ def _validate_qlib_inputs(reader, *, symbols, start_session, end_session, fields
     return selected, start, end, view_fields, adjusted
 
 
-def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARKET_VIEW_FIELDS,
-                     adjusted_price_view_id=None, price_basis='unadjusted',pit_policy='best_effort',
-                     decision_cutoff=None,created_at=None):
-    reader._check_consumed_metadata(force=True)
-    selected, start, end, view_fields, adjusted = _validate_qlib_inputs(reader,
-        symbols=symbols, start_session=start_session, end_session=end_session, fields=fields,
-        adjusted_price_view_id=adjusted_price_view_id, price_basis=price_basis,
-        pit_policy=pit_policy, decision_cutoff=decision_cutoff, created_at=created_at,
-        structural_only=True)
-    data_root = reader.data_root
-
-    if adjusted is not None:
-        cutoff = adjusted.manifest['decision_cutoff']
-
+def _qlib_geometry(reader, selected, start, end):
     prepared_calendar = prepared_market_view_rows(reader, 'market_qlib', 'trading_calendar', selected, start, end)
     calendar = sorted(
         {
@@ -660,19 +648,6 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
     security = {row["symbol"]: row for row in (prepared_security if prepared_security is not None else reader.security_master(selected))}
     if set(security) != set(selected):
         raise ArtifactError("QlibView scope includes an unknown security identity")
-    prepared_market = prepared_market_view_rows(reader, 'market_qlib', 'market_daily', selected, start, end)
-    market = {(row["session"], row["symbol"]): dict(row) for row in
-              (prepared_market if prepared_market is not None else reader.market_daily(selected, start, end))}
-    if adjusted is not None:
-        adjusted_rows = {
-            (row["session"], row["symbol"]): row for row in adjusted.rows
-        }
-        for key, row in market.items():
-            derived = adjusted_rows.get(key)
-            if derived is not None:
-                for field in _ADJUSTED_PRICE_FIELDS:
-                    row[field] = derived[field]
-
     instrument_scope: list[dict[str, str]] = []
     for symbol in selected:
         identity = security[symbol]
@@ -699,6 +674,37 @@ def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARK
                 "storage_path": f"features/{qlib_symbol(symbol).lower()}",
             }
         )
+
+    return calendar, instrument_scope
+
+
+def _build_qlib_view(reader, *, symbols, start_session, end_session, fields=MARKET_VIEW_FIELDS,
+                     adjusted_price_view_id=None, price_basis='unadjusted',pit_policy='best_effort',
+                     decision_cutoff=None,created_at=None):
+    reader._check_consumed_metadata(force=True)
+    selected, start, end, view_fields, adjusted = _validate_qlib_inputs(reader,
+        symbols=symbols, start_session=start_session, end_session=end_session, fields=fields,
+        adjusted_price_view_id=adjusted_price_view_id, price_basis=price_basis,
+        pit_policy=pit_policy, decision_cutoff=decision_cutoff, created_at=created_at,
+        structural_only=True)
+    data_root = reader.data_root
+
+    if adjusted is not None:
+        cutoff = adjusted.manifest['decision_cutoff']
+
+    calendar, instrument_scope = _qlib_geometry(reader, selected, start, end)
+    prepared_market = prepared_market_view_rows(reader, 'market_qlib', 'market_daily', selected, start, end)
+    market = {(row["session"], row["symbol"]): dict(row) for row in
+              (prepared_market if prepared_market is not None else reader.market_daily(selected, start, end))}
+    if adjusted is not None:
+        adjusted_rows = {
+            (row["session"], row["symbol"]): row for row in adjusted.rows
+        }
+        for key, row in market.items():
+            derived = adjusted_rows.get(key)
+            if derived is not None:
+                for field in _ADJUSTED_PRICE_FIELDS:
+                    row[field] = derived[field]
 
     outputs: dict[str, bytes] = {
         "calendars/day.txt": ("\n".join(calendar) + "\n").encode("ascii"),
@@ -1645,6 +1651,15 @@ def leaf_facts(reader,leaf,*,symbol,target_session,knowledge_cutoff,pit_policy):
     return event_leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected,source_session=source_session)
 
 
+def bind_event_snapshot(fact, snapshot_id):
+    """Bind existing event values/provenance without selecting facts again."""
+    from axiom_data.pit import fingerprint
+    fact['snapshot_id'] = snapshot_id
+    if 'derived_ref' in fact:
+        fact['derived_ref'] = (fingerprint({'snapshot':snapshot_id,'revision':fact['revision_ref'],
+            'field':fact['leaf'].split('.',1)[1],'value':fact['value']}) if fact['revision_ref'] else None)
+
+
 def event_leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_policy,selected,*,source_session=None,value_unit=None):
     from axiom_data.domains.events import LEAF_DOMAINS, DAILY_DOMAINS
     from axiom_data.pit import instant, fingerprint
@@ -1673,8 +1688,9 @@ def event_leaf_metadata(reader,leaf,symbol,target_session,knowledge_cutoff,pit_p
     if domain=='top_holders_reports':
         metadata['holders']=row['holders'] if row else []
         metadata['component_refs']=[{'report_revision':row['revision_id'],'holder_id':h['holder_id']} for h in row['holders']] if row else []
-        metadata['derived_ref']=fingerprint({'snapshot':reader.snapshot.ref.snapshot_id,'revision':row['revision_id'],'field':field,'value':value}) if row else None
+        metadata['derived_ref']=None
     if domain=='forecast_observations':metadata['source_kind']='company_performance_forecast'
+    bind_event_snapshot(metadata,reader.snapshot.ref.snapshot_id)
     return metadata
 
 
