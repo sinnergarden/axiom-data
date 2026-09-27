@@ -266,7 +266,7 @@ def validate_incremental_replay(root, commit, parent, raw_refs, patches):
 
 
 def validate_source_availability(builder, contract, rows, patches):
-    """Use the existing source mapper to prove keys and observation times.
+    """Use the existing source mapper to prove identity and observation times.
 
     Economic corrections may change revision fingerprints. Their observation
     authority cannot be invented by the correction, even with a fresh key.
@@ -292,12 +292,18 @@ def validate_source_availability(builder, contract, rows, patches):
         supported = mapper._build_rows(contract, (), RawBatches(builder.layout.root, sorted(ids)))
     except (ValueError, KeyError, TypeError) as exc:
         raise ArtifactError('unsupported patch source availability evidence') from exc
+    # Compare actual identity with mapper output as well as the supplied key.
+    # These are the canonical components of the existing source logical/action
+    # keys; value fields and interval ends remain interpretation corrections.
+    identity_fields = ('symbol', 'endpoint', 'session', 'report_period',
+        'report_type', 'group_id', 'effective_from', 'action_type', 'announcement_date')
     fields = ('source_ref', 'first_observed_at', 'source_available_at',
         'vendor_available_at', 'availability_basis', 'pit_qualification', 'boundary_source_ref')
     def signature(row):
         observations = [{k:v for k,v in o.items() if k not in {'revision_id', 'observation_id'}}
             for o in row.get('observations', [])]
-        return (key(row), row_digest({field:row[field] for field in fields if field in row}),
+        return (key(row), row_digest({field:row[field] for field in identity_fields if field in row}),
+                row_digest({field:row[field] for field in fields if field in row}),
                 row_digest(sorted(observations, key=row_digest)))
     allowed = {signature(row) for row in supported if key(row) in wanted}
     if any(signature(row) not in allowed for row in proposed):

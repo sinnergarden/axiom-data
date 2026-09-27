@@ -39,10 +39,14 @@ class ImmutableCorrectionsTest(unittest.TestCase):
     @classmethod
     def builder(cls,domain):
         old=cls.reader.commits[domain]
-        kind=TushareMarketBuilder if domain=='market_daily' else TushareReferenceBuilder if domain=='adjustment_factors' else FundamentalsBuilder if domain=='financial_events' else EventBuilder
+        from axiom_data.domains import FUNDAMENTAL_DOMAINS
+        kind=TushareMarketBuilder if domain=='market_daily' else TushareReferenceBuilder if domain in ('adjustment_factors','corporate_actions') else FundamentalsBuilder if domain in FUNDAMENTAL_DOMAINS else EventBuilder
         deps={d:cls.reader.commits[d].ref.commit_id for d in _DOMAIN_DEPENDENCIES[domain]}
         options={'calendar_commit_id':deps['trading_calendar'],'security_master_commit_id':deps['security_master']} if domain=='market_daily' else {'dependency_commit_ids':deps}
-        return kind(cls.root,domain,builder_config=dict(old.manifest['builder_config'],storage_policy='domain_time_blocks.v1'),**options)
+        config=dict(old.manifest['builder_config'],storage_policy='domain_time_blocks.v1')
+        if domain=='forecast_observations':config['forecast_source_types']='forecast_source_types.v1'
+        if domain=='corporate_actions':config['corporate_action_observations']='corporate_action_observations.v1'
+        return kind(cls.root,domain,builder_config=config,**options)
     def op(self,domain,kind,row,new=None):
         op={'op':kind,'key':{k:row[k] for k in self.parents[domain].contract['primary_key']}}
         if kind!='insert':op['expected_old_digest']=row_digest(row)
@@ -117,6 +121,20 @@ class ImmutableCorrectionsTest(unittest.TestCase):
             for name,commit in before.commits.items():
                 if name!=domain:self.assertEqual(commit.ref.commit_id,after.commits[name].ref.commit_id)
             self.assertEqual(len(after.commits[domain].rows),len(parent.rows)-1)
+            # PR32's prepared Reader must include the patch source closure and
+            # retain the binding while it serves consumption queries.
+            prepared=SnapshotReader(self.root,result['snapshot_id'],validate_sources=True)
+            self.assertEqual(list(prepared.commits[domain].rows),list(after.commits[domain].rows))
+            path=self.root/'patches'/p['patch_id']/'manifest.json'
+            content=path.read_bytes();mode=path.stat().st_mode;path.chmod(mode | 0o200)
+            try:
+                path.write_bytes(content+b' ')
+                with self.assertRaisesRegex(ArtifactError,'changed'):
+                    prepared.schema(domain)
+                with self.assertRaisesRegex(ArtifactError,'digest'):
+                    SnapshotReader(self.root,result['snapshot_id'],validate_sources=True)
+            finally:
+                path.write_bytes(content);path.chmod(mode)
     def test_source_supported_times_keys_and_numeric_revision_correction(self):
         from axiom_data.pit import fingerprint
         from axiom_data.domains.fundamentals import economic_content
@@ -145,6 +163,95 @@ class ImmutableCorrectionsTest(unittest.TestCase):
         result=self.build(domain,parent,[p])
         self.assertIn(corrected,list(result.rows));self.assertNotIn(row,list(result.rows))
         self.assertEqual(list(self.build(domain,result,[],self.raws[domain]).rows),list(result.rows))
+
+    @staticmethod
+    def revised(row):
+        from axiom_data.pit import fingerprint
+        from axiom_data.domains.fundamentals import economic_content
+        row=copy.deepcopy(row);row['revision_id']=fingerprint(economic_content(row))
+        for o in row.get('observations',[]):
+            o['revision_id']=row['revision_id'];o['observation_id']=fingerprint({k:v for k,v in o.items() if k!='observation_id'})
+        return row
+
+    def test_actual_identity_is_bound_to_mapper_across_source_families(self):
+        # Retain each supplier-backed key and time proof while changing the
+        # identity behind it. Fresh content/observation fingerprints must not
+        # turn these synthetic mutations into source-supported identities.
+        mutations={
+            'holder_count_events':{'report_period':'1999-12-31','symbol':'000002.SZ','endpoint':'forecast'},
+            'financial_events':{'report_period':'1999-12-31','symbol':'000002.SZ','report_type':'2','endpoint':'cashflow'},
+            'valuation_daily':{'session':'1999-12-31','symbol':'000002.SZ'},
+            'top_holders_reports':{'report_period':'1999-12-31'},
+            'forecast_observations':{'report_period':'1999-12-31'},
+            'margin_daily':{'session':'1999-12-31'},
+            'moneyflow_daily':{'session':'1999-12-31'},
+            'universe_membership':{'group_id':'000001.SH','effective_from':'1999-12-31'},
+            'corporate_actions':{'announcement_date':'1999-12-31','action_type':'stock_dividend'},
+        }
+        self.parents=dict(self.parents);self.raws=dict(self.raws)
+        for domain,changes in mutations.items():
+            if domain not in self.parents:
+                old,ids=_validated_domain_commit_with_raw_closure(self.root,domain,self.reader.commits[domain].ref.commit_id)
+                self.raws[domain]=sorted(ids)
+                version=domain+'.v2' if domain in ('forecast_observations','corporate_actions') else old.ref.contract_version
+                ref=BuildApplication(domain,self.builder(domain)).build(None,sorted(ids),[],version)
+                self.parents[domain]=validate_domain_commit_closure(self.root,domain,ref.commit_id)
+            parent=self.parents[domain];row=parent.rows[0]
+            for field,value in changes.items():
+                with self.subTest(domain=domain,field=field):
+                    self.assertNotEqual(row[field],value)
+                    bad=copy.deepcopy(row);bad[field]=value
+                    if domain=='financial_events' and field=='endpoint':
+                        bad['values']={'operating':1};bad['missing_reasons']={}
+                    if domain=='corporate_actions' and field=='action_type':
+                        bad['stock_ratio']=1
+                        for term in ('cash_per_share','transfer_ratio','split_ratio'):bad[term]=None
+                    if 'revision_id' in bad:bad=self.revised(bad)
+                    p=self.publish(domain,[self.op(domain,'tombstone',row),self.op(domain,'insert',bad)])
+                    with self.assertRaisesRegex(ArtifactError,'unsupported patch'):
+                        self.build(domain,parent,[p])
+            # Mapper-supported rows still build and replay in every family.
+            p=self.publish(domain,[self.op(domain,'replace',row)])
+            result=self.build(domain,parent,[p])
+            self.assertEqual(list(result.rows),list(parent.rows))
+            self.assertEqual(list(self.build(domain,result,[],self.raws[domain]).rows),list(result.rows))
+
+    def test_legacy_membership_identity_uses_same_source_boundary(self):
+        from axiom_data.artifacts import RawBatches, _raw_ref
+        from axiom_data.patches import validate_source_availability
+        domain='industry_membership'
+        old,ids=_validated_domain_commit_with_raw_closure(self.root,domain,self.reader.commits[domain].ref.commit_id)
+        row=old.rows[0];builder=self.builder(domain)
+        # This contract is read-only: test its existing mapper/closure boundary
+        # without publishing a new historical-version artifact.
+        def evidence(proposed):
+            return [{'manifest':{'operations':[{'row':proposed}],
+                'source_evidence_refs':[_raw_ref(raw) for raw in RawBatches(self.root,sorted(ids))]}}]
+        validate_source_availability(builder,old.contract,old.rows,evidence(row))
+        for field,value in (('group_id','another-classification'),('effective_from','1999-12-31')):
+            with self.subTest(field=field):
+                bad=copy.deepcopy(row);bad[field]=value;bad=self.revised(bad)
+                with self.assertRaisesRegex(ArtifactError,'unsupported patch'):
+                    validate_source_availability(builder,old.contract,old.rows,evidence(bad))
+
+    def test_financial_numeric_correction_and_source_supported_new_identity_replay(self):
+        domain='financial_events';parent=self.parents[domain];row=parent.rows[0]
+        corrected=copy.deepcopy(row)
+        field=next(k for k,v in corrected['values'].items() if v is not None)
+        corrected['values'][field]+=1;corrected=self.revised(corrected)
+        p=self.publish(domain,[self.op(domain,'tombstone',row),self.op(domain,'insert',corrected)])
+        result=self.build(domain,parent,[p])
+        self.assertIn(corrected,list(result.rows));self.assertNotIn(row,list(result.rows))
+        self.assertEqual(list(self.build(domain,result,[],self.raws[domain]).rows),list(result.rows))
+
+        # A genuinely different mapper-supported identity may be inserted when
+        # its exact key is absent; the old key is not permanent patch authority.
+        supported=next(r for r in parent.rows if r['logical_event_key']!=row['logical_event_key'])
+        absent=self.build(domain,parent,[self.publish(domain,[self.op(domain,'tombstone',supported)])])
+        p=self.publish(domain,[self.op(domain,'tombstone',row),self.op(domain,'insert',supported)])
+        changed=self.build(domain,absent,[p])
+        self.assertIn(supported,list(changed.rows));self.assertNotIn(row,list(changed.rows))
+        self.assertEqual(list(self.build(domain,changed,[],self.raws[domain]).rows),list(changed.rows))
 
     def test_new_actual_observation_conflicts_with_old_digest(self):
         from axiom_data.event_source import EventCollector

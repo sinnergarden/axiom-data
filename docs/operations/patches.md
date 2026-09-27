@@ -63,14 +63,18 @@ observation reference on a new row must resolve to this evidence, with actual
 retrieval availability. Evidence-only Raw belongs to the correction's source
 closure; it is not counted as a new ingestion observation in source coverage.
 
-The existing builder normalizes that evidence to prove the proposed logical key,
-source binding and availability. Known observations of the affected facts are
+The existing builder normalizes that evidence to prove the proposed key and its
+actual economic identity: security, endpoint, report period/type, daily session,
+or membership group/start as applicable. Corporate action type and announcement
+date must match the source-backed action identity. A caller-supplied key alone
+does not prove those fields. The same mapper output proves source binding and
+availability. Known observations of the affected facts are
 included so choosing only a later observation cannot move the earliest proved
 time forward. Vendor availability may precede retrieval only when the existing
 source mapping supports it. Numeric interpretation corrections use the normal
 row/revision validators; they do not establish a new supplier publication.
 
-A key/time correction unsupported by the existing normalizer is rejected as
+A key, economic identity or time correction unsupported by the existing normalizer is rejected as
 unsupported evidence. No general historical evidence or group-state amendment
 protocol is introduced. Membership corrections inconsistent with an existing
 complete group state are rejected. Synthetic `scope-...` source pointers used by
