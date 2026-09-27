@@ -226,3 +226,38 @@ class HistoricalPlanAdmissionTest(unittest.TestCase):
                 else:wrong['historical_plan']['price_anchor_resolution']['anchors']['adjusted_price-600069.SH']['factor_rows'][0]['factor']=3
                 with self.subTest(kind=kind),self.assertRaises(ArtifactError):
                     _checked_plan('fixture','fixture-snapshot',wrong)
+
+
+class SuspensionFactConstructionTest(unittest.TestCase):
+    def test_presence_source_and_qualification_matrix(self):
+        from types import SimpleNamespace
+        from axiom_data.full_admission import _canonical_fact, _adjusted_ohlc_fact, _fact_state
+        commit=SimpleNamespace(ref=SimpleNamespace(commit_id='fixed',contract_version='market_daily.v1'))
+        null_price=dict.fromkeys(('open','high','low','close'))
+        placeholder=dict(null_price,is_suspended=True)
+        confirmed=dict(status='suspended',source_ref='raw-status',pit_qualification='best_effort')
+        for status,expected in ((confirmed,'NOT_APPLICABLE'),
+            (dict(confirmed,source_ref=None),'BLOCKED'),
+            (dict(confirmed,pit_qualification='unknown'),'UNKNOWN'),
+            ({},'BLOCKED'),(dict(confirmed,status='unknown'),'BLOCKED')):
+            for field in ('open','high','low','close'):
+                with self.subTest(status=status,field=field):
+                    fact=_canonical_fact(placeholder,status,'market.'+field,field,commit)
+                    self.assertEqual(_fact_state(fact,'market.'+field),expected)
+            for state in ('no_market_price','missing_factor'):
+                with self.subTest(status=status,state=state):
+                    original=dict(null_price,adjustment_state=state)
+                    saved=copy.deepcopy(original)
+                    fact=_adjusted_ohlc_fact(original,status,'verified')
+                    self.assertEqual(_fact_state(fact,'adjusted_price.anchored_ohlc'),expected)
+                    self.assertEqual(original,saved)
+                    if expected=='NOT_APPLICABLE':self.assertEqual(fact['pit_qualification'],'best_effort')
+        priced=dict(open=2,high=3,low=1,close=2,is_suspended=False)
+        self.assertEqual(_fact_state(_canonical_fact(priced,{},'market.open','open',commit),'market.open'),'AVAILABLE')
+        self.assertEqual(_fact_state(_adjusted_ohlc_fact(dict(null_price,adjustment_state='missing_factor'),
+            dict(status='trading'),'best_effort'),'adjusted_price.anchored_ohlc'),'BLOCKED')
+        for leaf,field in (('adjustment.factor','factor'),('market.turnover_rate','turnover_rate'),
+                           ('market.total_mv','total_mv'),('market.circ_mv','circ_mv')):
+            fact=_canonical_fact(None if leaf=='adjustment.factor' else placeholder,confirmed,leaf,field,commit)
+            self.assertNotEqual(_fact_state(fact,leaf),'NOT_APPLICABLE')
+        self.assertEqual(placeholder,dict(null_price,is_suspended=True))

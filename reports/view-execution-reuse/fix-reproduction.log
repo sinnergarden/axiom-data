@@ -1,0 +1,54 @@
+{
+  "single-a": {
+    "status": "VIEWS_BUILT",
+    "failed": {},
+    "published_views": {
+      "a": {
+        "kind": "pr7_fact",
+        "view_id": "pr7-fact-9a5fab03d2aa93531ce4a268febe2bdd90f28fa79f5aa273097a936c76c08a8f",
+        "manifest_digest": "sha256:a50ccedcaff5fd84cfab62ed9464e28ac9a79e93101172e690c6de64a8485541"
+      }
+    }
+  },
+  "single-b": {
+    "status": "VIEWS_BUILT",
+    "failed": {},
+    "published_views": {
+      "b": {
+        "kind": "pr7_fact",
+        "view_id": "pr7-fact-4fb485354b4d6110116a05c9ff9d67305a052acc77f148daf533e195c7fc0468",
+        "manifest_digest": "sha256:4e40446e5c5bfc8ef1f6c3a02842115b5beea9efcaefa20b2ad8f161b24934df"
+      }
+    }
+  },
+  "together": {
+    "status": "VIEWS_BUILT",
+    "failed": {},
+    "published_views": {
+      "a": {
+        "kind": "pr7_fact",
+        "view_id": "pr7-fact-9a5fab03d2aa93531ce4a268febe2bdd90f28fa79f5aa273097a936c76c08a8f",
+        "manifest_digest": "sha256:a50ccedcaff5fd84cfab62ed9464e28ac9a79e93101172e690c6de64a8485541"
+      },
+      "b": {
+        "kind": "pr7_fact",
+        "view_id": "pr7-fact-4fb485354b4d6110116a05c9ff9d67305a052acc77f148daf533e195c7fc0468",
+        "manifest_digest": "sha256:4e40446e5c5bfc8ef1f6c3a02842115b5beea9efcaefa20b2ad8f161b24934df"
+      }
+    }
+  },
+  "prior_validation": {
+    "error_type": "ArtifactError",
+    "reason": "RawBatch payload content does not match its manifest"
+  },
+  "corrupt-source-reuse": {
+    "status": "FAILED",
+    "reused_views": null,
+    "failed": {
+      "snapshot": {
+        "error_type": "ArtifactError",
+        "reason": "RawBatch payload content does not match its manifest"
+      }
+    }
+  }
+}
