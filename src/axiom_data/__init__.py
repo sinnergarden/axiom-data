@@ -68,7 +68,7 @@ from .views import (
     load_market_replay_view,
 )
 from .reference_reconciliation import reconcile_reference_raw_mapping
-from .evidence import validate_pr5_evidence
+from .evidence import validate_reference_evidence
 from .operations import plan_daily, daily, bootstrap, repair, inspect_scope
 from .view_operation import materialize_views
 from .recovery import verify_recovery
@@ -125,8 +125,8 @@ __all__ = [
     "TushareCollector",
     "TushareReferenceBuilder",
     "TushareReferenceCollector",
-    "TushareDm1Builder",
-    "TushareDm1Collector",
+    "TushareReferenceBuilder",
+    "TushareReferenceCollector",
     "TushareMarketBuilder",
     "build_qlib_view",
     "build_adjusted_price_view",
@@ -145,24 +145,19 @@ __all__ = [
     "validate_snapshot_closure",
     "load_tushare_source_profile",
     "load_reference_source_profile",
-    "load_dm1_source_profile",
+    "load_reference_source_profile",
     "lookup_catalog",
     "rebuild_catalog",
     "reconcile_market",
-    "reconcile_dm1_raw_mapping",
+    "reconcile_reference_raw_mapping",
     "reconcile_reference_raw_mapping",
     "tushare_source_profile_digest",
-    "dm1_source_profile_digest",
+    "reference_source_profile_digest",
     "reference_source_profile_digest",
     "validate_domain_commit_closure",
-    "validate_pr5_evidence",
+    "validate_reference_evidence",
     "write_raw_batch",
 ]
 
 
 # Compatibility exports for historical callers.
-TushareDm1Collector = TushareReferenceCollector
-TushareDm1Builder = TushareReferenceBuilder
-load_dm1_source_profile = load_reference_source_profile
-dm1_source_profile_digest = reference_source_profile_digest
-reconcile_dm1_raw_mapping = reconcile_reference_raw_mapping

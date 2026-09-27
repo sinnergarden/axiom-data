@@ -27,7 +27,7 @@ class PartitionStreamTest(unittest.TestCase):
                 calendar_commit_id=pack['calendar'].commit_id,
                 security_master_commit_id=pack['security'].commit_id,
                 builder_config={'storage_policy': 'domain_time_blocks.v1'})
-            ref = BuildApplication('market_daily', builder).build(None, ['raw-market'], [], 'market_daily.v1')
+            ref = BuildApplication('market_daily', builder).build(None, ['raw-market'], [], 'market_daily.v2')
             with patch('axiom_data.partition_rows.STREAM_ROW_THRESHOLD', 1):
                 current = load_domain_commit(root, 'market_daily', ref.commit_id)
                 self.assertIsInstance(current.rows, PartitionRows)
@@ -55,7 +55,7 @@ class PartitionStreamTest(unittest.TestCase):
             manifest = dict(partition_policy=POLICY, output_files=[], partitions=entries,
                             logical_content_digest=_digest(_json_bytes(rows)))
             def sequence(m=manifest):
-                return PartitionRows(layout, 'market_daily', m, load_contract('market_daily.v1'))
+                return PartitionRows(layout, 'market_daily', m, load_contract('market_daily.v2'))
             stream = sequence()
             _validate_domain_rows('market_daily', stream)
             self.assertEqual(stream, rows)

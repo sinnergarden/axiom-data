@@ -1,8 +1,9 @@
 """Source-specific response admission, separate from immutable Raw storage.
 
 Unknown caps are not completeness evidence. Packaged profiles remain immutable;
-the indicator profile is the endpoint authority even for its legacy PR6 binding.
+the indicator profile is the endpoint authority even for its legacy financial binding.
 """
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
 import json
 import re
 from datetime import date, timedelta
@@ -25,7 +26,7 @@ def legacy_completeness_policy(profile_version, endpoint):
               'action': 'qualify_source_policy'}
     if not isinstance(profile_version, str) or not re.fullmatch(r'[A-Za-z0-9_.-]+', profile_version):
         return result
-    path = files('axiom_data.source_profiles').joinpath(profile_version + '.json')
+    path = resource_file('source_profiles', profile_version + '.json')
     if not path.is_file():
         return result
     profile = json.loads(path.read_bytes())
@@ -34,7 +35,7 @@ def legacy_completeness_policy(profile_version, endpoint):
         return result
     authority = profile
     if endpoint == 'fina_indicator':
-        authority_path = files('axiom_data.source_profiles').joinpath('tushare_fina_indicator.v1.json')
+        authority_path = resource_file('source_profiles', 'tushare_fina_indicator.v1.json' if historical_profile(profile_version) else 'tushare_fina_indicator.v2.json')
         if not authority_path.is_file():
             return result
         authority = json.loads(authority_path.read_bytes())
@@ -43,7 +44,7 @@ def legacy_completeness_policy(profile_version, endpoint):
         authority.get('response_limit', authority.get('collection_policy', {}).get('maximum_rows'))))
     if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
         return result
-    paginated = (profile_version == 'tushare_industry_qualification.v1'
+    paginated = (profile_generation(profile_version) == 'tushare_industry_qualification.v1'
                  and endpoint in {'index_member_all', 'ci_index_member'}
                  and bool(profile.get('pagination')))
     return dict(result, status='established', limit=limit,
@@ -55,8 +56,8 @@ def legacy_completeness_policy(profile_version, endpoint):
         action='validate_complete_page_series' if paginated else 'split_date_scope')
 
 
-def _extension():
-    path = files('axiom_data.source_profiles').joinpath('source_completeness.v1.json')
+def _extension(profile_version=None):
+    path = resource_file('source_profiles', 'source_completeness.v1.json' if historical_profile(profile_version) else 'source_completeness.v2.json')
     if not path.is_file():
         return {}
     return json.loads(path.read_bytes())
@@ -64,7 +65,7 @@ def _extension():
 
 def source_profile_completeness_binding(profile_version, base_digest):
     """Bind the immutable mapping identity and its versioned admission extension."""
-    extension = _extension()
+    extension = _extension(profile_version)
     if profile_version not in extension.get('profile_versions', []):
         raise SourceCompletenessError('required SourceProfile completeness extension missing')
     return _binding_for_extension(profile_version, base_digest, extension)
@@ -88,8 +89,8 @@ def current_contract_binding():
 
 def completeness_policy(profile_version, endpoint):
     legacy = legacy_completeness_policy(profile_version, endpoint)
-    extension = _extension()
-    path = files('axiom_data.source_profiles').joinpath(str(profile_version) + '.json')
+    extension = _extension(profile_version)
+    path = resource_file('source_profiles', str(profile_version) + '.json')
     if (profile_version not in extension.get('profile_versions', []) or not path.is_file()
             or endpoint not in json.loads(path.read_bytes()).get('endpoints', {})):
         return dict(legacy, status='unestablished', historical_completeness='unknown')
@@ -109,7 +110,7 @@ def completeness_policy(profile_version, endpoint):
     if bound_field: policy['date_field'] = bound_field
     # The pilot profile never declared offset support. A renamed profile cannot
     # acquire the qualification profile's pagination capabilities.
-    if endpoint == 'index_member_all' and profile_version == 'tushare_sw_pilot.v1':
+    if endpoint == 'index_member_all' and profile_generation(profile_version) == 'tushare_sw_pilot.v1':
         policy.update(pagination=None, completeness_rule='strictly_below_limit',
                       action='fail_closed_unsplittable')
     return policy
@@ -186,7 +187,7 @@ def _validate_payload_completeness(profile_version, endpoint, records, *,
         if not legacy and isinstance(profile_version, str) and re.fullmatch(r'[A-Za-z0-9_.-]+', profile_version) and files(
                 'axiom_data.source_profiles').joinpath(profile_version + '.json').is_file():
             reject('required source completeness policy unavailable')
-        if endpoint == 'fina_indicator' and profile_version in {'tushare_pr6.v1','tushare_fina_indicator.v1'}:
+        if endpoint == 'fina_indicator' and profile_generation(profile_version) in {'tushare_fundamentals.v1','tushare_fina_indicator.v2'}:
             reject('required indicator completeness policy unavailable')
         return result('unestablished')
     if not legacy:
@@ -194,7 +195,7 @@ def _validate_payload_completeness(profile_version, endpoint, records, *,
         if issues: reject('; '.join(issues))
         if policy['completeness_rule'] == 'official_termination_document' and not verified_document:
             reject('official completeness requires the original Raw document parser')
-    if (not legacy or params is not None) and profile_version in {'tushare_sw_pilot.v1','tushare_industry_qualification.v1'}:
+    if (not legacy or params is not None) and profile_generation(profile_version) in {'tushare_sw_pilot.v1','tushare_industry_qualification.v1'}:
         from axiom_data.sw_source import validate_payload_scope
         try:
             validate_payload_scope(endpoint, params, records, profile_version=profile_version)
@@ -333,14 +334,14 @@ def _industry_raw_scope(raw):
 def _validate_raw_binding(raw):
     manifest = raw.manifest
     version = manifest.get('source_profile_version')
-    extension = _extension()
+    extension = _extension(version)
     if version not in extension.get('profile_versions', []): return
     binding = manifest.get('summary', {}).get('source_completeness')
     if binding is not None:
         # Validate provenance against its immutable original extension. Current
         # admission then evaluates the current contract over the same Raw bytes.
         ref = binding.get('extension_ref') if isinstance(binding, dict) else None
-        path = (files('axiom_data.source_profiles').joinpath(ref + '.json')
+        path = (resource_file('source_profiles', ref + '.json')
                 if isinstance(ref, str) and re.fullmatch(r'source_completeness\.v[0-9]+', ref) else None)
         original = json.loads(path.read_bytes()) if path is not None and path.is_file() else {}
         if (version not in original.get('profile_versions', [])
@@ -349,18 +350,18 @@ def _validate_raw_binding(raw):
                                           raw_batch_id=raw.ref.raw_batch_id)
     if version == 'exchange_security.v1': return  # Original-document dispatch below.
     request = manifest.get('request', {}); endpoint = request.get('endpoint')
-    if version == 'tushare_phase1.v1':
+    if profile_generation(version) == 'tushare_market.v1':
         from axiom_data.tushare import load_tushare_source_profile, tushare_source_profile_digest
-        base = load_tushare_source_profile()
+        base = load_tushare_source_profile(version)
         digest = tushare_source_profile_digest(base)
-    elif version == 'tushare_dm1.v1':
+    elif profile_generation(version) == 'tushare_reference.v1':
         from axiom_data.reference_source import load_reference_source_profile, reference_source_profile_digest
-        base = load_reference_source_profile()
+        base = load_reference_source_profile(version)
         digest = reference_source_profile_digest(base)
     else:
-        if version in {'tushare_sw_pilot.v1', 'tushare_industry_qualification.v1'}:
+        if profile_generation(version) in {'tushare_sw_pilot.v1', 'tushare_industry_qualification.v1'}:
             from axiom_data.sw_source import load_profile
-        elif version in {'tushare_pr7.v1', 'tushare_pr7_holder.v2', 'tushare_pr7_holder.v3'}:
+        elif profile_generation(version) in {'tushare_events.v1', 'tushare_holder_reports.v2', 'tushare_holder_reports.v3'}:
             from axiom_data.event_source import load_event_source_profile as load_profile
         else:
             from axiom_data.fundamentals_source import load_fundamentals_source_profile as load_profile
@@ -371,15 +372,15 @@ def _validate_raw_binding(raw):
             or request.get('fields') != definition['fields']):
         raise SourceCompletenessError('Raw source profile/fields binding mismatch',
                                       raw_batch_id=raw.ref.raw_batch_id)
-    if version in {'tushare_sw_pilot.v1', 'tushare_industry_qualification.v1'}: return
-    if version == 'tushare_phase1.v1':
+    if profile_generation(version) in {'tushare_sw_pilot.v1', 'tushare_industry_qualification.v1'}: return
+    if profile_generation(version) == 'tushare_market.v1':
         from axiom_data.tushare import _endpoint_domain
         domains = [_endpoint_domain(endpoint)]
     else:
         domains = definition.get('canonical_domains', [definition.get('domain')])
     source_ref = definition.get('source_profile_ref')
     if source_ref is None:
-        source_ref = ('tushare.pr7.' if version.startswith('tushare_pr7') else 'tushare.pr6.') + endpoint
+        source_ref = source_reference(version, endpoint)
     if manifest.get('domain') not in domains or manifest.get('source_profile_ref') != source_ref:
         raise SourceCompletenessError('Raw source profile/domain binding mismatch',
                                       raw_batch_id=raw.ref.raw_batch_id)
@@ -457,10 +458,10 @@ def _validate_raw_completeness(raw, *, evidence=None, legacy=False):
     if not legacy:
         version = manifest.get('source_profile_version')
         try:
-            if version in {'tushare_pr6.v1', 'tushare_pr6.v2', 'tushare_fina_indicator.v1'}:
+            if profile_generation(version) in {'tushare_fundamentals.v1', 'tushare_fundamentals.v2', 'tushare_fina_indicator.v2'}:
                 from axiom_data.fundamentals_source import _validate_payload_shape
                 _validate_payload_shape(request.get('endpoint'), request.get('params'), rows, profile_version=version)
-            elif version in {'tushare_pr7.v1', 'tushare_pr7_holder.v2', 'tushare_pr7_holder.v3'}:
+            elif profile_generation(version) in {'tushare_events.v1', 'tushare_holder_reports.v2', 'tushare_holder_reports.v3'}:
                 from axiom_data.event_source import validate_payload
                 validate_payload(request.get('endpoint'), request.get('params'), rows, profile_version=version)
         except ArtifactError as exc:

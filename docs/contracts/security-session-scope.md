@@ -11,11 +11,11 @@ that are emitted.
 
 The paths below identify historical forensic evidence, not the runtime data root.
 The complete 153-month diagnostic evidence is the externally produced report
-`/home/liuming/workspace/axiom/data/operations/v1-full-bootstrap-20260910-r1/diagnostics/dm1_identity_calendar_scan_20260911_r1/report.json`
+[历史诊断证据](../../deprecated/history/index.md)
 (SHA-256
 `55bf1c85c603d6b72bf1e7c56d6b91658392b84701934ed1d4543504bc56c0ae`) and its
 curated exact-key references
-`/home/liuming/workspace/axiom/data/operations/v1-full-bootstrap-20260910-r1/diagnostics/dm1_identity_calendar_scan_20260911_r1/examples_max20_curated.json`
+[历史诊断证据](../../deprecated/history/index.md)
 (SHA-256
 `da251b857bf419aa58125968504a7a3a043f81194a8f3f600d6ee190bcd1c198`). The
 report is `COMPLETE` for 153/153 months: it found 16,747 adjustment-factor rows

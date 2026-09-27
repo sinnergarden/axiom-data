@@ -66,6 +66,7 @@ class GateAFinalizationTest(unittest.TestCase):
         from tempfile import TemporaryDirectory
         from axiom_data import contracts
 
+        original_resource_file = contracts.resource_file
         version = 'financial_events.v5'
         contract = contracts.load_contract('financial_events.v4')
         contract['contract_version'] = version
@@ -78,9 +79,10 @@ class GateAFinalizationTest(unittest.TestCase):
             copytree(Path(contracts.__file__).parent, package)
             (package / (version + '.json')).write_text(json.dumps(contract))
             (package / 'writable_contracts.v1.json').write_text(json.dumps(policy))
-            with patch.dict(contracts._CONTRACT_FILES, {version: version + '.json'}), \
-                    patch.dict(contracts._CONTRACT_DOMAINS, {version: 'financial_events'}), \
-                    patch.object(contracts, 'files', return_value=package), \
+            with patch.dict(contracts._CONTRACT_FILES, {version: version + '.json'}),\
+                    patch.dict(contracts._CONTRACT_DOMAINS, {version: 'financial_events'}),\
+                    patch.object(contracts, 'files', return_value=package),\
+                    patch.object(contracts, 'resource_file', side_effect=lambda family, name: package / name if (package / name).exists() else original_resource_file(family, name)),\
                     patch.object(gate_a, '_contract', return_value=gate_policy):
                 result = gate_a.validate_gate_a(self.plan)
         self.assertEqual(result['status'], 'GATE_A_READY_FOR_BULK_BUILD', result['findings'])
@@ -131,7 +133,7 @@ class GateAFinalizationTest(unittest.TestCase):
 
     def test_daily_false_readiness_blocks_even_with_all_route_names(self):
         import axiom_data
-        with patch.object(operations, 'daily', _daily_without_admission), \
+        with patch.object(operations, 'daily', _daily_without_admission),\
                 patch.object(axiom_data, 'daily', _daily_without_admission):
             result = gate_a.validate_gate_a(self.plan)
         self.assertEqual(result['status'], 'GATE_A_BLOCKED', result['findings'])

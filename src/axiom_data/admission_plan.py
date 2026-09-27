@@ -3,6 +3,7 @@
 Only the Snapshot manifest and identity/calendar closures are checked here.
 Source availability, View construction and full Data admission remain separate.
 """
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
 import inspect
 import json
 from importlib.resources import files
@@ -23,7 +24,7 @@ from axiom_data.views import _stored_view_kind
 
 def requirement_registry_digest():
     """Digest of the frozen Data requirement registry used by plan admission."""
-    return _digest(files('axiom_data.scope').joinpath('pr7_scope.v1.json').read_bytes())
+    return _digest(resource_file('scope', 'data_dependency_scope.v1.json').read_bytes())
 
 
 def _builders():
@@ -31,7 +32,7 @@ def _builders():
     from axiom_data.financial_views import build_financial_fact_view
     from axiom_data.event_views import build_event_fact_view
     return dict(adjusted_price=build_adjusted_price_view, market_replay=build_market_replay_view,
-                market_qlib=build_qlib_view, pr6_fact=build_financial_fact_view, pr7_fact=build_event_fact_view)
+                market_qlib=build_qlib_view, financial_fact=build_financial_fact_view, event_fact=build_event_fact_view)
 
 
 def _config(builder, root, snapshot_id, config):
@@ -97,7 +98,7 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
     No unavailable declarations can waive a missing planned session.
     """
     snapshot_id = _validate_identity('snapshot_id', snapshot_id)
-    registry_bytes = files('axiom_data.scope').joinpath('pr7_scope.v1.json').read_bytes()
+    registry_bytes = resource_file('scope', 'data_dependency_scope.v1.json').read_bytes()
     if scope_registry_digest != _digest(registry_bytes):
         raise ArtifactError('frozen requirement registry digest mismatch')
     registry = json.loads(registry_bytes)
@@ -230,7 +231,6 @@ def validate_admission_plan(data_root, *, snapshot_id, expected_snapshot_manifes
 
 
 # Compatibility exports for historical callers.
-PR7_SNAPSHOT_DOMAINS = EVENT_SNAPSHOT_DOMAINS
 
 
 class PriceAnchorError(ArtifactError):
@@ -311,7 +311,7 @@ def resolve_price_anchors(reader, views, *, historical=False):
                             if historical and config['pit_policy'] == 'research_non_pit' else 'explicit_anchor.v1'))
     # Resolve actual source artifacts once across all chosen anchors. Parent
     # commits are checked with the existing loader, without mapping replay.
-    from axiom_data.artifacts import _load_domain_commit, load_raw_batch, _raw_ref, _validate_dm1_observation_refs
+    from axiom_data.artifacts import _load_domain_commit, load_raw_batch, _raw_ref, _validate_reference_observation_refs
     commit = reader.commits['adjustment_factors']
     raw_refs = {}
     visited = set()
@@ -338,7 +338,7 @@ def resolve_price_anchors(reader, views, *, historical=False):
                     raise ArtifactError('factor Raw source reference mismatch')
                 verified_sources[source] = (raw.manifest['domain'], source,
                     datetime.fromisoformat(raw.manifest['retrieved_at'].replace('Z', '+00:00')))
-            _validate_dm1_observation_refs(reader.data_root, 'adjustment_factors', [row], set(raw_refs),
+            _validate_reference_observation_refs(reader.data_root, 'adjustment_factors', [row], set(raw_refs),
                                            verified_evidence=verified_sources)
         except ArtifactError as exc:
             raise PriceAnchorError(label, str(exc)) from exc
@@ -391,7 +391,7 @@ def _preflight_items(reader, views):
                     raise ArtifactError('invalid fact PIT policy')
                 instant(args['knowledge_cutoff'])
                 scope = {k:v for k,v in args.items() if k not in {'pit_policy','knowledge_cutoff'}}
-                if kind == 'pr6_fact':
+                if kind == 'financial_fact':
                     admit_financial_view(reader, scope, args['pit_policy'], args['knowledge_cutoff'])
                 else:
                     admit_event_view(reader, scope, args['pit_policy'], args['knowledge_cutoff'])
@@ -418,7 +418,7 @@ def preflight_views(reader, views):
             if len(group)>1 and all(isinstance(c.get('symbols'),list) and len(c['symbols'])==1 for c in configs):
                 context = (adjusted_price_batch(reader,configs) if kind=='adjusted_price' else
                     market_view_batch(reader,configs,kind) if kind in {'market_replay','market_qlib'} else
-                    financial_view_batch(reader,configs) if kind=='pr6_fact' else event_view_batch(reader,configs))
+                    financial_view_batch(reader,configs) if kind=='financial_fact' else event_view_batch(reader,configs))
             with context:
                 results.update(_preflight_items(reader,dict(group)))
         except Exception as exc:

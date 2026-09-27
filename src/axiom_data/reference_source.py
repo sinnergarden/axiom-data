@@ -1,6 +1,8 @@
-"""Small Tushare adapters for the frozen D-M1 reference source profile."""
+"""Small Tushare adapters for the frozen reference reference source profile."""
 
 from __future__ import annotations
+from axiom_data.deprecated.resources import collector_revision, builder_config as historical_builder_config, resource_file, profile_generation, historical_profile, source_reference
+
 
 import json
 from collections.abc import Mapping, Sequence
@@ -35,7 +37,7 @@ from axiom_data.tushare import (
 from axiom_data.domains.market import _checked_security_identity_state
 
 
-_PROFILE_NAME = "tushare_dm1.v1.json"
+_PROFILE_NAME = "tushare_reference.v1.json"
 _PROFILE_ENDPOINT_FIELDS = (
     "source_profile_ref",
     "canonical_domains",
@@ -60,11 +62,11 @@ _SECURITY_SESSION_SCOPE_POLICY = "exchange_security.v1"
 _SECURITY_SESSION_SCOPE_DOMAINS = frozenset({"adjustment_factors", "security_capital"})
 
 
-def load_reference_source_profile() -> dict[str, Any]:
-    content = files("axiom_data.source_profiles").joinpath(_PROFILE_NAME).read_bytes()
+def load_reference_source_profile(version="tushare_reference.v1") -> dict[str, Any]:
+    content = resource_file("source_profiles", version + ".json").read_bytes()
     profile = json.loads(content)
-    if not isinstance(profile, dict) or profile.get("profile_version") != "tushare_dm1.v1":
-        raise ArtifactError("packaged D-M1 source profile is invalid")
+    if not isinstance(profile, dict) or profile.get("profile_version") != version or profile_generation(version) != "tushare_reference.v1":
+        raise ArtifactError("packaged reference source profile is invalid")
     return profile
 
 
@@ -72,7 +74,7 @@ def _normalized_profile(profile: Mapping[str, Any]) -> dict[str, Any]:
     pit = profile.get("pit_classification")
     endpoints = profile.get("endpoints")
     if not isinstance(pit, Mapping) or not isinstance(endpoints, Mapping):
-        raise ArtifactError("D-M1 source profile semantics are invalid")
+        raise ArtifactError("reference source profile semantics are invalid")
     required_pit = (
         "retrieved_at",
         "represented_session",
@@ -93,7 +95,7 @@ def _normalized_profile(profile: Mapping[str, Any]) -> dict[str, Any]:
             }
         )
     except (KeyError, TypeError) as exc:
-        raise ArtifactError("D-M1 source profile semantics are incomplete") from exc
+        raise ArtifactError("reference source profile semantics are incomplete") from exc
 
 
 def reference_source_profile_digest(profile: Mapping[str, Any] | None = None) -> str:
@@ -103,14 +105,14 @@ def reference_source_profile_digest(profile: Mapping[str, Any] | None = None) ->
 def _endpoint_profile(endpoint: str) -> dict[str, Any]:
     value = load_reference_source_profile().get("endpoints", {}).get(endpoint)
     if not isinstance(value, dict):
-        raise ArtifactError(f"unsupported D-M1 Tushare endpoint: {endpoint!r}")
+        raise ArtifactError(f"unsupported reference Tushare endpoint: {endpoint!r}")
     return value
 
 
 class TushareReferenceCollector:
-    """Freeze one allow-listed endpoint response for one explicit D-M1 domain."""
+    """Freeze one allow-listed endpoint response for one explicit reference domain."""
 
-    implementation_revision = "tushare-dm1-collector.v1"
+    implementation_revision = "tushare-reference-collector.v1"
 
     def __init__(self, data_root: str | Path, client: object | None = None) -> None:
         self.data_root = Path(data_root)
@@ -130,11 +132,15 @@ class TushareReferenceCollector:
         params: Mapping[str, Any],
         *,
         retrieved_at: str | None = None,
+        profile_version: str = "tushare_reference.v1",
+        _resume_historical: bool = False,
     ) -> RawBatchRef:
+        if historical_profile(profile_version) and not _resume_historical:
+            raise ArtifactError("historical SourceProfiles are read-only")
         if domain not in _EXPECTED_ENDPOINTS or endpoint not in _EXPECTED_ENDPOINTS[domain]:
-            raise ArtifactError("endpoint is not assigned to the requested D-M1 domain")
-        profile = load_reference_source_profile()
-        endpoint_profile = _endpoint_profile(endpoint)
+            raise ArtifactError("endpoint is not assigned to the requested reference domain")
+        profile = load_reference_source_profile(profile_version)
+        endpoint_profile = profile["endpoints"][endpoint]
         if domain not in endpoint_profile["canonical_domains"]:
             raise ArtifactError("source profile does not authorize the domain mapping")
         if not isinstance(params, Mapping):
@@ -144,7 +150,7 @@ class TushareReferenceCollector:
         if not isinstance(fields_value, list) or any(
             not isinstance(field, str) for field in fields_value
         ):
-            raise ArtifactError("D-M1 endpoint fields are invalid")
+            raise ArtifactError("reference endpoint fields are invalid")
         query = getattr(self._client(), "query", None)
         if not callable(query):
             raise ArtifactError("Tushare client must provide query(endpoint, ...)")
@@ -210,8 +216,11 @@ def _raw_tables(
     }
     observed: list[str] = []
     for raw in raw_batches:
+        profile_version = raw.manifest.get("source_profile_version")
+        profile = load_reference_source_profile(profile_version)
+        profile_digest = reference_source_profile_digest(profile)
         if raw.manifest.get("schema_version") != "raw_batch.v2":
-            raise ArtifactError("D-M1 Tushare builder requires raw_batch.v2")
+            raise ArtifactError("reference Tushare builder requires raw_batch.v2")
         request = raw.manifest.get("request")
         endpoint = request.get("endpoint") if isinstance(request, dict) else None
         if endpoint not in _EXPECTED_ENDPOINTS[domain]:
@@ -223,48 +232,49 @@ def _raw_tables(
             or raw.manifest.get("source_profile_version") != profile["profile_version"]
             or raw.manifest.get("source_profile_digest") != profile_digest
         ):
-            raise ArtifactError("D-M1 RawBatch source profile binding mismatch")
-        if raw.manifest.get("collector_code_ref") != (
-            f"axiom-data.{TushareReferenceCollector.implementation_revision}"
-        ):
-            raise ArtifactError("D-M1 RawBatch collector revision mismatch")
+            raise ArtifactError("reference RawBatch source profile binding mismatch")
+        if raw.manifest.get("collector_code_ref") not in {
+            "axiom-data." + collector_revision(profile_version, TushareReferenceCollector.implementation_revision),
+            "axiom-data." + TushareReferenceCollector.implementation_revision,
+        }:
+            raise ArtifactError("reference RawBatch collector revision mismatch")
         if request.get("fields") != definition["fields"]:
-            raise ArtifactError("D-M1 RawBatch request fields differ from SourceProfile")
+            raise ArtifactError("reference RawBatch request fields differ from SourceProfile")
         summary = raw.manifest.get("summary")
         if not isinstance(summary, dict) or (
             summary.get("response_fields") != definition["fields"]
             or summary.get("represented_session_field")
             != definition["represented_session_field"]
         ):
-            raise ArtifactError("D-M1 RawBatch response schema differs from SourceProfile")
+            raise ArtifactError("reference RawBatch response schema differs from SourceProfile")
         params = request.get("params")
         if not isinstance(params, dict):
-            raise ArtifactError("D-M1 RawBatch request params are invalid")
+            raise ArtifactError("reference RawBatch request params are invalid")
         request_symbols = _request_symbols(raw)
         if not request_symbols <= symbols:
-            raise ArtifactError("D-M1 RawBatch symbol scope exceeds the build scope")
+            raise ArtifactError("reference RawBatch symbol scope exceeds the build scope")
         covered[endpoint].update(request_symbols)
         if endpoint == "dividend":
             if set(params) != {"ts_code"}:
                 raise ArtifactError("dividend request must use its security-only scope")
         else:
             if set(params) != {"ts_code", "start_date", "end_date"}:
-                raise ArtifactError("D-M1 session request fields are invalid")
+                raise ArtifactError("reference session request fields are invalid")
             request_start = _source_date(params.get("start_date"))
             request_end = _source_date(params.get("end_date"))
             if request_start != start or request_end != end:
-                raise ArtifactError("D-M1 RawBatch date scope differs from build scope")
+                raise ArtifactError("reference RawBatch date scope differs from build scope")
         try:
             rows = json.loads(raw.payload)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise ArtifactError("D-M1 RawBatch payload is not JSON") from exc
+            raise ArtifactError("reference RawBatch payload is not JSON") from exc
         if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
-            raise ArtifactError("D-M1 RawBatch payload must contain row objects")
+            raise ArtifactError("reference RawBatch payload must contain row objects")
         for row in rows:
             if set(row) != set(definition["fields"]):
-                raise ArtifactError("D-M1 RawBatch payload fields differ from SourceProfile")
+                raise ArtifactError("reference RawBatch payload fields differ from SourceProfile")
             if _source_symbol(row.get("ts_code")) not in request_symbols:
-                raise ArtifactError("D-M1 RawBatch payload security is outside its request")
+                raise ArtifactError("reference RawBatch payload security is outside its request")
             if endpoint == "dividend":
                 if not isinstance(row.get("div_proc"), str) or not row["div_proc"]:
                     raise ArtifactError("dividend payload has no action-state observation")
@@ -275,7 +285,7 @@ def _raw_tables(
                 assert request_start is not None and request_end is not None
                 if not request_start <= represented <= request_end:
                     raise ArtifactError(
-                        "D-M1 RawBatch payload session is outside its request"
+                        "reference RawBatch payload session is outside its request"
                     )
             grouped.setdefault(endpoint, []).append((row, raw))
         observed.append(raw.manifest["retrieved_at"])
@@ -293,26 +303,26 @@ def _raw_tables(
         if values != symbols:
             raise ArtifactError(f"{endpoint} requests do not cover every scoped symbol")
     if not observed:
-        raise ArtifactError("D-M1 builder received no RawBatch observations")
+        raise ArtifactError("reference builder received no RawBatch observations")
     return grouped, max(observed)
 
 
 def _request_symbols(raw: RawBatch) -> set[str]:
     params = raw.manifest["request"].get("params")
     if not isinstance(params, dict) or not isinstance(params.get("ts_code"), str):
-        raise ArtifactError("D-M1 RawBatch request lacks explicit ts_code scope")
+        raise ArtifactError("reference RawBatch request lacks explicit ts_code scope")
     symbols = set(params["ts_code"].split(","))
     if not symbols or "" in symbols:
-        raise ArtifactError("D-M1 RawBatch ts_code scope is empty")
+        raise ArtifactError("reference RawBatch ts_code scope is empty")
     for symbol in symbols:
         _source_symbol(symbol)
     return symbols
 
 
 class TushareReferenceBuilder(MarketDomainBuilder):
-    """Map the frozen D-M1 profile without adding a supplier framework."""
+    """Map the frozen reference profile without adding a supplier framework."""
 
-    implementation_revision = "tushare-dm1-builder.v1"
+    implementation_revision = "tushare-reference-builder.v1"
 
     def __init__(
         self,
@@ -324,26 +334,26 @@ class TushareReferenceBuilder(MarketDomainBuilder):
         created_at: str | None = None,
     ) -> None:
         if domain not in _EXPECTED_ENDPOINTS:
-            raise ArtifactError("TushareDm1Builder supports only D-M1 reference domains")
+            raise ArtifactError("TushareReferenceBuilder supports only reference reference domains")
         config = dict(builder_config)
         if 'corporate_action_reobservation' in config:
             if domain != 'corporate_actions' or config['corporate_action_reobservation'] != 'corporate_action_reobservation.v1':
                 raise ArtifactError('unsupported corporate action reobservation policy')
-            config['corporate_action_reobservation_digest'] = _digest(files('axiom_data.source_profiles').joinpath('corporate_action_reobservation.v1.json').read_bytes())
+            config['corporate_action_reobservation_digest'] = _digest(resource_file('source_profiles', 'corporate_action_reobservation.v1.json').read_bytes())
         if 'limit_qualification' in config:
             if domain != 'price_limits' or config['limit_qualification'] != 'zero_limit_pair.v1':
                 raise ArtifactError('unsupported limit qualification')
-            config['limit_qualification_digest'] = _digest(files('axiom_data.source_profiles').joinpath('zero_limit_pair.v1.json').read_bytes())
+            config['limit_qualification_digest'] = _digest(resource_file('source_profiles', 'zero_limit_pair.v1.json').read_bytes())
         if 'capital_qualification' in config:
             if domain != 'security_capital' or config['capital_qualification'] != 'capital_conflict.v1':
                 raise ArtifactError('unsupported capital qualification')
-            config['capital_qualification_digest'] = _digest(files('axiom_data.source_profiles').joinpath('capital_conflict.v1.json').read_bytes())
+            config['capital_qualification_digest'] = _digest(resource_file('source_profiles', 'capital_conflict.v1.json').read_bytes())
         if 'corporate_action_observations' in config:
             if domain!='corporate_actions' or config['corporate_action_observations']!='corporate_action_observations.v1':
                 raise ArtifactError('unsupported corporate action observation mapping')
-            config['corporate_action_observations_digest']=_digest(files('axiom_data.source_profiles').joinpath(config['corporate_action_observations']+'.json').read_bytes())
-        if 'dm1_source_partitioning' in config and config['dm1_source_partitioning']!='security.v1':
-            raise ArtifactError('unsupported D-M1 source partitioning')
+            config['corporate_action_observations_digest']=_digest(resource_file('source_profiles', config['corporate_action_observations']+'.json').read_bytes())
+        if 'reference_source_partitioning' in config and config['reference_source_partitioning']!='security.v1':
+            raise ArtifactError('unsupported reference source partitioning')
         if 'security_session_scope' in config and (
             domain not in _SECURITY_SESSION_SCOPE_DOMAINS
             or config['security_session_scope'] != _SECURITY_SESSION_SCOPE_POLICY
@@ -353,7 +363,7 @@ class TushareReferenceBuilder(MarketDomainBuilder):
             raise ArtifactError('session suspension mapping requires security_status')
         from axiom_data.session_suspension import bind_profile
         bind_profile(config)
-        profile = load_reference_source_profile()
+        profile = load_reference_source_profile(config.get("source_profile_version", "tushare_reference.v1"))
         config["source_profile_version"] = profile["profile_version"]
         config["source_profile_digest"] = reference_source_profile_digest(profile)
         if domain == "corporate_actions":
@@ -378,13 +388,13 @@ class TushareReferenceBuilder(MarketDomainBuilder):
             or not isinstance(start, str)
             or not isinstance(end, str)
         ):
-            raise ArtifactError("D-M1 builder requires ordered symbols and session bounds")
+            raise ArtifactError("reference builder requires ordered symbols and session bounds")
         symbols = tuple(_source_symbol(value) for value in values)
         start_date = _source_date(start)
         end_date = _source_date(end)
         assert start_date is not None and end_date is not None
         if start_date > end_date:
-            raise ArtifactError("D-M1 session scope is reversed")
+            raise ArtifactError("reference session scope is reversed")
         return symbols, start_date, end_date
 
     def _build_rows(
@@ -396,11 +406,11 @@ class TushareReferenceBuilder(MarketDomainBuilder):
         symbols, start, end = self._scope()
         if self.domain == 'security_capital' and ((contract['contract_version'] == 'security_capital.v2') != bool(self.builder_config.get('capital_qualification'))):
             raise ArtifactError('capital qualification requires security_capital.v2 and explicit mapping')
-        if self.domain=='corporate_actions' and ((contract['contract_version']=='corporate_actions.v2') != bool(self.builder_config.get('corporate_action_observations'))):
+        if self.domain=='corporate_actions' and ((contract['contract_version'] in {'corporate_actions.v2','corporate_actions.v3'}) != bool(self.builder_config.get('corporate_action_observations'))):
             raise ArtifactError('corporate action observations require explicit v2 contract/mapping')
         if self.builder_config.get('security_session_scope') == _SECURITY_SESSION_SCOPE_POLICY:
             self._validate_parent_security_sessions(parent_rows)
-        if self.builder_config.get('dm1_source_partitioning')=='security.v1':
+        if self.builder_config.get('reference_source_partitioning')=='security.v1':
             return self._partitioned_rows(contract,parent_rows,raw_batches,symbols,start,end)
         tables, observed_at = _raw_tables(
             self.layout.root, self.domain, raw_batches, set(symbols), start, end
@@ -444,7 +454,7 @@ class TushareReferenceBuilder(MarketDomainBuilder):
         for raw in raw_batches:
             scope=_request_symbols(raw)
             if len(scope)!=1 or not scope<=set(symbols):
-                raise ArtifactError('partitioned D-M1 requires individual scoped requests')
+                raise ArtifactError('partitioned reference requires individual scoped requests')
             symbol=next(iter(scope))
             chunks.setdefault(symbol,[]).append(raw.ref.raw_batch_id)
             observations.append(raw.manifest['retrieved_at'])
@@ -452,7 +462,7 @@ class TushareReferenceBuilder(MarketDomainBuilder):
             if count:
                 endpoint=raw.manifest['request']['endpoint']
                 endpoint_refs.setdefault(endpoint,[]).append((raw.ref.raw_batch_id,count))
-        if set(chunks)!=set(symbols):raise ArtifactError('D-M1 requests do not cover scoped securities')
+        if set(chunks)!=set(symbols):raise ArtifactError('reference requests do not cover scoped securities')
         # Preserve the original full-scope provenance and observation time even
         # though source tables are materialized one security at a time.
         observed_at=max(observations)
@@ -602,7 +612,7 @@ class TushareReferenceBuilder(MarketDomainBuilder):
                     if qualified_partial_halt(row,daily_evidence.get((row.get('ts_code'),row.get('trade_date'))),policy=self.builder_config['session_suspension_policy']):
                         continue
                 if row.get("suspend_timing") not in (None, ""):
-                    raise ArtifactError("intraday suspension timing is unsupported in D-M1")
+                    raise ArtifactError("intraday suspension timing is unsupported in reference")
             if row.get("suspend_type") == "S":
                 key = (_source_symbol(row.get("ts_code")), _source_date(row.get("trade_date")))
                 suspended[key] = raw
@@ -803,15 +813,11 @@ class TushareReferenceBuilder(MarketDomainBuilder):
 
 
 __all__ = [
-    "TushareDm1Builder",
-    "TushareDm1Collector",
-    "dm1_source_profile_digest",
-    "load_dm1_source_profile",
+    "TushareReferenceBuilder",
+    "TushareReferenceCollector",
+    "reference_source_profile_digest",
+    "load_reference_source_profile",
 ]
 
 
 # Compatibility exports for historical callers.
-TushareDm1Collector = TushareReferenceCollector
-TushareDm1Builder = TushareReferenceBuilder
-load_dm1_source_profile = load_reference_source_profile
-dm1_source_profile_digest = reference_source_profile_digest

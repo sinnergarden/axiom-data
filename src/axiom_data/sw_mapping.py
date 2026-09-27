@@ -1,4 +1,5 @@
 """The single explicitly authorized SW2021 source anomaly; never a name aliaser."""
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
 from copy import deepcopy
 from importlib.resources import files
 import json
@@ -7,7 +8,7 @@ from axiom_data.artifacts import _digest, _json_bytes
 
 
 def load_mapping_profile():
-    return json.loads(files('axiom_data.source_profiles').joinpath('tushare_sw2021.v1.json').read_bytes())
+    return json.loads(resource_file('source_profiles', 'tushare_sw2021.v1.json').read_bytes())
 
 
 def canonical_taxonomy(taxonomy, members, *, profile=None, taxonomy_raw_refs=(), membership_raw_refs=()):

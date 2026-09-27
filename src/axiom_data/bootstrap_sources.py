@@ -1,4 +1,5 @@
 """Explicit source plans for the accepted V1 domains, independent of wall time."""
+from axiom_data.deprecated.resources import profile_generation
 from datetime import date, timedelta
 from axiom_data.artifacts import ArtifactError
 from axiom_data.consumption import validate_symbols, validate_session
@@ -65,9 +66,9 @@ def plan_truncated_raw_split(raw):
         child=copy.deepcopy(params)
         child.update(start_date=first.strftime('%Y%m%d'),end_date=last.strftime('%Y%m%d'))
         # Split children are persisted checkpoint identity, not the presentation plan.
-        family={'tushare_phase1.v1':'market','tushare_dm1.v1':'dm1','tushare_pr6.v1':'pr6','tushare_pr6.v2':'pr6_bulk',
-                'tushare_fina_indicator.v1':'pr6_indicator','tushare_pr7.v1':'pr7',
-                'tushare_pr7_holder.v2':'pr7_holder','tushare_pr7_holder.v3':'pr7_holder_v3'}.get(manifest['source_profile_version'])
+        family={'tushare_market.v1':'market','tushare_reference.v1':'reference','tushare_fundamentals.v1':'fundamentals','tushare_fundamentals.v2':'fundamentals_bulk',
+                'tushare_fina_indicator.v2':'financial_indicator','tushare_events.v1':'events',
+                'tushare_holder_reports.v2':'holder_reports_v2','tushare_holder_reports.v3':'holder_reports_v3'}.get(profile_generation(manifest['source_profile_version']))
         if family is None:raise ArtifactError('unsupported indicator split SourceProfile')
         spec={'collector':family,'domain':manifest['domain'],'endpoint':endpoint,
               'params':child,'economic_scope':{'start':child['start_date'],'end':child['end_date']},
@@ -155,9 +156,10 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
     import json
     from pathlib import Path
     from axiom_data.artifacts import _identity,_digest,_json_bytes,load_raw_batch,_layout,_ensure_directory
-    from axiom_data.operations import collect_requests,save_progress,_supersede_collection_request
+    from axiom_data.operations import collect_requests,save_progress,_supersede_collection_request,_source_binding
     _identity('run_id',run_id)
     plan = json.loads(_json_bytes(plan))
+    original_plan = json.loads(_json_bytes(plan))
     plan['requests_by_domain'] = {
         domain: [normalize_source_request(spec) for spec in requests]
         for domain, requests in plan['requests_by_domain'].items()
@@ -175,6 +177,9 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
         client=PacedSourceClient(TushareCollector(data_root)._client())
     root=_layout(data_root).root;directory=root/'operations'/run_id
     _ensure_directory(root,directory)
+    saved_plan_path=directory/'source_plan.json'
+    if saved_plan_path.exists() and json.loads(saved_plan_path.read_bytes()) == {'plan':original_plan,'domains':domains}:
+        plan=original_plan
     frozen={'plan':plan,'domains':domains};digest=_digest(_json_bytes(frozen))
     with (directory/'collection.lock').open('a') as lock:
         try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -187,12 +192,21 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
                'ready_for_consumption':False,'domains':{},'validated_requests':0,'validated_rows':0}
         save_progress(directory/'progress.json',state)
 
-        def collect_bounded(batch, specs, local):
+        def collect_bounded(batch, specs, local, *, historical=False):
             """Revalidate checkpoints and replace only rejected cap scopes."""
-            result=collect_requests(root,run_id=batch,requests=specs,client=client)
+            from axiom_data.artifacts import _safe_path
+            saved_path = _safe_path(root, root/'operations'/batch/'collection.json')
+            if saved_path.exists():
+                saved_requests = json.loads(saved_path.read_bytes())['requests']
+                if [normalize_source_request(spec) for spec in saved_requests] == [normalize_source_request(spec) for spec in specs]:
+                    specs = saved_requests
+            result=collect_requests(root,run_id=batch,requests=specs,client=client, _historical_continuation=historical)
             local['batches'].append(batch)
             for spec in specs:
                 key=validate_request_spec(spec)
+                if key not in result['request_states']:
+                    from axiom_data.deprecated.resources import collection_request_key
+                    key=collection_request_key(spec, _source_binding(spec))
                 record=result['request_states'][key]
                 identity=record['raw_batch_id']
                 if record['state']=='VALID_COMPLETE':
@@ -206,10 +220,11 @@ def collect_bootstrap_sources(data_root, *, run_id, plan, domains, client=None):
                     split=record['split']
                     child_batch=run_id+'-split-'+_digest(_json_bytes({
                         'parent_batch':batch,'split':split}))[7:31]
-                    _supersede_collection_request(root,run_id=batch,key=key,split=split,child_run_id=child_batch)
+                    child_refs=_supersede_collection_request(root,run_id=batch,key=key,split=split,child_run_id=child_batch)
                     local['splits'].append(dict(split,run_id=child_batch))
                     save_progress(directory/'progress.json',state)
-                    if not collect_bounded(child_batch,split['requests'],local):return False
+                    historical_child = child_refs['request_ids'] != [validate_request_spec(s) for s in split['requests']]
+                    if not collect_bounded(child_batch,split['requests'],local,historical=historical_child):return False
                 else:
                     failure=record['failure']
                     state.update(status='FAILED',failure={'kind':'collection_incomplete',

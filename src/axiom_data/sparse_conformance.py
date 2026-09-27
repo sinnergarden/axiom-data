@@ -166,7 +166,7 @@ def run_sparse_conformance():
         baseline = directory / 'baseline'
         try:
             plan = historical_sparse.plan_historical_sparse(**SCOPE)
-            cap = completeness_policy('tushare_pr7.v1', 'forecast')['limit']
+            cap = completeness_policy('tushare_events.v1', 'forecast')['limit']
             if type(cap) is not int or cap <= 0:
                 raise ValueError('forecast fixture requires its real declared positive cap')
             parent = _seed(baseline, plan, cap)

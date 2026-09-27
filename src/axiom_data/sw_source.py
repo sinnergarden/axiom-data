@@ -1,4 +1,5 @@
 """SW2021 qualification observations, retained without inferred interval semantics."""
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
 import json
 import re
 from importlib.resources import files
@@ -10,7 +11,7 @@ from axiom_data.domains.market import _symbol
 def load_profile(version='tushare_sw_pilot.v1'):
     if version not in {'tushare_sw_pilot.v1','tushare_industry_qualification.v1'}:
         raise ArtifactError('unsupported industry SourceProfile')
-    return json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
+    return json.loads(resource_file('source_profiles', version+'.json').read_bytes())
 
 
 def profile_digest(version='tushare_sw_pilot.v1'):

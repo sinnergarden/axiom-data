@@ -7,9 +7,11 @@ from importlib.resources import files
 from typing import Any
 
 
+from axiom_data.deprecated.resources import resource_file
+
 TRADING_CALENDAR_CONTRACT_VERSION = "trading_calendar.v1"
-SECURITY_MASTER_CONTRACT_VERSION = "security_master.v1"
-MARKET_DAILY_CONTRACT_VERSION = "market_daily.v1"
+SECURITY_MASTER_CONTRACT_VERSION = "security_master.v2"
+MARKET_DAILY_CONTRACT_VERSION = "market_daily.v2"
 SECURITY_STATUS_CONTRACT_VERSION = "security_status.v1"
 PRICE_LIMITS_CONTRACT_VERSION = "price_limits.v1"
 CORPORATE_ACTIONS_CONTRACT_VERSION = "corporate_actions.v1"
@@ -59,6 +61,10 @@ _CONTRACT_DOMAINS.update({v:v[:-3] for v in EVENT_CONTRACT_VERSIONS})
 _CONTRACT_FILES['forecast_observations.v2']='forecast_observations.v2.json'
 _CONTRACT_DOMAINS['forecast_observations.v2']='forecast_observations'
 
+for version in ("market_daily.v1", "security_master.v1", "corporate_actions.v3"):
+    _CONTRACT_FILES[version] = version + ".json"
+    _CONTRACT_DOMAINS[version] = version.rsplit(".", 1)[0]
+
 def load_contract(contract_version: str) -> dict[str, Any]:
     """Load one explicit contract version; aliases and fallback are forbidden."""
 
@@ -66,7 +72,7 @@ def load_contract(contract_version: str) -> dict[str, Any]:
         filename = _CONTRACT_FILES[contract_version]
     except (KeyError, TypeError) as exc:
         raise ValueError(f"unknown contract version: {contract_version!r}") from exc
-    contract = json.loads(files(__package__).joinpath(filename).read_text(encoding="utf-8"))
+    contract = json.loads(resource_file("contracts", filename).read_text(encoding="utf-8"))
     if contract.get("contract_version") != contract_version:
         raise ValueError(f"packaged contract identity mismatch: {contract_version}")
     if contract.get("domain") != _CONTRACT_DOMAINS[contract_version]:
@@ -98,17 +104,12 @@ def require_writable_contract(domain: str, contract_version: str) -> None:
         raise ValueError(f'LEGACY_CONTRACT_READ_ONLY: {contract_version}; current writable contract is {current}')
 
 
-# Historical import names; contract versions and artifact identities are unchanged.
-DM1_CONTRACT_VERSIONS = REFERENCE_CONTRACT_VERSIONS
-PR6_CONTRACT_VERSIONS = FINANCIAL_CONTRACT_VERSIONS
-PR7_CONTRACT_VERSIONS = EVENT_CONTRACT_VERSIONS
 
 
 __all__ = [
     "ADJUSTMENT_FACTORS_CONTRACT_VERSION",
     "BENCHMARK_DAILY_CONTRACT_VERSION",
     "CORPORATE_ACTIONS_CONTRACT_VERSION",
-    "DM1_CONTRACT_VERSIONS",
     "REFERENCE_CONTRACT_VERSIONS",
     "FINANCIAL_CONTRACT_VERSIONS",
     "EVENT_CONTRACT_VERSIONS",

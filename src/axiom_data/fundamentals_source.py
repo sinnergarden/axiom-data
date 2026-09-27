@@ -1,5 +1,7 @@
 """Tushare financial, valuation and membership collection and normalization."""
 from __future__ import annotations
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
+
 import json
 from datetime import date, timedelta
 from importlib.resources import files
@@ -12,13 +14,13 @@ from axiom_data.domains.fundamentals import economic_content
 from axiom_data.source_completeness import validate_payload_completeness, source_profile_completeness_binding
 
 
-def load_fundamentals_source_profile(version='tushare_pr6.v1'):
-    if version not in {'tushare_pr6.v1','tushare_pr6.v2','tushare_fina_indicator.v1'}:
+def load_fundamentals_source_profile(version='tushare_fundamentals.v1'):
+    if profile_generation(version) not in {'tushare_fundamentals.v1','tushare_fundamentals.v2','tushare_fina_indicator.v2'}:
         raise ArtifactError('unsupported financial SourceProfile version')
-    return json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
+    return json.loads(resource_file('source_profiles', version+'.json').read_bytes())
 
 
-def profile_digest(version='tushare_pr6.v1'):
+def profile_digest(version='tushare_fundamentals.v1'):
     return _digest(_json_bytes(load_fundamentals_source_profile(version)))
 
 
@@ -31,7 +33,7 @@ def source_date(value):
         raise ArtifactError('invalid supplier date') from exc
 
 
-def validate_payload(endpoint, params, records, *, profile_version='tushare_pr6.v1'):
+def validate_payload(endpoint, params, records, *, profile_version='tushare_fundamentals.v1'):
     _validate_payload_shape(endpoint, params, records, profile_version=profile_version)
     validate_payload_completeness(profile_version, endpoint, records, params=params)
 
@@ -48,7 +50,7 @@ def _validate_payload_shape(endpoint, params, records, *, profile_version):
         if set(params)!={'index_code','start_date','end_date'}:
             raise ArtifactError('index_weight requires explicit index and date bounds')
     elif endpoint=='bak_basic':
-        if set(params) not in ([{'trade_date'},{'ts_code','trade_date'}] if profile_version=='tushare_pr6.v2' else [{'ts_code','trade_date'}]):
+        if set(params) not in ([{'trade_date'},{'ts_code','trade_date'}] if profile_generation(profile_version)=='tushare_fundamentals.v2' else [{'ts_code','trade_date'}]):
             raise ArtifactError('bak_basic requires explicit security/date scope')
     elif not params.get('ts_code') or not (params.get('period') or params.get('trade_date') or
                                           (params.get('start_date') and params.get('end_date'))):
@@ -70,7 +72,7 @@ def _validate_payload_shape(endpoint, params, records, *, profile_version):
         if endpoint=='index_weight' and row.get('index_code')!=params['index_code']:
             raise ArtifactError('source index outside individual RawBatch request')
         represented = row.get(definition.get('request_bound_field','trade_date' if endpoint in {'index_weight','bak_basic','daily_basic'} else 'ann_date'))
-        if profile_version=='tushare_fina_indicator.v1':source_date(row.get('ann_date'))
+        if profile_generation(profile_version)=='tushare_fina_indicator.v2':source_date(row.get('ann_date'))
         source_date(represented)
         if params.get('trade_date') and represented!=params['trade_date']:
             raise ArtifactError('source date outside RawBatch request')
@@ -83,9 +85,11 @@ def _validate_payload_shape(endpoint, params, records, *, profile_version):
 
 
 class FundamentalsCollector(TushareCollector):
-    implementation_revision='tushare-pr6-collector.v1'
+    implementation_revision='tushare-fundamentals-collector.v1'
 
-    def collect(self, endpoint, params, *, retrieved_at=None, membership_complete=False, profile_version='tushare_pr6.v1'):
+    def collect(self, endpoint, params, *, retrieved_at=None, membership_complete=False, profile_version='tushare_fundamentals.v1', _resume_historical=False):
+        if historical_profile(profile_version) and not _resume_historical:
+            raise ArtifactError('historical SourceProfiles are read-only')
         definition=load_fundamentals_source_profile(profile_version)['endpoints'].get(endpoint)
         if definition is None:
             raise ArtifactError('unsupported financial endpoint')
@@ -98,8 +102,8 @@ class FundamentalsCollector(TushareCollector):
         completeness=source_profile_completeness_binding(profile_version,profile_digest(profile_version))
         identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(profile_version),
                               'membership_complete':membership_complete,'source_completeness':completeness})
-        ref=write_raw_batch(self.data_root,'pr6-'+identity,domain=definition['domain'],
-            source_profile='tushare.pr6.'+endpoint,source_profile_version=profile_version,
+        ref=write_raw_batch(self.data_root,'financial-'+identity,domain=definition['domain'],
+            source_profile=source_reference(profile_version, endpoint),source_profile_version=profile_version,
             source_profile_digest=profile_digest(profile_version),request=request,retrieved_at=observed,
             payload=payload,collector_code=self.implementation_revision,
             summary={'rows':len(records),'historical_availability':'best_effort',
@@ -147,7 +151,7 @@ def _financial_revision_rows(records):
 
 
 class FundamentalsBuilder(MarketDomainBuilder):
-    implementation_revision='tushare-pr6-builder.v1'
+    implementation_revision='tushare-fundamentals-builder.v1'
 
     def __init__(self, data_root, domain, *, builder_config=None, **kwargs):
         if domain=='financial_events':
@@ -182,7 +186,7 @@ class FundamentalsBuilder(MarketDomainBuilder):
             if definition is None or definition['domain']!=self.domain:
                 raise ArtifactError('financial endpoint/domain mismatch')
             if (m['schema_version']!='raw_batch.v2' or m['source_profile_digest']!=profile_digest(version)
-                 or m['source_profile_ref']!='tushare.pr6.'+endpoint
+                 or m['source_profile_ref']!=source_reference(version,endpoint)
                 or request.get('fields')!=definition['fields']):
                 raise ArtifactError('financial source profile binding mismatch')
             records=json.loads(raw.payload)
@@ -196,7 +200,7 @@ class FundamentalsBuilder(MarketDomainBuilder):
                     weights[source['index_code']].append((source,raw))
                 continue
             for source in records:
-                if version=='tushare_pr6.v2' and self.builder_config.get('symbols') and source['ts_code'] not in self.builder_config['symbols']:
+                if profile_generation(version)=='tushare_fundamentals.v2' and self.builder_config.get('symbols') and source['ts_code'] not in self.builder_config['symbols']:
                     continue
                 row=self._base(source['ts_code'],raw)
                 if endpoint=='bak_basic':
@@ -350,11 +354,11 @@ class FundamentalsBuilder(MarketDomainBuilder):
                 for raw in timeline[observed]:
                     # Validate the original profile/payload before deriving any state.
                     profile=raw.manifest
-                    if (profile['source_profile_digest']!=profile_digest() or profile['source_profile_ref']!='tushare.pr6.index_weight'
-                        or profile['source_profile_version']!='tushare_pr6.v1' or profile['domain']!=self.domain
-                        or profile['request']['fields']!=load_fundamentals_source_profile()['endpoints']['index_weight']['fields']):
+                    if (profile['source_profile_digest']!=profile_digest(profile['source_profile_version']) or profile['source_profile_ref']!=source_reference(profile['source_profile_version'],'index_weight')
+                        or profile_generation(profile['source_profile_version'])!='tushare_fundamentals.v1' or profile['domain']!=self.domain
+                        or profile['request']['fields']!=load_fundamentals_source_profile(profile['source_profile_version'])['endpoints']['index_weight']['fields']):
                         raise ArtifactError('financial source profile binding mismatch')
-                    validate_payload('index_weight',profile['request']['params'],json.loads(raw.payload))
+                    validate_payload('index_weight',profile['request']['params'],json.loads(raw.payload),profile_version=profile['source_profile_version'])
                     records=json.loads(raw.payload);params=raw.manifest['request']['params']
                     grouped=defaultdict(list)
                     for row in records:grouped[(row['index_code'],row['trade_date'])].append(row)
@@ -460,6 +464,3 @@ class FundamentalsBuilder(MarketDomainBuilder):
 
 
 # Compatibility exports for historical callers.
-Pr6Collector = FundamentalsCollector
-Pr6Builder = FundamentalsBuilder
-load_pr6_source_profile = load_fundamentals_source_profile

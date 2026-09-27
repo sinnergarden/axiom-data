@@ -1,4 +1,5 @@
 """Code/source readiness and future acceptance contracts; never publish a baseline."""
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
 import ast
 import importlib
 import inspect
@@ -20,7 +21,7 @@ from axiom_data.consumption import exchange_sessions
 
 
 def _contract():
-    return json.loads(files('axiom_data.scope').joinpath('gate_a.v4.json').read_bytes())
+    return json.loads(resource_file('scope', 'gate_a.v5.json').read_bytes())
 
 
 def code_identity():
@@ -39,12 +40,12 @@ def code_identity():
 
 
 def _registry():
-    content = files('axiom_data.scope').joinpath('pr7_scope.v1.json').read_bytes()
+    content = resource_file('scope', 'data_dependency_scope.v1.json').read_bytes()
     return json.loads(content), _digest(content)
 
 
 def _profile(version):
-    return json.loads(files('axiom_data.source_profiles').joinpath(version + '.json').read_bytes())
+    return json.loads(resource_file('source_profiles', version + '.json').read_bytes())
 
 
 def completeness_matrix():
@@ -198,7 +199,7 @@ def _daily_contract_probe(root):
     from axiom_data.operations import validate_request_spec
 
     parent = 'snapshot-fa3d8b80c729edd2e139a49c82b3dea868bb5639998ba7cc84f540c0623fe786'
-    with files('axiom_data.scope').joinpath('daily_contract_snapshot.zip').open('rb') as handle:
+    with resource_file('scope', 'daily_contract_snapshot.zip').open('rb') as handle:
         with ZipFile(handle) as archive:
             archive.extractall(root)
     class FixtureSource:
@@ -211,7 +212,7 @@ def _daily_contract_probe(root):
     source = FixtureSource()
     params = dict(ts_code='688981.SH', start_date='20250101', end_date='20250331')
     raw = FundamentalsCollector(root, source).collect('fina_indicator', params,
-        profile_version='tushare_fina_indicator.v1', retrieved_at='2025-06-14T00:00:00Z')
+        profile_version='tushare_fina_indicator.v2', retrieved_at='2025-06-14T00:00:00Z')
     request = dict(collector='financial_indicator', domain='financial_events', endpoint='fina_indicator',
         params=params, economic_scope={'start':'20250101', 'end':'20250331'}, availability_policy='revision_scan')
     args = dict(snapshot_id=parent, source_requests=[request], client=source,
@@ -323,7 +324,7 @@ def _operational_routes():
         rows = [dict(ts_code='600036.SH', ann_date='20250401',
                      end_date=(date(2025, 1, 1) + timedelta(days=i)).strftime('%Y%m%d'),
                      update_flag='1', current_ratio=i + 1) for i in range(100)]
-        source_completeness.validate_payload_completeness('tushare_fina_indicator.v1',
+        source_completeness.validate_payload_completeness('tushare_fina_indicator.v2',
             'fina_indicator', rows,
             params={'ts_code': '600036.SH', 'start_date': '20250101', 'end_date': '20250630'})
     except SourceCompletenessError:
@@ -421,7 +422,8 @@ def _reference_qualification(scope):
     refs = _contract()['reference_qualification']
     records = {}
     for name, ref in refs.items():
-        path = root / ref['path']
+        from axiom_data.deprecated.resources import reference_evidence_path
+        path = reference_evidence_path(root, ref['evidence_key'])
         if root not in path.resolve().parents:
             raise ArtifactError('reference evidence outside repository')
         content = path.read_bytes()
@@ -448,7 +450,7 @@ def _requirement_bindings(contract, registry):
     """Bind the registry to the actual public exporters, including derived owners."""
     from axiom_data.domains.fundamentals import FIELD_MAP, WIDE_FIELDS
     from axiom_data.domains.events import LEAF_DOMAINS
-    expected = {leaf: (spec['domain'], spec['field']) for leaf, spec in registry['pr5_public_evidence'].items()}
+    expected = {leaf: (spec['domain'], spec['field']) for leaf, spec in registry['reference_public_evidence'].items()}
     for leaf in WIDE_FIELDS:
         domain = ('financial_stable_derived' if leaf.startswith('financial.') else
                   'financial_events' if leaf in FIELD_MAP else
@@ -478,11 +480,11 @@ def _coverage_readiness(contract):
             or _entry(expected['projector']) is not source_coverage.observation
             or _entry(expected['state']) is not source_coverage.state):
         raise ArtifactError('source coverage policy/entry mismatch')
-    profile = _profile('tushare_fina_indicator.v1')
+    profile = _profile('tushare_fina_indicator.v2')
     payload = b'[]'
     manifest = {'schema_version': 'raw_batch.v2', 'raw_batch_id': 'gate-a-code-canary-1',
                 'status': 'success', 'domain': 'financial_events',
-                'source_profile_ref': 'tushare.pr6.fina_indicator',
+                'source_profile_ref': 'tushare.fundamentals.fina_indicator',
                 'source_profile_version': profile['profile_version'],
                 'source_profile_digest': _digest(_json_bytes(profile)),
                 'request': {'endpoint': 'fina_indicator', 'params': {
@@ -582,7 +584,7 @@ def validate_gate_a(plan):
             findings.append({'section': section, 'reason': str(exc), 'error_type': type(exc).__name__})
     try:
         contract = _contract()
-        if contract.get('schema_version') != 'gate_a_contract.v4':
+        if contract.get('schema_version') != 'gate_a_contract.v5':
             raise ArtifactError('Gate A contract version differs from current policy')
         if not isinstance(plan, dict) or set(plan) != set(make_gate_a_plan(plan.get('scope', {}))):
             raise ArtifactError('complete Gate A plan required')
@@ -898,4 +900,3 @@ def validate_terminal_evidence(data_root, evidence, *, plan):
 
 
 # Compatibility exports for historical callers.
-PR7_SNAPSHOT_DOMAINS = EVENT_SNAPSHOT_DOMAINS

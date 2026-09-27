@@ -91,4 +91,3 @@ NUMERIC_FIELDS=tuple(f for f in LEAF_DOMAINS if not f.startswith('forecast.'))
 
 
 # Compatibility exports for historical callers.
-PR7_DOMAINS = EVENT_DOMAINS

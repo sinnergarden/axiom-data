@@ -7,7 +7,7 @@ the same policy; a successful Raw transport status does not establish admission.
 
 `tushare_fina_indicator.v1` already declares a response limit of 100. Its frozen
 profile and digest remain unchanged. This endpoint authority also applies to
-indicator observations using the earlier `tushare_pr6.v1` mapping profile:
+indicator observations using the earlier `tushare_fundamentals.v1` mapping profile:
 changing the legacy binding does not avoid the limit. A response of 99 rows
 passes the cap check; 100 or more fails. No indicator profile declares usable
 pagination, so `offset`, invented page metadata, or an unverified terminal flag

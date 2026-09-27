@@ -1,4 +1,5 @@
 """Scope-bound Data dependency admission over immutable public artifacts."""
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
 from collections import Counter
 from contextlib import nullcontext
 from itertools import groupby, islice
@@ -46,7 +47,7 @@ def _checked_plan(root, snapshot_id, plan):
         if not isinstance(historical,dict) or historical.get('schema_version')!='historical_view_execution_plan.v2':
             raise ArtifactError('resolved historical View plan v2 required')
         cutoffs={spec['config'].get('knowledge_cutoff') for spec in historical.get('views',{}).values()
-                 if _stored_view_kind(spec['kind']) in {'pr6_fact','pr7_fact'}}
+                 if _stored_view_kind(spec['kind']) in {'financial_fact','event_fact'}}
         if len(cutoffs)!=1 or None in cutoffs:
             raise ArtifactError('historical View cutoff must be explicit and uniform')
         actual=plan_historical_views(target=geometry,security_rows=reader.security_master(),
@@ -62,7 +63,7 @@ def _checked_plan(root, snapshot_id, plan):
             required_view_configs=plan['required_view_configs'], views=plan['views'])
         if checked['status'] != 'PLAN_VALIDATED':
             raise ArtifactError('full admission target has missing View coverage')
-        financial = checked['plan']['required_view_configs']['pr6_fact']
+        financial = checked['plan']['required_view_configs']['financial_fact']
         if set(financial['universe_ids']) != set(plan['target']['universe_ids']):
             raise ArtifactError('full admission universe target differs from View policy')
     if set(plan['view_refs']) != set(_planned_views(plan)):
@@ -197,7 +198,7 @@ def _assess(root, snapshot_id, plan):
     reader = SnapshotReader(root, snapshot_id)
     requalify_sources(root, {d:c.ref.commit_id for d,c in reader.commits.items()})
     financial_requests = _financial_request_coverage(reader, plan['target'])
-    registry = json.loads(files('axiom_data.scope').joinpath('pr7_scope.v1.json').read_bytes())
+    registry = json.loads(resource_file('scope', 'data_dependency_scope.v1.json').read_bytes())
     leaves = sorted(leaf for group in registry['partition'].values() for leaf in group)
     counts = {leaf:Counter() for leaf in leaves}
     quality_counts = {leaf:Counter() for leaf in leaves}
@@ -232,25 +233,25 @@ def _assess(root, snapshot_id, plan):
             kind=_stored_view_kind(group[0][1]['kind'])
             context=nullcontext()
             if len(group)>1 and all(len(c['symbols'])==1 for c in configs):
-                if kind=='pr6_fact':
+                if kind=='financial_fact':
                     from axiom_data.financial_views import financial_view_batch
                     context=financial_view_batch(reader, configs)
-                elif kind=='pr7_fact':
+                elif kind=='event_fact':
                     from axiom_data.event_views import event_view_batch
                     context=event_view_batch(reader, configs)
             with context:
                 for label, spec in group:
                     kind = _stored_view_kind(spec['kind'])
                     view = _bound_view(reader, spec, plan['view_refs'][label])
-                    if kind in {'pr6_fact', 'pr7_fact'}:
+                    if kind in {'financial_fact', 'event_fact'}:
                         from axiom_data.financial_views import project as financial_project
                         from axiom_data.event_views import project as event_project
-                        project = financial_project if kind == 'pr6_fact' else event_project
+                        project = financial_project if kind == 'financial_fact' else event_project
                         manifest = view.manifest
                         # Older loaders already replay the source projection once.
                         # Current compact loaders validate structure only, so their
                         # value/metadata comparison belongs here exactly once.
-                        if manifest['schema_version'] not in {'pr6_fact_view.v1','pr6_fact_view.v2','pr6_fact_view.v3','pr7_fact_view.v1','pr7_fact_view.v2'}:
+                        if manifest['schema_version'] not in {'financial_fact_view.v1','financial_fact_view.v2','financial_fact_view.v3','event_fact_view.v1','event_fact_view.v2'}:
                             direct = project(reader, manifest['scope'], manifest['pit_policy'], manifest['knowledge_cutoff'])
                             if _json_bytes(list(view.rows)) != _json_bytes(direct['wide']):
                                 raise ArtifactError('full admission direct/View metadata mismatch')
@@ -275,7 +276,7 @@ def _assess(root, snapshot_id, plan):
     # Consume canonical daily inputs once per month, not once per security or
     # session. Retain only that month's key index; never full-history payloads.
     domains = {}
-    for leaf, spec in registry['pr5_public_evidence'].items():
+    for leaf, spec in registry['reference_public_evidence'].items():
         if spec['domain'] != 'adjusted_price':
             domains.setdefault(spec['domain'], []).append((leaf, spec['field']))
     all_days = [day for day in axis if any(mask & bits[day] for mask in expected.values())]

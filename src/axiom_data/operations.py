@@ -1,4 +1,5 @@
 """Public operational services. Run records describe execution, not Data identity."""
+from axiom_data.deprecated.resources import collector_family, profile_generation
 from collections import Counter
 from datetime import datetime, timezone
 import json
@@ -11,23 +12,12 @@ from axiom_data.verification_cache import candidate_verification
 from axiom_data.source_completeness import requalify_sources
 
 
-_COLLECTOR_ALIASES = {
-    'reference': 'dm1',
-    'fundamentals': 'pr6',
-    'fundamentals_bulk': 'pr6_bulk',
-    'financial_indicator': 'pr6_indicator',
-    'events': 'pr7',
-    'holder_reports_v2': 'pr7_holder',
-    'holder_reports_v3': 'pr7_holder_v3',
-}
-
-
 from axiom_data.frozen_execution import frozen_operation
 
 def normalize_source_request(spec):
-    """Use the existing persisted collector name before request identity or plan freeze."""
+    """Resolve public collector selectors to their current business names."""
     if isinstance(spec, dict) and isinstance(spec.get('collector'), str):
-        return dict(spec, collector=_COLLECTOR_ALIASES.get(spec['collector'], spec['collector']))
+        return dict(spec, collector=collector_family(spec['collector']))
     return spec
 
 
@@ -88,7 +78,7 @@ def inspect_snapshot(data_root, snapshot_id):
             qualifications[row.get('pit_qualification', 'unknown')] += 1
         source_qualification=[]
         for ref in commit.manifest['ordered_raw_batch_refs']:
-            if ref.get('source_profile_version')=='tushare_pr7_holder.v3':
+            if profile_generation(ref.get('source_profile_version'))=='tushare_holder_reports.v3':
                 raw=load_raw_batch(data_root,ref['raw_batch_id'])
                 exclusions=raw.manifest['summary'].get('source_qualification',[])
                 if exclusions:source_qualification.append({'raw_batch_id':ref['raw_batch_id'],'records':exclusions})
@@ -132,32 +122,32 @@ def validate_request_spec(spec):
             raise ArtifactError('invalid report type')
     from axiom_data.tushare import load_tushare_source_profile
     from axiom_data.reference_source import load_reference_source_profile
-    from axiom_data.fundamentals_source import load_fundamentals_source_profile, validate_payload as pr6_validate
-    from axiom_data.event_source import load_event_source_profile, validate_payload as pr7_validate
+    from axiom_data.fundamentals_source import load_fundamentals_source_profile, validate_payload as financial_validate
+    from axiom_data.event_source import load_event_source_profile, validate_payload as event_validate
     from axiom_data.sw_source import load_profile as sw_profile, validate_request as sw_validate
-    profiles = {'market': load_tushare_source_profile(), 'dm1': load_reference_source_profile(),
-                'pr6': load_fundamentals_source_profile(), 'pr6_bulk': load_fundamentals_source_profile('tushare_pr6.v2'), 'pr7': load_event_source_profile(), 'sw_pilot': sw_profile()}
+    profiles = {'market': load_tushare_source_profile(), 'reference': load_reference_source_profile(),
+                'fundamentals': load_fundamentals_source_profile(), 'fundamentals_bulk': load_fundamentals_source_profile('tushare_fundamentals.v2'), 'events': load_event_source_profile(), 'sw_pilot': sw_profile()}
     profiles['industry_qualification'] = sw_profile('tushare_industry_qualification.v1')
-    profiles['pr7_holder'] = load_event_source_profile('tushare_pr7_holder.v2')
-    profiles['pr7_holder_v3'] = load_event_source_profile('tushare_pr7_holder.v3')
-    profiles['pr6_indicator'] = load_fundamentals_source_profile('tushare_fina_indicator.v1')
-    family = spec['collector']
+    profiles['holder_reports_v2'] = load_event_source_profile('tushare_holder_reports.v2')
+    profiles['holder_reports_v3'] = load_event_source_profile('tushare_holder_reports.v3')
+    profiles['financial_indicator'] = load_fundamentals_source_profile('tushare_fina_indicator.v2')
+    family = collector_family(spec['collector'])
     if family not in profiles or spec['endpoint'] not in profiles[family]['endpoints']:
         raise ArtifactError('unsupported source operation')
     definition = profiles[family]['endpoints'][spec['endpoint']]
     if family == 'market':
         from axiom_data.tushare import _endpoint_domain
         permitted = {_endpoint_domain(spec['endpoint'])}
-    elif family == 'dm1':
+    elif family == 'reference':
         permitted = set(definition['canonical_domains'])
     else:
         permitted = {definition['domain']}
     if spec['domain'] not in permitted:
         raise ArtifactError('source operation domain mismatch')
-    if family in {'pr6','pr6_bulk','pr6_indicator'}:
-        pr6_validate(spec['endpoint'], params, [], profile_version=profiles[family]['profile_version'])
-    if family in {'pr7','pr7_holder','pr7_holder_v3'}:
-        pr7_validate(spec['endpoint'], params, [],profile_version=profiles[family]['profile_version'])
+    if family in {'fundamentals','fundamentals_bulk','financial_indicator'}:
+        financial_validate(spec['endpoint'], params, [], profile_version=profiles[family]['profile_version'])
+    if family in {'events','holder_reports_v2','holder_reports_v3'}:
+        event_validate(spec['endpoint'], params, [],profile_version=profiles[family]['profile_version'])
     if family in {'sw_pilot','industry_qualification'}:
         sw_validate(spec['endpoint'], params, profile_version=profiles[family]['profile_version'])
     elif set(params) & {'src','level','l1_code','l2_code','l3_code','is_new','limit','offset'}:
@@ -227,23 +217,23 @@ def plan_daily(data_root, snapshot_id, *, source_requests):
 
 def _source_binding(spec):
     spec = normalize_source_request(spec)
-    family, endpoint = spec['collector'], spec['endpoint']
+    family, endpoint = collector_family(spec['collector']), spec['endpoint']
     if family == 'market':
         from axiom_data.tushare import load_tushare_source_profile, tushare_source_profile_digest
         profile = load_tushare_source_profile()
         digest = tushare_source_profile_digest(profile)
         ref = profile['endpoints'][endpoint]['source_profile_ref']
-    elif family == 'dm1':
+    elif family == 'reference':
         from axiom_data.reference_source import load_reference_source_profile, reference_source_profile_digest
         profile = load_reference_source_profile()
         digest = reference_source_profile_digest(profile)
         ref = profile['endpoints'][endpoint]['source_profile_ref']
-    elif family in {'pr6', 'pr6_bulk', 'pr6_indicator'}:
+    elif family in {'fundamentals', 'fundamentals_bulk', 'financial_indicator'}:
         from axiom_data.fundamentals_source import load_fundamentals_source_profile, profile_digest
-        version = {'pr6_bulk':'tushare_pr6.v2','pr6_indicator':'tushare_fina_indicator.v1'}.get(family,'tushare_pr6.v1')
+        version = {'fundamentals_bulk':'tushare_fundamentals.v2','financial_indicator':'tushare_fina_indicator.v2'}.get(family,'tushare_fundamentals.v1')
         profile = load_fundamentals_source_profile(version)
         digest = profile_digest(version)
-        ref = 'tushare.pr6.' + endpoint
+        ref = 'tushare.fundamentals.' + endpoint
     elif family in {'sw_pilot','industry_qualification'}:
         from axiom_data.sw_source import load_profile, profile_digest
         version = 'tushare_sw_pilot.v1' if family=='sw_pilot' else 'tushare_industry_qualification.v1'
@@ -252,10 +242,10 @@ def _source_binding(spec):
         ref = 'tushare.sw-pilot.' + endpoint
     else:
         from axiom_data.event_source import load_event_source_profile, profile_digest
-        version={'pr7_holder':'tushare_pr7_holder.v2','pr7_holder_v3':'tushare_pr7_holder.v3'}.get(family,'tushare_pr7.v1')
+        version={'holder_reports_v2':'tushare_holder_reports.v2','holder_reports_v3':'tushare_holder_reports.v3'}.get(family,'tushare_events.v1')
         profile = load_event_source_profile(version)
         digest = profile_digest(version)
-        ref = 'tushare.pr7.' + endpoint
+        ref = 'tushare.events.' + endpoint
     return {'source_profile_ref': ref, 'source_profile_version': profile['profile_version'],
             'source_profile_digest': digest, 'fields': profile['endpoints'][endpoint]['fields']}
 
@@ -263,6 +253,8 @@ def _source_binding(spec):
 def _check_collected(raw, spec):
     binding = _source_binding(spec)
     manifest = raw.manifest
+    from axiom_data.deprecated.resources import raw_source_binding
+    binding = raw_source_binding(manifest, spec['endpoint'], binding)
     if (manifest['schema_version'] != 'raw_batch.v2' or manifest['status'] != 'success'
         or manifest['domain'] != spec['domain']
         or any(manifest.get(k) != v for k, v in binding.items() if k != 'fields')
@@ -281,7 +273,7 @@ def _collection_failure(exc, raw_id=None):
     return failure
 
 
-def _checked_collection_record(root, spec, raw_id):
+def _checked_collection_record(root, spec, raw_id, *, historical=False):
     """Current Raw validation, never a historical completed flag, is authority."""
     from axiom_data.source_completeness import SourceCompletenessError
     raw = None
@@ -305,6 +297,9 @@ def _checked_collection_record(root, spec, raw_id):
                              len(json.loads(raw.payload)) >= policy['limit'])
                 record['state'] = 'FAILED_TERMINAL' if saturated else 'NEEDS_RETRY'
             else:
+                if historical:
+                    from axiom_data.deprecated.resources import historical_collection_split
+                    split = historical_collection_split(split)
                 record.update(state='NEEDS_SPLIT', split=split)
         return record
     return {'state': 'VALID_COMPLETE', 'raw_batch_id': raw_id, 'failure': None, 'split': None}
@@ -334,7 +329,12 @@ def _supersede_collection_request(root, *, run_id, key, split, child_run_id):
         record = state['request_states'][key]
         if record['state'] not in {'NEEDS_SPLIT', 'SUPERSEDED_BY_SPLIT'} or record['split'] != split:
             raise ArtifactError('collection split differs from revalidated parent')
-        child_refs = {'run_id': child_run_id, 'request_ids': [validate_request_spec(s) for s in split['requests']]}
+        from axiom_data.deprecated.resources import collection_request_key
+        historical = any(validate_request_spec(spec) != key and
+            collection_request_key(spec, _source_binding(spec)) == key for spec in state['requests'])
+        child_keys = [collection_request_key(spec, _source_binding(spec)) if historical else
+                      validate_request_spec(spec) for spec in split['requests']]
+        child_refs = {'run_id': child_run_id, 'request_ids': child_keys}
         if record.get('child_refs', child_refs) != child_refs:
             raise ArtifactError('collection split child graph changed')
         record = dict(record, state='SUPERSEDED_BY_SPLIT', failure=None, child_refs=child_refs)
@@ -344,9 +344,10 @@ def _supersede_collection_request(root, *, run_id, key, split, child_run_id):
         # The parent page is superseded, never an admitted canonical input.
         state['status'] = 'RECOVERY_REQUIRED'
         save_progress(path, state)
+        return child_refs
 
 
-def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_batch_ids=None):
+def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_batch_ids=None, _historical_continuation=False):
     """Resume only exact requests and revalidated immutable refs; partial is never COMPLETE.
 
     This collection stage alone cannot accept a baseline or move a pointer.
@@ -359,13 +360,35 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
     _identity('run_id', run_id)
     if not isinstance(requests, list) or not requests:
         raise ArtifactError('explicit nonempty source request plan required')
-    requests=[normalize_source_request(spec) for spec in json.loads(_json_bytes(requests))]
+    supplied_requests=json.loads(_json_bytes(requests))
+    requests=[normalize_source_request(spec) for spec in supplied_requests]
     keys = [validate_request_spec(spec) for spec in requests]
     if len(set(keys)) != len(keys):
         raise ArtifactError('duplicate requests in plan')
     bound={}
     layout = _layout(data_root)
     resuming = _safe_path(layout.root, layout.root/'operations'/run_id/'collection.json').exists()
+    historical_resume = False
+    saved_path = _safe_path(layout.root, layout.root/'operations'/run_id/'collection.json')
+    if resuming:
+        from axiom_data.deprecated.resources import collection_binding
+        saved_state = json.loads(saved_path.read_bytes())
+        historical_keys = [_digest(_json_bytes({'spec': spec, 'binding': collection_binding(spec, _source_binding(spec))})) for spec in supplied_requests]
+        historical_projection = {'requests': supplied_requests, 'request_keys': historical_keys}
+        if observed_raw_batch_ids is not None:
+            historical_projection['observed_raw_batch_ids'] = observed_raw_batch_ids
+        if saved_state['requests'] == supplied_requests and saved_state['plan_digest'] == _digest(_json_bytes(historical_projection)):
+            keys = historical_keys
+            requests = supplied_requests
+            historical_resume = True
+    elif _historical_continuation:
+        from axiom_data.deprecated.resources import collection_request_key
+        requests = supplied_requests
+        keys = [collection_request_key(spec, _source_binding(spec)) for spec in requests]
+        historical_resume = True
+    else:
+        requests = [dict(spec, collector=collector_family(spec['collector'])) for spec in requests]
+        keys = [validate_request_spec(spec) for spec in requests]
     projection={'requests':requests,'request_keys':keys}
     if observed_raw_batch_ids is not None:
         from axiom_data.build import _validate_identity
@@ -448,7 +471,7 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
             previous = records[key]
             identity = previous['raw_batch_id']
             if identity is not None:
-                record = _checked_collection_record(layout.root, spec, identity)
+                record = _checked_collection_record(layout.root, spec, identity, historical=historical_resume)
                 if previous['state'] == 'SUPERSEDED_BY_SPLIT':
                     if record['state'] != 'NEEDS_SPLIT' or record['split'] != previous['split']:
                         raise ArtifactError('superseded parent no longer matches frozen split')
@@ -464,28 +487,34 @@ def collect_requests(data_root, *, run_id, requests, client=None, observed_raw_b
                 save_progress(checkpoint, upgraded)
         save_progress(path, state)
         collectors = {'market': TushareCollector(layout.root, client),
-                      'dm1': TushareReferenceCollector(layout.root, client),
-                      'pr6': FundamentalsCollector(layout.root, client), 'pr6_bulk': FundamentalsCollector(layout.root, client), 'pr7': EventCollector(layout.root, client),
+                      'reference': TushareReferenceCollector(layout.root, client),
+                      'fundamentals': FundamentalsCollector(layout.root, client), 'fundamentals_bulk': FundamentalsCollector(layout.root, client), 'events': EventCollector(layout.root, client),
                       'sw_pilot': SwQualificationCollector(layout.root, client)}
         collectors['industry_qualification'] = IndustryQualificationCollector(layout.root, client)
-        collectors['pr7_holder'] = EventCollector(layout.root, client)
-        collectors['pr7_holder_v3'] = EventCollector(layout.root, client)
-        collectors['pr6_indicator'] = FundamentalsCollector(layout.root, client)
+        collectors['holder_reports_v2'] = EventCollector(layout.root, client)
+        collectors['holder_reports_v3'] = EventCollector(layout.root, client)
+        collectors['financial_indicator'] = FundamentalsCollector(layout.root, client)
         consecutive_failures = 0
         for key, spec in zip(keys, requests):
             record = state['request_states'][key]
             if record['state'] not in {'PENDING','NEEDS_RETRY'} or key in bound:
                 continue
             try:
-                collector = collectors[spec['collector']]
-                args = (spec['domain'], spec['endpoint'], spec['params']) if spec['collector'] == 'dm1' else (spec['endpoint'], spec['params'])
-                versions={'pr6_bulk':'tushare_pr6.v2','pr6_indicator':'tushare_fina_indicator.v1','pr7_holder':'tushare_pr7_holder.v2','pr7_holder_v3':'tushare_pr7_holder.v3'}
-                ref = collector.collect(*args, **({'profile_version':versions[spec['collector']]} if spec['collector'] in versions else {}))
-                record = _checked_collection_record(layout.root, spec, ref.raw_batch_id)
+                collector = collectors[collector_family(spec['collector'])]
+                args = (spec['domain'], spec['endpoint'], spec['params']) if collector_family(spec['collector']) == 'reference' else (spec['endpoint'], spec['params'])
+                versions={'fundamentals_bulk':'tushare_fundamentals.v2','financial_indicator':'tushare_fina_indicator.v2','holder_reports_v2':'tushare_holder_reports.v2','holder_reports_v3':'tushare_holder_reports.v3'}
+                options = {'profile_version':versions[collector_family(spec['collector'])]} if collector_family(spec['collector']) in versions else {}
+                if historical_resume:
+                    from axiom_data.deprecated.resources import collection_profile
+                    version = collection_profile(spec['collector'])
+                    if version:
+                        options = {'profile_version': version, '_resume_historical': True}
+                ref = collector.collect(*args, **options)
+                record = _checked_collection_record(layout.root, spec, ref.raw_batch_id, historical=historical_resume)
             except Exception as exc:
                 # Never persist supplier exception text or credential-bearing URLs.
                 rejected_raw = getattr(exc, 'raw_batch_id', None)
-                record = (_checked_collection_record(layout.root, spec, rejected_raw) if rejected_raw else
+                record = (_checked_collection_record(layout.root, spec, rejected_raw, historical=historical_resume) if rejected_raw else
                           {'state':'NEEDS_RETRY','raw_batch_id':None,'failure':_collection_failure(exc),'split':None})
             _record_collection_state(state, key, record)
             state['updated_at'] = datetime.now(timezone.utc).isoformat()
@@ -522,7 +551,8 @@ def compare_event_projection(data_root, snapshot_id, view_id, *, symbols, fields
     binary = object.__new__(QlibViewReader)
     binary.data_root = Path(data_root)
     binary.view = view
-    binary.path = _layout(data_root).derived_commits('pr7_fact') / view_id
+    from axiom_data.deprecated.view_protocols import view_storage_kind
+    binary.path = _layout(data_root).derived_commits(view_storage_kind(view_id)) / view_id
     actual = {(r['symbol'], r['session']): r for r in binary.market_daily(include_missing=True)
               if r['symbol'] in symbols and start_session <= r['session'] <= end_session}
     expected_keys = {(r['symbol'], r['session']) for r in view.rows
@@ -542,7 +572,6 @@ def compare_event_projection(data_root, snapshot_id, view_id, *, symbols, fields
             'rows': len(actual), 'fields': fields, 'start_session': start_session, 'end_session': end_session}
 
 
-compare_pr7_projection = compare_event_projection  # Historical public name.
 
 
 def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
@@ -550,7 +579,7 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
     from axiom_data.domains import EVENT_SNAPSHOT_DOMAINS
     if not isinstance(domain_inputs, dict) or not domain_inputs or set(domain_inputs)-set(EVENT_SNAPSHOT_DOMAINS):
         raise ArtifactError('explicit registered domain input plan required')
-    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'security_session_scope', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','dm1_source_partitioning','universe_acquisition','top10_qualification','margin_qualification','corporate_action_observations','capital_qualification','limit_qualification','forecast_source_types','corporate_action_reobservation'}
+    allowed_config = {'symbols', 'start_session', 'end_session', 'membership_end_exclusive', 'security_boundary_policy', 'security_session_scope', 'industry_source_profile', 'session_suspension_policy', 'market_source_partitioning','reference_source_partitioning','universe_acquisition','top10_qualification','margin_qualification','corporate_action_observations','capital_qualification','limit_qualification','forecast_source_types','corporate_action_reobservation'}
     for domain, spec in domain_inputs.items():
         if not isinstance(spec, dict) or set(spec) not in ({'raw_batch_ids', 'contract_version', 'config', 'new_lineage'}, {'raw_batch_ids', 'patch_ids', 'contract_version', 'config', 'new_lineage'}):
             raise ArtifactError('domain input requires raw refs, contract, config and lineage decision')
@@ -601,10 +630,10 @@ def _validate_domain_inputs(domain_inputs, *, pending_domains=()):
             raise ArtifactError('unsupported session suspension policy')
         if 'market_source_partitioning' in spec['config'] and (domain!='market_daily' or spec['config']['market_source_partitioning']!='security.v1'):
             raise ArtifactError('unsupported market source partitioning')
-        if 'dm1_source_partitioning' in spec['config']:
+        if 'reference_source_partitioning' in spec['config']:
             from axiom_data.reference_source import _EXPECTED_ENDPOINTS
-            if domain not in _EXPECTED_ENDPOINTS or spec['config']['dm1_source_partitioning']!='security.v1':
-                raise ArtifactError('unsupported D-M1 source partitioning')
+            if domain not in _EXPECTED_ENDPOINTS or spec['config']['reference_source_partitioning']!='security.v1':
+                raise ArtifactError('unsupported reference source partitioning')
         from axiom_data.build import BuildRequest, _identities
         _identities('patch_ids', spec.get('patch_ids', []))
         if domain in pending_domains and spec['raw_batch_ids'] == []:

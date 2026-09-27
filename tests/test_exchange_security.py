@@ -1,3 +1,4 @@
+from axiom_data.contracts import writable_contracts
 import json
 from pathlib import Path
 import tempfile
@@ -15,7 +16,7 @@ class ExchangeSecurityTest(unittest.TestCase):
             with tempfile.TemporaryDirectory() as directory:
                 with self.assertRaisesRegex(ArtifactError,'boundary policy'):
                     assemble_candidate(directory,run_id='boundary-test',domain_inputs={domain:{
-                        'raw_batch_ids':['explicit-raw'], 'contract_version':domain+'.v1',
+                        'raw_batch_ids':['explicit-raw'], 'contract_version':writable_contracts()["domains"][domain]["current"],
                         'new_lineage':True, 'config':{'security_boundary_policy':policy}}})
 
     def test_original_tables_and_incomplete_evidence(self):
@@ -40,10 +41,10 @@ class ExchangeSecurityTest(unittest.TestCase):
             cfg={'symbols':['600687.SH'],'start_session':'2014-01-01','end_session':'2026-09-08'}
             builder=ExchangeSecurityBuilder(directory,builder_config=cfg)
             with self.assertRaisesRegex(ArtifactError,'coverage'):
-                BuildApplication('security_master',builder).build(None,[raw.raw_batch_id],[],'security_master.v1')
-            result=BuildApplication('security_master',builder).build(None,[raw.raw_batch_id,official.raw_batch_id],[],'security_master.v1')
+                BuildApplication('security_master',builder).build(None,[raw.raw_batch_id],[],'security_master.v2')
+            result=BuildApplication('security_master',builder).build(None,[raw.raw_batch_id,official.raw_batch_id],[],'security_master.v2')
             commit=load_domain_commit(directory,'security_master',result.commit_id)
             self.assertEqual(commit.rows[0]['delist_session'],'2021-03-04')
             self.assertEqual(json.loads(load_raw_batch(directory,raw.raw_batch_id).payload)[0]['delist_date'],'20210303')
             with self.assertRaisesRegex(ArtifactError,'unverified'):
-                BuildApplication('security_master',TushareMarketBuilder(directory,'security_master',builder_config=cfg)).build(None,[raw.raw_batch_id],[],'security_master.v1')
+                BuildApplication('security_master',TushareMarketBuilder(directory,'security_master',builder_config=cfg)).build(None,[raw.raw_batch_id],[],'security_master.v2')

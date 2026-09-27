@@ -1,4 +1,4 @@
-"""D-M1 reference-domain contracts and explicit cross-domain checks."""
+"""Reference-domain contracts and explicit cross-domain checks."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def _provenance(row: Mapping[str, object]) -> None:
         raise MarketContractError("pit_qualification is not canonical")
     if qualification == "verified":
         raise MarketContractError(
-            "VERIFIED_EVIDENCE_UNAVAILABLE: D-M1 has no typed SourceEvidence artifact"
+            "VERIFIED_EVIDENCE_UNAVAILABLE: reference has no typed SourceEvidence artifact"
         )
     if qualification == "observed" and (
         source_available is not None or basis != FIRST_OBSERVATION_EVIDENCE
@@ -239,7 +239,7 @@ def validate_corporate_action_rows(rows: object, version=None) -> None:
             "share_available_date",
         ):
             _date(f"row {index} {name}", row[name], nullable=True)
-        _date(f"row {index} effective_date", row["effective_date"],nullable=version=='v2')
+        _date(f"row {index} effective_date", row["effective_date"],nullable=version in {'v2','v3'})
         terms = {
             "cash_dividend": "cash_per_share",
             "stock_dividend": "stock_ratio",
@@ -247,14 +247,14 @@ def validate_corporate_action_rows(rows: object, version=None) -> None:
             "split": "split_ratio",
             "consolidation": "split_ratio",
         }
-        unresolved=version=='v2' and action_type=='unresolved'
+        unresolved=version in {'v2','v3'} and action_type=='unresolved'
         if action_type not in terms and not unresolved:
             raise MarketContractError("corporate action type is unsupported")
         values = {
             name: _number(name, row[name])
             for name in ("cash_per_share", "stock_ratio", "transfer_ratio", "split_ratio")
         }
-        if version=='v2':
+        if version in {'v2','v3'}:
             expected='unresolved_terms' if unresolved else 'undated_action' if row['effective_date'] is None else 'dated_action'
             if row['observation_state']!=expected or row['ex_date']!=row['effective_date']:
                 raise MarketContractError('corporate action observation state mismatch')
@@ -280,7 +280,7 @@ def validate_corporate_action_rows(rows: object, version=None) -> None:
 def validate_reference_snapshot_rows(
     commits: Mapping[str, Any],
 ) -> None:
-    """Validate D-M1 relationships without inventing a generic rule engine."""
+    """Validate reference relationships without inventing a generic rule engine."""
 
     validate_security_master_rows(commits['security_master'].rows)
 
@@ -301,10 +301,10 @@ def validate_reference_snapshot_rows(
         exchange = identity["exchange"]
         cal = calendar.get((exchange, row["session"]))
         if cal is None or (open_only and cal["is_open"] is not True):
-            raise MarketContractError("D-M1 fact refers to an invalid calendar session")
+            raise MarketContractError("reference fact refers to an invalid calendar session")
         state = _checked_security_identity_state(identity, row["session"])
         if state != "within_identity_interval":
-            raise MarketContractError("D-M1 fact is outside its security identity interval")
+            raise MarketContractError("reference fact is outside its security identity interval")
 
     for row in commits["security_status"].rows:
         symbol = row["symbol"]
@@ -396,20 +396,17 @@ DOMAIN_VALIDATORS = {
 
 __all__ = [
     "ALL_CANONICAL_DOMAINS",
-    "DM1_REFERENCE_DOMAINS",
-    "DM1_SNAPSHOT_DOMAINS",
+    "REFERENCE_DOMAINS",
+    "REFERENCE_SNAPSHOT_DOMAINS",
     "DOMAIN_VALIDATORS",
     "PIT_QUALIFICATIONS",
     "FIRST_OBSERVATION_EVIDENCE",
     "REVISION_SPECIFIC_PUBLIC_EVIDENCE",
     "TERMINAL_HISTORY_EVIDENCE",
-    "validate_dm1_snapshot_rows",
+    "validate_reference_snapshot_rows",
     "validate_strict_decision_time",
     "weakest_pit_qualification",
 ]
 
 
 # Compatibility exports for historical callers.
-DM1_REFERENCE_DOMAINS = REFERENCE_DOMAINS
-DM1_SNAPSHOT_DOMAINS = REFERENCE_SNAPSHOT_DOMAINS
-validate_dm1_snapshot_rows = validate_reference_snapshot_rows

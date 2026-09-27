@@ -1,4 +1,5 @@
 """Source-bound security master with official exchange termination boundaries."""
+from axiom_data.deprecated.resources import resource_file, profile_generation
 from io import BytesIO
 from importlib.resources import files
 import json
@@ -11,7 +12,7 @@ from axiom_data.sw_source import load_profile as sw_profile, profile_digest as s
 
 
 def profile():
-    return json.loads(files('axiom_data.source_profiles').joinpath('exchange_security.v1.json').read_bytes())
+    return json.loads(resource_file('source_profiles', 'exchange_security.v1.json').read_bytes())
 
 
 def parse_termination(exchange, payload):
@@ -107,7 +108,7 @@ class ExchangeSecurityBuilder(MarketDomainBuilder):
                     or m['source_profile_digest']!=_digest(_json_bytes(p))):
                     raise ArtifactError('exchange boundary source binding mismatch')
                 boundaries.update(parse_termination(exchange,raw.payload));seen.add(exchange);continue
-            if version=='tushare_phase1.v1':
+            if profile_generation(version)=='tushare_market.v1':
                 grouped=_raw_endpoint_rows([raw])
                 if set(grouped)!={'stock_basic'}:raise ArtifactError('security source endpoint mismatch')
                 rows=grouped['stock_basic']

@@ -81,7 +81,7 @@ end means no ending transition is known at the query cutoff; future observations
 do not change an earlier cutoff's evidence. Equal-valued revision ties are also
 recorded, with no conflicting fields, rather than silently discarding sources.
 
-New Fact/Qlib artifacts declare `pr6_fact_view.v3`, `typed_fact.v2` and the
+New Fact/Qlib artifacts declare `financial_fact_view.v6`, `typed_fact.v2` and the
 resolution policy. Published v1/v2 Views replay their original semantics and
 identity projection. Financial canonical v1–v4 loaders and Raw stay unchanged;
 this consumption change requires no financial DomainCommit rebuild.

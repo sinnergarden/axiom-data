@@ -1,4 +1,5 @@
 """Tushare holder, margin, moneyflow and forecast collection and normalization."""
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
 import json
 import math
 from collections import defaultdict
@@ -10,17 +11,17 @@ from axiom_data.domains.fundamentals import economic_content
 from axiom_data.pit import fingerprint, instant
 
 
-def load_event_source_profile(version='tushare_pr7.v1'):
-    if version not in {'tushare_pr7.v1','tushare_pr7_holder.v2','tushare_pr7_holder.v3'}:raise ArtifactError('unsupported event source version')
-    return json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
+def load_event_source_profile(version='tushare_events.v1'):
+    if profile_generation(version) not in {'tushare_events.v1','tushare_holder_reports.v2','tushare_holder_reports.v3'}:raise ArtifactError('unsupported event source version')
+    return json.loads(resource_file('source_profiles', version+'.json').read_bytes())
 
 
-def profile_digest(version='tushare_pr7.v1'):
+def profile_digest(version='tushare_events.v1'):
     return _digest(_json_bytes(load_event_source_profile(version)))
 
 
 def announcement(value, version):
-    if version in {'tushare_pr7_holder.v2','tushare_pr7_holder.v3'} and isinstance(value,str) and len(value)==19:
+    if profile_generation(version) in {'tushare_holder_reports.v2','tushare_holder_reports.v3'} and isinstance(value,str) and len(value)==19:
         from datetime import datetime
         try:
             parsed=datetime.strptime(value,'%Y-%m-%d %H:%M:%S')
@@ -32,7 +33,7 @@ def announcement(value, version):
 
 
 def source_qualification(records, version):
-    if version!='tushare_pr7_holder.v3':return []
+    if profile_generation(version)!='tushare_holder_reports.v3':return []
     return [{'row_index':i,'reason':'unkeyed_empty_observation'} for i,r in enumerate(records)
             if 'end_date' in r and 'holder_num' in r and r['end_date'] is None and r['holder_num'] is None]
 
@@ -40,7 +41,7 @@ def source_qualification(records, version):
 def holder_admission(records, version, endpoint):
     """Row usability, independent of supplier completeness and PIT qualification."""
     rejected=[]
-    if version=='tushare_pr7_holder.v3' and endpoint=='stk_holdernumber':
+    if profile_generation(version)=='tushare_holder_reports.v3' and endpoint=='stk_holdernumber':
         rejected=[{'row_index':i,'row_fingerprint':fingerprint(row),
                    'status':'unmaterializable','reason':'MISSING_REPORT_DATE',
                    'affected_field':'end_date'} for i,row in enumerate(records)
@@ -56,14 +57,14 @@ def canonicalization_report(raw):
     return dict(report,raw_ref=raw.ref.raw_batch_id)
 
 
-def validate_payload(endpoint, params, records, *, profile_version='tushare_pr7.v1'):
+def validate_payload(endpoint, params, records, *, profile_version='tushare_events.v1'):
     _validate_payload_shape(endpoint, params, records, profile_version=profile_version)
     definition=load_event_source_profile(profile_version)['endpoints'][endpoint]
     if len(records)>=definition['limit']:
         raise ArtifactError('payload invalid or possibly truncated; split request')
 
 
-def _validate_payload_shape(endpoint, params, records, *, profile_version='tushare_pr7.v1'):
+def _validate_payload_shape(endpoint, params, records, *, profile_version='tushare_events.v1'):
     definition=load_event_source_profile(profile_version)['endpoints'].get(endpoint)
     if definition is None:raise ArtifactError('unsupported event endpoint')
     if not isinstance(params,dict) or set(params)!={'ts_code','start_date','end_date'}:
@@ -87,9 +88,11 @@ def _validate_payload_shape(endpoint, params, records, *, profile_version='tusha
 
 
 class EventCollector(TushareCollector):
-    implementation_revision='tushare-pr7-collector.v1'
+    implementation_revision='tushare-events-collector.v1'
 
-    def collect(self, endpoint, params, *, retrieved_at=None, profile_version='tushare_pr7.v1'):
+    def collect(self, endpoint, params, *, retrieved_at=None, profile_version='tushare_events.v1', _resume_historical=False):
+        if historical_profile(profile_version) and not _resume_historical:
+            raise ArtifactError('historical SourceProfiles are read-only')
         validate_payload(endpoint,params,[],profile_version=profile_version)
         definition=load_event_source_profile(profile_version)['endpoints'][endpoint]
         records=_response_records(self._client().query(endpoint,fields=','.join(definition['fields']),**params))
@@ -100,16 +103,16 @@ class EventCollector(TushareCollector):
         from axiom_data.source_completeness import source_profile_completeness_binding
         completeness=source_profile_completeness_binding(profile_version,profile_digest(profile_version))
         identity=fingerprint({'request':request,'payload':_digest(payload),'retrieved_at':observed,'profile':profile_digest(profile_version),'source_completeness':completeness})
-        ref=write_raw_batch(self.data_root,'pr7-'+identity,domain=definition['domain'],
-            source_profile='tushare.pr7.'+endpoint,source_profile_version=profile_version,
+        ref=write_raw_batch(self.data_root,'event-'+identity,domain=definition['domain'],
+            source_profile=source_reference(profile_version, endpoint),source_profile_version=profile_version,
             source_profile_digest=profile_digest(profile_version),request=request,retrieved_at=observed,
             payload=payload,collector_code=self.implementation_revision,
             summary={'rows':len(records),'historical_availability':'best_effort','empty_response':'source_gap' if not records else None,
                      'source_completeness':completeness,
                      **({'canonical_admission':holder_admission(records,profile_version,endpoint)}
-                        if profile_version=='tushare_pr7_holder.v3' and endpoint=='stk_holdernumber'
+                        if profile_generation(profile_version)=='tushare_holder_reports.v3' and endpoint=='stk_holdernumber'
                         and any(r.get('end_date') is None and r.get('holder_num') is not None for r in records) else {}),
-                     **({'source_qualification':source_qualification(records,profile_version)} if profile_version=='tushare_pr7_holder.v3' else {})})
+                     **({'source_qualification':source_qualification(records,profile_version)} if profile_generation(profile_version)=='tushare_holder_reports.v3' else {})})
         from axiom_data.source_completeness import validate_payload_completeness
         validate_payload_completeness(profile_version, endpoint, records,
             params=params, raw_batch_id=ref.raw_batch_id)
@@ -132,11 +135,11 @@ def normalize(raw, domain, *, top10_qualification=None, margin_qualification=Non
     d=load_event_source_profile(version)['endpoints'].get(endpoint)
     if (d is None or d['domain']!=domain or m['domain']!=domain or m['schema_version']!='raw_batch.v2'
         or m['source_profile_digest']!=profile_digest(version)
-        or m['source_profile_ref']!='tushare.pr7.'+endpoint or request['fields']!=d['fields']):
+        or m['source_profile_ref']!=source_reference(version,endpoint) or request['fields']!=d['fields']):
         raise ArtifactError('event profile/domain binding mismatch')
     records=json.loads(raw.payload);validate_payload(endpoint,request['params'],records,profile_version=version)
     excluded=source_qualification(records,version)
-    if version=='tushare_pr7_holder.v3' and m['summary'].get('source_qualification')!=excluded:
+    if profile_generation(version)=='tushare_holder_reports.v3' and m['summary'].get('source_qualification')!=excluded:
         raise ArtifactError('holder source qualification summary mismatch')
     excluded_indices={item['row_index'] for item in excluded}
     admission=holder_admission(records,version,endpoint)
@@ -212,24 +215,24 @@ def normalize(raw, domain, *, top10_qualification=None, margin_qualification=Non
 
 
 class EventBuilder(MarketDomainBuilder):
-    implementation_revision='tushare-pr7-builder.v1'
+    implementation_revision='tushare-events-builder.v1'
 
     def __init__(self,data_root,domain,*,builder_config=None,**kwargs):
         config=dict(builder_config or {})
         if 'forecast_source_types' in config:
             if domain!='forecast_observations' or config['forecast_source_types']!='forecast_source_types.v1':
                 raise ArtifactError('unsupported forecast source type mapping')
-            config['forecast_source_types_digest']=_digest(files('axiom_data.source_profiles').joinpath('forecast_source_types.v1.json').read_bytes())
+            config['forecast_source_types_digest']=_digest(resource_file('source_profiles', 'forecast_source_types.v1.json').read_bytes())
         qualification=config.get('top10_qualification')
         if qualification is not None:
             if domain!='top_holders_reports' or qualification!='top10_ambiguity.v1':
                 raise ArtifactError('unsupported Top10 qualification')
-            config['top10_qualification_digest']=_digest(files('axiom_data.source_profiles').joinpath(qualification+'.json').read_bytes())
+            config['top10_qualification_digest']=_digest(resource_file('source_profiles', qualification+'.json').read_bytes())
         qualification=config.get('margin_qualification')
         if qualification is not None:
             if domain!='margin_daily' or qualification!='margin_negative_repayment.v1':
                 raise ArtifactError('unsupported margin qualification')
-            config['margin_qualification_digest']=_digest(files('axiom_data.source_profiles').joinpath(qualification+'.json').read_bytes())
+            config['margin_qualification_digest']=_digest(resource_file('source_profiles', qualification+'.json').read_bytes())
         config['implementation_content']={n:_digest(files('axiom_data').joinpath(n).read_bytes()) for n in ('event_source.py','domains/events.py','pit.py','artifacts.py')}
         super().__init__(data_root,domain,builder_config=config,**kwargs)
 
@@ -275,10 +278,7 @@ def extend_snapshot(data_root, parent_snapshot_id, domain, raw_batch_ids):
     return create_snapshot(data_root,ids)
 
 
-from axiom_data.pit import select_event_revisions as select_pr7_revisions
+from axiom_data.pit import select_event_revisions as select_event_revisions
 
 
 # Compatibility exports for historical callers.
-Pr7Collector = EventCollector
-Pr7Builder = EventBuilder
-load_pr7_source_profile = load_event_source_profile

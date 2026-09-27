@@ -64,7 +64,7 @@ class BuildApplicationTest(unittest.TestCase):
             "market-commit-000",
             ["raw-002", "raw-001"],
             ["patch-002", "patch-001"],
-            "market_daily.v1",
+            "market_daily.v2",
         )
 
         self.assertEqual(result.commit_id, "market-commit-001")
@@ -80,7 +80,7 @@ class BuildApplicationTest(unittest.TestCase):
                     "parent_commit": "market-commit-000",
                     "raw_batch_ids": ["raw-001"],
                     "patch_ids": [],
-                    "contract_version": "market_daily.v1",
+                    "contract_version": "market_daily.v2",
                 }
                 if position == "parent_commit":
                     request[position] = identity
@@ -99,17 +99,17 @@ class BuildApplicationTest(unittest.TestCase):
             def invalid_result(
                 _request: BuildRequest, commit_id: str = identity
             ) -> DomainCommitRef:
-                return unchecked_ref("market_daily", commit_id, "market_daily.v1")
+                return unchecked_ref("market_daily", commit_id, "market_daily.v2")
 
             with self.subTest(identity=identity), self.assertRaises(BuildContractError):
                 BuildApplication("market_daily", invalid_result).build(
-                    None, ["raw-001"], [], "market_daily.v1"
+                    None, ["raw-001"], [], "market_daily.v2"
                 )
 
     def test_contract_must_be_exactly_registered_before_executor_runs(self) -> None:
         for contract_version in (
             "market_daily",
-            "market_daily.v2",
+            "market_daily.v99",
             "market_daily.current",
             "market_daily.latest",
             "MARKET_DAILY.V1",
@@ -127,7 +127,7 @@ class BuildApplicationTest(unittest.TestCase):
         recorder = Recorder()
         with self.assertRaises(BuildContractError):
             BuildApplication("market_daily", recorder).build(
-                None, ["raw-001"], [], "security_master.v1"
+                None, ["raw-001"], [], "security_master.v2"
             )
         self.assertEqual(recorder.requests, [])
 
@@ -143,7 +143,7 @@ class BuildApplicationTest(unittest.TestCase):
             recorder = Recorder()
             with self.subTest(valid=(parent, raw, patches)):
                 BuildApplication("market_daily", recorder).build(
-                    parent, raw, patches, "market_daily.v1"
+                    parent, raw, patches, "market_daily.v2"
                 )
                 self.assertEqual(len(recorder.requests), 1)
 
@@ -157,7 +157,7 @@ class BuildApplicationTest(unittest.TestCase):
             with self.subTest(invalid=(parent, raw, patches)):
                 with self.assertRaises(BuildContractError):
                     BuildApplication("market_daily", recorder).build(
-                        parent, raw, patches, "market_daily.v1"
+                        parent, raw, patches, "market_daily.v2"
                     )
                 self.assertEqual(recorder.requests, [])
 
@@ -172,31 +172,31 @@ class BuildApplicationTest(unittest.TestCase):
             with self.subTest(inputs=(parent, raw, patches)):
                 with self.assertRaises(BuildContractError):
                     BuildApplication("market_daily", recorder).build(
-                        parent, raw, patches, "market_daily.v1"
+                        parent, raw, patches, "market_daily.v2"
                     )
                 self.assertEqual(recorder.requests, [])
 
     def test_executor_cannot_change_domain_or_contract(self) -> None:
         def wrong_domain(_request: BuildRequest) -> DomainCommitRef:
-            return DomainCommitRef("security_master", "commit-001", "security_master.v1")
+            return DomainCommitRef("security_master", "commit-001", "security_master.v2")
 
         def wrong_contract(_request: BuildRequest) -> DomainCommitRef:
-            return unchecked_ref("market_daily", "commit-001", "market_daily.v2")
+            return unchecked_ref("market_daily", "commit-001", "market_daily.v99")
 
         with self.assertRaises(BuildContractError):
             BuildApplication("market_daily", wrong_domain).build(
-                None, ["raw-001"], [], "market_daily.v1"
+                None, ["raw-001"], [], "market_daily.v2"
             )
         with self.assertRaises(BuildContractError):
             BuildApplication("market_daily", wrong_contract).build(
-                None, ["raw-001"], [], "market_daily.v1"
+                None, ["raw-001"], [], "market_daily.v2"
             )
 
     def test_domain_commit_ref_itself_requires_registered_matching_contract(self) -> None:
         with self.assertRaises(BuildContractError):
-            DomainCommitRef("market_daily", "commit-001", "market_daily.v2")
+            DomainCommitRef("market_daily", "commit-001", "market_daily.v99")
         with self.assertRaises(BuildContractError):
-            DomainCommitRef("market_daily", "commit-001", "security_master.v1")
+            DomainCommitRef("market_daily", "commit-001", "security_master.v2")
 
 
 if __name__ == "__main__":

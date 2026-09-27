@@ -10,7 +10,7 @@ from axiom_data import ArtifactError
 
 class SwQualificationTest(unittest.TestCase):
     def test_real_stable_history_gaps_fail_pilot(self):
-        fixture=json.loads((Path(__file__).parent/'fixtures/sw2021_pilot.json').read_bytes())
+        fixture=json.loads((Path(__file__).parents[1]/'deprecated/tests/fixtures/sw2021_pilot.json').read_bytes())
         by_id={r['original_raw_ref']:SimpleNamespace(manifest=r['manifest'],
                  payload=json.dumps(r['rows']).encode(),ref=SimpleNamespace(manifest_digest='fixture-projection'))
                for r in fixture['source_observations']+fixture['calendar_observations']}

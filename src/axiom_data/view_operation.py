@@ -42,7 +42,7 @@ def _completed_view(reader, spec, record, builder, loader, code, *, return_view=
             expected = list(validate_symbols(config[key])) if key == 'symbols' else config[key]
             if scope.get(key) != expected:
                 raise ArtifactError('completed View scope mismatch')
-    if spec['kind'] in {'pr6_fact', 'pr7_fact'}:
+    if spec['kind'] in {'financial_fact', 'event_fact'}:
         if manifest['implementation_digests'] != code:
             raise ArtifactError('completed View implementation mismatch')
         if instant(manifest['knowledge_cutoff']) != instant(config['knowledge_cutoff']):
@@ -67,8 +67,8 @@ def view_batches(views):
     from axiom_data.financial_views import FINANCIAL_VIEW_BATCH_SIZE
     from axiom_data.event_views import EVENT_BATCH_SIZE
     bounds = {'adjusted_price': ADJUSTED_BATCH_SIZE, 'market_replay': MARKET_BATCH_SIZE,
-              'market_qlib': MARKET_BATCH_SIZE, 'pr6_fact': FINANCIAL_VIEW_BATCH_SIZE,
-              'pr7_fact': EVENT_BATCH_SIZE}
+              'market_qlib': MARKET_BATCH_SIZE, 'financial_fact': FINANCIAL_VIEW_BATCH_SIZE,
+              'event_fact': EVENT_BATCH_SIZE}
     group = []
     symbols = set()
     for label, spec in views.items():
@@ -79,9 +79,9 @@ def view_batches(views):
         if group and singleton:
             first = group[0][1]
             keys = (('start_session', 'end_session', 'universe_ids', 'industry_system',
-                     'pit_policy', 'knowledge_cutoff') if spec['kind'] == 'pr6_fact' else
+                     'pit_policy', 'knowledge_cutoff') if spec['kind'] == 'financial_fact' else
                     ('start_session', 'end_session', 'pit_policy', 'knowledge_cutoff')
-                    if spec['kind'] == 'pr7_fact' else ())
+                    if spec['kind'] == 'event_fact' else ())
             compatible = (spec['kind'] == first['kind'] and len(group) < bounds[spec['kind']]
                 and selected[0] not in symbols
                 and all(spec['config'].get(key) == first['config'].get(key) for key in keys))
@@ -123,11 +123,11 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
     loaders={'adjusted_price':partial(_load_adjusted_price_view,structural_only=True),
         'market_replay':partial(_load_market_replay_view,structural_only=True),
         'market_qlib':partial(_load_qlib_view,structural_only=True),
-        'pr6_fact':load_financial_fact_view_with_reader,'pr7_fact':load_event_fact_view_with_reader}
+        'financial_fact':load_financial_fact_view_with_reader,'event_fact':load_event_fact_view_with_reader}
     builders={'adjusted_price':build_adjusted_price_view,'market_replay':build_market_replay_view,
-              'market_qlib':build_qlib_view,'pr6_fact':build_financial_fact_view,'pr7_fact':build_event_fact_view}
+              'market_qlib':build_qlib_view,'financial_fact':build_financial_fact_view,'event_fact':build_event_fact_view}
     checked_builders={'adjusted_price':_build_adjusted_price_view,'market_replay':_build_market_replay_view,
-        'market_qlib':_build_qlib_view,'pr6_fact':build_financial_fact_view_from_reader,'pr7_fact':build_event_fact_view_from_reader}
+        'market_qlib':_build_qlib_view,'financial_fact':build_financial_fact_view_from_reader,'event_fact':build_event_fact_view_from_reader}
     concrete=_validate_identity('snapshot_id',snapshot_id);_identity('run_id',run_id)
     if not isinstance(views,dict) or not views:raise ArtifactError('explicit nonempty required View plan required')
     frozen=json.loads(_json_bytes(views))
@@ -234,9 +234,9 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
                                market_view_batch(reader, [item['config'] for _, item in pending], spec['kind'])
                                if spec['kind'] in {'market_replay', 'market_qlib'} and len(pending) > 1 else
                                financial_view_batch(reader, [item['config'] for _, item in pending])
-                               if spec['kind'] == 'pr6_fact' and len(pending) > 1 else
+                               if spec['kind'] == 'financial_fact' and len(pending) > 1 else
                                event_view_batch(reader, [item['config'] for _, item in pending])
-                               if spec['kind'] == 'pr7_fact' and len(pending) > 1 else
+                               if spec['kind'] == 'event_fact' and len(pending) > 1 else
                                nullcontext())
                     with context:
                         for label, spec in pending:
@@ -278,13 +278,13 @@ def _reuse_view(reader, spec, builder, loader, code, candidate_readers):
         if view.manifest.get('executed_code_ref') != executed_code_ref():
             return None
         # Historical market formats do not identify executed package bytes.
-        if executed_code_ref() is None and kind not in {'pr6_fact','pr7_fact'}:
+        if executed_code_ref() is None and kind not in {'financial_fact','event_fact'}:
             return None
         domains = {
             'adjusted_price': {'market_daily','adjustment_factors'},
             'market_replay': {'market_daily','security_status','price_limits','corporate_actions'},
             'market_qlib': {'market_daily'},
-            'pr6_fact': set(FUNDAMENTAL_DOMAINS), 'pr7_fact': set(EVENT_DOMAINS),
+            'financial_fact': set(FUNDAMENTAL_DOMAINS), 'event_fact': set(EVENT_DOMAINS),
         }[kind] | {'security_master','trading_calendar'}
         if kind=='market_qlib' and spec['config'].get('adjusted_price_view_id'):
             domains.add('adjustment_factors')

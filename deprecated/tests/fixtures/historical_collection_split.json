@@ -1,0 +1,71 @@
+{
+  "plan": {
+    "requests_by_domain": {
+      "financial_events": [
+        {
+          "collector": "pr6_indicator",
+          "domain": "financial_events",
+          "endpoint": "fina_indicator",
+          "params": {
+            "end_date": "20250630",
+            "start_date": "20250101",
+            "ts_code": "000001.SZ"
+          },
+          "economic_scope": {
+            "start": "20250101",
+            "end": "20250630"
+          },
+          "availability_policy": "revision_scan"
+        }
+      ]
+    }
+  },
+  "key": "sha256:6508308ea5152724d8311fddf5440aef1e29fa14a203618d42f79b947b108423",
+  "batch": "legacy-recovery-financial_events-0",
+  "plan_digest": "sha256:66142d134f6a0e23df1a1d997998a3aa3e12c8a5ebc15bbbf5939e2398f088b9",
+  "split": {
+    "parent_raw_batch_id": "tushare_fina_indicator.v1-100",
+    "ready_for_consumption": false,
+    "requests": [
+      {
+        "availability_policy": "revision_scan",
+        "collector": "pr6_indicator",
+        "domain": "financial_events",
+        "economic_scope": {
+          "end": "20250401",
+          "start": "20250101"
+        },
+        "endpoint": "fina_indicator",
+        "params": {
+          "end_date": "20250401",
+          "start_date": "20250101",
+          "ts_code": "000001.SZ"
+        }
+      },
+      {
+        "availability_policy": "revision_scan",
+        "collector": "pr6_indicator",
+        "domain": "financial_events",
+        "economic_scope": {
+          "end": "20250630",
+          "start": "20250402"
+        },
+        "endpoint": "fina_indicator",
+        "params": {
+          "end_date": "20250630",
+          "start_date": "20250402",
+          "ts_code": "000001.SZ"
+        }
+      }
+    ],
+    "schema_version": "source_scope_split.v1",
+    "status": "NEEDS_COLLECTION"
+  },
+  "child_refs": {
+    "request_ids": [
+      "sha256:4f5316b127731cf2653bc68ee681db5af76a360102ddb3ac4eaa876bf9c09576",
+      "sha256:0c2ca5e8df1257ca844b9b6dfc672008832fbb48dbc12f90a7263405d90504b4"
+    ],
+    "run_id": "legacy-recovery-split-79830f50b85827a514079789"
+  }
+}

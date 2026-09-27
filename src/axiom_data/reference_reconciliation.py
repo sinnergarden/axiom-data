@@ -1,4 +1,4 @@
-"""Independent raw-to-canonical checks for the bounded D-M1 evidence run."""
+"""Independent raw-to-canonical checks for the bounded reference evidence run."""
 
 from __future__ import annotations
 
@@ -12,26 +12,26 @@ from typing import Any
 
 from axiom_data.artifacts import ArtifactError, load_raw_batch
 from axiom_data.consumption import SnapshotReader
-from axiom_data.reference_source import reference_source_profile_digest
+from axiom_data.reference_source import load_reference_source_profile, reference_source_profile_digest
 
 
 def _date(value: object) -> str:
     if not isinstance(value, str) or len(value) != 8 or not value.isdigit():
-        raise ArtifactError("independent D-M1 source date is invalid")
+        raise ArtifactError("independent reference source date is invalid")
     try:
         return date(int(value[:4]), int(value[4:6]), int(value[6:])).isoformat()
     except ValueError as exc:
-        raise ArtifactError("independent D-M1 source date is invalid") from exc
+        raise ArtifactError("independent reference source date is invalid") from exc
 
 
 def _number(value: object) -> float | None:
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ArtifactError("independent D-M1 numeric value is invalid")
+        raise ArtifactError("independent reference numeric value is invalid")
     number = float(value)
     if not math.isfinite(number):
-        raise ArtifactError("independent D-M1 numeric value is not finite")
+        raise ArtifactError("independent reference numeric value is not finite")
     return number
 
 
@@ -49,12 +49,12 @@ def _rows(data_root: str, raw_ids: Sequence[str], domain: str) -> list[dict[str,
         if (
             raw.manifest.get("schema_version") != "raw_batch.v2"
             or raw.manifest.get("domain") != domain
-            or raw.manifest.get("source_profile_digest") != reference_source_profile_digest()
+            or raw.manifest.get("source_profile_digest") != reference_source_profile_digest(load_reference_source_profile(raw.manifest.get("source_profile_version")))
         ):
-            raise ArtifactError("independent D-M1 checker source binding mismatch")
+            raise ArtifactError("independent reference checker source binding mismatch")
         values = json.loads(raw.payload)
         if not isinstance(values, list) or any(not isinstance(row, dict) for row in values):
-            raise ArtifactError("independent D-M1 checker requires raw JSON row arrays")
+            raise ArtifactError("independent reference checker requires raw JSON row arrays")
         result.extend(values)
     return result
 
@@ -147,7 +147,7 @@ def reconcile_reference_raw_mapping(
         if "suspend_type" not in source or source.get("suspend_type") != "S":
             continue
         if source.get("suspend_timing") not in (None, ""):
-            raise ArtifactError("independent D-M1 checker rejects intraday suspension")
+            raise ArtifactError("independent reference checker rejects intraday suspension")
         key = (_date(source.get("trade_date")), source.get("ts_code"))
         if key[1] in selected and start_session <= key[0] <= end_session:
             suspend_keys.add(key)
@@ -227,7 +227,7 @@ def reconcile_reference_raw_mapping(
     return {
         "status": "PASS" if all(checks.values()) and not mismatches else "FAIL",
         "snapshot_id": snapshot_id,
-        "source_profile_digest": reference_source_profile_digest(),
+        "source_profile_digest": reference_source_profile_digest(load_reference_source_profile(raw.manifest.get("source_profile_version"))),
         "raw_batch_refs": raw_refs,
         "scope": {"symbols": list(symbols), "start_session": start_session, "end_session": end_session},
         "checks": checks,
@@ -236,9 +236,7 @@ def reconcile_reference_raw_mapping(
     }
 
 
-__all__ = ["reconcile_dm1_raw_mapping"]
+__all__ = ["reconcile_reference_raw_mapping"]
 
 
 # Compatibility exports for historical callers.
-dm1_source_profile_digest = reference_source_profile_digest
-reconcile_dm1_raw_mapping = reconcile_reference_raw_mapping

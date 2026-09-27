@@ -1,4 +1,5 @@
 """Versioned qualification of partial-session halts against actual traded bars."""
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
 import json
 import math
 import re
@@ -10,7 +11,7 @@ def bind_profile(config):
     if 'session_suspension_policy' not in config:return
     version=config['session_suspension_policy']
     if version not in {'session_suspension.v1','session_suspension.v2','session_suspension.v3'}:raise ArtifactError('unknown session suspension policy')
-    profile=json.loads(files('axiom_data.source_profiles').joinpath(version+'.json').read_bytes())
+    profile=json.loads(resource_file('source_profiles', version+'.json').read_bytes())
     config['session_suspension_profile_digest']=_digest(_json_bytes(profile))
     config['session_suspension_code']=_digest(files('axiom_data').joinpath('session_suspension.py').read_bytes())
 
@@ -25,7 +26,7 @@ def is_halt_event(row):
 def qualified_daily_state(row,daily):
     """V3 exact, issuer-qualified cases; all other halt records use v2 rules."""
     if not is_halt_event(row):return 'resumption'
-    profile=json.loads(files('axiom_data.source_profiles').joinpath('session_suspension.v3.json').read_bytes())
+    profile=json.loads(resource_file('source_profiles', 'session_suspension.v3.json').read_bytes())
     case=next((c for c in profile['qualified_daily_cases']
         if (c['symbol'],c['session'])==(row.get('ts_code'),row.get('trade_date'))),None)
     if case is not None:

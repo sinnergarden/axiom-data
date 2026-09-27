@@ -1,6 +1,8 @@
 """Tushare market source adapter and canonical mapper."""
 
 from __future__ import annotations
+from axiom_data.deprecated.resources import resource_file, profile_generation, historical_profile, source_reference
+
 
 import json
 import math
@@ -28,7 +30,7 @@ from axiom_data.artifacts import (
 )
 
 
-_PROFILE_NAME = "tushare_phase1.v1.json"
+_PROFILE_NAME = "tushare_market.v1.json"
 _SYMBOL = re.compile(r"[0-9]{6}\.(SH|SZ)\Z")
 _PROFILE_PIT_FIELDS = (
     "retrieved_at",
@@ -48,12 +50,12 @@ _PROFILE_ENDPOINT_FIELDS = (
 )
 
 
-def load_tushare_source_profile() -> dict[str, Any]:
+def load_tushare_source_profile(version="tushare_market.v1") -> dict[str, Any]:
     """Return the frozen endpoint semantics used by this adapter."""
 
-    content = files("axiom_data.source_profiles").joinpath(_PROFILE_NAME).read_bytes()
+    content = resource_file("source_profiles", version + ".json").read_bytes()
     profile = json.loads(content)
-    if not isinstance(profile, dict) or profile.get("profile_version") != "tushare_phase1.v1":
+    if not isinstance(profile, dict) or profile.get("profile_version") != version or profile_generation(version) != "tushare_market.v1":
         raise ArtifactError("packaged Tushare source profile is invalid")
     return profile
 
@@ -160,8 +162,12 @@ class TushareCollector:
         params: Mapping[str, Any],
         *,
         retrieved_at: str | None = None,
+        profile_version: str = "tushare_market.v1",
+        _resume_historical: bool = False,
     ) -> RawBatchRef:
-        source_profile = load_tushare_source_profile()
+        if historical_profile(profile_version) and not _resume_historical:
+            raise ArtifactError("historical SourceProfiles are read-only")
+        source_profile = load_tushare_source_profile(profile_version)
         profile = _endpoint_profile(endpoint, source_profile)
         profile_digest = tushare_source_profile_digest(source_profile)
         from axiom_data.source_completeness import source_profile_completeness_binding
@@ -297,6 +303,9 @@ def _raw_endpoint_rows(raw_batches: Sequence[RawBatch]) -> dict[str, list[dict[s
     profile_digest = tushare_source_profile_digest(source_profile)
     grouped: dict[str, list[dict[str, Any]]] = {}
     for raw in raw_batches:
+        profile_version = raw.manifest.get("source_profile_version")
+        source_profile = load_tushare_source_profile(profile_version)
+        profile_digest = tushare_source_profile_digest(source_profile)
         if raw.manifest.get("schema_version") != "raw_batch.v2":
             raise ArtifactError(
                 "Tushare builder requires profile-bound raw_batch.v2 input"
@@ -377,7 +386,7 @@ class TushareMarketBuilder(MarketDomainBuilder):
         security_master_commit_id: str | None = None,
         created_at: str | None = None,
     ) -> None:
-        source_profile = load_tushare_source_profile()
+        source_profile = load_tushare_source_profile((builder_config or {}).get("source_profile_version", "tushare_market.v1"))
         profile_version = source_profile.get("profile_version")
         config = dict(builder_config or {})
         if domain!='market_daily' and set(config)&{'session_suspension_policy','market_source_partitioning'}:

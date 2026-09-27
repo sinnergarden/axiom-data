@@ -52,7 +52,7 @@ class BootstrapReferencesScriptTest(unittest.TestCase):
         self.enterContext(patch.object(script, 'BuildApplication', side_effect=application))
         def checked(root, domain, identity):
             return SimpleNamespace(ref=SimpleNamespace(commit_id=identity,
-                contract_version=domain + ('.v3' if domain == 'industry_membership' else '.v1')))
+                contract_version=domain + ('.v3' if domain == 'industry_membership' else '.v2' if domain == 'security_master' else '.v1')))
         self.validate = self.enterContext(patch.object(script, 'validate_domain_commit_closure', side_effect=checked))
 
     def run_script(self, **changes):

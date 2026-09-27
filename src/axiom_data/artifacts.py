@@ -32,26 +32,26 @@ from axiom_data.domains import (
     validate_trading_calendar_rows,
     validate_reference_snapshot_rows,
 )
-from axiom_data.domains.reference import DOMAIN_VALIDATORS as DM1_DOMAIN_VALIDATORS
+from axiom_data.domains.reference import DOMAIN_VALIDATORS as REFERENCE_DOMAIN_VALIDATORS
 from axiom_data.domains.reference import REFERENCE_DOMAINS
 from axiom_data.domains import FUNDAMENTAL_DOMAINS, FUNDAMENTAL_SNAPSHOT_DOMAINS, EVENT_DOMAINS, EVENT_SNAPSHOT_DOMAINS
-from axiom_data.domains.events import DOMAIN_VALIDATORS as PR7_DOMAIN_VALIDATORS
-from axiom_data.domains.fundamentals import DOMAIN_VALIDATORS as PR6_DOMAIN_VALIDATORS
+from axiom_data.domains.events import DOMAIN_VALIDATORS as EVENT_DOMAIN_VALIDATORS
+from axiom_data.domains.fundamentals import DOMAIN_VALIDATORS as FINANCIAL_DOMAIN_VALIDATORS
 from axiom_data.layout import DataRootLayout
 
 
 _MANIFEST = "manifest.json"
 _MANIFEST_DIGEST = "manifest.sha256"
+_REQUIRED_REFERENCE_SNAPSHOT_DOMAINS = frozenset(REFERENCE_SNAPSHOT_DOMAINS)
 _REQUIRED_SNAPSHOT_DOMAINS = frozenset(MARKET_DOMAINS)
-_REQUIRED_DM1_SNAPSHOT_DOMAINS = frozenset(REFERENCE_SNAPSHOT_DOMAINS)
 _DOMAIN_VALIDATORS = {
     "trading_calendar": validate_trading_calendar_rows,
     "security_master": validate_security_master_rows,
     "market_daily": validate_market_daily_rows,
 }
-_DOMAIN_VALIDATORS.update(DM1_DOMAIN_VALIDATORS)
-_DOMAIN_VALIDATORS.update(PR6_DOMAIN_VALIDATORS)
-_DOMAIN_VALIDATORS.update(PR7_DOMAIN_VALIDATORS)
+_DOMAIN_VALIDATORS.update(REFERENCE_DOMAIN_VALIDATORS)
+_DOMAIN_VALIDATORS.update(FINANCIAL_DOMAIN_VALIDATORS)
+_DOMAIN_VALIDATORS.update(EVENT_DOMAIN_VALIDATORS)
 _DOMAIN_DEPENDENCIES = {
     "trading_calendar": (),
     "security_master": (),
@@ -722,7 +722,7 @@ def _validate_domain_rows(domain: str, rows: object, *, contract=None) -> None:
         raise ArtifactError(f"{domain} rows violate {domain}.v1: {exc}") from exc
 
 
-def _validate_dm1_observation_refs(
+def _validate_reference_observation_refs(
     root: Path,
     domain: str,
     rows: Sequence[Mapping[str, Any]],
@@ -891,7 +891,7 @@ def _validate_market_dependencies(
             )
 
 
-def _validate_pr6_dependencies(domain, rows, dependencies):
+def _validate_financial_dependencies(domain, rows, dependencies):
     securities = {r["symbol"]: r for r in dependencies["security_master"].rows}
     daily = domain in ("valuation_daily", "margin_daily", "moneyflow_daily")
     sessions = ({(r["exchange"], r["session"]) for r in dependencies["trading_calendar"].rows
@@ -1109,7 +1109,7 @@ class MarketDomainBuilder:
             rows_content = _json_bytes(list(rows))
             logical_digest = _digest(rows_content)
         if self.domain in REFERENCE_DOMAINS + FUNDAMENTAL_DOMAINS + EVENT_DOMAINS:
-            _validate_dm1_observation_refs(
+            _validate_reference_observation_refs(
                 self.layout.root,
                 self.domain,
                 rows,
@@ -1214,7 +1214,7 @@ class MarketDomainBuilder:
                 staged_rows = json.loads((candidate / "rows.json").read_bytes())
             _validate_domain_rows(self.domain, staged_rows,contract=contract)
             if self.domain in FUNDAMENTAL_DOMAINS + EVENT_DOMAINS:
-                _validate_pr6_dependencies(self.domain, staged_rows, loaded_dependencies)
+                _validate_financial_dependencies(self.domain, staged_rows, loaded_dependencies)
             if self.domain == "market_daily" and calendar is not None and security is not None:
                 _validate_market_dependencies(staged_rows, calendar, security)
             if _digest((candidate / "contract.json").read_bytes()) != contract_digest:
@@ -1530,7 +1530,7 @@ def _validate_domain_commit_node(
                 verified_evidence=raw_evidence,
             )
         elif domain in REFERENCE_DOMAINS:
-            _validate_dm1_observation_refs(
+            _validate_reference_observation_refs(
                 root,
                 domain,
                 commit.rows,
@@ -1562,14 +1562,14 @@ def _validate_domain_commit_node(
                 raise ArtifactError("event canonical rows differ from RawBatch mapping")
             del expected_rows
 
-        if not commit.manifest.get('patch_protocol') and (commit.ref.contract_version in {'corporate_actions.v2', 'security_capital.v2'} or (domain == 'price_limits' and commit.manifest['builder_config'].get('limit_qualification')) or (domain == 'corporate_actions' and commit.manifest['builder_config'].get('corporate_action_reobservation'))):
+        if not commit.manifest.get('patch_protocol') and (commit.ref.contract_version in {'corporate_actions.v2', 'corporate_actions.v3', 'security_capital.v2'} or (domain == 'price_limits' and commit.manifest['builder_config'].get('limit_qualification')) or (domain == 'corporate_actions' and commit.manifest['builder_config'].get('corporate_action_reobservation'))):
             from axiom_data.reference_source import TushareReferenceBuilder
             replay=TushareReferenceBuilder(root,domain,builder_config=commit.manifest['builder_config'],
                 dependency_commit_ids={d:ref['domain_commit_id'] for d,ref in commit.manifest['dependency_commit_refs'].items()})
             expected_rows=build_rows(replay, commit.contract, parent,
                 RawBatches(root,[ref['raw_batch_id'] for ref in raw_refs]), patches)
             if not _equal_rows(expected_rows,commit.rows):
-                raise ArtifactError('qualified D-M1 observations differ from RawBatch mapping')
+                raise ArtifactError('qualified reference observations differ from RawBatch mapping')
             del expected_rows
 
         if commit.manifest.get('patch_protocol') and domain not in FUNDAMENTAL_DOMAINS + EVENT_DOMAINS:
@@ -1606,7 +1606,7 @@ def _validate_domain_commit_node(
                 validate_security_scope(domain, commit.manifest['builder_config'],
                     RawBatches(root, [ref['raw_batch_id'] for ref in raw_refs] or sorted(transitive_raw_batch_ids)), dependencies)
             if domain in FUNDAMENTAL_DOMAINS + EVENT_DOMAINS:
-                _validate_pr6_dependencies(domain, commit.rows, dependencies)
+                _validate_financial_dependencies(domain, commit.rows, dependencies)
             if domain == "market_daily":
                 _validate_market_dependencies(
                     commit.rows,
@@ -1664,7 +1664,7 @@ def _checked_snapshot_commits(
     requested_domains = set(domain_commit_ids)
     if requested_domains == _REQUIRED_SNAPSHOT_DOMAINS:
         ordered_domains = MARKET_DOMAINS
-    elif requested_domains == _REQUIRED_DM1_SNAPSHOT_DOMAINS:
+    elif requested_domains == _REQUIRED_REFERENCE_SNAPSHOT_DOMAINS:
         ordered_domains = REFERENCE_SNAPSHOT_DOMAINS
     elif requested_domains == set(FUNDAMENTAL_SNAPSHOT_DOMAINS):
         ordered_domains = FUNDAMENTAL_SNAPSHOT_DOMAINS
@@ -1715,7 +1715,7 @@ def _checked_snapshot_commits(
         try:
             validate_reference_snapshot_rows(commits)
         except MarketContractError as exc:
-            raise ArtifactError("D-M1 snapshot cross-domain validation failed") from exc
+            raise ArtifactError("reference snapshot cross-domain validation failed") from exc
     if lineage_index is not None and not references_only:
         # Retain only verified ancestry metadata for this Reader, not ancestor
         # row/payload objects or a process-wide validation cache.
@@ -1968,20 +1968,20 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
                 )
             )
     from axiom_data.financial_views import load_financial_fact_view_with_reader
-    for artifact_dir in _artifact_directories(layout.root, layout.derived_commits("pr6_fact")):
+    for artifact_dir in _artifact_directories(layout.root, layout.derived_commits("financial_fact")):
         reader, version = view_reader(artifact_dir)
         view = load_financial_fact_view_with_reader(layout.root, artifact_dir.name,
-            checked_reader=reader if version in {'pr6_fact_view.v2','pr6_fact_view.v3','pr6_fact_view.v4','pr6_fact_view.v5','pr6_fact_view.v6'} else None)
-        for artifact_type in ("pr6_fact_view", "qlib_view"):
-            entries.append(CatalogEntry(artifact_type, view.ref.view_id, "pr6_fact",
+            checked_reader=reader if version in {'financial_fact_view.v2','financial_fact_view.v3','financial_fact_view.v4','financial_fact_view.v5','financial_fact_view.v6'} else None)
+        for artifact_type in ("financial_fact_view", "qlib_view"):
+            entries.append(CatalogEntry(artifact_type, view.ref.view_id, "financial_fact",
                 view.manifest["schema_version"],
                 (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(), view.ref.manifest_digest))
     from axiom_data.event_views import load_event_fact_view_with_reader
-    for artifact_dir in _artifact_directories(layout.root, layout.derived_commits("pr7_fact")):
+    for artifact_dir in _artifact_directories(layout.root, layout.derived_commits("event_fact")):
         reader, _ = view_reader(artifact_dir)
         view = load_event_fact_view_with_reader(layout.root, artifact_dir.name, checked_reader=reader)
-        for artifact_type in ("pr7_fact_view", "qlib_view"):
-            entries.append(CatalogEntry(artifact_type, view.ref.view_id, "pr7_fact",
+        for artifact_type in ("event_fact_view", "qlib_view"):
+            entries.append(CatalogEntry(artifact_type, view.ref.view_id, "event_fact",
                 view.manifest["schema_version"],
                 (artifact_dir / _MANIFEST).relative_to(layout.root).as_posix(), view.ref.manifest_digest))
     for artifact_dir in _artifact_directories(layout.root, layout.qlib_exports):
@@ -1997,6 +1997,8 @@ def _catalog_entries(layout: DataRootLayout) -> list[CatalogEntry]:
                 view.ref.manifest_digest,
             )
         )
+    from axiom_data.deprecated.view_protocols import catalog_entries
+    entries.extend(catalog_entries(layout, _artifact_directories, view_reader))
     return entries
 
 
@@ -2127,10 +2129,3 @@ __all__ = [
 
 
 # Compatibility exports for historical callers.
-PR6_DOMAINS = FUNDAMENTAL_DOMAINS
-PR7_DOMAINS = EVENT_DOMAINS
-DM1_REFERENCE_DOMAINS = REFERENCE_DOMAINS
-DM1_SNAPSHOT_DOMAINS = REFERENCE_SNAPSHOT_DOMAINS
-PR6_SNAPSHOT_DOMAINS = FUNDAMENTAL_SNAPSHOT_DOMAINS
-PR7_SNAPSHOT_DOMAINS = EVENT_SNAPSHOT_DOMAINS
-validate_dm1_snapshot_rows = validate_reference_snapshot_rows

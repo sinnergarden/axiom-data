@@ -1,0 +1,3951 @@
+{
+  "schema_version": "data_dependency_scope.v1",
+  "partition": {
+    "reference evidence": [
+      "adjusted_price.anchored_ohlc",
+      "adjustment.factor",
+      "benchmark.close",
+      "market.amount",
+      "market.circ_mv",
+      "market.close",
+      "market.high",
+      "market.high_limit",
+      "market.low",
+      "market.low_limit",
+      "market.open",
+      "market.paused",
+      "market.session",
+      "market.total_mv",
+      "market.turnover_rate",
+      "market.volume",
+      "shares.float",
+      "shares.total"
+    ],
+    "financial": [
+      "balance.accounts_receivable",
+      "balance.current_assets",
+      "balance.current_liabilities",
+      "balance.equity",
+      "balance.inventory",
+      "balance.total_assets",
+      "cashflow.operating",
+      "financial.single_quarter_oper_cost",
+      "financial.single_quarter_revenue",
+      "financial.ttm_net_income",
+      "financial.ttm_revenue",
+      "income.net_income",
+      "income.oper_cost",
+      "income.revenue",
+      "indicator.current_ratio",
+      "indicator.debt_ratio",
+      "indicator.gross_margin",
+      "indicator.roe",
+      "industry.membership",
+      "universe.membership",
+      "valuation.pb",
+      "valuation.pe",
+      "valuation.ps"
+    ],
+    "event": [
+      "forecast.announcement",
+      "forecast.period_end",
+      "forecast.type",
+      "holder.number",
+      "holder.top10_ratio",
+      "margin.balance",
+      "margin.buy",
+      "margin.lend_balance_volume",
+      "margin.lend_repay_volume",
+      "margin.lend_sell_volume",
+      "margin.repay",
+      "margin.total_balance",
+      "moneyflow.big_buy",
+      "moneyflow.big_sell",
+      "moneyflow.net"
+    ]
+  },
+  "partition_validation": {
+    "total": 56,
+    "pairwise_intersections": []
+  },
+  "feature_dependencies": [
+    {
+      "feature": "$open",
+      "leaves": [
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$high",
+      "leaves": [
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$low",
+      "leaves": [
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$factor",
+      "leaves": [
+        "adjustment.factor"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$vwap",
+      "leaves": [
+        "market.amount",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($high-$low)/$open",
+      "leaves": [
+        "market.high",
+        "market.low",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($close-$open)/($high-$low+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($high-Greater($open, $close))/$open",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($high-Greater($open, $close))/($high-$low+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Less($open, $close)-$low)/$open",
+      "leaves": [
+        "market.close",
+        "market.low",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Less($open, $close)-$low)/($high-$low+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(2*$close-$high-$low)/$open",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(2*$close-$high-$low)/($high-$low+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$high/$close",
+      "leaves": [
+        "market.close",
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$low/$close",
+      "leaves": [
+        "market.close",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$vwap/$close",
+      "leaves": [
+        "market.amount",
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Ref($close, 5)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Ref($close, 10)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Ref($close, 20)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Ref($close, 30)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Ref($close, 60)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close, 5)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close, 10)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close, 20)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close, 30)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close, 60)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($close, 5)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($close, 10)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($close, 20)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($close, 30)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($close, 60)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Slope($close, 5)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Slope($close, 10)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Slope($close, 20)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Slope($close, 30)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Slope($close, 60)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rsquare($close, 5)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rsquare($close, 10)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rsquare($close, 20)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rsquare($close, 30)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rsquare($close, 60)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Resi($close, 5)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Resi($close, 10)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Resi($close, 20)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Resi($close, 30)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Resi($close, 60)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rank($close, 5)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rank($close, 10)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rank($close, 20)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rank($close, 30)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Rank($close, 60)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 5)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 10)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 20)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 30)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 60)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close<Ref($close, 1), 5)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close<Ref($close, 1), 10)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close<Ref($close, 1), 20)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close<Ref($close, 1), 30)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close<Ref($close, 1), 60)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 5)-Mean($close<Ref($close, 1), 5)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 10)-Mean($close<Ref($close, 1), 10)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 20)-Mean($close<Ref($close, 1), 20)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 30)-Mean($close<Ref($close, 1), 30)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($close>Ref($close, 1), 60)-Mean($close<Ref($close, 1), 60)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($close-Ref($close, 1), 0), 5)/(Sum(Abs($close-Ref($close, 1)), 5)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($close-Ref($close, 1), 0), 10)/(Sum(Abs($close-Ref($close, 1)), 10)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($close-Ref($close, 1), 0), 20)/(Sum(Abs($close-Ref($close, 1)), 20)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($close-Ref($close, 1), 0), 30)/(Sum(Abs($close-Ref($close, 1)), 30)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($close-Ref($close, 1), 0), 60)/(Sum(Abs($close-Ref($close, 1)), 60)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($close, 1)-$close, 0), 5)/(Sum(Abs($close-Ref($close, 1)), 5)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($close, 1)-$close, 0), 10)/(Sum(Abs($close-Ref($close, 1)), 10)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($close, 1)-$close, 0), 20)/(Sum(Abs($close-Ref($close, 1)), 20)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($close, 1)-$close, 0), 30)/(Sum(Abs($close-Ref($close, 1)), 30)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($close, 1)-$close, 0), 60)/(Sum(Abs($close-Ref($close, 1)), 60)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($close-Ref($close, 1), 0), 5)-Sum(Greater(Ref($close, 1)-$close, 0), 5))/(Sum(Abs($close-Ref($close, 1)), 5)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($close-Ref($close, 1), 0), 10)-Sum(Greater(Ref($close, 1)-$close, 0), 10))/(Sum(Abs($close-Ref($close, 1)), 10)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($close-Ref($close, 1), 0), 20)-Sum(Greater(Ref($close, 1)-$close, 0), 20))/(Sum(Abs($close-Ref($close, 1)), 20)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($close-Ref($close, 1), 0), 30)-Sum(Greater(Ref($close, 1)-$close, 0), 30))/(Sum(Abs($close-Ref($close, 1)), 30)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($close-Ref($close, 1), 0), 60)-Sum(Greater(Ref($close, 1)-$close, 0), 60))/(Sum(Abs($close-Ref($close, 1)), 60)+1e-12)",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$total_mv",
+      "leaves": [
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$circ_mv",
+      "leaves": [
+        "market.circ_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$total_assets",
+      "leaves": [
+        "balance.total_assets"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$equity",
+      "leaves": [
+        "balance.equity"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$net_inflow",
+      "leaves": [
+        "moneyflow.net"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$big_inflow",
+      "leaves": [
+        "moneyflow.big_buy",
+        "moneyflow.big_sell"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$lend_sell_volume",
+      "leaves": [
+        "margin.lend_sell_volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$lend_repay_volume",
+      "leaves": [
+        "margin.lend_repay_volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_log",
+      "leaves": [
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_zscore_20",
+      "leaves": [
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_shock_3",
+      "leaves": [
+        "market.volume",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_shock_5",
+      "leaves": [
+        "market.volume",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "turnover_acceleration",
+      "leaves": [
+        "market.turnover_rate",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "close_pos_in_range",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "open_pos_in_range",
+      "leaves": [
+        "market.high",
+        "market.low",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "upper_shadow_ratio",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "lower_shadow_ratio",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "intraday_reversal_strength",
+      "leaves": [
+        "market.close",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "is_limit_up",
+      "leaves": [
+        "market.close",
+        "market.high_limit"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "is_limit_down",
+      "leaves": [
+        "market.close",
+        "market.low_limit"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "limit_up_count_5d",
+      "leaves": [
+        "market.close",
+        "market.high_limit"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "opened_from_limit_up",
+      "leaves": [
+        "market.close",
+        "market.high_limit",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "tradability_score",
+      "leaves": [
+        "market.close",
+        "market.high_limit",
+        "market.low_limit",
+        "market.paused",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ret_1d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ret_3d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ret_5d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ret_1d_rank",
+      "leaves": [
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ret_3d_rank",
+      "leaves": [
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ret_5d_rank",
+      "leaves": [
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "stock_minus_index_ret_3d",
+      "leaves": [
+        "benchmark.close",
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "stock_minus_index_ret_5d",
+      "leaves": [
+        "benchmark.close",
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_ret_1d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_ret_3d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_ret_5d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_breadth",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "stock_minus_industry_ret",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "stock_minus_industry_ret_3d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "stock_minus_industry_ret_5d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "market_breadth",
+      "leaves": [
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "limit_up_breadth",
+      "leaves": [
+        "market.close",
+        "market.high_limit",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "index_volatility_5",
+      "leaves": [
+        "benchmark.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "index_volatility_10",
+      "leaves": [
+        "benchmark.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "index_volatility_20",
+      "leaves": [
+        "benchmark.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "market_trend_strength",
+      "leaves": [
+        "benchmark.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "small_vs_large_strength",
+      "leaves": [
+        "market.circ_mv",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "growth_vs_value_proxy",
+      "leaves": [
+        "market.close",
+        "universe.membership",
+        "valuation.pb"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "log_mktcap",
+      "leaves": [
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "float_mktcap",
+      "leaves": [
+        "market.circ_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "gross_margin",
+      "leaves": [
+        "income.oper_cost",
+        "income.revenue",
+        "indicator.gross_margin"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "debt_to_asset",
+      "leaves": [
+        "balance.equity",
+        "balance.total_assets",
+        "indicator.debt_ratio"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "forecast_type_score",
+      "leaves": [
+        "forecast.announcement",
+        "forecast.period_end",
+        "forecast.type"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "forecast_stale_days",
+      "leaves": [
+        "forecast.announcement",
+        "forecast.period_end",
+        "market.session"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "has_forecast",
+      "leaves": [
+        "forecast.announcement",
+        "forecast.period_end",
+        "forecast.type"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "is_profitable_ttm",
+      "leaves": [
+        "financial.ttm_net_income"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "gross_margin_delta_yoy",
+      "leaves": [
+        "financial.single_quarter_revenue",
+        "financial.single_quarter_oper_cost"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "breakout_252d_high",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "days_since_252d_high",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_log_ind_zscore",
+      "leaves": [
+        "industry.membership",
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ret_20d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ret_60d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ret_120d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_ratio_20d",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_ratio_60d",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "up_day_ratio_60d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "up_day_ratio_120d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "trend_smoothness_60d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "trend_smoothness_120d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "max_pullback_120d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volatility_adjusted_return_60d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volatility_adjusted_return_120d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "rps_60d",
+      "leaves": [
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "rps_120d",
+      "leaves": [
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "rps_20d",
+      "leaves": [
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "rps_20d_minus_rps_60d",
+      "leaves": [
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "rps_industry_60d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "rps_industry_120d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "price_percentile_252d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_up_down_ratio_60d",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "above_avg_volume_ratio_60d",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_ratio_20d",
+      "leaves": [
+        "market.amount"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_ratio_60d",
+      "leaves": [
+        "market.amount"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_spike_20d",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_stability_60d",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "roe",
+      "leaves": [
+        "balance.equity",
+        "income.net_income",
+        "indicator.roe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "inventory_yoy",
+      "leaves": [
+        "balance.inventory"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ar_yoy",
+      "leaves": [
+        "balance.accounts_receivable"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "roe_delta_252d",
+      "leaves": [
+        "balance.equity",
+        "income.net_income",
+        "indicator.roe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "debt_to_assets_delta_252d",
+      "leaves": [
+        "balance.equity",
+        "balance.total_assets",
+        "indicator.debt_ratio"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "op_cashflow_delta_252d",
+      "leaves": [
+        "cashflow.operating"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pe_rank_252d",
+      "leaves": [
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pb_rank_252d",
+      "leaves": [
+        "valuation.pb"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pe_delta_120d",
+      "leaves": [
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pb_delta_120d",
+      "leaves": [
+        "valuation.pb"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pe_percentile_756d",
+      "leaves": [
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pb_percentile_756d",
+      "leaves": [
+        "valuation.pb"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pe_distance_from_756d_low",
+      "leaves": [
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pb_distance_from_756d_low",
+      "leaves": [
+        "valuation.pb"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pe_repair_room_to_median",
+      "leaves": [
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pb_repair_room_to_median",
+      "leaves": [
+        "valuation.pb"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "earnings_yield_proxy",
+      "leaves": [
+        "income.net_income",
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "peg_proxy",
+      "leaves": [
+        "income.net_income",
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "roe_delta_756d",
+      "leaves": [
+        "balance.equity",
+        "income.net_income",
+        "indicator.roe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ocf_margin",
+      "leaves": [
+        "cashflow.operating",
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "continuation_candidate_score",
+      "leaves": [
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "repair_candidate_score",
+      "leaves": [
+        "market.close",
+        "universe.membership",
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "overheat_risk_score",
+      "leaves": [
+        "market.close",
+        "market.volume",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "value_trap_risk_score",
+      "leaves": [
+        "balance.equity",
+        "income.net_income",
+        "income.revenue",
+        "indicator.roe",
+        "market.close",
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_eligible",
+      "leaves": [
+        "margin.balance"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_crowding_score",
+      "leaves": [
+        "margin.balance",
+        "market.circ_mv",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_trend_confirm_score",
+      "leaves": [
+        "margin.balance",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_overheat_risk_score",
+      "leaves": [
+        "margin.balance",
+        "market.circ_mv",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_num_chg_qoq",
+      "leaves": [
+        "holder.number"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_num_chg_2q",
+      "leaves": [
+        "holder.number"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "avg_shares_per_holder_chg_qoq",
+      "leaves": [
+        "holder.number"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "top10_holder_ratio_chg_qoq",
+      "leaves": [
+        "holder.top10_ratio"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_concentration_score",
+      "leaves": [
+        "holder.number",
+        "holder.top10_ratio",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_squeeze_score",
+      "leaves": [
+        "holder.number",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_price_confirm_score",
+      "leaves": [
+        "holder.number",
+        "holder.top10_ratio",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_num_stale_days",
+      "leaves": [
+        "holder.number",
+        "market.session"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "top10_holder_stale_days",
+      "leaves": [
+        "holder.top10_ratio",
+        "market.session"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "top10_holder_ratio",
+      "leaves": [
+        "holder.top10_ratio"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "trend_consistency_60d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "trend_consistency_120d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "low_vol_uptrend_60d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "low_vol_uptrend_120d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "return_drawdown_ratio_60d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "return_drawdown_ratio_120d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pullback_recovery_speed_60d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "new_high_persistence_120d",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "up_volume_down_volume_ratio_60d",
+      "leaves": [
+        "market.amount",
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "up_volume_down_volume_ratio_120d",
+      "leaves": [
+        "market.amount",
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_contraction_after_rise_60d",
+      "leaves": [
+        "market.amount",
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "quiet_accumulation_60d",
+      "leaves": [
+        "market.amount",
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_stability_60d",
+      "leaves": [
+        "market.amount"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "breakout_volume_quality_120d",
+      "leaves": [
+        "market.amount",
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_concentration_trend_confirm",
+      "leaves": [
+        "holder.number",
+        "holder.top10_ratio",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_concentration_low_vol_uptrend",
+      "leaves": [
+        "holder.number",
+        "holder.top10_ratio",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_concentration_volume_contract",
+      "leaves": [
+        "holder.number",
+        "holder.top10_ratio",
+        "market.amount",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_holder_trend_confirm",
+      "leaves": [
+        "holder.number",
+        "holder.top10_ratio",
+        "margin.balance",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_pullback_recovery_confirm",
+      "leaves": [
+        "margin.balance",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_ret_20d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_ret_60d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_ret_120d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_breadth_20d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_breadth_60d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_new_high_ratio",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_top_stock_momentum",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry_volume_expansion",
+      "leaves": [
+        "industry.membership",
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "stock_minus_industry_ret_20d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "stock_minus_industry_ret_60d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "stock_industry_ret_corr_60d",
+      "leaves": [
+        "industry.membership",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$roe",
+      "leaves": [
+        "balance.equity",
+        "income.net_income",
+        "indicator.roe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$grossprofit_margin",
+      "leaves": [
+        "income.oper_cost",
+        "income.revenue",
+        "indicator.gross_margin"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$debt_to_assets",
+      "leaves": [
+        "balance.equity",
+        "balance.total_assets",
+        "indicator.debt_ratio"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$op_cashflow",
+      "leaves": [
+        "cashflow.operating"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "operating_cf_to_profit",
+      "leaves": [
+        "cashflow.operating",
+        "income.net_income"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "net_margin",
+      "leaves": [
+        "income.net_income",
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "roa",
+      "leaves": [
+        "balance.total_assets",
+        "income.net_income"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "grossprofit_margin_delta_252d",
+      "leaves": [
+        "income.oper_cost",
+        "income.revenue",
+        "indicator.gross_margin"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "revenue_yoy",
+      "leaves": [
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "profit_yoy",
+      "leaves": [
+        "income.net_income"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$pe",
+      "leaves": [
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$pb",
+      "leaves": [
+        "valuation.pb"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "distance_to_252d_low",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "revenue_yoy_accel",
+      "leaves": [
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "profit_yoy_accel",
+      "leaves": [
+        "income.net_income"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "net_margin_delta_756d",
+      "leaves": [
+        "income.net_income",
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "distance_to_120d_high",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "distance_to_250d_high",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_balance_to_float_mv",
+      "leaves": [
+        "margin.balance",
+        "market.circ_mv",
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_balance_chg_20d",
+      "leaves": [
+        "margin.balance"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_balance_chg_60d",
+      "leaves": [
+        "margin.balance"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_buy_intensity_20d",
+      "leaves": [
+        "margin.buy",
+        "market.amount"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_repay_to_buy_20d",
+      "leaves": [
+        "margin.buy",
+        "margin.repay"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Ref($close, 5) / $close - 1",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Ref($close, 20) / $close - 1",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$turnover_rate",
+      "leaves": [
+        "market.turnover_rate"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$amount",
+      "leaves": [
+        "market.amount"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($volume, 5) / Mean($volume, 5)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($close - $open) / $open",
+      "leaves": [
+        "market.close",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$industry",
+      "leaves": [
+        "industry.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "close_to_open_gap_1d",
+      "leaves": [
+        "market.close",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "distance_to_limit_down",
+      "leaves": [
+        "market.close",
+        "market.low_limit",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "distance_to_limit_up",
+      "leaves": [
+        "market.close",
+        "market.high_limit",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "illiquidity",
+      "leaves": [
+        "market.amount",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "open_to_close_ret",
+      "leaves": [
+        "market.close",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "turnover_rate",
+      "leaves": [
+        "market.turnover_rate"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "turnover_rate_ind_zscore",
+      "leaves": [
+        "industry.membership",
+        "market.turnover_rate",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ttm_revenue_yoy",
+      "leaves": [
+        "financial.ttm_revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "single_q_revenue_yoy",
+      "leaves": [
+        "financial.single_quarter_revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "vol_mean_3d",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "vol_mean_5d",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_mean_3d",
+      "leaves": [
+        "market.amount"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_mean_5d",
+      "leaves": [
+        "market.amount"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "vol_mean_3d_rank",
+      "leaves": [
+        "market.volume",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "vol_mean_5d_rank",
+      "leaves": [
+        "market.volume",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_mean_3d_rank",
+      "leaves": [
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_mean_5d_rank",
+      "leaves": [
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pe_ttm",
+      "leaves": [
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pb_raw",
+      "leaves": [
+        "valuation.pb"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ps_ttm",
+      "leaves": [
+        "valuation.ps",
+        "market.total_mv",
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "close_to_open_gap_1d_z",
+      "leaves": [
+        "market.close",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "close_to_open_gap_1d_rank",
+      "leaves": [
+        "market.close",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "open_to_close_ret_z",
+      "leaves": [
+        "market.close",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "open_to_close_ret_rank",
+      "leaves": [
+        "market.close",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "close_pos_in_range_z",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "close_pos_in_range_rank",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "open_pos_in_range_z",
+      "leaves": [
+        "market.high",
+        "market.low",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "open_pos_in_range_rank",
+      "leaves": [
+        "market.high",
+        "market.low",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "upper_shadow_ratio_z",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "upper_shadow_ratio_rank",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "lower_shadow_ratio_z",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "lower_shadow_ratio_rank",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "intraday_reversal_strength_z",
+      "leaves": [
+        "market.close",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "intraday_reversal_strength_rank",
+      "leaves": [
+        "market.close",
+        "market.open",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_log_z",
+      "leaves": [
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_log_rank",
+      "leaves": [
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_zscore_20_z",
+      "leaves": [
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount_zscore_20_rank",
+      "leaves": [
+        "market.amount",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_shock_3_z",
+      "leaves": [
+        "market.volume",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_shock_3_rank",
+      "leaves": [
+        "market.volume",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_shock_5_z",
+      "leaves": [
+        "market.volume",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_shock_5_rank",
+      "leaves": [
+        "market.volume",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "turnover_acceleration_z",
+      "leaves": [
+        "market.turnover_rate",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "turnover_acceleration_rank",
+      "leaves": [
+        "market.turnover_rate",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "illiquidity_z",
+      "leaves": [
+        "market.amount",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "illiquidity_rank",
+      "leaves": [
+        "market.amount",
+        "market.close",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "distance_to_limit_up_z",
+      "leaves": [
+        "market.close",
+        "market.high_limit",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "distance_to_limit_up_rank",
+      "leaves": [
+        "market.close",
+        "market.high_limit",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "distance_to_limit_down_z",
+      "leaves": [
+        "market.close",
+        "market.low_limit",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "distance_to_limit_down_rank",
+      "leaves": [
+        "market.close",
+        "market.low_limit",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "tradability_score_z",
+      "leaves": [
+        "market.close",
+        "market.high_limit",
+        "market.low_limit",
+        "market.paused",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "tradability_score_rank",
+      "leaves": [
+        "market.close",
+        "market.high_limit",
+        "market.low_limit",
+        "market.paused",
+        "universe.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ps_rank_252d",
+      "leaves": [
+        "valuation.ps",
+        "market.total_mv",
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "avg_shares_per_holder",
+      "leaves": [
+        "holder.number",
+        "shares.total"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "momentum_20",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "momentum_60",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "reversal_5",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume_confirm",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volatility_20",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "turnover_spike",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "open",
+      "leaves": [
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "high",
+      "leaves": [
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "low",
+      "leaves": [
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "volume",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "amount",
+      "leaves": [
+        "market.amount"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "factor",
+      "leaves": [
+        "adjustment.factor"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "vwap",
+      "leaves": [
+        "market.amount",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "high_limit",
+      "leaves": [
+        "market.high_limit"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "low_limit",
+      "leaves": [
+        "market.low_limit"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pe",
+      "leaves": [
+        "valuation.pe"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "pb",
+      "leaves": [
+        "valuation.pb"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ps",
+      "leaves": [
+        "valuation.ps",
+        "market.total_mv",
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "total_mv",
+      "leaves": [
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "circ_mv",
+      "leaves": [
+        "market.circ_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "net_inflow",
+      "leaves": [
+        "moneyflow.net"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "big_inflow",
+      "leaves": [
+        "moneyflow.big_buy",
+        "moneyflow.big_sell"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "grossprofit_margin",
+      "leaves": [
+        "income.oper_cost",
+        "income.revenue",
+        "indicator.gross_margin"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "debt_to_assets",
+      "leaves": [
+        "balance.equity",
+        "balance.total_assets",
+        "indicator.debt_ratio"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "current_ratio",
+      "leaves": [
+        "balance.current_assets",
+        "balance.current_liabilities",
+        "indicator.current_ratio"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "net_income",
+      "leaves": [
+        "income.net_income"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "revenue",
+      "leaves": [
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "total_assets",
+      "leaves": [
+        "balance.total_assets"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "equity",
+      "leaves": [
+        "balance.equity"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "op_cashflow",
+      "leaves": [
+        "cashflow.operating"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "inventory",
+      "leaves": [
+        "balance.inventory"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "ar",
+      "leaves": [
+        "balance.accounts_receivable"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_balance",
+      "leaves": [
+        "margin.balance"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_buy_amount",
+      "leaves": [
+        "margin.buy"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_repay_amount",
+      "leaves": [
+        "margin.repay"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "margin_total_balance",
+      "leaves": [
+        "margin.total_balance"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "lend_volume",
+      "leaves": [
+        "margin.lend_balance_volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "lend_sell_volume",
+      "leaves": [
+        "margin.lend_sell_volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "lend_repay_volume",
+      "leaves": [
+        "margin.lend_repay_volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "industry",
+      "leaves": [
+        "industry.membership"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "float_shares",
+      "leaves": [
+        "shares.float"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "holder_num",
+      "leaves": [
+        "holder.number"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($close-$open)/$open",
+      "leaves": [
+        "market.close",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$open/$close",
+      "leaves": [
+        "market.close",
+        "market.open"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Max($high, 5)/$close",
+      "leaves": [
+        "market.close",
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Max($high, 10)/$close",
+      "leaves": [
+        "market.close",
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Max($high, 20)/$close",
+      "leaves": [
+        "market.close",
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Max($high, 30)/$close",
+      "leaves": [
+        "market.close",
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Max($high, 60)/$close",
+      "leaves": [
+        "market.close",
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Min($low, 5)/$close",
+      "leaves": [
+        "market.close",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Min($low, 10)/$close",
+      "leaves": [
+        "market.close",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Min($low, 20)/$close",
+      "leaves": [
+        "market.close",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Min($low, 30)/$close",
+      "leaves": [
+        "market.close",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Min($low, 60)/$close",
+      "leaves": [
+        "market.close",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 5, 0.8)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 10, 0.8)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 20, 0.8)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 30, 0.8)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 60, 0.8)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 5, 0.2)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 10, 0.2)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 20, 0.2)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 30, 0.2)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Quantile($close, 60, 0.2)/$close",
+      "leaves": [
+        "market.close"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($close-Min($low, 5))/(Max($high, 5)-Min($low, 5)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($close-Min($low, 10))/(Max($high, 10)-Min($low, 10)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($close-Min($low, 20))/(Max($high, 20)-Min($low, 20)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($close-Min($low, 30))/(Max($high, 30)-Min($low, 30)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($close-Min($low, 60))/(Max($high, 60)-Min($low, 60)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMax($high, 5)/5",
+      "leaves": [
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMax($high, 10)/10",
+      "leaves": [
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMax($high, 20)/20",
+      "leaves": [
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMax($high, 30)/30",
+      "leaves": [
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMax($high, 60)/60",
+      "leaves": [
+        "market.high"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMin($low, 5)/5",
+      "leaves": [
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMin($low, 10)/10",
+      "leaves": [
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMin($low, 20)/20",
+      "leaves": [
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMin($low, 30)/30",
+      "leaves": [
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "IdxMin($low, 60)/60",
+      "leaves": [
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(IdxMax($high, 5)-IdxMin($low, 5))/5",
+      "leaves": [
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(IdxMax($high, 10)-IdxMin($low, 10))/10",
+      "leaves": [
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(IdxMax($high, 20)-IdxMin($low, 20))/20",
+      "leaves": [
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(IdxMax($high, 30)-IdxMin($low, 30))/30",
+      "leaves": [
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(IdxMax($high, 60)-IdxMin($low, 60))/60",
+      "leaves": [
+        "market.high",
+        "market.low"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close, Log($volume+1), 5)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close, Log($volume+1), 10)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close, Log($volume+1), 20)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close, Log($volume+1), 30)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close, Log($volume+1), 60)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 5)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 10)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 20)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 30)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 60)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($volume, 5)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($volume, 10)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($volume, 20)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($volume, 30)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Mean($volume, 60)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($volume, 5)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($volume, 10)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($volume, 20)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($volume, 30)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std($volume, 60)/($volume+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std(Abs($close/Ref($close, 1)-1)*$volume, 5)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 5)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std(Abs($close/Ref($close, 1)-1)*$volume, 10)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 10)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std(Abs($close/Ref($close, 1)-1)*$volume, 20)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 20)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std(Abs($close/Ref($close, 1)-1)*$volume, 30)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 30)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Std(Abs($close/Ref($close, 1)-1)*$volume, 60)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 60)+1e-12)",
+      "leaves": [
+        "market.close",
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($volume-Ref($volume, 1), 0), 5)/(Sum(Abs($volume-Ref($volume, 1)), 5)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($volume-Ref($volume, 1), 0), 10)/(Sum(Abs($volume-Ref($volume, 1)), 10)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($volume-Ref($volume, 1), 0), 20)/(Sum(Abs($volume-Ref($volume, 1)), 20)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($volume-Ref($volume, 1), 0), 30)/(Sum(Abs($volume-Ref($volume, 1)), 30)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater($volume-Ref($volume, 1), 0), 60)/(Sum(Abs($volume-Ref($volume, 1)), 60)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($volume, 1)-$volume, 0), 5)/(Sum(Abs($volume-Ref($volume, 1)), 5)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($volume, 1)-$volume, 0), 10)/(Sum(Abs($volume-Ref($volume, 1)), 10)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($volume, 1)-$volume, 0), 20)/(Sum(Abs($volume-Ref($volume, 1)), 20)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($volume, 1)-$volume, 0), 30)/(Sum(Abs($volume-Ref($volume, 1)), 30)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Sum(Greater(Ref($volume, 1)-$volume, 0), 60)/(Sum(Abs($volume-Ref($volume, 1)), 60)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($volume-Ref($volume, 1), 0), 5)-Sum(Greater(Ref($volume, 1)-$volume, 0), 5))/(Sum(Abs($volume-Ref($volume, 1)), 5)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($volume-Ref($volume, 1), 0), 10)-Sum(Greater(Ref($volume, 1)-$volume, 0), 10))/(Sum(Abs($volume-Ref($volume, 1)), 10)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($volume-Ref($volume, 1), 0), 20)-Sum(Greater(Ref($volume, 1)-$volume, 0), 20))/(Sum(Abs($volume-Ref($volume, 1)), 20)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($volume-Ref($volume, 1), 0), 30)-Sum(Greater(Ref($volume, 1)-$volume, 0), 30))/(Sum(Abs($volume-Ref($volume, 1)), 30)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "(Sum(Greater($volume-Ref($volume, 1), 0), 60)-Sum(Greater(Ref($volume, 1)-$volume, 0), 60))/(Sum(Abs($volume-Ref($volume, 1)), 60)+1e-12)",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$current_ratio",
+      "leaves": [
+        "balance.current_assets",
+        "balance.current_liabilities",
+        "indicator.current_ratio"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$net_income",
+      "leaves": [
+        "income.net_income"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$revenue",
+      "leaves": [
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$margin_balance",
+      "leaves": [
+        "margin.balance"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$margin_buy_amount",
+      "leaves": [
+        "margin.buy"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$margin_repay_amount",
+      "leaves": [
+        "margin.repay"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$margin_total_balance",
+      "leaves": [
+        "margin.total_balance"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$lend_volume",
+      "leaves": [
+        "margin.lend_balance_volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Log($total_mv+1)",
+      "leaves": [
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$circ_mv/($total_mv+1e-12)",
+      "leaves": [
+        "market.circ_mv",
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "Log($circ_mv+1)",
+      "leaves": [
+        "market.circ_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$net_inflow/($circ_mv+1e-12)",
+      "leaves": [
+        "market.circ_mv",
+        "moneyflow.net"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($net_inflow/(Abs($net_inflow)+1e-12))*Log(Abs($net_inflow)+1)",
+      "leaves": [
+        "moneyflow.net"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$big_inflow/($circ_mv+1e-12)",
+      "leaves": [
+        "market.circ_mv",
+        "moneyflow.big_buy",
+        "moneyflow.big_sell"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($big_inflow/(Abs($big_inflow)+1e-12))*Log(Abs($big_inflow)+1)",
+      "leaves": [
+        "moneyflow.big_buy",
+        "moneyflow.big_sell"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$revenue/($total_mv+1e-12)",
+      "leaves": [
+        "income.revenue",
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$revenue/($total_assets+1e-12)",
+      "leaves": [
+        "balance.total_assets",
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$net_income/($total_mv+1e-12)",
+      "leaves": [
+        "income.net_income",
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$net_income/($equity+1e-12)",
+      "leaves": [
+        "balance.equity",
+        "income.net_income"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($net_income/(Abs($net_income)+1e-12))*Log(Abs($net_income)+1)",
+      "leaves": [
+        "income.net_income"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$op_cashflow/($total_mv+1e-12)",
+      "leaves": [
+        "cashflow.operating",
+        "market.total_mv"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$op_cashflow/($revenue+1e-12)",
+      "leaves": [
+        "cashflow.operating",
+        "income.revenue"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "($op_cashflow/(Abs($op_cashflow)+1e-12))*Log(Abs($op_cashflow)+1)",
+      "leaves": [
+        "cashflow.operating"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$volume",
+      "leaves": [
+        "market.volume"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$high_limit",
+      "leaves": [
+        "market.high_limit"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$low_limit",
+      "leaves": [
+        "market.low_limit"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    },
+    {
+      "feature": "$paused",
+      "leaves": [
+        "market.paused"
+      ],
+      "closure_status": "resolved_to_data_leaf"
+    }
+  ],
+  "reference_public_evidence": {
+    "adjusted_price.anchored_ohlc": {
+      "domain": "adjusted_price",
+      "field": "open/high/low/close",
+      "contract": "adjusted_price_view.v1",
+      "artifact": {
+        "anchor_session": "2025-09-05",
+        "content_digest": "sha256:a3647bda641dc4f08050c54fa19dcccc6e3606929fee9532bc1939ab305a052e",
+        "decision_cutoff": "2025-09-05",
+        "identity_digest": "sha256:15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7",
+        "manifest_digest": "sha256:76ea303120701442acce0ed9b8e5bada3395840bd15e094b95b73e9d100588e8",
+        "pit_policy": "research_non_pit",
+        "pit_qualification": "best_effort",
+        "view_id": "adjusted-price-15c59d5eeddbfa226fd0fae62716bd7426be99f723119460899f238ce11262d7"
+      }
+    },
+    "adjustment.factor": {
+      "domain": "adjustment_factors",
+      "field": "factor",
+      "contract": "adjustment_factors.v1",
+      "artifact": {
+        "contract_digest": "sha256:66971791dc0d2b20f0b5d2593ed19001199ec5456b538b32ee5c068ff3927938",
+        "domain_commit_id": "adjustment_factors-8a856b64b376aabfc21b49760521b6e9d933ea2a224cad712f149778abea665c",
+        "identity_digest": "sha256:8a856b64b376aabfc21b49760521b6e9d933ea2a224cad712f149778abea665c",
+        "logical_content_digest": "sha256:5795a1a77f124793fdb79c7ac09e58d905309380433d187510e5f1742468397d",
+        "manifest_digest": "sha256:ca5013f19743b7d4d61257aee39aab6d544a02b693fedb31d7940ae86bc701b9",
+        "rows": 414
+      }
+    },
+    "benchmark.close": {
+      "domain": "benchmark_daily",
+      "field": "close",
+      "contract": "benchmark_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:c51644aed6b743f86d2d97685eb85b7dd3dcc17dc12bd4d0d74445a3c2538564",
+        "domain_commit_id": "benchmark_daily-4bceb56643d7769f49baccdd589a00db02f8f2f98a7c4a9d0127fbdd469d4491",
+        "identity_digest": "sha256:4bceb56643d7769f49baccdd589a00db02f8f2f98a7c4a9d0127fbdd469d4491",
+        "logical_content_digest": "sha256:25517c11c50fa7456a4a8f761589e771dee074dca302faeeec8cdda818085d29",
+        "manifest_digest": "sha256:f0db01b3b316d54f2a5f334fa3a51cf79f6d637db5d21f11b938d758e2771cbd",
+        "rows": 69
+      }
+    },
+    "market.amount": {
+      "domain": "market_daily",
+      "field": "amount_cny",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "market.circ_mv": {
+      "domain": "market_daily",
+      "field": "circulating_market_cap_cny",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "market.close": {
+      "domain": "market_daily",
+      "field": "close",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "market.high": {
+      "domain": "market_daily",
+      "field": "high",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "market.high_limit": {
+      "domain": "price_limits",
+      "field": "upper_limit",
+      "contract": "price_limits.v1",
+      "artifact": {
+        "contract_digest": "sha256:df88b568f1835e5df26dd8534279e67271f1d0d33b6135b22298674b9b939d15",
+        "domain_commit_id": "price_limits-2b99b479a166bc05b21db6300e6de39213e6770d6fb61fbf84f13266a2647167",
+        "identity_digest": "sha256:2b99b479a166bc05b21db6300e6de39213e6770d6fb61fbf84f13266a2647167",
+        "logical_content_digest": "sha256:c1998b79843d1f4a5dec9e446b056cc9ad64bc38956d875830eadc00dd074def",
+        "manifest_digest": "sha256:f7bb2636a7749c6f9b8fdf5a6d598fbe43cf492720db169656e46b05696d7f29",
+        "rows": 414
+      }
+    },
+    "market.low": {
+      "domain": "market_daily",
+      "field": "low",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "market.low_limit": {
+      "domain": "price_limits",
+      "field": "lower_limit",
+      "contract": "price_limits.v1",
+      "artifact": {
+        "contract_digest": "sha256:df88b568f1835e5df26dd8534279e67271f1d0d33b6135b22298674b9b939d15",
+        "domain_commit_id": "price_limits-2b99b479a166bc05b21db6300e6de39213e6770d6fb61fbf84f13266a2647167",
+        "identity_digest": "sha256:2b99b479a166bc05b21db6300e6de39213e6770d6fb61fbf84f13266a2647167",
+        "logical_content_digest": "sha256:c1998b79843d1f4a5dec9e446b056cc9ad64bc38956d875830eadc00dd074def",
+        "manifest_digest": "sha256:f7bb2636a7749c6f9b8fdf5a6d598fbe43cf492720db169656e46b05696d7f29",
+        "rows": 414
+      }
+    },
+    "market.open": {
+      "domain": "market_daily",
+      "field": "open",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "market.paused": {
+      "domain": "security_status",
+      "field": "status",
+      "contract": "security_status.v1",
+      "artifact": {
+        "contract_digest": "sha256:1087b0f2bd9e28a7578da2b4a9a807d0323d7010bc6aca14db79377b515c9e8a",
+        "domain_commit_id": "security_status-9639a9dc93f5aa6ccdde1d40891f4b4919a9805c86f188a0a7c1412a111e6dd5",
+        "identity_digest": "sha256:9639a9dc93f5aa6ccdde1d40891f4b4919a9805c86f188a0a7c1412a111e6dd5",
+        "logical_content_digest": "sha256:0d20ef8ca8cc787b248fbde8c4bd12f414c8b5f147a55f8bf05100b59063c498",
+        "manifest_digest": "sha256:c2ff5ca0009da21b8245bc79d6e2d3c14831c683db33ce1bc8fb6f826713c8f0",
+        "rows": 414
+      }
+    },
+    "market.session": {
+      "domain": "market_daily",
+      "field": "session",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "market.total_mv": {
+      "domain": "market_daily",
+      "field": "total_market_cap_cny",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "market.turnover_rate": {
+      "domain": "market_daily",
+      "field": "turnover_rate",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "market.volume": {
+      "domain": "market_daily",
+      "field": "volume_shares",
+      "contract": "market_daily.v1",
+      "artifact": {
+        "contract_digest": "sha256:14630c5e991e4016cbcf60f2e2fb187cfdd99bc7fb75cdc81df6f232ad4704d7",
+        "domain_commit_id": "market_daily-3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "identity_digest": "sha256:3b1acdedd62da4e83ec23670ecd4c2738aadd3ff8f76c71a689802b9424d0fc1",
+        "logical_content_digest": "sha256:bc7dd35b1db6570da8dcd9c9bb1342b01e1a345358a7560f2bfbef1ed753f1df",
+        "manifest_digest": "sha256:b6d79a416a947ac171bded86ff94e46b5de93bb505f2f9a0e9c8273d13f192e6",
+        "rows": 414
+      }
+    },
+    "shares.float": {
+      "domain": "security_capital",
+      "field": "circulating_shares",
+      "contract": "security_capital.v1",
+      "artifact": {
+        "contract_digest": "sha256:6e3d7cdb208e19e7fd6c26761783f59e7c57d9687f82c81fcb5d70aa42acd270",
+        "domain_commit_id": "security_capital-7e1715e17f79e1c337c3d43947e743fb868d28c56c3e3d06ce019f386982840a",
+        "identity_digest": "sha256:7e1715e17f79e1c337c3d43947e743fb868d28c56c3e3d06ce019f386982840a",
+        "logical_content_digest": "sha256:883380692328a5f88997acfd3fed63d02140011ef0e9cfc0d7de24237e82823a",
+        "manifest_digest": "sha256:43f2abc05bf78636066938a49a4234f5385ad6394ca61d411878ed5b8d3a8623",
+        "rows": 409
+      }
+    },
+    "shares.total": {
+      "domain": "security_capital",
+      "field": "total_shares",
+      "contract": "security_capital.v1",
+      "artifact": {
+        "contract_digest": "sha256:6e3d7cdb208e19e7fd6c26761783f59e7c57d9687f82c81fcb5d70aa42acd270",
+        "domain_commit_id": "security_capital-7e1715e17f79e1c337c3d43947e743fb868d28c56c3e3d06ce019f386982840a",
+        "identity_digest": "sha256:7e1715e17f79e1c337c3d43947e743fb868d28c56c3e3d06ce019f386982840a",
+        "logical_content_digest": "sha256:883380692328a5f88997acfd3fed63d02140011ef0e9cfc0d7de24237e82823a",
+        "manifest_digest": "sha256:43f2abc05bf78636066938a49a4234f5385ad6394ca61d411878ed5b8d3a8623",
+        "rows": 409
+      }
+    }
+  }
+}
