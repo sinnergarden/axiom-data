@@ -9,3 +9,7 @@ build/
 *.egg-info/
 .env
 configs/local/
+
+# Local immutable teaching references and inventory; never publish data metadata.
+deprecated/data_learning/fixture.json
+deprecated/data_learning/version_inventory.json

@@ -3,9 +3,11 @@
 Axiom Data 将供应商响应整理成不可变的数据版本，提供行情、成分与行业、财务、股东、
 融资融券、资金流和业绩预告，以及绑定数据版本的查询和导出。
 
-第一次了解这个仓库，先看 **[从一条行情看懂 Data](notebooks/data_acceptance.ipynb)**。
-它用中芯国际四天的历史样本，按“原始响应 → 整理单位 → 固定版本 → 当时可知 → 用途视图”
-讲解，保存了小样本运行输出，可以先读而不运行。演示通过不等于全量生产数据通过验收。
+第一次了解这个仓库，先看 **[一小时读懂 Data](notebooks/data_acceptance.ipynb)**。
+课程分四段讲解实际存储与 18 域字段、版本与当时可知、日更与失败恢复、View 与消费者交接。
+Git 中的 Notebook 是源码版；完整已执行 Notebook 和 HTML 作为本地阅读附件交付，不提交读取出的数据表。
+重跑前按 [本地教学引用](deprecated/data_learning/README.md) 配置固定样本；缺配置会明确报 FIXTURE UNAVAILABLE。
+最终生产验收、Research/UI 接入与 bulk 成本证据仍分别标明状态；教学读取通过不等于全量准入。
 
 需要 Python 查询示例或查找实现时，再看 [架构与公共接口](docs/overview.md)。
 
