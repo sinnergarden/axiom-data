@@ -404,29 +404,26 @@ def _preflight_items(reader, views):
 
 def preflight_views(reader, views):
     from contextlib import nullcontext
-    from itertools import groupby, islice
+    from axiom_data.view_operation import view_batches
     from axiom_data.views import adjusted_price_batch
     from axiom_data.consumption import market_view_batch
     from axiom_data.financial_views import financial_view_batch
     from axiom_data.event_views import event_view_batch
-    def key(item):
-        return item[1]['kind'], (_json_bytes({k:v for k,v in item[1]['config'].items() if k!='symbols'}) if item[1]['kind']=='pr6_fact' else b'')
     results = {}
-    for _, members in groupby(sorted(views.items(),key=key),key=key):
-        while group := list(islice(members,50)):
-            kind = group[0][1]['kind']
-            configs = [spec['config'] for _,spec in group]
-            try:
-                context = nullcontext()
-                if len(group)>1 and all(isinstance(c.get('symbols'),list) and len(c['symbols'])==1 for c in configs):
-                    context = (adjusted_price_batch(reader,configs) if kind=='adjusted_price' else
-                        market_view_batch(reader,configs,kind) if kind in {'market_replay','market_qlib'} else
-                        financial_view_batch(reader,configs) if kind=='pr6_fact' else event_view_batch(reader,configs))
-                with context:
-                    results.update(_preflight_items(reader,dict(group)))
-            except Exception as exc:
-                for label,_ in group:
-                    results[label] = {'status':'BLOCKED','stage':'shared_preparation',
-                        'error_type':type(exc).__name__,'reason':str(exc),
-                        'scope':{'kind':kind,'labels':[k for k,_ in group]}}
+    for group in view_batches(views):
+        kind = group[0][1]['kind']
+        configs = [spec['config'] for _,spec in group]
+        try:
+            context = nullcontext()
+            if len(group)>1 and all(isinstance(c.get('symbols'),list) and len(c['symbols'])==1 for c in configs):
+                context = (adjusted_price_batch(reader,configs) if kind=='adjusted_price' else
+                    market_view_batch(reader,configs,kind) if kind in {'market_replay','market_qlib'} else
+                    financial_view_batch(reader,configs) if kind=='pr6_fact' else event_view_batch(reader,configs))
+            with context:
+                results.update(_preflight_items(reader,dict(group)))
+        except Exception as exc:
+            for label,_ in group:
+                results[label] = {'status':'BLOCKED','stage':'shared_preparation',
+                    'error_type':type(exc).__name__,'reason':str(exc),
+                    'scope':{'kind':kind,'labels':[k for k,_ in group]}}
     return results

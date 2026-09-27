@@ -23,11 +23,23 @@ views['price']['reuse_candidate'] = {
 ```
 
 The candidate is frozen with the operation plan. Its existing loader validates the
-artifact and request; relevant DomainCommit refs from its checked Snapshot must
-match the target, including parent/raw provenance. Executed code, contracts,
+artifact and request. The operation first validates the target Snapshot's complete
+source closure once with the existing authoritative loader, retaining its checked
+commits and observed validation paths in the shared Reader. Relevant DomainCommit
+refs from the candidate Snapshot must match that validated target, including
+parent/raw provenance. Executed code, contracts,
 configuration, scope and PIT remain bound. A changed or corrupt candidate uses the
 ordinary builder. The operation shares one target Reader and a bounded one-entry
 candidate Reader slot; no candidate index or persistent cache is introduced.
+Candidates use reference-only Readers and do not repeat historical source replay.
+The target Reader's existing consumed-input checks reject changes after admission.
+
+Preflight and execution use the same bounded, ordered request groups. Repeated
+securities start a new group. Financial/event preparation keeps common date
+windows and PIT/cutoff configuration (financial also keeps universe/industry).
+Market/adjusted preparation can share reads across multiple requested windows;
+each item keeps its own scope, configuration, anchor and PIT checks. Shared reads
+do not widen the resulting View's request.
 
 Dependency sets are explicit: adjusted uses market/factors; replay uses market,
 status, limits and actions; Qlib uses market; financial uses the four fundamental
@@ -65,14 +77,31 @@ are explicitly synthetic, preserve canonical bytes, and pass the public Snapshot
 validator. Test roots are temporary. No formal collection, repair, bulk or promotion
 was performed.
 
-`benchmark.py` / `benchmark.json` record four-session, one/two-security five-family
+`benchmark.py` / `benchmark.json` record the initial four-session, one/two-security five-family
 comparisons. Five Views: reuse 0.331s / zero projection calls, fresh 0.383s / five.
 Ten Views: reuse 0.546s / zero projections, fresh 0.645s / ten. Logical session-read
 counts are recorded per domain. The five-family test also asserts exactly two
 Reader constructions, one target and one shared candidate Snapshot. Preflight and
 fresh construction can each read a bounded batch; expensive financial preparation
 is shared, and a hit skips build-batch preparation. No second View projection runs
-as preflight.
+as preflight. Those initial timings predate the operation-level source-closure
+correction and are retained as historical evidence, not current validation costs.
+
+The follow-up fixes both blocking findings from PR32's review.
+`fix-targeted-tests.log` records **47 PASS in 59.865s**, including the updated
+public frozen path, all five same-security window/duplicate plans, before/during
+admission Raw damage, shared source replay counts and affected batch/resume tests.
+`fix-reproduction.log` repeats the reviewer's isolated reproductions with corrected
+outcome assertions: both event windows build together with the individual refs,
+and corrupt-source reuse fails Snapshot admission before any publication.
+Exact commands and scope are in `revision-validation.md`.
+
+`fix-benchmark.json` records current small-fixture measurements: five Views reuse
+0.581s / zero projections, fresh 0.659s / five; ten Views reuse 0.818s / zero
+projections, fresh 0.940s / ten. Every operation has exactly one complete target
+Snapshot load, measured at 0.223–0.234s; reuse additionally has one reference-only
+candidate load. Zero projections does not mean zero validation cost. The test
+asserts that each closure node is validated once, irrespective of candidate labels.
 
 These small measurements are not a production census, full-history performance
 claim, physical I/O measurement or peak-memory estimate. The known production

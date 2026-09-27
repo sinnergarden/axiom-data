@@ -130,6 +130,7 @@ class ViewExecutionReuseTest(unittest.TestCase):
     def test_shared_preparation_error_names_scope_and_retains_message(self):
         from axiom_data import ArtifactError
         plan={str(i):copy.deepcopy(self.plan['pr7_fact']) for i in range(2)}
+        plan['1']['config']['symbols']=['600036.SH']
         with patch('axiom_data.event_views.event_view_batch',side_effect=ArtifactError('source request context')):
             result=self.run_views('shared',plan=plan)
         self.assertEqual(result['status'],'FAILED');self.assertEqual(result['published_views'],{})
@@ -154,3 +155,83 @@ class ViewExecutionReuseTest(unittest.TestCase):
             self.assertEqual(self.run_views('public-first')['published_views'],first['published_views'])
         finally:
             frozen_execution._active.reset(token)
+
+
+    def test_shared_source_closure_rejects_raw_damage_before_and_during_reuse(self):
+        from axiom_data import load_raw_batch, load_snapshot, ArtifactError
+        from axiom_data import view_operation
+        first=self.run_views('source-first',plan={'q':self.plan['market_qlib']})
+        changed=self.changed_snapshot('benchmark_daily')
+        reader=SnapshotReader(self.root,self.snapshot)
+        raw_id=reader.commits['market_daily'].manifest['ordered_raw_batch_refs'][0]['raw_batch_id']
+        raw=load_raw_batch(self.root,raw_id)
+        path=self.root/'raw/batches'/raw_id/raw.manifest['payload_files'][0]['path']
+        content=path.read_bytes()
+        plan={'q':dict(self.plan['market_qlib'],reuse_candidate=first['published_views']['q'])}
+        path.chmod(0o644);path.write_bytes(b'corrupt')
+        with self.assertRaisesRegex(ArtifactError,'payload content'):
+            load_snapshot(self.root,self.snapshot)
+        rejected=self.run_views('source-before',changed,plan)
+        self.assertEqual(rejected['status'],'FAILED',rejected)
+        self.assertEqual(rejected['published_views'],{})
+        self.assertIn('payload content',rejected['failed']['snapshot']['reason'])
+        path.write_bytes(content)
+        original=view_operation._reuse_view
+        def damage_after_admission(*args,**kwargs):
+            path.write_bytes(b'changed after admission')
+            return original(*args,**kwargs)
+        with patch.object(view_operation,'_reuse_view',side_effect=damage_after_admission):
+            rejected=self.run_views('source-during',changed,plan)
+        self.assertEqual(rejected['status'],'FAILED',rejected)
+        self.assertEqual(rejected['published_views'],{})
+        self.assertIn('changed',rejected['failed']['q']['reason'])
+
+    def test_batches_preserve_family_preparation_boundaries(self):
+        from axiom_data.view_operation import view_batches
+        for kind in self.plan:
+            first = copy.deepcopy(self.plan[kind])
+            second = copy.deepcopy(first)
+            second['config']['symbols'] = ['600036.SH']
+            labels = lambda plan: [[label for label, _ in group] for group in view_batches(plan)]
+            with self.subTest(kind=kind):
+                self.assertEqual(labels({'a':first, 'b':second, 'a-again':first}), [['a','b'],['a-again']])
+                changes = [('start_session','2025-06-12'), ('pit_policy','strict_decision_time')]
+                changes.append(('knowledge_cutoff','2025-06-12T00:00:00Z')
+                               if kind in {'pr6_fact','pr7_fact'} else ('decision_cutoff','2025-06-12'))
+                for key, value in changes:
+                    changed = copy.deepcopy(second)
+                    changed['config'][key] = value
+                    expected = [['a'],['b']] if kind in {'pr6_fact','pr7_fact'} else [['a','b']]
+                    self.assertEqual(labels({'a':first, 'b':changed}), expected)
+
+    def test_same_security_windows_and_duplicate_requests_match_individual_builds(self):
+        for kind in self.plan:
+            with self.subTest(kind=kind):
+                a=copy.deepcopy(self.plan[kind]);b=copy.deepcopy(a)
+                a['config']['end_session']='2025-06-11'
+                b['config']['start_session']='2025-06-12'
+                if kind=='adjusted_price':a['config']['anchor_session']='2025-06-11'
+                one=self.run_views(kind+'-one',plan={'a':a})
+                two=self.run_views(kind+'-two',plan={'b':b})
+                together=self.run_views(kind+'-both',plan={'a':a,'b':b,'a-again':a})
+                self.assertEqual(one['status'],'VIEWS_BUILT',one)
+                self.assertEqual(two['status'],'VIEWS_BUILT',two)
+                self.assertEqual(together['status'],'VIEWS_BUILT',together)
+                self.assertEqual(together['published_views']['a'],one['published_views']['a'])
+                self.assertEqual(together['published_views']['a-again'],one['published_views']['a'])
+                self.assertEqual(together['published_views']['b'],two['published_views']['b'])
+
+    def test_source_closure_runs_once_for_all_candidate_labels(self):
+        from axiom_data import artifacts
+        first=self.run_views('validated-first')
+        changed=self.changed_snapshot('benchmark_daily')
+        plan={k:dict(v,reuse_candidate=first['published_views'][k]) for k,v in self.plan.items()}
+        with patch.object(artifacts,'_validate_domain_commit_node',wraps=artifacts._validate_domain_commit_node) as nodes, \
+             patch('axiom_data.consumption._load_snapshot_with_commits',wraps=artifacts._load_snapshot_with_commits) as loads:
+            result=self.run_views('validated-reuse',changed,plan)
+        self.assertEqual(result['status'],'VIEWS_BUILT',result)
+        self.assertEqual(set(result['reused_views']),set(plan))
+        self.assertEqual([call.kwargs['references_only'] for call in loads.call_args_list],[False,True])
+        keys=[tuple(call.args[1:3]) for call in nodes.call_args_list]
+        self.assertTrue(keys)
+        self.assertEqual(len(keys),len(set(keys)))

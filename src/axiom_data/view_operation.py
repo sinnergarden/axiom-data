@@ -60,6 +60,46 @@ def _completed_view(reader, spec, record, builder, loader, code, *, return_view=
     return view if return_view else view.ref
 
 
+def view_batches(views):
+    """One batch definition for prerequisite admission and actual execution."""
+    from axiom_data.views import ADJUSTED_BATCH_SIZE
+    from axiom_data.consumption import MARKET_BATCH_SIZE
+    from axiom_data.financial_views import FINANCIAL_VIEW_BATCH_SIZE
+    from axiom_data.event_views import EVENT_BATCH_SIZE
+    bounds = {'adjusted_price': ADJUSTED_BATCH_SIZE, 'market_replay': MARKET_BATCH_SIZE,
+              'market_qlib': MARKET_BATCH_SIZE, 'pr6_fact': FINANCIAL_VIEW_BATCH_SIZE,
+              'pr7_fact': EVENT_BATCH_SIZE}
+    group = []
+    symbols = set()
+    for label, spec in views.items():
+        selected = spec['config'].get('symbols')
+        singleton = (isinstance(selected, (list, tuple)) and len(selected) == 1
+                     and isinstance(selected[0], str))
+        compatible = False
+        if group and singleton:
+            first = group[0][1]
+            keys = (('start_session', 'end_session', 'universe_ids', 'industry_system',
+                     'pit_policy', 'knowledge_cutoff') if spec['kind'] == 'pr6_fact' else
+                    ('start_session', 'end_session', 'pit_policy', 'knowledge_cutoff')
+                    if spec['kind'] == 'pr7_fact' else ())
+            compatible = (spec['kind'] == first['kind'] and len(group) < bounds[spec['kind']]
+                and selected[0] not in symbols
+                and all(spec['config'].get(key) == first['config'].get(key) for key in keys))
+        if group and not compatible:
+            yield group
+            group = []
+            symbols = set()
+        group.append((label, spec))
+        if singleton:
+            symbols.add(selected[0])
+        else:
+            yield group
+            group = []
+            symbols = set()
+    if group:
+        yield group
+
+
 @frozen_operation('views')
 def materialize_views(data_root, *, run_id, snapshot_id, views):
     """Build frozen View requests; required failures keep the candidate unready.
@@ -67,14 +107,11 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
     Resume validates completed artifacts before entering a builder.
     The execution record never substitutes for artifact identity or validation.
     """
-    from axiom_data.views import (ADJUSTED_BATCH_SIZE, adjusted_price_batch,
-                                  build_adjusted_price_view, build_market_replay_view,
-                                  _stored_view_kind)
-    from axiom_data.consumption import MARKET_BATCH_SIZE, build_qlib_view, market_view_batch
-    from axiom_data.financial_views import build_financial_fact_view
-    from axiom_data.financial_views import FINANCIAL_VIEW_BATCH_SIZE, financial_view_batch
-    from axiom_data.event_views import build_event_fact_view
-    from axiom_data.event_views import EVENT_BATCH_SIZE, event_view_batch
+    from axiom_data.views import (adjusted_price_batch, build_adjusted_price_view,
+                                  build_market_replay_view, _stored_view_kind)
+    from axiom_data.consumption import build_qlib_view, market_view_batch
+    from axiom_data.financial_views import build_financial_fact_view, financial_view_batch
+    from axiom_data.event_views import build_event_fact_view, event_view_batch
     from axiom_data.views import _build_adjusted_price_view, _build_market_replay_view
     from axiom_data.consumption import SnapshotReader, _build_qlib_view
     from axiom_data.financial_views import build_financial_fact_view_from_reader
@@ -129,7 +166,7 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
         state['schema_version']='required_views_run.v2'
         state.update(status='RUNNING',stage='REQUIRED_VIEWS',ready_for_consumption=False,failed={})
         save_progress(path,state)
-        try:reader=SnapshotReader(layout.root,concrete)
+        try:reader=SnapshotReader(layout.root,concrete,validate_sources=True)
         except Exception as exc:
             state.update(status='FAILED',failed={'snapshot':{'error_type':type(exc).__name__,'reason':str(exc)}},
                 preflight={k:{'status':'NOT_ASSESSED','reason':'Snapshot admission failed'} for k in frozen})
@@ -157,31 +194,8 @@ def materialize_views(data_root, *, run_id, snapshot_id, views):
                 save_progress(path,state)
                 return dict(state,plan=plan)
             candidate_readers = {}
-            items = list(frozen.items())
-            offset = 0
-            def batchable(item):
-                symbols = item['config'].get('symbols')
-                return (item['kind'] in {'adjusted_price', 'market_replay', 'market_qlib', 'pr6_fact', 'pr7_fact'} and
-                        isinstance(symbols, (list, tuple)) and len(symbols) == 1)
-            while offset < len(items):
-                label, spec = items[offset]
-                group = [items[offset]]
-                if batchable(spec):
-                    bound = (ADJUSTED_BATCH_SIZE if spec['kind'] == 'adjusted_price' else
-                             FINANCIAL_VIEW_BATCH_SIZE if spec['kind'] == 'pr6_fact' else
-                             EVENT_BATCH_SIZE if spec['kind'] == 'pr7_fact' else MARKET_BATCH_SIZE)
-                    for candidate in items[offset + 1:offset + bound]:
-                        if (not batchable(candidate[1]) or candidate[1]['kind'] != spec['kind'] or
-                            (spec['kind'] == 'pr6_fact' and any(
-                                candidate[1]['config'][key] != spec['config'][key]
-                                for key in ('start_session', 'end_session', 'universe_ids',
-                                            'industry_system', 'pit_policy', 'knowledge_cutoff'))) or
-                            (spec['kind'] == 'pr7_fact' and any(
-                                candidate[1]['config'][key] != spec['config'][key]
-                                for key in ('start_session', 'end_session')))):
-                            break
-                        group.append(candidate)
-                offset += len(group)
+            for group in view_batches(frozen):
+                label, spec = group[0]
                 state['active_view'] = label
                 if len(group) > 1:
                     save_progress(path, state)

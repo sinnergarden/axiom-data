@@ -25,10 +25,17 @@ try:
   candidates={k:dict(v,reuse_candidate=first['published_views'][k]) for k,v in plan.items()}
   for mode,p in [('reuse',candidates),('fresh',plan)]:
    reads=Counter();original=SnapshotReader.session_rows
+   snapshot_loads=[];load_snapshot=consumption._load_snapshot_with_commits
    def read(reader,domain,*args,**kwargs):
     reads[domain]+=1;return original(reader,domain,*args,**kwargs)
+   def snapshot(*args,**kwargs):
+    start=time.monotonic()
+    result=load_snapshot(*args,**kwargs)
+    snapshot_loads.append(dict(references_only=kwargs.get('references_only',False),seconds=time.monotonic()-start))
+    return result
    with ExitStack() as stack:
     stack.enter_context(patch.object(SnapshotReader,'session_rows',read))
+    stack.enter_context(patch.object(consumption,'_load_snapshot_with_commits',snapshot))
     projections={}
     for module,name in [(views,'_build_adjusted_price_view'),(views,'_build_market_replay_view'),
          (consumption,'_build_qlib_view'),(financial_views,'project'),(event_views,'project')]:
@@ -37,7 +44,7 @@ try:
    assert result['status']=='VIEWS_BUILT',result
    results.append(dict(symbols=size,views=len(plan),mode=mode,seconds=elapsed,
        projection_calls={k:v.call_count for k,v in projections.items()},session_reads=dict(reads),
-       reused=len(result.get('reused_views',[]))))
+       reused=len(result.get('reused_views',[])),snapshot_loads=snapshot_loads))
  print(json.dumps({'fixture':'isolated copy of pr7 real fixture; synthetic benchmark parent-link-only correction',
   'scale':'four sessions, one/two securities, five families; not production extrapolation',
   'results':results},indent=2))

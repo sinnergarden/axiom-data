@@ -157,10 +157,11 @@ class SnapshotReader:
     """Read one explicit Snapshot, verifying referenced files as they are consumed.
 
     Historical Raw/mapping replay is available through load_snapshot; a Reader
-    does not repeat publication-time replay on every ordinary query.
+    does not repeat publication-time replay on every ordinary query. Operations
+    opt into one complete source closure and retain its checked commits/paths.
     """
 
-    def __init__(self, data_root: str | Path, snapshot_id: str) -> None:
+    def __init__(self, data_root: str | Path, snapshot_id: str, *, validate_sources: bool = False) -> None:
         self.data_root = Path(data_root)
         self._verified_lineage = {}
         from axiom_data.verification_cache import validation_paths, file_state
@@ -169,7 +170,7 @@ class SnapshotReader:
                              if p.is_file() and p.suffix in {'.py', '.json'}})
             self.snapshot, self.commits = _load_snapshot_with_commits(
                 self.data_root, snapshot_id, lineage_index=self._verified_lineage,
-                references_only=True)
+                references_only=not validate_sources)
         if any(file_state(p) != state for p, state in observed.items()):
             raise ArtifactError('Snapshot inputs changed during validation')
         self._view_validation_paths = observed
