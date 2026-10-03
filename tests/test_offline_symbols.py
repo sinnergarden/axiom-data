@@ -1,5 +1,8 @@
 """Whole-market Raw can expand canonical scope without a second supplier call."""
 from copy import deepcopy
+from contextlib import redirect_stdout
+from io import StringIO
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -39,6 +42,19 @@ class OfflineSymbolsTests(unittest.TestCase):
                     for row in store.read_partition(part).to_pylist()]
             self.assertEqual({r['security_id'] for r in rows}, {'sec-1', 'sec-2'})
             self.assertEqual({r['first_observed_at'] for r in rows}, {OBS})
+            # New operation + ordinary CLI, with no explicit override request.
+            from axiom_data.cli import main
+            output = StringIO()
+            with redirect_stdout(output):
+                main(["--data-root", directory, "rebuild", "--snapshot", result.snapshot_id,
+                      "--operation-id", "ordinary-rebuild", "--domain", "market_daily", "--no-promote"])
+            replay = store.load_snapshot(json.loads(output.getvalue())["snapshot_id"])
+            self.assertEqual(replay["domains"]["market_daily"]["partitions"], current["domains"]["market_daily"]["partitions"])
+            self.assertEqual(replay["domains"]["market_daily"]["source_profile"], current["domains"]["market_daily"]["source_profile"])
+            self.assertEqual(replay["domains"]["market_daily"]["build_context"]["canonical_selection"],
+                             {"market_daily": list(IDS)})
+            self.assertEqual(replay["domains"]["trading_calendar"], parent["domains"]["trading_calendar"])
+
             self.assertEqual(client.calls, calls)
             self.assertEqual((store.root/'raw/fetches.jsonl').read_bytes(), log)
             self.assertEqual({i: store.get_raw(i) for i in raw_ids}, raw)

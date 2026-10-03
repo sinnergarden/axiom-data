@@ -709,6 +709,23 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                 name: [] for name in wanted
                 if (name != "universe_membership" or not special_membership)
                 and (name != "listing_events" or not listing_history)}
+            # Replay the base Snapshot's effective interpretation, not the
+            # older capture-time contract/profile in each immutable Raw.
+            # Explicit caller overrides replace these inherited settings.
+            effective = {}
+            for name in grouped:
+                old = (base or {}).get("domains", {}).get(name)
+                inherited = {}
+                if old is not None:
+                    inherited = {"contract": old["contract"], "source_profile": old["source_profile"]}
+                    context = old.get("build_context", {})
+                    selection = context.get("canonical_selection", {}).get(name)
+                    if selection is not None:
+                        inherited["canonical_symbols"] = selection
+                    normalizer = context.get("normalizer_overrides", {}).get(name)
+                    if normalizer is not None:
+                        inherited["normalizer"] = normalizer
+                effective[name] = {**inherited, **overrides.get(name, {})}
             saved = store._raw_records(ids, shared_profiles=True)
             membership_ids = set()
             listing_ids = set(listing_history[-1]["stock_basic_raw_batch_ids"]) if listing_history else set()
@@ -729,7 +746,7 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                                                   raw.get("normalizer"))
                 if not isinstance(contract, dict) or not isinstance(profile, dict) or not isinstance(normalizer, str):
                     raise DataError(f"Raw {batch_id} lacks domain/contract/normalizer metadata for rebuild")
-                override = overrides.get(domain, {})
+                override = effective[domain]
                 if "canonical_symbols" in override:
                     if "canonical_symbols" not in raw["request"]:
                         raise DataError("offline selection requires an original canonical_symbols request")
@@ -779,9 +796,13 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                                              "rebuild_config": {k: v for k, v in build_context.items() if k != "builder"}}
                 replacements["universe_membership"] = rebuilt
             selections = {name: list(override["canonical_symbols"])
-                          for name, override in overrides.items() if "canonical_symbols" in override}
+                          for name, override in effective.items() if "canonical_symbols" in override}
             if selections:
                 build_context = {**build_context, "canonical_selection": selections}
+            normalizers = {name: override["normalizer"] for name, override in effective.items()
+                           if "normalizer" in override}
+            if normalizers:
+                build_context = {**build_context, "normalizer_overrides": normalizers}
             state["raw_batch_ids"] = list(ids)
             store.write_operation(operation_id, state)
             return _publish(store, base_snapshot, base, grouped, build_context, promote,

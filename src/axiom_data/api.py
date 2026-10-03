@@ -150,6 +150,10 @@ class Data:
         A ``canonical_symbols`` override selects explicitly bound source codes
         already present in saved whole-market Raw. It is recorded as a derived
         selection; missing source rows remain missing, without refetching.
+        Without explicit overrides, the base Snapshot's effective contract,
+        source_profile and saved canonical selection are replayed. New operation
+        IDs and the ordinary CLI therefore retain added fields and symbols.
+        Explicit normalizer overrides are saved for subsequent rebuilds.
         Supply the full Raw closure and desired symbol scope for each replaced
         domain. Only affected domains are rebuilt; old Snapshots stay readable.
         """

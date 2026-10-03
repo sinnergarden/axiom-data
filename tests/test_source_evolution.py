@@ -33,7 +33,7 @@ class SourceEvolutionTest(unittest.TestCase):
                 domains=("market_daily",), operation_id="add-saved-field",
                 build_context={"code_ref": "schema-v2", "reason": "add previously saved field"},
                 promote=False, domain_overrides={"market_daily": {
-                    "contract": contract, "source_profile": profile}},
+                    "contract": contract, "source_profile": profile, "normalizer": "records_v1"}},
             )
             sessions = ("2020-01-02", "2020-02-03")
             result = Data(root).read(snapshot=revised.snapshot_id, query=QuerySpec(
@@ -42,6 +42,18 @@ class SourceEvolutionTest(unittest.TestCase):
             self.assertEqual(result.frame["added_value"].iloc[0], 7)
             self.assertTrue(result.frame["added_value"].isna().iloc[1])
             self.assertEqual(result.field_meta["added_value"]["unit"], "ratio")
+            replay = Data(root).rebuild(base_snapshot=revised.snapshot_id,
+                raw_batch_ids=original["domains"]["market_daily"]["raw_batch_ids"],
+                domains=("market_daily",), operation_id="ordinary-field-replay",
+                build_context={}, promote=False)
+            replayed = store.load_snapshot(replay.snapshot_id)
+            self.assertEqual(replayed["domains"]["market_daily"]["contract"], contract)
+            self.assertEqual(replayed["domains"]["market_daily"]["source_profile"], profile)
+            self.assertEqual(replayed["domains"]["market_daily"]["build_context"]["normalizer_overrides"],
+                             {"market_daily": "records_v1"})
+            self.assertEqual(replayed["domains"]["market_daily"]["partitions"],
+                             store.load_snapshot(revised.snapshot_id)["domains"]["market_daily"]["partitions"])
+
             migrated = store.load_snapshot(revised.snapshot_id)
             self.assertEqual(migrated["domains"]["independent_daily"], original["domains"]["independent_daily"])
             self.assertEqual([r["first_observed_at"] for r in stored_rows(store, revised.snapshot_id)],
