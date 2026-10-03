@@ -243,13 +243,18 @@ def _add_raw_objects(objects: dict[str, str], records: Mapping[str, Mapping[str,
 
 
 def export_bundle(data_root: str | os.PathLike[str], destination: str | os.PathLike[str], *,
-                  snapshot_id: str = "current", code_root: str | os.PathLike[str] | None = None) -> dict[str, Any]:
+                  snapshot_id: str = "current", code_root: str | os.PathLike[str] | None = None,
+                  raw_backup_cutoff: str | None = None) -> dict[str, Any]:
     """Copy a pinned snapshot, all parent references and captured code to a new directory.
 
     ``snapshot_id='current'`` resolves once under the store's writer lock.  The
     same lock protects object/log copying from local writers.  No supplier is
     called.  A destination that already exists is rejected; failures leave no
     published bundle.  ``code_root`` must contain the project source and lock.
+    Default exports only the snapshot dependency closure. An explicit inclusive
+    ``raw_backup_cutoff`` adds all saved receipts/statuses and payloads through
+    that receipt time; referenced snapshot Raw is always retained. Operation
+    checkpoints and unfinished append tails are not part of this backup.
     """
     store = LocalStore(data_root)
     if not store.root.is_dir():
@@ -271,6 +276,10 @@ def export_bundle(data_root: str | os.PathLike[str], destination: str | os.PathL
             selected = store.resolve(snapshot_id)
             chain = _snapshot_chain(store, selected)
             objects, wanted = _objects(chain)
+            selection = None
+            if raw_backup_cutoff is not None:
+                selection = store.select_raw(domains=None, receipt_cutoff=raw_backup_cutoff, statuses=None)
+                wanted.update(selection["raw_batch_ids"])
             raw_log, records = _raw_lines(store, wanted)
             _add_raw_objects(objects, records)
             _put(stage, "data/current.json", _encoded({"snapshot_id": selected}), files)
@@ -300,6 +309,9 @@ def export_bundle(data_root: str | os.PathLike[str], destination: str | os.PathL
             "snapshots": [item["snapshot_id"] for item in chain],
             "source": {**_git_identity(code), "files_sha256": source_files_hash},
             "environment": _environment(), "files": files,
+            "raw_scope": {"mode": "snapshot_closure" if selection is None else "full_raw_through_receipt",
+                          "receipt_cutoff": selection["receipt_cutoff"] if selection else None,
+                          "raw_batch_count": len(wanted)},
         }
         manifest["bundle_id"] = sha256(_encoded(manifest)).hexdigest()
         _put(stage, "bundle.json", _encoded(manifest), {})
@@ -354,6 +366,17 @@ def verify_bundle(bundle: str | os.PathLike[str]) -> dict[str, Any]:
     if [item["snapshot_id"] for item in chain] != manifest["snapshots"]:
         raise DataError("bundle snapshot ancestry is incomplete")
     objects, wanted = _objects(chain)
+    raw_scope = manifest.get("raw_scope")
+    if raw_scope is not None:
+        if not isinstance(raw_scope, dict) or raw_scope.get("mode") not in {"snapshot_closure", "full_raw_through_receipt"}:
+            raise DataError("invalid bundle Raw scope")
+        if raw_scope["mode"] == "full_raw_through_receipt":
+            selection = data.select_raw(domains=None, receipt_cutoff=raw_scope["receipt_cutoff"], statuses=None)
+            wanted.update(selection["raw_batch_ids"])
+        elif raw_scope.get("receipt_cutoff") is not None:
+            raise DataError("snapshot closure cannot declare a full Raw cutoff")
+        if raw_scope.get("raw_batch_count") != len(wanted):
+            raise DataError("bundle Raw count differs from its declared scope")
     log, records = _raw_lines(data, wanted)
     _add_raw_objects(objects, records)
     expected = {"data/current.json", *(f"data/snapshots/{s['snapshot_id']}.json" for s in chain),

@@ -208,6 +208,9 @@ def run_etf_job(store: LocalStore, *, plan: EtfJobPlan, client: Any, operation_i
                  "next_chunk": 0, "started_at": datetime.now(timezone.utc).isoformat(),
                  "raw_batch_ids": [], "completed_requests": 0, "raw_rows": 0, "promote": promote}
         store.write_operation(operation_id, state)
+    from .builder import operation_context
+    runtime = operation_context(store, state, operation_id,
+                                {"plan": plan.to_dict(), "options": {k: v for k, v in run_options.items() if not callable(v)}})
     specs = _specs(plan)
     chunks = [specs[i:i + plan.max_requests_per_chunk] for i in range(0, len(specs), plan.max_requests_per_chunk)]
     import time
@@ -227,6 +230,8 @@ def run_etf_job(store: LocalStore, *, plan: EtfJobPlan, client: Any, operation_i
             result = apply_saved_raw(store, base_snapshot=state["candidate_snapshot"],
                         raw_batch_ids=fetched["raw_batch_ids"], operation_id=f"{chunk_op}.publish",
                         build_context={"source_plan": plan.fingerprint(), "asset_type": "exchange_traded_fund",
+                                       "builder": runtime["builder"], "run_operation_id": operation_id,
+                                       "execution_options": {k: v for k, v in run_options.items() if not callable(v)},
                                        "scope": {"start": plan.warmup_start_session, "end": plan.end_session},
                                        "revision_policy": "terminal_observation_v1"}, promote=False)
             state.update(candidate_snapshot=result.snapshot_id, next_chunk=index + 1,

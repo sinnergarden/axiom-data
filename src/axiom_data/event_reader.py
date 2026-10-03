@@ -18,7 +18,7 @@ from .protocols import DataBatch, EventQuery, QueryError
 from .reader import READER_VERSION, _date_value, _instant, _revision_order
 
 
-EVENT_READER_VERSION = "event_reader_v3"
+EVENT_READER_VERSION = "event_reader_v4"
 _POLICIES = {"operational_pit_v1", "market_pit_safe_v1", "best_effort_vendor_v1"}
 _PURPOSES = {"decision_facts", "historical_exploration", "research_label", "label_outcomes", "market_replay"}
 _STATUSES = {"value", "not_provided", "retracted", "source_missing", "parse_error"}
@@ -217,10 +217,14 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
         if not visible:
             continue
         chosen = _revision_order(visible, repr(key), profile=profile)
+        if any(chosen.get(field) != expected for field, expected in query.filters.items()):
+            continue
+        if chosen.get(query.time_field) is None and declared[query.time_field].get("nullable", True):
+            # No economic date means this selected event has no place in the
+            # requested date range. Never fall back to an older revision.
+            continue
         event_date = _date_string(chosen.get(query.time_field), query.time_field)
         if not start <= event_date <= end:
-            continue
-        if any(chosen.get(field) != expected for field, expected in query.filters.items()):
             continue
         selected.append((chosen, provenance[id(chosen)]))
     positions = {symbol: i for i, symbol in enumerate(query.symbols)}

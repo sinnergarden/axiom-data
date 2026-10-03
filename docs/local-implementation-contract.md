@@ -8,10 +8,11 @@
 
 - `read(snapshot=, query=QuerySpec)`：日频事实，隐含键为 security_id/session。
 - `members(snapshot=, query=QuerySpec)`：显式 universe_id、sessions、cutoff，输出 nullable is_member；供应商快照延续的半开区间 `[from,to)`，有可见完整组才能证明非成员。
-- `events(snapshot=, query=EventQuery)`：保留报告/经济事件原生键；先选可见 revision，再过滤经济日期，区间 start/end 含两端。
+- `events(snapshot=, query=EventQuery)`：保留报告/经济事件原生键；先选可见 revision，再应用字段过滤和经济日期范围；nullable 日期缺失时无范围内事件，不能复活旧 revision，区间 start/end 含两端。
 - `states(snapshot=, query=QuerySpec)`：解释闭市、生命周期、整日/日内停牌和缺数；不制造闭市 Canonical 行，不从缺价推断停牌。
 - `inspect(snapshot=, required_scope=QuerySpec)`：检查实际用途范围，freshness 与覆盖分开。
 - `update` / `rebuild`：显式写操作，保留 Raw、旧 Snapshot 和第一次实际观察；rebuild 不请求来源。
+- `select_raw(domains=, receipt_cutoff=)`：只读预览成功/空 Raw 的固定 ID 集合，支持从后续观察扩展字段；不会改变 Snapshot 输入闭包。
 - `export` / `import`：固定闭包的搬移；目标目录须尚不存在，先验证字节再接受。
 
 `QuerySpec` 固定 domain、fields、symbols、sessions、pit_policy、cutoff_by_session；可选 purpose、price_basis、adjustment_anchor、universe_id、policy_by_session。所有 cutoff 带时区。`bootstrap_hybrid_v1` 必须逐 session 声明具体 policy。Reader 只直接读取未复权市场事实，复权使用固定输入纯函数。
@@ -36,6 +37,8 @@ current.json
 合同声明经济 logical_key、字段 dtype/unit/nullability；来源配置声明参数、转换、身份、空值、修订顺序和 availability。Raw 时间来自实际 receipt，不用公告日替代。内容相同的再次观察不复制 Canonical、不改变 first_observed；事实或可用性合同改变才新建 Snapshot。A→B→A 是三个实际终态发生，不把最后一次 A 合并回首次 A。
 
 完整源流程在一个冻结计划中分阶段建立候选，最终必需范围成功才一次推进 current。失败保留 Raw 与检查点；恢复同一个 plan/operation，不篡改计划。新增证券绑定只能单调追加。未知单位、代码和截断响应明确失败；预期缺失返回理由，不能填零。
+
+实际 builder 固定为可恢复干净 commit 或留存安装 wheel 的来源/摘要，依赖锁与实际环境绑定操作及新建域；dirty 源码拒绝构建。未完成操作换 builder 须新建操作，成功操作返回原结果；未变域保留原来源。成员首次批量构建按实际 receipt 保留修订链，同日供应商名单修正与 A→B→A 仍有独立可见版本。
 
 ## 时间与读取成本
 

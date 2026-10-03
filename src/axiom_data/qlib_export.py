@@ -20,10 +20,10 @@ import numpy as np
 import pandas as pd
 
 from .protocols import DataError, QuerySpec, _json_safe
-from .reader import READER_VERSION
+from .reader import READER_VERSION, _instant, _policy_for, _row_availability, _revision_order
 from .portable import _publish_new_directory
 
-EXPORTER_VERSION = "qlib_daily_export_v1"
+EXPORTER_VERSION = "qlib_daily_export_v2"
 SCHEMA = "axiom_qlib_view_v1"
 MANIFEST = "axiom-qlib.json"
 _FIELD = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -63,16 +63,41 @@ def _matrix(batch, symbols, sessions, field):
         len(symbols), len(sessions))
 
 
-def _calendar(data, snapshot, sessions):
+def _calendar(data, snapshot, query):
     domain = data.store.load_snapshot(snapshot)["domains"].get("trading_calendar")
     if not domain:
         raise DataError("Qlib export requires a fixed trading_calendar")
-    days = set()
+    sessions = query.sessions
+    profile = domain["source_profile"]
+    keys = domain["contract"]["logical_key"]
+    grouped = {}
     for part in domain["partitions"]:
         data.store.verify_partition(part)
         for row in data.store.read_partition(part).to_pylist():
-            if row.get("is_open") and sessions[0] <= str(row["session"]) <= sessions[-1]:
-                days.add(str(row["session"]))
+            if sessions[0] <= str(row["session"]) <= sessions[-1]:
+                grouped.setdefault(tuple(str(row[k]) for k in keys), []).append(row)
+    days = set()
+    known = set()
+    from bisect import bisect_right
+    for key, rows in grouped.items():
+        day = str(rows[0]["session"])
+        anchor = day if day in query.cutoff_by_session else sessions[bisect_right(sessions, day)-1]
+        policy = _policy_for(query, anchor)
+        # Omitted dates never borrow a later strict information set. Vendor
+        # history assumes release on the calendar date, so use the next explicit
+        # session cutoff for that assumption (still bounded by the query).
+        if day not in query.cutoff_by_session and policy == "best_effort_vendor_v1":
+            anchor = sessions[bisect_right(sessions, day)]
+        cutoff = _instant(query.cutoff_by_session[anchor], "calendar cutoff")
+        visible = [r for r in rows if _row_availability(r, policy, profile, day)[0] <= cutoff]
+        if not visible:
+            raise DataError(f"Qlib calendar is unknown at its requested cutoff: {day}")
+        chosen = _revision_order(visible, repr(key), profile=profile)
+        known.add(day)
+        if chosen.get("is_open"):
+            days.add(day)
+    if not set(sessions) <= known:
+        raise DataError("Qlib requested session is absent from its fixed calendar")
     if tuple(sorted(days)) != sessions:
         raise DataError("Qlib sessions must cover every open session in the requested range; include lookback")
 
@@ -110,6 +135,10 @@ def export_qlib(data, *, snapshot: str, queries, destination,
     a different spec or failed build never replaces it or changes data.current.
     Float32 rounding uses explicit rtol/atol, and nulls stay NaN. Financial/event
     objects are queried separately through Data.events, not implicitly daily-filled.
+    Calendar uses each query's PIT/revision rules and explicit session cutoffs.
+    An omitted date uses the preceding strict cutoff; best-effort uses the next
+    supplied cutoff with its declared dated-release assumption. Unknown calendar
+    states fail. A later observation never enters an earlier strict projection.
     """
     queries = tuple(queries)
     if snapshot in {"current", "latest"} or not queries or not all(isinstance(q, QuerySpec) for q in queries):
@@ -166,7 +195,8 @@ def export_qlib(data, *, snapshot: str, queries, destination,
         if existing["spec_id"] != spec_id:
             raise DataError("Qlib destination belongs to a different immutable query")
         return existing
-    _calendar(data, snapshot, sessions)
+    for q in queries + ((universe_query,) if universe_query is not None else ()):
+        _calendar(data, snapshot, q)
     destination.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".qlib-", dir=destination.parent))
     try:

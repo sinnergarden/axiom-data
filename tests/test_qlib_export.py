@@ -35,6 +35,10 @@ def fixture(root):
         profile = {"id": "synthetic."+domain, "field_map": {k:k for k in contract["fields"]},
                    "source_units": {k:v.get("unit") for k,v in contract["fields"].items() if v.get("unit")},
                    "availability": {"timezone": "Asia/Shanghai", "session_release_time": "20:00:00"}}
+        if domain == "trading_calendar":
+            # This test calendar is already usable before opening. Early price
+            # cutoffs test unknown prices, not an unavailable calendar.
+            profile["availability"]["session_release_time"] = "00:00:00"
         batches.append(IngestBatch(domain,json.dumps(rows).encode(),{},contract,profile,"2026-10-03T00:00:00Z"))
     sid = data.update(base_snapshot=None, request=UpdateRequest(tuple(batches),"fixture",{})).snapshot_id
     query = QuerySpec("market_daily",("close","volume_shares"),SYMBOLS,DAYS,

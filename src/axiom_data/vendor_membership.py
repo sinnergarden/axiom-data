@@ -16,6 +16,7 @@ from typing import Any, Mapping, Sequence
 from .protocols import DataError
 from .sources import _rows
 from .storage import LocalStore, _json_bytes
+from .builder import freeze_builder
 
 
 SCHEMA = "tushare_csi1800_membership_source_v1"
@@ -79,10 +80,11 @@ def _digest(value: Any) -> str:
 
 
 def _selected_groups(store: LocalStore, raw_ids: Sequence[str],
-                     identity_map: Mapping[str, str]) -> dict[str, list[dict[str, Any]]]:
+                     identity_map: Mapping[str, str], *, retain_observations=False) -> dict[str, list[dict[str, Any]]]:
     """Validate source selectors, then retain each nonempty dated supplier group."""
     raw_records = store.get_raw_many(raw_ids)
     by_index: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+    observations = defaultdict(list)
     for raw_id in raw_ids:
         raw = raw_records[raw_id]
         request = raw.get("request") or {}
@@ -115,6 +117,7 @@ def _selected_groups(store: LocalStore, raw_ids: Sequence[str],
             candidate = {"day": day, "members": members, "raw_batch_id": raw_id,
                          "observed_at": raw["observed_at"],
                          "source_codes": sorted(source_codes)}
+            observations[code].append(candidate)
             previous = by_index[code].get(day)
             if previous is not None:
                 if previous["source_codes"] == candidate["source_codes"]:
@@ -126,6 +129,8 @@ def _selected_groups(store: LocalStore, raw_ids: Sequence[str],
                     # A later supplier response wins a same-date correction.
                     continue
             by_index[code][day] = candidate
+    if retain_observations:
+        return {code: observations[code] for code in INDEX_UNIVERSES}
     return {code: [by_index[code][day] for day in sorted(by_index[code])]
             for code in INDEX_UNIVERSES}
 
@@ -219,16 +224,7 @@ def _row(universe: str, symbol: str, start: str, stop: str | None,
             "evidence_ref": None, "dependency_raw_batch_ids": dependencies}
 
 
-def _versions(store: LocalStore, old: Mapping[str, Any] | None,
-              rows: list[dict[str, Any]], states: list[dict[str, Any]],
-              change_time: str, new_identity_bindings: Mapping[str, str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], bool]:
-    if old is None or old.get("source_profile", {}).get("id") != PROFILE["id"]:
-        return rows, states, True
-    old_rows = [_plain(row) for part in old["partitions"] for row in store.read_partition(part).to_pylist()]
-    for code, stable in new_identity_bindings.items():
-        if code != stable and any(row["security_id"] == code for row in old_rows):
-            raise DataError("new identity binding would retroactively remap existing membership")
-    old_states = deepcopy(old["coverage"]["complete_states"])
+def _merge_membership(old_rows, old_states, rows, states, change_time):
     def merge(before, now, key, material, *, tombstone=False):
         latest = {item[key]: item for item in sorted(before, key=lambda r: r.get("revision_sequence", 1))}
         output = list(before)
@@ -240,9 +236,10 @@ def _versions(store: LocalStore, old: Mapping[str, Any] | None,
                 continue
             if previous is not None:
                 item["revision_sequence"] = previous["revision_sequence"] + 1
-                item["first_observed_at"] = max(item["first_observed_at"], previous["first_observed_at"])
+                item["first_observed_at"] = max(change_time, item["first_observed_at"], previous["first_observed_at"])
                 item["revision_id"] = "vendor:" + _digest([item[key], material(item), item["first_observed_at"]])
             output.append(item)
+            latest[item[key]] = item
             changed = True
         if tombstone:
             for identity, previous in latest.items():
@@ -263,6 +260,54 @@ def _versions(store: LocalStore, old: Mapping[str, Any] | None,
     return all_rows, all_states, row_changed or state_changed
 
 
+def _coverage_states(states):
+    return [{key: value for key, value in state.items() if key not in {"members", "open_ended"}}
+            | {"complete": True, "member_set_source": "canonical_intervals_v1",
+               "source_snapshot_date": state["effective_from"], "member_count": len(state["members"]),
+               "member_set_sha256": _digest(sorted(state["members"])), "revision_sequence": 1,
+               "revision_id": "vendor:" + _digest([state["state_id"], sorted(state["members"])])}
+            for state in states]
+
+
+def _receipt_history(store, ids, identity, through, old, prior_ids):
+    """Replay saved observations in receipt order without intermediate artifacts.
+
+    Initial construction must retain what was known between receipts, including
+    same-dated corrections. Incremental builds seed existing immutable versions
+    and process only new Raw. Identical re-fetches retain the first observation.
+    """
+    all_groups = _selected_groups(store, ids, identity, retain_observations=True)
+    groups = {code: {} for code in INDEX_UNIVERSES}
+    events = []
+    for code, series in all_groups.items():
+        for group in series:
+            events.append((group["observed_at"], group["raw_batch_id"], code, group))
+    rows = ([_plain(r) for part in old["partitions"] for r in store.read_partition(part).to_pylist()]
+            if old else [])
+    coverage = deepcopy(old["coverage"]["complete_states"]) if old else []
+    changed = False
+    for receipt, raw_id, code, group in sorted(events, key=lambda e: e[:3]):
+        previous = groups[code].get(group["day"])
+        if previous is not None and previous["source_codes"] == group["source_codes"]:
+            continue
+        groups[code][group["day"]] = group
+        if old is not None and raw_id in prior_ids:
+            continue
+        states = _economic_states({c: [groups[c][d] for d in sorted(groups[c])] for c in groups},
+                                  between_snapshots="carry_forward", verified_through=through)
+        rows, coverage, step_changed = _merge_membership(
+            rows, coverage, _positive_rows(states), _coverage_states(states), receipt)
+        changed |= step_changed
+    if old is not None and through > old["coverage"]["verified_through"]:
+        states = _economic_states({c: [groups[c][d] for d in sorted(groups[c])] for c in groups},
+                                  between_snapshots="carry_forward", verified_through=through)
+        rows, coverage, step_changed = _merge_membership(
+            rows, coverage, _positive_rows(states), _coverage_states(states),
+            max(e[0] for e in events))
+        changed |= step_changed
+    return rows, coverage, changed
+
+
 def build_vendor_membership_domain(store: LocalStore, *,
                                    index_weight_raw_batch_ids: Sequence[str],
                                    identity_map: Mapping[str, str] | None,
@@ -279,6 +324,7 @@ def build_vendor_membership_domain(store: LocalStore, *,
     """
     if between_snapshots != "carry_forward":
         raise DataError("vendor membership uses carry_forward between dated snapshots")
+    builder = freeze_builder()
     through = _day(verified_through)
     ids = list(dict.fromkeys(index_weight_raw_batch_ids))
     if not ids:
@@ -299,21 +345,16 @@ def build_vendor_membership_domain(store: LocalStore, *,
                               verified_through=through)
     if not any(state["universe_id"] == "csi1800" for state in states):
         raise DataError("no dated Tushare group exists for every CSI1800 component")
-    coverage_states = [{key: value for key, value in state.items()
-                        if key not in {"members", "open_ended"}}
-                       | {"complete": True, "member_set_source": "canonical_intervals_v1",
-                          "source_snapshot_date": state["effective_from"],
-                          "member_count": len(state["members"]),
-                          "member_set_sha256": _digest(sorted(state["members"])),
-                          "revision_sequence": 1,
-                          "revision_id": "vendor:" + _digest([state["state_id"], sorted(state["members"])])}
-                       for state in states]
-    rows = _positive_rows(states)
-    change_time = max(store.get_raw(raw_id)["observed_at"] for raw_id in ids)
     additions = ({code: stable for code, stable in identity.items()
                   if code not in previous_config["identity_map"]} if old is not None else {})
-    rows, coverage_states, changed = _versions(store, old, rows, coverage_states,
-                                               change_time, additions)
+    if additions:
+        prior_rows = [_plain(r) for part in old["partitions"] for r in store.read_partition(part).to_pylist()]
+        if any(code != stable and any(r["security_id"] == code for r in prior_rows)
+               for code, stable in additions.items()):
+            raise DataError("new identity binding would retroactively remap existing membership")
+    rows, coverage_states, changed = _receipt_history(
+        store, ids, identity, through, old,
+        set(previous_config["index_weight_raw_batch_ids"]) if old is not None else set())
     previous_through = old.get("coverage", {}).get("verified_through") if old else None
     checkpoints = deepcopy(old.get("coverage", {}).get("verification_checkpoints", [])) if old else []
     if previous_through is not None and through < previous_through:
@@ -370,7 +411,7 @@ def build_vendor_membership_domain(store: LocalStore, *,
                              "Supplier index_weight was observed on dated snapshots only; no intramonth membership change is proven.",
                              "Best-effort uses an assumed 18:00 Asia/Shanghai dated release; strict policies use actual Raw receipt.",
                          ]},
-            "build_context": {"operation_id": operation_id, **context}}
+            "build_context": {"operation_id": operation_id, "builder": builder, **context}}
 
 
 def vendor_membership_source_chain(store: LocalStore,
@@ -422,7 +463,8 @@ def publish_vendor_membership(store: LocalStore, *,
     domains = deepcopy(parent["domains"]) if parent else {}
     domains["universe_membership"] = domain
     snapshot = store.publish_snapshot(domains, parent_snapshot=base_snapshot,
-                                      build_context={"source": SCHEMA, "operation_id": operation_id},
+                                      build_context={"source": SCHEMA, "operation_id": operation_id,
+                                                     "builder": domain["build_context"]["builder"]},
                                       promote=promote)
     return {"snapshot_id": snapshot["snapshot_id"], "changed": True,
             "complete_state_count": len(domain["coverage"]["complete_states"])}

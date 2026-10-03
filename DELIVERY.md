@@ -4,7 +4,7 @@
 
 ## 安装与教程
 
-当前版本为 **axiom-data 0.3.1**，源码可直接安装；本地已构建并独立验证 `dist/axiom_data-0.3.1-py3-none-any.whl`，运行环境Python3.11+。普通采集、Reader查询和Qlib格式导出仅依赖pandas、pyarrow及其运行依赖。实际Qlib读取另安装可选消费者环境，Notebook另安装教学环境。
+当前修订为 **axiom-data 0.3.2**，运行环境Python3.11+。此前0.3.1独立安装和真实preflight证据保留原版本；本次修订针对builder来源、历史Raw选择/备份、事件过滤、成员receipt链和Qlib日历修订。普通采集、Reader查询和Qlib格式导出仅依赖pandas、pyarrow及其运行依赖。实际Qlib读取另安装可选消费者环境，Notebook另安装教学环境。
 
 ```sh
 python -m venv .venv
@@ -17,7 +17,7 @@ axiom-data --help
 - [Developer教程](notebooks/developer_tutorial.html)：实际Raw/Parquet/Snapshot/Qlib格式、统一作业、恢复、搬移及接口。
 - [权威设计](docs/design/02_axiom_data.md)、[设计对照](docs/design-conformance.md)、[接口合同](docs/local-implementation-contract.md)。
 
-重写后的两份Notebook合计94个代码单元已执行、0错误，HTML由唯一ipynb编辑源生成。设计正文统一在docs/design，旧路径只保留导航。复跑安装requirements-notebooks.txt及requirements-qlib.lock。174项当前测试通过，含实际Qlib测试；最终wheel在独立环境安装后通过依赖检查，并离线验证两类原型及Qlib搬移读取。Data包不通过editable安装或仓库路径导入；运行依赖是本机已有锁定版本的复制，Research/Engine消费者源码另行提供，尚未实测另一操作系统。
+两份Notebook此前执行94个代码单元、0错误，HTML由唯一ipynb编辑源生成。本次0.3.2仅同步说明文字，保留原代码与输出后重新渲染，没有冒称重新执行真实教程。设计正文统一在docs/design，旧路径只保留导航。此前0.3.1的174项测试及真实preflight保留原版本；0.3.2留存wheel独立安装后183项离线测试全部通过、无跳过，含9项新增观察/恢复反例和实际Qlib消费。Data包不通过editable安装或仓库路径导入；运行依赖复用本机锁定环境，Research/Engine/UI消费者源码另行提供，尚未实测另一操作系统。
 
 ## Reader与Qlib消费
 

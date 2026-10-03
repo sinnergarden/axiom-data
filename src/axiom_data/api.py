@@ -126,6 +126,17 @@ class Data:
             raise QueryError("resolve the base snapshot before starting an update")
         return apply_update(self.store, base_snapshot=base_snapshot, request=request)
 
+    def select_raw(self, *, domains, receipt_cutoff):
+        """Preview successful domain Raw through an inclusive actual receipt.
+
+        Use the returned explicit IDs for historical field expansion; ordinary
+        snapshot replay uses that snapshot's own IDs. No network, files, cache
+        or publication. Preserve the preview with the rebuild request.
+        """
+        if domains is None:
+            raise QueryError("historical Raw selection needs explicit domains")
+        return self.store.select_raw(domains=domains, receipt_cutoff=receipt_cutoff)
+
     def rebuild(self, *, base_snapshot: str, raw_batch_ids, domains,
                 operation_id: str, build_context, promote: bool = True,
                 domain_overrides=None):

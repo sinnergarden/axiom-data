@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axiom-data"
-version = "0.3.1"
+version = "0.3.2"
 description = "Local reproducible market and event data for quantitative research"
 requires-python = ">=3.11"
 dependencies = [
@@ -20,3 +20,6 @@ axiom-data = "axiom_data.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = false
+
+[tool.setuptools.data-files]
+"share/axiom-data" = ["requirements-local.lock", "requirements-qlib.lock"]

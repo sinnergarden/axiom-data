@@ -11,6 +11,7 @@ from typing import Any, Mapping, Sequence
 from .protocols import DataError
 from .sources import _rows
 from .storage import LocalStore, _json_bytes
+from .builder import freeze_builder
 
 
 SCHEMA = "tushare_stock_basic_listing_source_v1"
@@ -184,6 +185,7 @@ def build_vendor_listing_domain(store: LocalStore, *, stock_basic_raw_batch_ids:
                                 old_snapshot_id: str | None = None,
                                 prior_source_config: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Build listing/delisting events solely from six saved Tushare slices."""
+    builder = freeze_builder()
     ids = list(dict.fromkeys(stock_basic_raw_batch_ids))
     identity = dict(identity_map or {})
     old = old_domain if old_domain and old_domain.get("source_profile", {}).get("id") == PROFILE["id"] else None
@@ -220,7 +222,7 @@ def build_vendor_listing_domain(store: LocalStore, *, stock_basic_raw_batch_ids:
                              "The current supplier snapshot reports historical list_date and delist_date; it does not prove historical publication time.",
                              "Best-effort event dates are supplier-date assumptions; strict policies use original Raw receipt.",
                          ]},
-            "build_context": {"operation_id": operation_id, **context}}
+            "build_context": {"operation_id": operation_id, "builder": builder, **context}}
 
 
 def vendor_listing_source_chain(store: LocalStore,
@@ -264,6 +266,7 @@ def publish_vendor_listing(store: LocalStore, *, stock_basic_raw_batch_ids: Sequ
     domains = deepcopy(parent["domains"]) if parent else {}
     domains["listing_events"] = domain
     snapshot = store.publish_snapshot(domains, parent_snapshot=base_snapshot,
-                                      build_context={"source": SCHEMA, "operation_id": operation_id},
+                                      build_context={"source": SCHEMA, "operation_id": operation_id,
+                                                     "builder": domain["build_context"]["builder"]},
                                       promote=promote)
     return {"snapshot_id": snapshot["snapshot_id"], "changed": True}

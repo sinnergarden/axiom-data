@@ -146,6 +146,8 @@ domains:
 
 build 的代码来源须可恢复：保存已提交源码的 Git 历史、依赖锁与实际配置，从确定版本构建。不能只记一个已经丢失的 SHA，也不能用未保存工作区修改假称该 commit 的结果。日常不建立 dirty 捕获/源码打包系统；重要发布或移机时可另存源码归档。运行中读取的合同和配置也固定。
 
+当前写入在启动时验证干净 commit 或留存安装 wheel 的 origin/digest，并把真实 builder、依赖锁与环境绑定到操作和新建域；未变化域保留原来源。Snapshot 回放只选其引用的 Raw；历史字段扩展另用显式域/成功状态/receipt cutoff 选择预览。Snapshot bundle 是依赖闭包，完整 Raw 备份须显式选择截止接收时刻，见[恢复路径](../data-change-and-recovery.md)。
+
 ## 5. PIT：两个问题，不是三个晋升等级
 
 经济时间回答事实属于何时；具体 revision 的公开时间回答市场何时可能知道；first_observed 回答本系统何时收到；cutoff 是本次允许使用的边界。公开证据并不证明数值正确。

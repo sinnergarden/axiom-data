@@ -3579,6 +3579,7 @@ print(&#x27;当前窗口内可见事件:&#x27;, len(dividends.frame),
       sum(p[&#x27;rows&#x27;] for p in etf_manifest[&#x27;domains&#x27;][&#x27;corporate_actions&#x27;][&#x27;partitions&#x27;]))
 print(&#x27;旧日严格 cutoff 早于原 Raw 接收，不能回填日线可见性。&#x27;)</pre></details></section><section id="section-13" class="markdown"><h2>13. Qlib：另一种显式消费格式</h2>
 <p>普通 Reader 足够完成事实查询。研究任务需要 Qlib 时，将固定 Snapshot 和 Query 显式导出成不可变数字日频文件，再由 Research adapter 读取。cutoff 已在导出时固定，Qlib 每次读文件不会重新筛 PIT；更换查询需生成新的导出。下面实际读取股票和 ETF 原始字段，保留 NaN 与声明单位，float32 按容差验证。</p>
+<p>固定 Snapshot、范围/字段、PIT/cutoffs 和映射复用同一持久目录；换模型或仅用已有字段改 Feature 公式不重导。Research 提供需求并消费，Data 负责格式导出。首次导出可作为一次性准备，不在每次策略研究重复支付成本。日历也先按 PIT 筛可见修订；未知日历会拒绝导出，不能取所有旧开市行的并集。</p>
 </section><section class="example"><div class="example-label">真实执行 · 实际 Research Qlib adapter 读取股票</div><div class="table-scroll"><div>
 <style scoped>
     .dataframe tbody tr th:only-of-type {
@@ -5735,9 +5736,11 @@ verify_qlib_export(etf_qlib.path)
 </tr>
 </tbody>
 </table>
-<p><code>rebuild</code> 当前替换<strong>整个所选域</strong>，输入必须是这个域所需的完整 Raw 集合。标准 CLI 自动收集该域的 Raw；高级 <code>--request</code> 只给一天 Raw 会把该域重建成一天，并没有自动分区修补能力。未选域和旧 Snapshot 保持不变。增加任意新 endpoint 仍需写小 adapter、合同、映射和对应验证，不会由同逻辑 rebuild 自动完成。</p>
+<p><code>rebuild</code> 当前替换<strong>整个所选域</strong>，输入必须是这个域所需的完整 Raw 集合。标准 CLI 自动收集指定 Snapshot 引用的 Raw；高级 <code>--request</code> 只给一天 Raw 会把该域重建成一天，并没有自动分区修补能力。未选域和旧 Snapshot 保持不变。增加任意新 endpoint 仍需写小 adapter、合同、映射和对应验证，不会由同逻辑 rebuild 自动完成。</p>
 <p>有日志半写时，Reader 仅读最后完整行之前的记录。恢复写入时先保留未完成尾片，再截到完整行边界；已完成记录的接收时间不变。已完成行损坏或对象摘要错误仍报错，需恢复正确字节或补采。新采样只能证明新观察，无法还原丢失的历史 vintage。</p>
 <p><strong>可以复现的结果也可能算错。</strong> 发现错误后，在修正记录中写清域/字段/窗口、错误版本、原因、替代版本和复核状态，关联到使用这些输入的实验。保留旧输出便于审计，同时标记它需要重算；其他未受影响实验继续有效。目前没有自动分析所有实验依赖的全局失效系统，也不需要先建设一个。完整操作边界见<a href="../docs/data-change-and-recovery.md">变更与修复</a>。</p>
+<p>后来重复 fetch 的 Raw 可能保存新增字段而未产生新 Snapshot。历史字段扩展先用 <code>data.select_raw(domains=(&quot;market_daily&quot;,), receipt_cutoff=&quot;2026-10-03T12:00:00Z&quot;)</code> 预览并保存成功/空响应 ID，再显式整域 rebuild；原请求没收到字段仍为 null。默认 bundle 仅保存 Snapshot 及祖先闭包；完整 Raw 备份另用 <code>export --raw-backup-cutoff</code>，不包括作业 checkpoints。</p>
+<p>实际 builder 在 <code>build_context.builder</code>，来自干净 commit 或留存并核对的安装 wheel；同时绑定依赖锁、环境和操作配置。dirty 源码拒绝构建。新建域更新 builder，未变域保持原来源；供应商输入配置与实际代码来源分别保存。</p>
 </section><section id="section-15" class="markdown"><h2>15. 附录：与其他仓库的交接</h2>
 <p>主线事实与存储由 Data 负责。Research 的薄 adapter 将固定输入转给 Core；Runtime 管理时钟、版本门与执行，UI 读取有界 JSON 投影。以下实际调用保留来源和单位，验证函数与协议。return 使用两个观察月末，因此不能解释成每日策略收益。完整账户回测和 UI 产品由相应仓库验收。</p>
 <table>

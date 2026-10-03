@@ -588,6 +588,43 @@ class LocalStore:
         self.load_snapshot(snapshot_id)
         return snapshot_id
 
+    def select_raw(self, *, domains, receipt_cutoff, statuses=("success", "empty")):
+        """Preview saved Raw IDs, inclusive UTC receipt cutoff, without writes.
+
+        IDs are ordered by actual receipt and ID; save the returned IDs to freeze
+        a rebuild input. A future append cannot mutate that selection. None for
+        domains/statuses selects all (used by an explicit full Raw backup).
+        Incomplete append tails are ignored, complete corrupt lines still fail.
+        This scans metadata only, not payload bytes or supplier endpoints.
+        """
+        cutoff = _stamp(receipt_cutoff)
+        wanted = None if domains is None else tuple(domains)
+        if wanted is not None and (not wanted or len(set(wanted)) != len(wanted)):
+            raise DataError("Raw selection needs unique nonempty domains")
+        if wanted is not None:
+            for name in wanted:
+                _clean_name(name, "Raw domain")
+        selected = []
+        seen = set()
+        path = self.root / "raw/fetches.jsonl"
+        if path.is_file():
+            with path.open("rb") as stream:
+                for line in stream:
+                    if not line.endswith(b"\n"):
+                        break
+                    raw = self._decode_raw_line(line)
+                    identity = raw.get("batch_id")
+                    if not isinstance(identity, str) or identity in seen:
+                        raise DataError("Raw selection encountered a missing or duplicate batch ID")
+                    seen.add(identity)
+                    if (wanted is None or raw["domain"] in wanted) and (statuses is None or raw["status"] in statuses) and _stamp(raw["observed_at"]) <= cutoff:
+                        selected.append({k: raw[k] for k in ("batch_id", "domain", "status", "observed_at", "payload_sha256")})
+        selected.sort(key=lambda r: (_stamp(r["observed_at"]), r["batch_id"]))
+        return {"domains": list(wanted) if wanted is not None else None,
+                "receipt_cutoff": cutoff, "statuses": list(statuses) if statuses is not None else None,
+                "raw_batch_ids": [r["batch_id"] for r in selected], "records": selected,
+                "selection_sha256": sha256(_json_bytes(selected)).hexdigest()}
+
     def publish_snapshot(
         self, domains: Mapping[str, Any], *, parent_snapshot: str | None,
         build_context: Mapping[str, Any], promote: bool = True,

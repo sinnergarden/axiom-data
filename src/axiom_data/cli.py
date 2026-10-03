@@ -124,6 +124,7 @@ def _parser() -> argparse.ArgumentParser:
     export.add_argument("--snapshot", default="current")
     export.add_argument("--destination", required=True, type=Path)
     export.add_argument("--code-root", type=Path)
+    export.add_argument("--raw-backup-cutoff", help="Also back up all Raw receipts through this timezone-aware instant")
     import_cmd = commands.add_parser("import", help="Verify and import a bundle to a new root")
     import_cmd.add_argument("--bundle", required=True, type=Path)
     qlib_export = commands.add_parser("qlib-export", help="Explicit immutable Qlib daily projection, without source calls")
@@ -877,7 +878,8 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
     if command == "export":
         from .portable import export_bundle
         manifest = export_bundle(_root(args), args.destination,
-                                 snapshot_id=args.snapshot, code_root=args.code_root)
+                                 snapshot_id=args.snapshot, code_root=args.code_root,
+                                 raw_backup_cutoff=args.raw_backup_cutoff)
         return {"bundle": str(args.destination), "bundle_id": manifest["bundle_id"],
                 "snapshot_id": manifest["snapshot_id"]}
     if command == "import":

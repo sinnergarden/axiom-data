@@ -20,6 +20,7 @@ from .batch_fetch import BatchRateLimiter, run_batch_chunk
 from .sources import _rows
 from .storage import LocalStore
 from .updates import apply_saved_raw
+from .builder import operation_context
 
 
 _SYMBOL = re.compile(r"^[0-9]{6}\.(?:SH|SZ)$")
@@ -343,6 +344,7 @@ def _run_bulk_job_v2(store: LocalStore, *, plan: BulkJobPlan, client: Any,
         value = state["result"]
         return OperationResult(value["snapshot_id"], value["changed"], operation_id)
     ticks, sleep = monotonic, sleeper
+    runtime = operation_context(store, state, operation_id, identity)
     import time
     if state.get("current_chunk_index") is not None:
         chunk_op = f"{operation_id}.v2.c{state['current_chunk_index']:06d}"
@@ -390,6 +392,8 @@ def _run_bulk_job_v2(store: LocalStore, *, plan: BulkJobPlan, client: Any,
                                   rate_limiter=limiter, clock=clock, monotonic=monotonic,
                                   sleeper=sleeper)
         context = {"source_plan": plan.fingerprint(), "mode": plan.mode,
+                   "builder": runtime["builder"], "run_operation_id": operation_id,
+                   "execution_options": {k: v for k, v in identity.items() if k != "plan"},
                    "scope": {"start": plan.start_session, "end": plan.end_session},
                    "request_strategy": plan.request_strategy,
                    "coverage": "observed responses only; missing facts remain unknown",

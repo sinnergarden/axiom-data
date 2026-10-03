@@ -23,7 +23,7 @@ Raw 日志末尾未带换行的片段属于未完成 append。只读操作忽略
 - 稳定派生或 Research 配方错误：保留固定输入，修正函数/配方，重算受影响输出。
 - 不兼容磁盘 schema：明确迁移到新根，保留旧格式的代码与 bundle。当前 `local_data_v1` 并没有承诺未来格式都能由最新包透明读取。
 
-标准 CLI 可收集所选域的全部 Raw 并创建候选：
+标准 CLI 收集指定 Snapshot 中所选域引用的 Raw，重放该版本的输入闭包：
 
 ```sh
 axiom-data --data-root /absolute/data rebuild --snapshot SNAPSHOT_ID \
@@ -32,9 +32,15 @@ axiom-data --data-root /absolute/data rebuild --snapshot SNAPSHOT_ID \
 
 以 `axiom-data rebuild --help` 的实际参数为准。**重建替换整个所选域**，不是把一个窗口的 Raw 自动 patch 到原全域。高级 `--request` 必须给足这个域需保留的 Raw 集合；未选域沿用原 manifest，旧 Snapshot 不动。改变解释代码/配置后产生新候选，验证后才能明确发布；不要重跑相同错误逻辑便称修复成功。
 
+历史字段扩展是另一种明确选择：后来 fetch 的已声明字段可能没有变化，因此没有新 Snapshot，但其 Raw 已含新增字段。用只读 `data.select_raw(domains=('market_daily',), receipt_cutoff='2026-10-03T12:00:00Z')` 预览成功/空响应的 ID、receipt 和摘要，保存预览，再把完整 ID 集合交给 `data.rebuild(..., domain_overrides=...)` 或高级 `--request`。cutoff 是实际接收时刻的包含上界；后续 append 不改变已保存的 ID。没有收到字段的响应仍是 null。
+
+默认 portable bundle 是 Snapshot 及祖先的事实依赖闭包，不是完整 Raw 备份。需要保存未被 Snapshot 引用的重复观察和新增字段时，显式使用 `axiom-data export ... --raw-backup-cutoff 2026-10-03T12:00:00Z`；它额外保存此 receipt 前全部状态的 Raw 日志与原字节，Snapshot 依赖始终保留。作业计划、checkpoints 和未完成日志尾片仍另行备份。重复 fetch 不强制产生 Snapshot。
+
 ## 数据引用与完整实验版本
 
 Data 查询重放至少保存具体 Snapshot、完整 QuerySpec/EventQuery、PIT policy、每 session cutoff，以及 Reader/稳定派生版本。完整实验再保存实际研究代码 artifact 或 commit、参数、环境锁、种子（若使用）和结果。dirty checkout 只有 HEAD 不足以冻结实际源码。bundle 可以携带代码；若以后重建需原归一化行为，要带当时的代码，而非拿最新包冒充原构建器。
+
+0.3.2 的实际构建来源在 `build_context.builder`，由[实际构建器](../src/axiom_data/builder.py)记录：干净源码 commit 与仓库来源，或完整安装 wheel 的 origin/SHA256/RECORD；同时保存依赖锁摘要和实际 Python/包版本。wheel 必须留存，Git 历史必须可取回。operation checkpoint 固定 builder 和实际配置，未完成作业更换 builder 会拒绝继续；用原 builder 续跑，或为修正版建立明确的新操作。调用者旧 `code_ref` 只是附带说明，不能代替实际来源。未改域保持原 context；重建的成员/生命周期域更新 builder，同时保留冻结供应商输入。dirty 源码拒绝构建，不创建通用源码打包平台。bundle 导出时携带的源码不是自动推定的历史 builder。新增[离线反例](../tests/test_observation_recovery.py)覆盖后续 Raw 字段、完整 Raw 备份、成员首次合建/同日修正/A→B→A、事件空日期、Qlib闭市修订与持久复用。
 
 可复现回答“同一输入和代码能否再次产生同一结果”，正确性回答“输入和计算是否适合研究问题”。两者分别验证。发现错误时记录 issue、受影响域/字段/时间/版本、原因、替代版本与复核状态，标记关联实验待重算；旧结果保留作对照，未受影响研究继续使用。当前不会自动分析所有实验依赖或判定整个研究库失效，不需要先建设一个全局 registry。
 

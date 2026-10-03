@@ -20,7 +20,7 @@ import pandas as pd
 from .protocols import DataBatch, QueryError, QuerySpec
 
 
-READER_VERSION = "local_reader_v4"
+READER_VERSION = "local_reader_v5"
 _POLICIES = {"operational_pit_v1", "market_pit_safe_v1", "best_effort_vendor_v1"}
 _PURPOSES = {
     "decision_facts", "market_replay", "research_label", "label_outcomes",

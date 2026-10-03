@@ -367,6 +367,8 @@ def run_full_sources(store: LocalStore, *, plan: FullSourcePlan, client: Any,
     if state["status"] == "success":
         result = state["result"]
         return OperationResult(result["snapshot_id"], result["changed"], operation_id)
+    from .builder import operation_context
+    runtime = operation_context(store, state, operation_id, options)
     common = {"client": client, "max_attempts": max_attempts,
               "min_interval_seconds": min_interval_seconds, "max_workers": max_workers,
               "global_calls_per_minute": global_calls_per_minute,
@@ -463,6 +465,8 @@ def run_full_sources(store: LocalStore, *, plan: FullSourcePlan, client: Any,
                                         raw_batch_ids=fetched["raw_batch_ids"],
                                         operation_id=f"{chunk_op}.publish", promote=False,
                                         build_context={"source_plan": plan.fingerprint(),
+                                                       "builder": runtime["builder"], "run_operation_id": operation_id,
+                                                       "execution_options": {k: v for k, v in options.items() if k != "plan"},
                                                        "event_endpoint": endpoint,
                                                        "selector_window": label,
                                                        "coverage": "observed supplier responses, not complete vendor vintage",

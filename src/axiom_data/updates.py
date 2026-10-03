@@ -21,6 +21,7 @@ from functools import lru_cache
 from .protocols import ConflictError, DataError, IngestBatch, OperationResult, UpdateRequest
 from .sources import normalize_batch
 from .storage import LocalStore
+from .builder import operation_context
 
 
 _PROVENANCE = frozenset({"first_observed_at", "raw_batch_id"})
@@ -517,6 +518,7 @@ def apply_update(store: LocalStore, *, base_snapshot: str | None,
         result = _completed(state, request.operation_id)
         if result is not None:
             return result
+        context = operation_context(store, state, request.operation_id, request.build_context)
         try:
             base = _base(store, base_snapshot)
             records: list[dict[str, Any]] = []
@@ -558,7 +560,7 @@ def apply_update(store: LocalStore, *, base_snapshot: str | None,
             grouped: dict[str, list[tuple[IngestBatch, Mapping[str, Any]]]] = {}
             for batch, record in zip(request.batches, records):
                 grouped.setdefault(batch.domain, []).append((batch, record))
-            return _publish(store, base_snapshot, base, grouped, request.build_context,
+            return _publish(store, base_snapshot, base, grouped, context,
                             request.promote, request.operation_id, state, replace=False)
         except Exception as exc:
             _fail(store, request.operation_id, state, exc)
@@ -608,6 +610,7 @@ def apply_saved_raw(store: LocalStore, *, base_snapshot: str | None,
         completed = _completed(state, operation_id)
         if completed is not None:
             return completed
+        build_context = operation_context(store, state, operation_id, build_context)
         try:
             base = _base(store, base_snapshot)
             saved = store._raw_records(ids, shared_profiles=True)
@@ -670,6 +673,7 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
         result = _completed(state, operation_id)
         if result is not None:
             return result
+        build_context = operation_context(store, state, operation_id, build_context)
         try:
             base = _base(store, base_snapshot)
             membership_old = ((base or {}).get("domains", {}).get("universe_membership")
@@ -731,7 +735,10 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                         operation_id="offline_vendor_listing_rebuild",
                         old_domain=rebuilt_listing, old_snapshot_id=base_snapshot,
                         prior_source_config=(listing_history[ordinal - 1] if ordinal else None))
-                rebuilt_listing["build_context"] = deepcopy(listing_old["build_context"])
+                rebuilt_listing["build_context"] = {**deepcopy(listing_old["build_context"]),
+                                                     "builder": build_context["builder"],
+                                                     "operation_id": operation_id,
+                                                     "rebuild_config": {k: v for k, v in build_context.items() if k != "builder"}}
                 replacements["listing_events"] = rebuilt_listing
             if vendor_history:
                 from .vendor_membership import build_vendor_membership_domain
@@ -746,7 +753,10 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                         operation_id="offline_vendor_membership_rebuild",
                         old_domain=rebuilt, old_snapshot_id=base_snapshot,
                         prior_source_config=(vendor_history[ordinal - 1] if ordinal else None))
-                rebuilt["build_context"] = deepcopy(membership_old["build_context"])
+                rebuilt["build_context"] = {**deepcopy(membership_old["build_context"]),
+                                             "builder": build_context["builder"],
+                                             "operation_id": operation_id,
+                                             "rebuild_config": {k: v for k, v in build_context.items() if k != "builder"}}
                 replacements["universe_membership"] = rebuilt
             state["raw_batch_ids"] = list(ids)
             store.write_operation(operation_id, state)
