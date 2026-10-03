@@ -1,0 +1,17 @@
+{
+  "schema_version": "axiom_data_preparation_config_v1",
+  "preparation_id": "csi1800-202509-202608-anchor",
+  "reference_operation_id": "csi1800-202509-202608-reference",
+  "preset": "csi1800",
+  "scope_mode": "anchor_members",
+  "start_session": "2025-09-01",
+  "end_session": "2026-08-31",
+  "anchor_session": "2026-08-31",
+  "mode": "bulk",
+  "endpoints": ["trade_cal", "stock_basic", "daily", "adj_factor", "suspend_d", "index_daily"],
+  "benchmark_codes": ["000300.SH"],
+  "max_requests_per_chunk": 256,
+  "request_strategy": "trading_day_market_v2",
+  "max_attempts": 3,
+  "min_interval_seconds": 0.2
+}

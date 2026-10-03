@@ -1,8 +1,0 @@
-{
-  "status": "CHECKPOINT_VALIDATED",
-  "full_suite_passed": 167,
-  "full_suite_seconds": 118.309,
-  "final_candidate_regression_passed": true,
-  "candidate_regression_seconds": 14.94,
-  "v1_complete": false
-}

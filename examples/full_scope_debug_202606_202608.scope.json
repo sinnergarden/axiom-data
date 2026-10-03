@@ -1,0 +1,15 @@
+{
+  "mode": "bulk",
+  "symbols": ["000001.SZ", "600000.SH"],
+  "start_session": "2026-06-01",
+  "end_session": "2026-08-31",
+  "identity_map": {
+    "000001.SZ": "cnstock.000001.SZ.19910403",
+    "600000.SH": "cnstock.600000.SH.19991110"
+  },
+  "benchmark_codes": [],
+  "index_codes": [],
+  "endpoints": ["trade_cal", "stock_basic", "daily", "adj_factor", "suspend_d"],
+  "max_requests_per_chunk": 64,
+  "request_strategy": "trading_day_market_v2"
+}

@@ -4,22 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axiom-data"
-version = "0.0.0"
-description = "Immutable data publication contracts for the Axiom project family"
+version = "0.3.1"
+description = "Local reproducible market and event data for quantitative research"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "pandas>=2.2,<4", "pyarrow>=15,<24",
+]
+
+[project.optional-dependencies]
+qlib = ["pyqlib==0.9.7"]
 
 [project.scripts]
 axiom-data = "axiom_data.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-"axiom_data.contracts" = ["*.json"]
-"axiom_data.source_profiles" = ["*.json"]
-"axiom_data.scope" = ["*.json"]
-
-"axiom_data.deprecated.contracts" = ["*.json"]
-"axiom_data.deprecated.source_profiles" = ["*.json"]
-"axiom_data.deprecated.scope" = ["*.json", "*.zip"]
+namespaces = false

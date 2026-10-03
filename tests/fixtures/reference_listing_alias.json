@@ -1,0 +1,17 @@
+{
+  "source_shape": "stock_basic SSE L/D slices, observed 2026-09-28",
+  "ordinary": {
+    "ts_code": "600018.SH",
+    "exchange": "SSE",
+    "list_status": "L",
+    "list_date": "20061026",
+    "delist_date": null
+  },
+  "historical_vendor_alias": {
+    "ts_code": "T600018.SH",
+    "exchange": "SSE",
+    "list_status": "D",
+    "list_date": "20000719",
+    "delist_date": "20061020"
+  }
+}

@@ -10,6 +10,10 @@ build/
 .env
 configs/local/
 
-# Local immutable teaching references and inventory; never publish data metadata.
-deprecated/data_learning/fixture.json
-deprecated/data_learning/version_inventory.json
+# Local collection evidence, measurements and credentials are not source.
+delivery/
+docs/*.json
+*.log
+.env.*
+*_token.txt
+*tushare*token*

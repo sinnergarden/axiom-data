@@ -1,1 +1,0 @@
-{"error":"trading_calendar rows violate trading_calendar.v1: previous_open_session must be the nearest earlier open session for the same exchange, or null at the artifact left boundary","error_type":"ArtifactError","ready_for_consumption":false,"seconds":0.3493059659958817,"stage":"CALENDAR_BUILD","status":"FAILED"}

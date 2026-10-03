@@ -1,8 +1,0 @@
-{
-  "status": "PASS",
-  "artifacts": 50,
-  "files": 1350,
-  "logical_equal": 50,
-  "equivalent_rejections": 5,
-  "resume_builder_calls": 0
-}

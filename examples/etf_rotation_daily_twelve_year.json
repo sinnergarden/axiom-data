@@ -1,0 +1,16 @@
+{
+  "schema_version": "axiom_data_etf_preparation_config_v1",
+  "preparation_id": "etf-rotation-daily-201411-202609-reference",
+  "mode": "bulk",
+  "symbols": ["518880.SH", "513100.SH", "159915.SZ", "510880.SH", "511010.SH", "510300.SH", "510500.SH"],
+  "start_session": "2014-11-01",
+  "end_session": "2026-09-28",
+  "benchmark_codes": ["000300.SH"],
+  "base_snapshot": null,
+  "max_requests_per_chunk": 256,
+  "max_attempts": 3,
+  "max_workers": 8,
+  "global_calls_per_minute": 300,
+  "stock_basic_calls_per_minute": 50,
+  "min_interval_seconds": 0
+}

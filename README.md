@@ -1,74 +1,74 @@
 # axiom-data
 
-Axiom Data 将供应商响应整理成不可变的数据版本，提供行情、成分与行业、财务、股东、
-融资融券、资金流和业绩预告，以及绑定数据版本的查询和导出。
+Axiom Data 为量化研究保存可复现的数据输入：原始响应进入 Raw，按明确合同整理为 typed Parquet，一份不可变 Snapshot 固定各域版本。查询按证券、时间、字段和 PIT 政策返回 DataBatch，无需预先生成磁盘 View。
 
-第一次了解这个仓库，先看 **[一小时读懂 Data](notebooks/data_acceptance.ipynb)**。
-课程分四段讲解实际存储与 18 域字段、版本与当时可知、日更与失败恢复、View 与消费者交接。
-Git 中的 Notebook 是源码版；完整已执行 Notebook 和 HTML 作为本地阅读附件交付，不提交读取出的数据表。
-重跑前按 [本地教学引用](deprecated/data_learning/README.md) 配置固定样本；缺配置会明确报 FIXTURE UNAVAILABLE。
-最终生产验收、Research/UI 接入与 bulk 成本证据仍分别标明状态；教学读取通过不等于全量准入。
+**本轮约定的完整代码范围已通过验收。** 财务、事件、PIT、供应商成员与生命周期、7ETF日线、Reader/Qlib消费者接口、教程及搬移均有执行证据，见 [当前 preflight](docs/bulk-preflight.md)、[交付说明](DELIVERY.md) 与 [完整交付验收](docs/completion-checklist.md)。十二年全量网络采集尚未运行；真实原型与完整历史数据的覆盖范围分别记录。
 
-需要 Python 查询示例或查找实现时，再看 [架构与公共接口](docs/overview.md)。
+## 从使用场景开始
 
-## 只记住这条流程
+[Data 设计](docs/design/02_axiom_data.md) 是权威合同。两份教程分别讲研究用途与实现细节，使用保留的真实输入运行：
 
-供应商响应原样保存，按各类数据的规则整理，再固定成一个 Snapshot。
-研究与回测通过 Reader 或已生成的 View 读取这个版本。后来的修订生成新版本，旧研究的输入保留。
-Data 提供事实、来源、时间和缺失解释；它不训练模型、不决定买卖。
+- [Quant Researcher](notebooks/researcher_tutorial.html)：数据组织、查询、PIT、缺失、派生与消费者使用。
+- [Quant Developer](notebooks/developer_tutorial.html)：存储格式、来源解释、批量采集、日更、恢复、搬移及协议。
 
-## 文档入口
+教程说明实现，不另立一套合同。复跑方法见 [Notebook 说明](notebooks/README.md)；边界反例留在测试中，不伪装成真实源验证。
 
-- [首次构建](docs/operations/bootstrap.md) / [每日增量](docs/operations/daily.md)
-- [生成 Views](docs/operations/materialize-views.md) / [数据修复](docs/operations/repair.md)
-- [离线恢复](docs/operations/recovery.md) / [独立验收](docs/operations/v1-independent-review.md)
-- [完整范围准入与终端证据](docs/operations/full-admission.md)
-- [目录布局](docs/operations/physical-layout.md)
-- [股东人数缺少报告期时的处理](docs/operations/holder-source-admission.md)
-- [脚本用途](scripts/README.md) / [历史决策与运行证据](deprecated/history/index.md)
+## 安装与查询
 
-日常先用 notebook 和操作文档；[历史报告](deprecated/history/index.md)、历史脚本无需按目录顺序阅读，也不要当作生产入口。
-其中一些记录仍是回归测试和恢复的依据，清理时应保留引用关系。
-
-代码位于 `src/axiom_data/`，测试位于 `tests/`。本机正式数据根为 `/var/lib/axiom-data`；
-旧 workspace `data/` 仅作历史证据留存。仓库里的 [历史报告](deprecated/history/index.md) 是各次验证记录，不是完整生产数据。
-供应商凭据通过运行环境或既有安全配置读取，不写入仓库。
-
-公共 View 计划使用 `financial_fact`、`event_fact` 等职责名称；读取财务
-FactView 可使用 `financial_fact_view_id` 与 `read("financial")`。历史
-artifact 仍保留原有版本标识，调用方不需要把开发阶段编号当作当前业务概念。
-
-## 运行测试
-
-在仓库根目录执行：
+Python 3.11+，在隔离环境中安装：
 
 ```sh
-PYTHONPATH=src python3 -m unittest discover -s tests -v
+python -m pip install -r requirements-local.lock -e .
+axiom-data --help
 ```
 
-支持的代码能力与某个数据版本是否通过验收是两件事。使用数据时指定具体 Snapshot ID，
-并检查该版本的范围、质量和验收结果。
+```python
+from axiom_data import Data, QuerySpec
 
-Historical adjusted-price plans use `plan_historical_views(..., data_root=...,
- snapshot_id=...)` with the fixed Snapshot's security and calendar rows. The v2
-plan retains the original target and eligible interval and records requested and
-actual anchors plus factor provenance under `price_anchor_resolution`. Save the
-complete returned plan with the operation evidence; pass its concrete `views` to
-`materialize_views`. Geometry-only calls report `price_anchor_validation=NOT_READY`.
-The Gate A v4 policy selects the last observed valid factor within the applicable
-interval for nonstrict history. For example, the synthetic regression uses the
-old fixed Snapshot input for 600069.SH: identity end August 28 and no August 27
-factor. August 26 can be the conversion anchor; August 27
-remains in scope and its source gap still needs admission. Strict requests retain
-explicit anchors. Materialization preflights all price anchors before publishing
-any View; other families and source gaps require their own admission.
+data = Data('/path/to/data')
+snapshot = data.resolve('current')  # 一次实验只解析一次
+query = QuerySpec(
+    domain='market_daily', fields=('close', 'volume_shares'),
+    symbols=('your-stable-security-id',), sessions=('2020-01-02',),
+    pit_policy='best_effort_vendor_v1',
+    cutoff_by_session={'2020-01-02': '2020-01-02T20:00:00+08:00'},
+)
+batch = data.read(snapshot=snapshot, query=query)
+frame = batch.frame
+payload = batch.to_json()  # records + field_meta + context
+```
 
-Fixed adjusted FactView reads reject requested symbols, dates or fields outside
-the materialized scope. Default and subset reads keep the existing values, missing
-states and PIT semantics. Scope validation alone does not prove source coverage.
-Published View schemas and old Gate A policy files remain unchanged; old readiness
-reports must be recomputed when implementation/policy changes, as before.
+读取不会联网、发布数据或解析变化中的 current。`Data.members` 读取生效区间，`Data.events` 返回财务和其他事件的原生键，`Data.states` 解释交易日、上市/摘牌和停牌状态。`single_quarter`、`ttm`、`adjust_prices` 是固定输入之上的纯函数。策略 Feature、模型与账户属于消费者。
 
-The 600069 example does not settle the conflict between the historical SSE list
-date and the contemporaneous SSE delisting announcement. That source conflict
-continues to block real-data admission until separately resolved.
+## 采集与更新
+
+命令顺序为 `prepare → plan → run → verify → audit`；读取、检查、重建、导出和导入也使用同一个 `axiom-data` 入口。`plan` 默认包括财务与事件，只有显式 `--market-only` 才限制为行情。参阅 [CLI](docs/cli.md)、[批量作业](docs/bulk-jobs.md)、[性能与存储](docs/performance-and-storage.md) 和 examples 中的配置。
+
+Raw 保存请求、原响应及实际接收时间。归一化失败后从相同计划恢复；全部必需阶段成功后才推进 current。新增证券只能追加稳定绑定；更改单位或来源解释时显式重建目标域，旧 Snapshot 不变。供应商凭据位于数据根和代码之外。
+
+## 时间与来源
+
+- `operational_pit_v1` 使用实际首次观察时间。
+- `market_pit_safe_v1` 使用精确 revision 的公开证据，缺少证据时回退到首次观察。
+- `best_effort_vendor_v1` 使用明确的供应商日期假设，适合终态历史探索，不声称恢复了当年的信息集。
+- `bootstrap_hybrid_v1` 明确按 session 指定上述政策。
+
+来源字段的单位、修订和缺失语义见 [事件接源](docs/local-event-sources.md)、[公开证据](docs/public-evidence.md) 和 [供应商生命周期与成员](docs/reference-readiness.md)。供应商没有返回一行，不能随意解释为零、停牌或非成员。来源本身的错误与 Axiom 映射错误分别记录。
+
+## 跨仓与搬移
+
+Research 将 DataBatch 转成 Core 输入；Runtime 固定一次决策所用的 Snapshot 和查询，并维护回放时钟；UI 组合各 owner 的只读投影。Data 不依赖这些仓库，也不承担模型、撮合或完整前端。
+
+需要Qlib的任务显式导出固定Snapshot的数字日频查询；Research的`QlibView`通过实际Qlib读取。导出保留原始单位、NaN、PIT cutoffs和成员区间，同查询可以复用；普通Reader和日更不自动物化。详见[Qlib接口与真实验证](docs/qlib-interface.md)，两套教程均有实际运行章节。实际消费者环境按`requirements-qlib.lock`安装；基础Data导出不导入Qlib。
+
+[Portable bundle](docs/local-portable.md) 保存固定 Snapshot 的 Raw/Parquet 闭包以及可恢复源码和环境信息。移动硬盘或云端仅负责搬运相同字节；新机器安装环境后可以离线读和重建。旧格式数据使用其随附代码，不在当前包里增加兼容发布系统。
+
+## 维护
+
+新增字段、数据修正与实验复核按 [变更与恢复](docs/data-change-and-recovery.md) 和 [接源演进](docs/source-evolution.md) 增加必要合同与转换即可，无需插件注册服务。仓库只保留当前实现；旧源码备份在工作区仓库之外，已有数据根未自动迁移。
+
+```sh
+PYTHONPATH=src:tests:../axiom-engine/src:../axiom-research/src:../axiom-ui/src python -m unittest discover -s tests -v
+```
+
+[设计对照](docs/design-conformance.md) 与 [验收索引](docs/demo-acceptance.md) 区分真实来源核对、语义反例测试与按消费者启用的条件项。

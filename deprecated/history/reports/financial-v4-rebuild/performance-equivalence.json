@@ -1,7 +1,0 @@
-{
-  "logical_content_digest": true,
-  "source_coverage": true,
-  "ordered_raw_batch_refs": true,
-  "dependency_commit_refs": true,
-  "partitions": true
-}

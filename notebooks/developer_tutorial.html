@@ -1,0 +1,5724 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Axiom Data · For Quant Dev</title><style>
+html {scroll-behavior:smooth} body{margin:0;background:#f4f6fa;color:#202b3c;font:16px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+header{background:#14283d;color:#f3f7fc;padding:24px max(26px,calc((100vw - 1120px)/2))} header b{font-size:24px} header p{margin:4px 0;color:#c5d4e6}
+.layout{max-width:1450px;margin:auto;display:grid;grid-template-columns:245px minmax(0,1fr);gap:28px;padding:28px}
+nav{position:sticky;top:20px;height:calc(100vh - 60px);overflow:auto} nav a{display:block;color:#354a63;text-decoration:none;padding:8px 10px;font-size:13px;border-bottom:1px solid #e0e7ef} nav a:hover{background:#e7edf5}
+main{max-width:1120px;min-width:0} section{background:white;padding:24px 30px;margin:0 0 18px;border:1px solid #e1e6ed;border-radius:10px}
+h1{font-size:31px;line-height:1.35} h2{font-size:23px;border-bottom:2px solid #eaf0f7;padding-bottom:12px;line-height:1.5} h3{font-size:19px} a{color:#176c9e}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:16px 0} th{background:#edf3fa;color:#213e59;text-align:left;font-weight:650} th,td{border-bottom:1px solid #dfe6ee;padding:10px;vertical-align:top;word-break:normal} tr:nth-child(even) td{background:#fafbfd}
+pre{background:#f3f6fa;border-radius:7px;padding:16px;overflow:auto;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace} code{font-size:.9em} p code,li code{background:#edf2f7;padding:2px 4px;border-radius:3px}
+.example{border-left:4px solid #328778}.example-label{font-size:12px;font-weight:700;color:#277469;letter-spacing:.07em}.output-text{max-height:660px}.table-scroll{overflow:auto}.table-scroll table{width:max-content;min-width:100%}.table-scroll td,.table-scroll th{max-width:300px}.chart{width:100%;max-width:1000px;height:auto}
+details{border-top:1px solid #e4e9ef;padding-top:12px;margin-top:18px} summary{cursor:pointer;color:#577087;font-size:13px}.code{max-height:650px}
+@media(max-width:980px){.layout{display:block;padding:14px}nav{position:static;height:auto;max-height:220px;margin-bottom:18px}section{padding:18px}h1{font-size:26px}}
+@media print{nav,details{display:none}.layout{display:block}body{background:white}section{break-inside:auto;border:0}pre{white-space:pre-wrap}.table-scroll{overflow:visible}}
+</style></head><body><header><b>Axiom Data · For Quant Dev</b><p>真实 Tushare · 固定样本 · 离线重跑 · 单一 notebook 编辑源</p><a style="color:#c5e8ff" href="researcher_tutorial.html">阅读 Researcher 版</a></header><div class="layout"><nav><a href="#section-1">1. 架构地图与最小入口</a><a href="#section-2">2. 一个真实 Raw 对象与接收记录</a><a href="#section-3">3. 从字段映射到 Parquet 分区</a><a href="#section-4">4. Manifest、旧版本与 current 发布</a><a href="#section-5">5. Reader 如何应用时间与缺失规则</a><a href="#section-6">6. 完整来源的原生键与 Schema</a><a href="#section-7">7. 采集 plan、批量后处理和 checkpoint</a><a href="#section-8">8. Daily update 与历史 refresh</a><a href="#section-9">9. 生命周期与月度成员边界</a><a href="#section-10">10. 数据和代码变化时，哪些工作需要重做</a><a href="#section-11">11. 故障恢复与搬移</a><a href="#section-12">12. Qlib 文件格式和实际消费者</a><a href="#section-13">13. ETF 独立来源与数据合同</a><a href="#section-14">14. 附录：跨仓接口与职责</a><a href="#section-15">15. 附录：部署验证、容量与局限</a><a href="#section-16">16. 附录：运行环境与样本证据</a></nav><main><section id="cell-0" class="markdown"><h1>Axiom Data：开发者的存储与实现教程</h1>
+<p>从原始响应到发布和恢复，理解每一步保存什么、改什么，以及怎样独立运行。</p>
+</section><section id="section-1" class="markdown"><h2>1. 架构地图与最小入口</h2>
+<p>Axiom Data 将供应商的事实交给研究代码。先看一条数据如何走完这条路，再讨论接口和存储细节。</p>
+<p><strong>Tushare → Raw → Canonical → Snapshot → Reader → Research</strong></p>
+<table>
+<thead>
+<tr>
+  <th>层</th>
+  <th>解决的问题</th>
+  <th>保存什么、何时产生</th>
+  <th>改动的影响</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Raw</td>
+  <td>以后能查到“供应商当时返回了什么”</td>
+  <td>采集时保存响应字节、请求与真实接收记录；相同字节只存一份</td>
+  <td>补拉产生新的观察，原接收时间保留</td>
+</tr>
+<tr>
+  <td>Canonical</td>
+  <td>日期、单位和证券身份能一起使用</td>
+  <td>归一化时生成有类型的 Parquet，财务与事件保持原生经济键</td>
+  <td>映射错误要重建受影响域</td>
+</tr>
+<tr>
+  <td>Snapshot</td>
+  <td>一次研究始终读取同一组事实</td>
+  <td>发布时生成引用分区、合同、来源的 JSON 清单</td>
+  <td>新版本可以复用旧分区，旧清单继续存在</td>
+</tr>
+<tr>
+  <td>Reader</td>
+  <td>在某一时刻能读到哪些事实</td>
+  <td>查询时返回带时间和证券键的表、单位、来源与限制</td>
+  <td>cutoff 或读取规则变化会改变可见集合</td>
+</tr>
+<tr>
+  <td>Research</td>
+  <td>把事实转为研究问题的答案</td>
+  <td>由研究者保存代码、参数、Feature、模型和结果</td>
+  <td>数据版本与研究版本各自固定</td>
+</tr>
+</tbody>
+</table>
+<p>Snapshot 保存文件引用，更新一个月无需复制整库。<code>current</code> 是“最新已完成版本”的小指针；实验开始时将它解析成具体 Snapshot，后面沿用这个固定 ID。<code>view</code> 可以只是 Snapshot 加查询描述，日常读取直接执行并使用有界内存缓存；需要 Qlib 文件时才显式导出。</p>
+<p>以下数字来自已保存的真实 Tushare 小样本。股票行情使用一年固定 1800 工程样本，财务与成员使用两证券的完整源样本，ETF 使用七基金的独立样本；这三份数据各有固定版本，范围在相应例子中说明。无需先下载十二年数据便可阅读输出。运行环境和数据路径在末尾附录解释。</p>
+</section><section class="example"><details><summary>离线初始化；完整环境见附录</summary><pre class="code">from pathlib import Path
+import sys
+repo = Path.cwd() / &#x27;axiom-data&#x27;
+if not repo.is_dir():
+    repo = next(p for p in (Path.cwd(), *Path.cwd().parents) if (p / &#x27;examples/tutorial_support.py&#x27;).exists())
+sys.path.insert(0, str(repo / &#x27;examples&#x27;))
+from tutorial_support import *  # offline paths, pinned versions and temporary workspace</pre></details></section><section id="section-2" class="markdown"><h2>2. 一个真实 Raw 对象与接收记录</h2>
+<p>Raw 对象按响应内容哈希存一次，日志按每次观察追加请求和真实接收时间。两次相同响应可以引用同一对象；重复保存相同响应字节没有收益。下面只展示一条已采日线的接收元数据和精选字段，原全市场响应留在本地。对象摘要检查保证字节未变，不能证明供应商事实必然正确。</p>
+</section><section class="example"><div class="example-label">真实执行 · 真实响应对象与接收记录</div><pre class="output-text">Raw receipt: {
+  &quot;batch_id&quot;: &quot;b_4353503ecc7348929d16f6640c11b63d&quot;,
+  &quot;domain&quot;: &quot;market_daily&quot;,
+  &quot;observed_at&quot;: &quot;2026-09-28T13:19:12.500927+00:00&quot;,
+  &quot;payload_sha256&quot;: &quot;28a1deda0d07ed87f2859c52612e01b43e29ebede86168dece88decff0c35acd&quot;,
+  &quot;payload_uri&quot;: &quot;raw/objects/28a1deda0d07ed87f2859c52612e01b43e29ebede86168dece88decff0c35acd/payload.bin&quot;,
+  &quot;status&quot;: &quot;success&quot;
+}
+请求 endpoint: daily
+日志: raw/fetches.jsonl
+</pre><details><summary>展开示例代码</summary><pre class="code">segment = MANIFEST[&#x27;domains&#x27;][&#x27;market_daily&#x27;]
+raw_id = segment[&#x27;raw_batch_ids&#x27;][0]
+receipt = DATA.store.get_raw(raw_id)
+print(&#x27;Raw receipt:&#x27;, json.dumps({k:receipt.get(k) for k in
+    (&#x27;batch_id&#x27;,&#x27;domain&#x27;,&#x27;observed_at&#x27;,&#x27;payload_sha256&#x27;,&#x27;payload_uri&#x27;,&#x27;status&#x27;)},ensure_ascii=False,indent=2))
+print(&#x27;请求 endpoint:&#x27;, receipt[&#x27;request&#x27;].get(&#x27;endpoint&#x27;))
+print(&#x27;日志:&#x27;, &#x27;raw/fetches.jsonl&#x27;)</pre></details></section><section id="section-3" class="markdown"><h2>3. 从字段映射到 Parquet 分区</h2>
+<p>供应商响应通常是宽表字段与行。源 profile 声明原字段如何映射到稳定证券身份、交易日和规范字段，contract 声明类型与单位。股票成交量转换为 shares，金额按来源单位转换；ETF 单位由基金合同声明。Canonical 按域和月份保存、分区按内容寻址。一个字段变化无需再保存一整套 Raw；事实不变时分区可复用。下面用真正的 Arrow schema 和一行原数据核对转换。</p>
+</section><section class="example"><div class="example-label">真实执行 · 真实 Arrow schema 和 Raw 对账</div><pre class="output-text">实际分区: canonical/market_daily/2026-08/fecaac38eb6d9407376f674d73493ddffc636a59307f22947b9ce6e5b237450a.parquet
+security_id: string not null
+session: date32[day] not null
+revision_id: string not null
+revision_sequence: int64
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+amount_cny: double
+close: double
+high: double
+low: double
+open: double
+pre_close: double
+volume_shares: int64
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>amount_cny</th>
+      <th>close</th>
+      <th>high</th>
+      <th>low</th>
+      <th>open</th>
+      <th>pre_close</th>
+      <th>volume_shares</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600048.SH.20060731</td>
+      <td>2026-08-06</td>
+      <td>terminal:8e849278bc2fe026f2cef745652f7fe60c1bd...</td>
+      <td>NaN</td>
+      <td>2026-09-28 13:23:33.884401+00:00</td>
+      <td>b_c361ee29a3cf4673b70edb9301efb09a</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>1.000004e+09</td>
+      <td>5.27</td>
+      <td>5.30</td>
+      <td>5.08</td>
+      <td>5.12</td>
+      <td>5.15</td>
+      <td>193005734</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600179.SH.19981104</td>
+      <td>2026-08-10</td>
+      <td>terminal:e6723efef8056bc5b0f0c44be4cc7c2d3eb35...</td>
+      <td>NaN</td>
+      <td>2026-09-28 13:23:34.777815+00:00</td>
+      <td>b_bf660c96ec164fafa356cda684559aeb</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>1.000049e+08</td>
+      <td>4.24</td>
+      <td>4.28</td>
+      <td>4.22</td>
+      <td>4.25</td>
+      <td>4.24</td>
+      <td>23526200</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.603283.SH.20171225</td>
+      <td>2026-08-05</td>
+      <td>terminal:c17bd135b484911e252ff7ad90a678c63a6de...</td>
+      <td>NaN</td>
+      <td>2026-09-28 13:23:33.048527+00:00</td>
+      <td>b_eefc33fd937944439a4ecd07c0e4c5c2</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>1.000171e+09</td>
+      <td>41.96</td>
+      <td>42.53</td>
+      <td>39.20</td>
+      <td>39.51</td>
+      <td>39.24</td>
+      <td>24282670</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>field</th>
+      <th>source</th>
+      <th>canonical</th>
+      <th>conversion</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>volume</td>
+      <td>1930057.34</td>
+      <td>1.930057e+08</td>
+      <td>手 × 100 → 股</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>amount</td>
+      <td>1000004.30</td>
+      <td>1.000004e+09</td>
+      <td>千元 × 1000 → 元</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>close</td>
+      <td>5.27</td>
+      <td>5.270000e+00</td>
+      <td>CNY/share 不变</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">Raw保留全市场行数: 5533 实际接收时间: 2026-09-28T13:23:33.884401+00:00
+</pre><details><summary>展开示例代码</summary><pre class="code">from axiom_data.sources import _rows  # source inspection only
+domain = MANIFEST[&#x27;domains&#x27;][&#x27;market_daily&#x27;]
+part = domain[&#x27;partitions&#x27;][-1]
+table = DATA.store.read_partition(part)
+print(&#x27;实际分区:&#x27;, part[&#x27;uri&#x27;])
+print(table.schema)
+display(table.slice(0, 3).to_pandas())
+row = table.to_pylist()[0]
+raw_record = DATA.store.get_raw(row[&#x27;raw_batch_id&#x27;])
+source_rows = _rows(DATA.store.read_raw_record(raw_record))
+reverse = {v: k for k, v in IDS.items()}
+source = next(r for r in source_rows if r[&#x27;ts_code&#x27;] == reverse[row[&#x27;security_id&#x27;]]
+              and r[&#x27;trade_date&#x27;] == str(row[&#x27;session&#x27;]).replace(&#x27;-&#x27;, &#x27;&#x27;))
+assert Decimal(str(source[&#x27;vol&#x27;]))*100 == row[&#x27;volume_shares&#x27;]
+assert abs(float(Decimal(str(source[&#x27;amount&#x27;]))*1000)-row[&#x27;amount_cny&#x27;]) &lt; 1e-6
+assert source[&#x27;close&#x27;] == row[&#x27;close&#x27;]
+display(pd.DataFrame([{&#x27;field&#x27;:&#x27;volume&#x27;,&#x27;source&#x27;:source[&#x27;vol&#x27;],&#x27;canonical&#x27;:row[&#x27;volume_shares&#x27;],&#x27;conversion&#x27;:&#x27;手 × 100 → 股&#x27;},
+ {&#x27;field&#x27;:&#x27;amount&#x27;,&#x27;source&#x27;:source[&#x27;amount&#x27;],&#x27;canonical&#x27;:row[&#x27;amount_cny&#x27;],&#x27;conversion&#x27;:&#x27;千元 × 1000 → 元&#x27;},
+ {&#x27;field&#x27;:&#x27;close&#x27;,&#x27;source&#x27;:source[&#x27;close&#x27;],&#x27;canonical&#x27;:row[&#x27;close&#x27;],&#x27;conversion&#x27;:&#x27;CNY/share 不变&#x27;}]))
+print(&#x27;Raw保留全市场行数:&#x27;, len(source_rows), &#x27;实际接收时间:&#x27;, raw_record[&#x27;observed_at&#x27;])
+</pre></details></section><section id="section-4" class="markdown"><h2>4. Manifest、旧版本与 current 发布</h2>
+<p>Snapshot 内嵌各域合同、源映射、分区引用和 Raw 引用。新版本继承未变域，最后成功发布才切换 current；旧 JSON 与分区保持可读。下面打印真实引用和合同。Snapshot 本身是小清单，并未复制整库。</p>
+</section><section class="example"><div class="example-label">真实执行 · 实际清单字段与相对引用</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>domain</th>
+      <th>contract</th>
+      <th>profile</th>
+      <th>raw_refs</th>
+      <th>partitions</th>
+      <th>coverage_keys</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>adjustment_factors</td>
+      <td>local.adjustment_factors.terminal_observation.v1</td>
+      <td>tushare.local.adj_factor.v1</td>
+      <td>242</td>
+      <td>12</td>
+      <td>[basis, observed_chunks]</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>benchmark_daily</td>
+      <td>local.benchmark_daily.terminal_observation.v1</td>
+      <td>tushare.local.index_daily.v1</td>
+      <td>1</td>
+      <td>12</td>
+      <td>[basis, observed_chunks]</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>market_daily</td>
+      <td>local.market_daily.terminal_observation.v1</td>
+      <td>tushare.local.daily.v1</td>
+      <td>242</td>
+      <td>12</td>
+      <td>[basis, observed_chunks]</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>security_master</td>
+      <td>local.security_master.terminal_observation.v1</td>
+      <td>tushare.local.stock_basic.v1</td>
+      <td>6</td>
+      <td>1</td>
+      <td>[basis, observed_chunks]</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>security_status</td>
+      <td>local.security_status.terminal_observation.v1</td>
+      <td>tushare.local.suspend_d.v1</td>
+      <td>242</td>
+      <td>12</td>
+      <td>[basis, observed_chunks]</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>trading_calendar</td>
+      <td>local.trading_calendar.terminal_observation.v1</td>
+      <td>tushare.local.trade_cal.v1</td>
+      <td>2</td>
+      <td>12</td>
+      <td>[basis, observed_chunks]</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">{
+  &quot;snapshot_id&quot;: &quot;s_c3faabc9ec124597e91701af33ebac563cd386eff776ac467f2a2462340bff2b&quot;,
+  &quot;parent_snapshot&quot;: &quot;s_cc5468e5eba5f8cf05d0822db25d435d66db5711e1456f9239315ab783b25a5d&quot;,
+  &quot;schema_version&quot;: &quot;local_data_v1&quot;,
+  &quot;one_partition&quot;: {
+    &quot;file_sha256&quot;: &quot;fecaac38eb6d9407376f674d73493ddffc636a59307f22947b9ce6e5b237450a&quot;,
+    &quot;partition&quot;: &quot;2026-08&quot;,
+    &quot;rows&quot;: 37789,
+    &quot;uri&quot;: &quot;canonical/market_daily/2026-08/fecaac38eb6d9407376f674d73493ddffc636a59307f22947b9ce6e5b237450a.parquet&quot;
+  }
+}
+没有强制物化 View 目录。
+</pre><details><summary>展开示例代码</summary><pre class="code">display(pd.DataFrame([{&#x27;domain&#x27;: k, &#x27;contract&#x27;: v[&#x27;contract&#x27;][&#x27;contract_id&#x27;],
+ &#x27;profile&#x27;: v[&#x27;source_profile&#x27;][&#x27;id&#x27;], &#x27;raw_refs&#x27;: len(v[&#x27;raw_batch_ids&#x27;]),
+ &#x27;partitions&#x27;: len(v[&#x27;partitions&#x27;]), &#x27;coverage_keys&#x27;: list(v[&#x27;coverage&#x27;])}
+ for k, v in MANIFEST[&#x27;domains&#x27;].items()]))
+print(json.dumps({&#x27;snapshot_id&#x27;: SNAPSHOT, &#x27;parent_snapshot&#x27;: MANIFEST[&#x27;parent_snapshot&#x27;],
+ &#x27;schema_version&#x27;: MANIFEST[&#x27;schema_version&#x27;], &#x27;one_partition&#x27;: part}, indent=2))
+assert not (ROOT/&#x27;views&#x27;).exists()
+print(&#x27;没有强制物化 View 目录。&#x27;)
+</pre></details></section><section id="section-5" class="markdown"><h2>5. Reader 如何应用时间与缺失规则</h2>
+<p>Reader 从固定版本读取所需列和分区，再按 policy/cutoff 选择可见事实。返回 DataBatch 的 frame、字段单位/来源和 context。逐字段来源元数据有成本，后续优化应保持语义等价；它不成为全量采集的新增门槛。<a href="researcher_tutorial.html#section-4">Researcher 时间例子</a>解释历史假设与真实在线观察的区别。</p>
+</section><section class="example"><div class="example-label">真实执行 · 真实 DataBatch</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>open</th>
+      <th>close</th>
+      <th>volume_shares</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-24</td>
+      <td>11.38</td>
+      <td>11.56</td>
+      <td>119902495</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-25</td>
+      <td>11.57</td>
+      <td>11.59</td>
+      <td>99488115</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-26</td>
+      <td>11.55</td>
+      <td>11.73</td>
+      <td>116728878</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-27</td>
+      <td>11.7</td>
+      <td>11.59</td>
+      <td>97570170</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-28</td>
+      <td>11.54</td>
+      <td>11.65</td>
+      <td>83812624</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-31</td>
+      <td>11.64</td>
+      <td>11.72</td>
+      <td>90885655</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>security_id</th>
+      <th>cnstock.000001.SZ.19910403</th>
+      <th>cnstock.600000.SH.19991110</th>
+      <th>cnstock.600519.SH.20010827</th>
+    </tr>
+    <tr>
+      <th>session</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>2026-08-24</th>
+      <td>11.56</td>
+      <td>9.22</td>
+      <td>1304.66</td>
+    </tr>
+    <tr>
+      <th>2026-08-25</th>
+      <td>11.59</td>
+      <td>9.08</td>
+      <td>1304.0</td>
+    </tr>
+    <tr>
+      <th>2026-08-26</th>
+      <td>11.73</td>
+      <td>9.21</td>
+      <td>1302.8</td>
+    </tr>
+    <tr>
+      <th>2026-08-27</th>
+      <td>11.59</td>
+      <td>9.07</td>
+      <td>1292.3</td>
+    </tr>
+    <tr>
+      <th>2026-08-28</th>
+      <td>11.65</td>
+      <td>9.0</td>
+      <td>1297.4</td>
+    </tr>
+    <tr>
+      <th>2026-08-31</th>
+      <td>11.72</td>
+      <td>9.16</td>
+      <td>1299.52</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">单位: {&#x27;open&#x27;: &#x27;CNY/share&#x27;, &#x27;close&#x27;: &#x27;CNY/share&#x27;, &#x27;volume_shares&#x27;: &#x27;shares&#x27;}
+</pre><details><summary>展开示例代码</summary><pre class="code">batch = DATA.read(snapshot=SNAPSHOT, query=query((&#x27;open&#x27;, &#x27;close&#x27;, &#x27;volume_shares&#x27;)))
+display(batch.frame)
+# Rows are time × security; fields are columns, not a new storage object per feature.
+panel = DATA.read(snapshot=SNAPSHOT, query=query((&#x27;close&#x27;,),
+    symbols=tuple(IDS[c] for c in (&#x27;000001.SZ&#x27;, &#x27;600000.SH&#x27;, &#x27;600519.SH&#x27;))))
+display(panel.frame.pivot(index=&#x27;session&#x27;, columns=&#x27;security_id&#x27;, values=&#x27;close&#x27;))
+print(&#x27;单位:&#x27;, {k: v[&#x27;unit&#x27;] for k, v in batch.field_meta.items()})
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 三种 PIT 的实际结果</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>policy</th>
+      <th>rows</th>
+      <th>visible_close</th>
+      <th>limitation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>operational_pit_v1</td>
+      <td>6</td>
+      <td>0</td>
+      <td>terminal states ordered by system observation ...</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>market_pit_safe_v1</td>
+      <td>6</td>
+      <td>0</td>
+      <td>6 queried revisions lacked revision-bound publ...</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>best_effort_vendor_v1</td>
+      <td>6</td>
+      <td>6</td>
+      <td>vendor release time is an assumption, not hist...</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">一条真实字段来源：
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>raw_batch_id</th>
+      <th>usable_from</th>
+      <th>first_observed_at</th>
+      <th>availability_basis</th>
+      <th>evidence_ref</th>
+      <th>missing_reason</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-24</td>
+      <td>terminal:221697a48826b852e85b280f032a9368a2282...</td>
+      <td>None</td>
+      <td>b_71ba3777f9674756bbd6805dcebf4dd4</td>
+      <td>2026-08-24T20:00:00+08:00</td>
+      <td>2026-09-28T13:23:41.124858+00:00</td>
+      <td>declared_vendor_assumption</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><details><summary>展开示例代码</summary><pre class="code">comparison = []
+for policy in (&#x27;operational_pit_v1&#x27;, &#x27;market_pit_safe_v1&#x27;, &#x27;best_effort_vendor_v1&#x27;):
+    result = DATA.read(snapshot=SNAPSHOT, query=query(policy=policy))
+    comparison.append({&#x27;policy&#x27;: policy, &#x27;rows&#x27;: len(result.frame),
+                       &#x27;visible_close&#x27;: int(result.frame.close.notna().sum()),
+                       &#x27;limitation&#x27;: &#x27;; &#x27;.join(result.context[&#x27;limitations&#x27;])})
+display(pd.DataFrame(comparison))
+assert comparison[0][&#x27;visible_close&#x27;] == comparison[1][&#x27;visible_close&#x27;] == 0
+assert comparison[2][&#x27;visible_close&#x27;] == len(DAYS)
+print(&#x27;一条真实字段来源：&#x27;)
+display(pd.DataFrame(batch.field_meta[&#x27;close&#x27;][&#x27;by_key&#x27;][:1]))
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 按真实证据解释缺失</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>market_state</th>
+      <th>close</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.002185.SZ.20071120</td>
+      <td>2025-09-25</td>
+      <td>suspended</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.002185.SZ.20071120</td>
+      <td>2025-09-27</td>
+      <td>calendar_closed</td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>market_state</th>
+      <th>close</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.603418.SH.20250923</td>
+      <td>2025-09-01</td>
+      <td>unknown_status</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">原日期 cutoff 尚不能看到后来上市身份；再用实际当前知识回顾该历史日期。
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>market_state</th>
+      <th>close</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.603418.SH.20250923</td>
+      <td>2025-09-01</td>
+      <td>not_listed</td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">全范围缺价: 158 有停牌证据: 158 未解释: 0
+</pre><details><summary>展开示例代码</summary><pre class="code">missing = sorted(AUDIT[&#x27;missing_market_samples&#x27;], key=lambda r: (r[&#x27;security_id&#x27;], r[&#x27;session&#x27;]))[0]
+closed_day = &#x27;2025-09-27&#x27;
+state_query = query(symbols=(missing[&#x27;security_id&#x27;],), sessions=(missing[&#x27;session&#x27;], closed_day))
+state_batch = DATA.states(snapshot=SNAPSHOT, query=state_query)
+display(state_batch.frame)
+assert set(state_batch.frame.market_state) == {&#x27;suspended&#x27;, &#x27;calendar_closed&#x27;}
+master_rows = [r for p in MANIFEST[&#x27;domains&#x27;][&#x27;security_master&#x27;][&#x27;partitions&#x27;]
+               for r in DATA.store.read_partition(p).to_pylist()]
+new_listing = next(r for r in master_rows if str(r[&#x27;listing_date&#x27;]) &gt; &#x27;2025-09-01&#x27;)
+past_knowledge = DATA.states(snapshot=SNAPSHOT,
+    query=query(symbols=(new_listing[&#x27;security_id&#x27;],), sessions=(&#x27;2025-09-01&#x27;,)))
+display(past_knowledge.frame)
+print(&#x27;原日期 cutoff 尚不能看到后来上市身份；再用实际当前知识回顾该历史日期。&#x27;)
+pre_listing = DATA.states(snapshot=SNAPSHOT,
+    query=query(symbols=(new_listing[&#x27;security_id&#x27;],), sessions=(&#x27;2025-09-01&#x27;,),
+                policy=&#x27;operational_pit_v1&#x27;, common_cutoff=datetime.now(timezone.utc).isoformat()))
+display(pre_listing.frame)
+assert pre_listing.frame.market_state.iloc[0] == &#x27;not_listed&#x27;
+print(&#x27;全范围缺价:&#x27;, AUDIT[&#x27;missing_market_cells&#x27;],
+      &#x27;有停牌证据:&#x27;, AUDIT[&#x27;known_suspension_missing_cells&#x27;], &#x27;未解释:&#x27;,
+      AUDIT[&#x27;missing_market_cells&#x27;] - AUDIT[&#x27;known_suspension_missing_cells&#x27;])
+</pre></details></section><section id="section-6" class="markdown"><h2>6. 完整来源的原生键与 Schema</h2>
+<p>行情以交易日和证券为键，财报保留 endpoint、report_type、报告期以及修订；股东以整组报告替换；分红包含过程状态。以下读取两证券完整源的真实 schema、单位与首行。空域保持空，资产存量不应用收入累计转单季公式。</p>
+</section><section class="example"><div class="example-label">真实执行 · 完整源发布范围 · 1</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>domain</th>
+      <th>rows</th>
+      <th>raw_receipts</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>adjustment_factors</td>
+      <td>130</td>
+      <td>65</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>balance_sheet_events</td>
+      <td>13</td>
+      <td>20</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cash_flow_events</td>
+      <td>10</td>
+      <td>20</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>corporate_actions</td>
+      <td>20</td>
+      <td>277</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>financial_events</td>
+      <td>14</td>
+      <td>20</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>financial_indicator_events</td>
+      <td>12</td>
+      <td>6</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>listing_events</td>
+      <td>5888</td>
+      <td>6</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>market_daily</td>
+      <td>130</td>
+      <td>65</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>price_limits</td>
+      <td>130</td>
+      <td>65</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>security_master</td>
+      <td>2</td>
+      <td>6</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>security_status</td>
+      <td>0</td>
+      <td>21</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>top_holders_reports</td>
+      <td>12</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>trading_calendar</td>
+      <td>1338</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>universe_membership</td>
+      <td>3874</td>
+      <td>12</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><details><summary>展开示例代码</summary><pre class="code"># The unified Snapshot combines retained original Tushare Raw and dated vendor membership.
+FULL_ROOT = UNIFIED_ROOT
+full = UNIFIED
+FULL_SNAPSHOT = UNIFIED_SNAPSHOT
+full_manifest = full.store.load_snapshot(FULL_SNAPSHOT)
+full_scope = json.loads((REPO / &#x27;delivery/csi1800_tushare_only_v4_202606_202608.scope.json&#x27;).read_text())
+bank_id = full_scope[&#x27;identity_map&#x27;][&#x27;600000.SH&#x27;]
+display(pd.DataFrame([{&#x27;domain&#x27;:name,
+    &#x27;rows&#x27;:sum(p[&#x27;rows&#x27;] for p in segment[&#x27;partitions&#x27;]),
+    &#x27;raw_receipts&#x27;:len(segment[&#x27;raw_batch_ids&#x27;])}
+    for name, segment in full_manifest[&#x27;domains&#x27;].items()]))
+fin_domains = (&#x27;financial_events&#x27;, &#x27;balance_sheet_events&#x27;, &#x27;cash_flow_events&#x27;,
+               &#x27;financial_indicator_events&#x27;, &#x27;corporate_actions&#x27;,
+               &#x27;top_holders_reports&#x27;, &#x27;price_limits&#x27;)
+assert all(name in full_manifest[&#x27;domains&#x27;] for name in fin_domains), &#x27;complete-source publication is required&#x27;</pre></details></section><section class="example"><div class="example-label">真实执行 · 完整源发布范围 · 2</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>domain</th>
+      <th>rows</th>
+      <th>partitions</th>
+      <th>raw_receipts</th>
+      <th>source_profile</th>
+      <th>native_key</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>financial_events</td>
+      <td>14</td>
+      <td>3</td>
+      <td>20</td>
+      <td>tushare.local.income.v1</td>
+      <td>security_id, endpoint, report_type, report_period</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>balance_sheet_events</td>
+      <td>13</td>
+      <td>3</td>
+      <td>20</td>
+      <td>tushare.local.balancesheet.v1</td>
+      <td>security_id, endpoint, report_type, report_period</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cash_flow_events</td>
+      <td>10</td>
+      <td>3</td>
+      <td>20</td>
+      <td>tushare.local.cashflow.v1</td>
+      <td>security_id, endpoint, report_type, report_period</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>financial_indicator_events</td>
+      <td>12</td>
+      <td>2</td>
+      <td>6</td>
+      <td>tushare.local.fina_indicator.v1</td>
+      <td>security_id, endpoint, report_period</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>corporate_actions</td>
+      <td>20</td>
+      <td>3</td>
+      <td>277</td>
+      <td>tushare.local.dividend.v1</td>
+      <td>security_id, report_period, announcement_date,...</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>top_holders_reports</td>
+      <td>12</td>
+      <td>2</td>
+      <td>2</td>
+      <td>tushare.local.top10_holders.v1</td>
+      <td>security_id, report_period</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>price_limits</td>
+      <td>130</td>
+      <td>3</td>
+      <td>65</td>
+      <td>tushare.local.stk_limit.v1</td>
+      <td>security_id, session</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>listing_events</td>
+      <td>5888</td>
+      <td>1</td>
+      <td>6</td>
+      <td>tushare.stock_basic.listing_events.v1</td>
+      <td>security_id, event_type</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>universe_membership</td>
+      <td>3874</td>
+      <td>1</td>
+      <td>12</td>
+      <td>tushare.index_weight.dated_membership.v1</td>
+      <td>membership_id</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">统一完整源根: /Users/liuming/Documents/axiom/data/csi1800_tushare_only_v4_202606_202608 固定版本: s_a0db6028118997d93b9f70dff852b701b030b152a30b2e8d325c08ad64931049
+</pre><details><summary>展开示例代码</summary><pre class="code">source_domains = fin_domains + (&#x27;listing_events&#x27;, &#x27;universe_membership&#x27;)
+assert all(name in full_manifest[&#x27;domains&#x27;] for name in source_domains)
+assert all(full_manifest[&#x27;domains&#x27;][name][&#x27;source_profile&#x27;][&#x27;id&#x27;].startswith(&#x27;tushare.&#x27;)
+    for name in source_domains), &#x27;production domains must use retained Tushare Raw&#x27;
+inventory = []
+for name in source_domains:
+    segment = full_manifest[&#x27;domains&#x27;][name]
+    inventory.append({&#x27;domain&#x27;:name, &#x27;rows&#x27;:sum(p[&#x27;rows&#x27;] for p in segment[&#x27;partitions&#x27;]),
+        &#x27;partitions&#x27;:len(segment[&#x27;partitions&#x27;]), &#x27;raw_receipts&#x27;:len(segment[&#x27;raw_batch_ids&#x27;]),
+        &#x27;source_profile&#x27;:segment[&#x27;source_profile&#x27;][&#x27;id&#x27;],
+        &#x27;native_key&#x27;:&#x27;, &#x27;.join(segment[&#x27;contract&#x27;][&#x27;logical_key&#x27;])})
+display(pd.DataFrame(inventory))
+print(&#x27;统一完整源根:&#x27;, FULL_ROOT, &#x27;固定版本:&#x27;, FULL_SNAPSHOT)
+market_ids = sorted({r[&#x27;security_id&#x27;] for p in full_manifest[&#x27;domains&#x27;][&#x27;market_daily&#x27;][&#x27;partitions&#x27;]
+    for r in full.store.read_partition(p).to_pylist()})</pre></details></section><section class="example"><div class="example-label">真实执行 · 完整源发布范围 · 3</div><pre class="output-text">采集范围: 2026-06-01 至 2026-08-31 ；市场证券: cnstock.000001.SZ.19910403, cnstock.600000.SH.19991110 ；成员候选身份数: 1905
+此 Snapshot 同时含 Tushare 成员观测；供应商源由留存原始 Raw 离线回放，无新在线请求。
+</pre><details><summary>展开示例代码</summary><pre class="code">print(&#x27;采集范围:&#x27;, full_scope[&#x27;start_session&#x27;], &#x27;至&#x27;, full_scope[&#x27;end_session&#x27;],
+      &#x27;；市场证券:&#x27;, &#x27;, &#x27;.join(market_ids), &#x27;；成员候选身份数:&#x27;, len(full_scope[&#x27;symbols&#x27;]))
+print(&#x27;此 Snapshot 同时含 Tushare 成员观测；供应商源由留存原始 Raw 离线回放，无新在线请求。&#x27;)</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实合同、Arrow schema 与原始键</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>domain</th>
+      <th>field</th>
+      <th>dtype</th>
+      <th>unit</th>
+      <th>basis</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>financial_events</td>
+      <td>actual_announcement_date</td>
+      <td>date</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>financial_events</td>
+      <td>announcement_date</td>
+      <td>date</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>financial_events</td>
+      <td>basis</td>
+      <td>string</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>financial_events</td>
+      <td>endpoint</td>
+      <td>string</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>financial_events</td>
+      <td>first_observed_at</td>
+      <td>timestamp</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>85</th>
+      <td>universe_membership</td>
+      <td>first_observed_at</td>
+      <td>timestamp</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>86</th>
+      <td>universe_membership</td>
+      <td>membership_id</td>
+      <td>string</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>87</th>
+      <td>universe_membership</td>
+      <td>security_id</td>
+      <td>string</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>88</th>
+      <td>universe_membership</td>
+      <td>source_available_at</td>
+      <td>timestamp</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>89</th>
+      <td>universe_membership</td>
+      <td>universe_id</td>
+      <td>string</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
+<p>90 rows × 5 columns</p>
+</div></div><pre class="output-text">financial_events Arrow: security_id: string not null
+session: string
+revision_id: string not null
+revision_sequence: int64
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+endpoint: string not null
+report_type: string not null
+report_period: date32[day] not null
+actual_announcement_date: date32[day] not null
+announcement_date: date32[day] not null
+basis: string not null
+parent_net_income: double
+total_revenue: double
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>endpoint</th>
+      <th>report_type</th>
+      <th>report_period</th>
+      <th>actual_announcement_date</th>
+      <th>announcement_date</th>
+      <th>basis</th>
+      <th>parent_net_income</th>
+      <th>total_revenue</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>None</td>
+      <td>terminal:685cc395940ad7240bd9db12d1f5540adc89d...</td>
+      <td>NaN</td>
+      <td>2026-09-28 15:06:17.810743+00:00</td>
+      <td>b_f903f7b83f9a40ad9e8d9a9790e34a3a</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2024-12-31</td>
+      <td>2025-03-15</td>
+      <td>2025-03-15</td>
+      <td>cumulative_ytd</td>
+      <td>4.450800e+10</td>
+      <td>1.466950e+11</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">balance_sheet_events Arrow: security_id: string not null
+session: string
+revision_id: string not null
+revision_sequence: int64
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+endpoint: string not null
+report_type: string not null
+report_period: date32[day] not null
+actual_announcement_date: date32[day] not null
+announcement_date: date32[day] not null
+parent_equity: double
+total_assets: double
+total_liabilities: double
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>endpoint</th>
+      <th>report_type</th>
+      <th>report_period</th>
+      <th>actual_announcement_date</th>
+      <th>announcement_date</th>
+      <th>parent_equity</th>
+      <th>total_assets</th>
+      <th>total_liabilities</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>None</td>
+      <td>terminal:f77ce3f3129d2c0fe5356dd57be7863884062...</td>
+      <td>NaN</td>
+      <td>2026-09-28 15:06:23.107249+00:00</td>
+      <td>b_acb899db12fc4171a9992099c6bef8b2</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>balancesheet</td>
+      <td>1</td>
+      <td>2024-12-31</td>
+      <td>2025-03-15</td>
+      <td>2025-03-15</td>
+      <td>4.948420e+11</td>
+      <td>5.769270e+12</td>
+      <td>5.274428e+12</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">cash_flow_events Arrow: security_id: string not null
+session: string
+revision_id: string not null
+revision_sequence: int64
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+endpoint: string not null
+report_type: string not null
+report_period: date32[day] not null
+actual_announcement_date: date32[day] not null
+announcement_date: date32[day] not null
+financing_cash_flow: double
+investing_cash_flow: double
+operating_cash_flow: double
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>endpoint</th>
+      <th>report_type</th>
+      <th>report_period</th>
+      <th>actual_announcement_date</th>
+      <th>announcement_date</th>
+      <th>financing_cash_flow</th>
+      <th>investing_cash_flow</th>
+      <th>operating_cash_flow</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>None</td>
+      <td>terminal:e6b6324d89f2ce847eb4726da6ef67cfa3e2b...</td>
+      <td>NaN</td>
+      <td>2026-09-28 15:06:28.712643+00:00</td>
+      <td>b_9484bbb768da4c95baa20d5dfc702004</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>cashflow</td>
+      <td>1</td>
+      <td>2024-12-31</td>
+      <td>2025-03-15</td>
+      <td>2025-03-15</td>
+      <td>-7.393300e+10</td>
+      <td>-3.185900e+10</td>
+      <td>6.333600e+10</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">financial_indicator_events Arrow: security_id: string not null
+session: string
+revision_id: string not null
+revision_sequence: int64
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+endpoint: string not null
+report_period: date32[day] not null
+actual_announcement_date: date32[day] not null
+announcement_date: date32[day] not null
+debt_to_assets: double
+roe: double
+weighted_roe: double
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>endpoint</th>
+      <th>report_period</th>
+      <th>actual_announcement_date</th>
+      <th>announcement_date</th>
+      <th>debt_to_assets</th>
+      <th>roe</th>
+      <th>weighted_roe</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>None</td>
+      <td>terminal:be4e90d44662f7340a5e4a52bde47aa33f138...</td>
+      <td>NaN</td>
+      <td>2026-09-28 15:06:34.936781+00:00</td>
+      <td>b_fc13cef6c71d4ebe832db244b41b073f</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>fina_indicator</td>
+      <td>2025-03-31</td>
+      <td>2025-04-19</td>
+      <td>2025-04-19</td>
+      <td>91.2405</td>
+      <td>2.8165</td>
+      <td>2.8</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">corporate_actions Arrow: security_id: string not null
+session: string
+revision_id: string not null
+revision_sequence: int64
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+report_period: date32[day] not null
+announcement_date: date32[day] not null
+process_status: string not null
+bonus_shares_per_share: double
+capital_transfer_shares_per_share: double
+cash_dividend_before_tax_per_share: double
+ex_date: date32[day]
+implementation_announcement_date: date32[day]
+record_date: date32[day]
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>report_period</th>
+      <th>announcement_date</th>
+      <th>process_status</th>
+      <th>bonus_shares_per_share</th>
+      <th>capital_transfer_shares_per_share</th>
+      <th>cash_dividend_before_tax_per_share</th>
+      <th>ex_date</th>
+      <th>implementation_announcement_date</th>
+      <th>record_date</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>None</td>
+      <td>terminal:e9583fa87b7ccf8eb1964b2b4ef2dbde519df...</td>
+      <td>NaN</td>
+      <td>2026-09-28 15:11:20.810242+00:00</td>
+      <td>b_3724af2363c74975afc46bf6993665a9</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>2024-12-31</td>
+      <td>2025-03-15</td>
+      <td>股东大会通过</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0.362</td>
+      <td>None</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">top_holders_reports Arrow: security_id: string not null
+session: string
+revision_id: string not null
+revision_sequence: int64
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+report_period: date32[day] not null
+actual_announcement_date: date32[day] not null
+announcement_date: date32[day] not null
+group_completeness: string not null
+group_issue: string
+holder_count: int64 not null
+holders: string not null
+top10_ratio: double
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>report_period</th>
+      <th>actual_announcement_date</th>
+      <th>announcement_date</th>
+      <th>group_completeness</th>
+      <th>group_issue</th>
+      <th>holder_count</th>
+      <th>holders</th>
+      <th>top10_ratio</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>None</td>
+      <td>terminal:f29581338bbc6d895ce5a3d27eadbb96b4f4a...</td>
+      <td>NaN</td>
+      <td>2026-10-03 03:08:14.932554+00:00</td>
+      <td>b_626c735d78f743dfbc68ea09ebfa0017</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>2025-03-31</td>
+      <td>2025-04-19</td>
+      <td>2025-04-19</td>
+      <td>supplier_report_complete</td>
+      <td>None</td>
+      <td>10</td>
+      <td>[{"hold_amount_shares":75280777.0,"hold_ratio_...</td>
+      <td>66.0109</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">price_limits Arrow: security_id: string not null
+session: date32[day] not null
+revision_id: string not null
+revision_sequence: int64
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+down_limit: double
+up_limit: double
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>down_limit</th>
+      <th>up_limit</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-06-10</td>
+      <td>terminal:e2533cbf9450bc55df1047b1e3c8f02c9f3d3...</td>
+      <td>NaN</td>
+      <td>2026-10-03 03:08:17.095080+00:00</td>
+      <td>b_2d133e87d09e4cb4be23fd8a2f6a8c87</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>10.02</td>
+      <td>12.24</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">listing_events Arrow: security_id: string not null
+session: string
+revision_id: string not null
+revision_sequence: int64 not null
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+event_type: string not null
+delisting_date: date32[day]
+event_date: date32[day] not null
+event_state: string not null
+exchange: string not null
+listing_date: date32[day] not null
+source_code: string not null
+vendor_list_status: string not null
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>event_type</th>
+      <th>delisting_date</th>
+      <th>event_date</th>
+      <th>event_state</th>
+      <th>exchange</th>
+      <th>listing_date</th>
+      <th>source_code</th>
+      <th>vendor_list_status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000508.SZ.19930430</td>
+      <td>None</td>
+      <td>vendor:bb2544b540ff183572ff4d62ace66fa7ea5b5cd...</td>
+      <td>1</td>
+      <td>2026-09-28 13:16:38.388413+00:00</td>
+      <td>b_b98968e0974f4f5fb4e9a185aa41bc8e</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>delisting</td>
+      <td>1999-07-12</td>
+      <td>1999-07-12</td>
+      <td>value</td>
+      <td>SZSE</td>
+      <td>1993-04-30</td>
+      <td>000508.SZ</td>
+      <td>D</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">universe_membership Arrow: security_id: string not null
+session: string
+revision_id: string not null
+revision_sequence: int64 not null
+first_observed_at: timestamp[us, tz=UTC] not null
+raw_batch_id: string not null
+source_available_at: timestamp[us, tz=UTC]
+evidence_ref: string
+membership_id: string not null
+effective_from: date32[day] not null
+effective_to: date32[day]
+universe_id: string not null
+dependency_raw_batch_ids: list&lt;element: string&gt;
+  child 0, element: string
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>first_observed_at</th>
+      <th>raw_batch_id</th>
+      <th>source_available_at</th>
+      <th>evidence_ref</th>
+      <th>membership_id</th>
+      <th>effective_from</th>
+      <th>effective_to</th>
+      <th>universe_id</th>
+      <th>dependency_raw_batch_ids</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000661.SZ.19961218</td>
+      <td>None</td>
+      <td>vendor:534df288d9135700636a978dbf88c59a1a4cced...</td>
+      <td>1</td>
+      <td>2026-09-28 13:17:26.380734+00:00</td>
+      <td>b_1c3c1f6c19a948299796556564117c98</td>
+      <td>NaT</td>
+      <td>None</td>
+      <td>csi500:cnstock.000661.SZ.19961218:vendor:csi50...</td>
+      <td>2026-06-30</td>
+      <td>None</td>
+      <td>csi500</td>
+      <td>[b_1c3c1f6c19a948299796556564117c98]</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><details><summary>展开示例代码</summary><pre class="code"># Inspect the stored schema, source contract, and one real row in each domain.
+schema_rows = []
+for name in source_domains:
+    segment = full_manifest[&#x27;domains&#x27;][name]
+    fields = segment[&#x27;contract&#x27;][&#x27;fields&#x27;]
+    for field, spec in fields.items():
+        if field in (&#x27;raw_batch_id&#x27;, &#x27;revision_id&#x27;, &#x27;revision_sequence&#x27;, &#x27;evidence_ref&#x27;):
+            continue
+        schema_rows.append({&#x27;domain&#x27;:name, &#x27;field&#x27;:field, &#x27;dtype&#x27;:spec[&#x27;dtype&#x27;],
+            &#x27;unit&#x27;:spec.get(&#x27;unit&#x27;), &#x27;basis&#x27;:spec.get(&#x27;basis&#x27;)})
+display(pd.DataFrame(schema_rows))
+for name in source_domains:
+    segment = full_manifest[&#x27;domains&#x27;][name]
+    first = next((p for p in segment[&#x27;partitions&#x27;] if p[&#x27;rows&#x27;]), None)
+    if first is None:
+        print(name, &#x27;有来源完成记录，但当前范围无规范事实行&#x27;)
+        continue
+    table = full.store.read_partition(first)
+    print(name, &#x27;Arrow:&#x27;, table.schema)
+    display(table.slice(0, 1).to_pandas())
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实收入事件与逐项来源</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>endpoint</th>
+      <th>report_type</th>
+      <th>report_period</th>
+      <th>total_revenue</th>
+      <th>parent_net_income</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2024-12-31</td>
+      <td>170748000000.0</td>
+      <td>45257000000.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-03-31</td>
+      <td>45922000000.0</td>
+      <td>17598000000.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-06-30</td>
+      <td>90559000000.0</td>
+      <td>29737000000.0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-09-30</td>
+      <td>132280000000.0</td>
+      <td>38819000000.0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-12-31</td>
+      <td>173964000000.0</td>
+      <td>50017000000.0</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2026-03-31</td>
+      <td>46573000000.0</td>
+      <td>17861000000.0</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2026-06-30</td>
+      <td>93777000000.0</td>
+      <td>30951000000.0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>endpoint</th>
+      <th>report_type</th>
+      <th>report_period</th>
+      <th>status</th>
+      <th>missing_reason</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>raw_batch_id</th>
+      <th>usable_from</th>
+      <th>first_observed_at</th>
+      <th>availability_basis</th>
+      <th>evidence_ref</th>
+      <th>group_completeness</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2024-12-31</td>
+      <td>value</td>
+      <td>None</td>
+      <td>terminal:be290169fc86e93935a7cfd66d3215b01dc2a...</td>
+      <td>None</td>
+      <td>b_f903f7b83f9a40ad9e8d9a9790e34a3a</td>
+      <td>2026-09-28T15:06:17.810743+00:00</td>
+      <td>2026-09-28T15:06:17.810743+00:00</td>
+      <td>first_observed_at</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-03-31</td>
+      <td>value</td>
+      <td>None</td>
+      <td>terminal:74ad5117e58f679f11a4c2852a6ae0881587e...</td>
+      <td>None</td>
+      <td>b_a4945cfc079d459dbd7e06ad259defcd</td>
+      <td>2026-09-28T15:06:18.283748+00:00</td>
+      <td>2026-09-28T15:06:18.283748+00:00</td>
+      <td>first_observed_at</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-06-30</td>
+      <td>value</td>
+      <td>None</td>
+      <td>terminal:542c8508772d0cefbdfd7b82bd04bfaae49d2...</td>
+      <td>None</td>
+      <td>b_0a4c0b5c5deb48ef9525b756fe5571a6</td>
+      <td>2026-09-28T15:06:19.027179+00:00</td>
+      <td>2026-09-28T15:06:19.027179+00:00</td>
+      <td>first_observed_at</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-09-30</td>
+      <td>value</td>
+      <td>None</td>
+      <td>terminal:e22928a1a1240c4818855692246014d478767...</td>
+      <td>None</td>
+      <td>b_98ad9b3093324b14a3c7e604da35def7</td>
+      <td>2026-09-28T15:06:19.412095+00:00</td>
+      <td>2026-09-28T15:06:19.412095+00:00</td>
+      <td>first_observed_at</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-12-31</td>
+      <td>value</td>
+      <td>None</td>
+      <td>terminal:060cd8f2487503accb8b607a2bf4041ee7c0f...</td>
+      <td>None</td>
+      <td>b_1a7403b5c1064591ba46560a43e121d6</td>
+      <td>2026-09-28T15:06:20.459198+00:00</td>
+      <td>2026-09-28T15:06:20.459198+00:00</td>
+      <td>first_observed_at</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2026-03-31</td>
+      <td>value</td>
+      <td>None</td>
+      <td>terminal:623990f554cf16d06bcc6eaca605acb0ac272...</td>
+      <td>None</td>
+      <td>b_1cf2fbd0e3054f46a32c7db075736fa6</td>
+      <td>2026-09-28T15:06:21.037797+00:00</td>
+      <td>2026-09-28T15:06:21.037797+00:00</td>
+      <td>first_observed_at</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2026-06-30</td>
+      <td>value</td>
+      <td>None</td>
+      <td>terminal:3f7ec15b3818615c970c12e0668141c8d7811...</td>
+      <td>None</td>
+      <td>b_603ea7e454994dffbcb995a44c2d35bd</td>
+      <td>2026-09-28T15:06:22.091878+00:00</td>
+      <td>2026-09-28T15:06:22.091878+00:00</td>
+      <td>first_observed_at</td>
+      <td>None</td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">原生报告键: [&#x27;security_id&#x27;, &#x27;endpoint&#x27;, &#x27;report_type&#x27;, &#x27;report_period&#x27;]
+Reader 先按 cutoff 选可见 revision，再按报告期和 endpoint 投影。
+</pre><details><summary>展开示例代码</summary><pre class="code">finance_domain = full_manifest[&#x27;domains&#x27;][&#x27;financial_events&#x27;]
+finance_rows = [row for part in finance_domain[&#x27;partitions&#x27;]
+                for row in full.store.read_partition(part, symbols=(bank_id,)).to_pylist()
+                if row[&#x27;security_id&#x27;] == bank_id and row[&#x27;endpoint&#x27;] == &#x27;income&#x27;
+                and row[&#x27;report_type&#x27;] == &#x27;1&#x27;]
+assert finance_rows, &#x27;expected real Tushare consolidated income observations&#x27;
+periods = sorted({str(row[&#x27;report_period&#x27;]) for row in finance_rows})
+cutoff_now = datetime.now(timezone.utc).isoformat()
+income_query = EventQuery(&#x27;financial_events&#x27;, (&#x27;total_revenue&#x27;,&#x27;parent_net_income&#x27;),
+    (bank_id,), periods[0], periods[-1], cutoff_now, &#x27;operational_pit_v1&#x27;,
+    &#x27;report_period&#x27;, {&#x27;endpoint&#x27;:&#x27;income&#x27;,&#x27;report_type&#x27;:&#x27;1&#x27;})
+income_events = full.events(snapshot=FULL_SNAPSHOT, query=income_query)
+display(income_events.frame)
+assert len(income_events.frame) &gt; 0
+assert income_events.field_meta[&#x27;total_revenue&#x27;][&#x27;unit&#x27;] == &#x27;CNY&#x27;
+display(pd.DataFrame(income_events.field_meta[&#x27;total_revenue&#x27;][&#x27;by_key&#x27;]))
+print(&#x27;原生报告键:&#x27;, finance_domain[&#x27;contract&#x27;][&#x27;logical_key&#x27;])
+print(&#x27;Reader 先按 cutoff 选可见 revision，再按报告期和 endpoint 投影。&#x27;)
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 同一报告的三种 PIT</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>policy</th>
+      <th>clock</th>
+      <th>visible_reports</th>
+      <th>limitations</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>operational_pit_v1</td>
+      <td>2026-06-01T09:30:00+08:00</td>
+      <td>0</td>
+      <td>report versions use declared supplier announce...</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>market_pit_safe_v1</td>
+      <td>2026-06-01T09:30:00+08:00</td>
+      <td>0</td>
+      <td>7 event revisions lacked revision-bound public...</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>best_effort_vendor_v1</td>
+      <td>2026-06-01T09:30:00+08:00</td>
+      <td>6</td>
+      <td>vendor event availability is a declared assump...</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">今天收到的终态历史不会回填到 2026-06-01 的 operational/safe 信息集。
+</pre><details><summary>展开示例代码</summary><pre class="code"># Compare the same native report keys at a historical research clock.
+historical_clock = &#x27;2026-06-01T09:30:00+08:00&#x27;
+pit_rows = []
+for policy in (&#x27;operational_pit_v1&#x27;, &#x27;market_pit_safe_v1&#x27;, &#x27;best_effort_vendor_v1&#x27;):
+    selected = full.events(snapshot=FULL_SNAPSHOT,
+        query=replace(income_query, cutoff=historical_clock, pit_policy=policy))
+    pit_rows.append({&#x27;policy&#x27;:policy, &#x27;clock&#x27;:historical_clock,
+        &#x27;visible_reports&#x27;:len(selected.frame),
+        &#x27;limitations&#x27;:&#x27;; &#x27;.join(selected.context.get(&#x27;limitations&#x27;, ()))})
+display(pd.DataFrame(pit_rows))
+assert pit_rows[0][&#x27;visible_reports&#x27;] == 0
+assert pit_rows[1][&#x27;visible_reports&#x27;] == 0
+print(&#x27;今天收到的终态历史不会回填到 2026-06-01 的 operational/safe 信息集。&#x27;)
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实单季与 TTM</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>endpoint</th>
+      <th>report_type</th>
+      <th>report_period</th>
+      <th>total_revenue</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2024-12-31</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-03-31</td>
+      <td>45922000000.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-06-30</td>
+      <td>44637000000.0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-09-30</td>
+      <td>41721000000.0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-12-31</td>
+      <td>41684000000.0</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2026-03-31</td>
+      <td>46573000000.0</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2026-06-30</td>
+      <td>47204000000.0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>endpoint</th>
+      <th>report_type</th>
+      <th>report_period</th>
+      <th>total_revenue</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2024-12-31</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-03-31</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-06-30</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-09-30</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2025-12-31</td>
+      <td>173964000000.0</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2026-03-31</td>
+      <td>174615000000.0</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>income</td>
+      <td>1</td>
+      <td>2026-06-30</td>
+      <td>177182000000.0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>period</th>
+      <th>status</th>
+      <th>missing_reason</th>
+      <th>components</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>2024-12-31</td>
+      <td>source_missing</td>
+      <td>missing_quarter</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>2025-03-31</td>
+      <td>source_missing</td>
+      <td>missing_quarter</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2025-06-30</td>
+      <td>source_missing</td>
+      <td>missing_quarter</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2025-09-30</td>
+      <td>source_missing</td>
+      <td>missing_quarter</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2025-12-31</td>
+      <td>value</td>
+      <td>None</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>2026-03-31</td>
+      <td>value</td>
+      <td>None</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>2026-06-30</td>
+      <td>value</td>
+      <td>None</td>
+      <td>7</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">缺季度时结果保持空值；单季和 TTM 均保存组成报告与固定版本。
+</pre><details><summary>展开示例代码</summary><pre class="code"># The source field is year-to-date cumulative revenue; derive only after PIT selection.
+unit = income_events.field_meta[&#x27;total_revenue&#x27;][&#x27;unit&#x27;]
+basis = income_events.field_meta[&#x27;total_revenue&#x27;][&#x27;basis&#x27;]
+quarter = single_quarter(income_events, field=&#x27;total_revenue&#x27;, endpoint=&#x27;income&#x27;,
+    report_type=&#x27;1&#x27;, basis=basis, unit=unit)
+trailing = ttm(income_events, field=&#x27;total_revenue&#x27;, endpoint=&#x27;income&#x27;,
+    report_type=&#x27;1&#x27;, basis=basis, unit=unit)
+display(quarter.frame)
+display(trailing.frame)
+assert quarter.context[&#x27;derivation&#x27;][&#x27;input_snapshot_id&#x27;] == FULL_SNAPSHOT
+assert trailing.field_meta[&#x27;total_revenue&#x27;][&#x27;basis&#x27;] == &#x27;trailing_twelve_months&#x27;
+statuses = pd.DataFrame([{&#x27;period&#x27;:p[&#x27;report_period&#x27;], &#x27;status&#x27;:p[&#x27;status&#x27;],
+    &#x27;missing_reason&#x27;:p[&#x27;missing_reason&#x27;], &#x27;components&#x27;:len(p[&#x27;components&#x27;])}
+    for p in trailing.field_meta[&#x27;total_revenue&#x27;][&#x27;by_key&#x27;]])
+display(statuses)
+print(&#x27;缺季度时结果保持空值；单季和 TTM 均保存组成报告与固定版本。&#x27;)
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实资产、现金流、指标、分红和股东组 · 1</div><details><summary>展开示例代码</summary><pre class="code"># Each event stays at its native economic key; no daily forward fill.
+examples = (
+    (&#x27;balance_sheet_events&#x27;, (&#x27;total_assets&#x27;,&#x27;total_liabilities&#x27;), {&#x27;endpoint&#x27;:&#x27;balancesheet&#x27;,&#x27;report_type&#x27;:&#x27;1&#x27;}),
+    (&#x27;cash_flow_events&#x27;, (&#x27;operating_cash_flow&#x27;,), {&#x27;endpoint&#x27;:&#x27;cashflow&#x27;,&#x27;report_type&#x27;:&#x27;1&#x27;}),
+    (&#x27;financial_indicator_events&#x27;, (&#x27;roe&#x27;,&#x27;debt_to_assets&#x27;), {&#x27;endpoint&#x27;:&#x27;fina_indicator&#x27;}),
+    (&#x27;corporate_actions&#x27;, (&#x27;process_status&#x27;,&#x27;cash_dividend_before_tax_per_share&#x27;,&#x27;ex_date&#x27;), {}),
+    (&#x27;top_holders_reports&#x27;, (&#x27;holders&#x27;,&#x27;holder_count&#x27;,&#x27;group_completeness&#x27;,&#x27;top10_ratio&#x27;), {}),
+)
+event_results = {}</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实资产、现金流、指标、分红和股东组 · 2</div><pre class="output-text">balance_sheet_events security: cnstock.600000.SH.19991110 rows: 6 key: [&#x27;security_id&#x27;, &#x27;endpoint&#x27;, &#x27;report_type&#x27;, &#x27;report_period&#x27;]
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>endpoint</th>
+      <th>report_type</th>
+      <th>report_period</th>
+      <th>total_assets</th>
+      <th>total_liabilities</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>balancesheet</td>
+      <td>1</td>
+      <td>2024-12-31</td>
+      <td>9461880000000.0</td>
+      <td>8717099000000.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>balancesheet</td>
+      <td>1</td>
+      <td>2025-03-31</td>
+      <td>9552276000000.0</td>
+      <td>8796647000000.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>balancesheet</td>
+      <td>1</td>
+      <td>2025-06-30</td>
+      <td>9645791000000.0</td>
+      <td>8844539000000.0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>balancesheet</td>
+      <td>1</td>
+      <td>2025-09-30</td>
+      <td>9892214000000.0</td>
+      <td>9051370000000.0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>balancesheet</td>
+      <td>1</td>
+      <td>2025-12-31</td>
+      <td>10081746000000.0</td>
+      <td>9257316000000.0</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>balancesheet</td>
+      <td>1</td>
+      <td>2026-03-31</td>
+      <td>10305646000000.0</td>
+      <td>9464247000000.0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">limitation: [&#x27;report versions use declared supplier announcement days; same-day corrections use actual observation order, not a verified publication sequence&#x27;]
+</pre><pre class="output-text">cash_flow_events</pre><pre class="output-text"> security: cnstock.600000.SH.19991110 rows: 4 key: [&#x27;security_id&#x27;, &#x27;endpoint&#x27;, &#x27;report_type&#x27;, &#x27;report_period&#x27;]
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>endpoint</th>
+      <th>report_type</th>
+      <th>report_period</th>
+      <th>operating_cash_flow</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>cashflow</td>
+      <td>1</td>
+      <td>2024-12-31</td>
+      <td>-333654000000.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>cashflow</td>
+      <td>1</td>
+      <td>2025-06-30</td>
+      <td>21257000000.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>cashflow</td>
+      <td>1</td>
+      <td>2025-12-31</td>
+      <td>375836000000.0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>cashflow</td>
+      <td>1</td>
+      <td>2026-03-31</td>
+      <td>91724000000.0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">limitation: [&#x27;report versions use declared supplier announcement days; same-day corrections use actual observation order, not a verified publication sequence&#x27;]
+</pre><pre class="output-text">financial_indicator_events security: cnstock.600000.SH.19991110 rows: 6 key: [&#x27;security_id&#x27;, &#x27;endpoint&#x27;, &#x27;report_period&#x27;]
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>endpoint</th>
+      <th>report_period</th>
+      <th>roe</th>
+      <th>debt_to_assets</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>fina_indicator</td>
+      <td>2025-03-31</td>
+      <td>2.3725</td>
+      <td>92.0895</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>fina_indicator</td>
+      <td>2025-06-30</td>
+      <td>3.8893</td>
+      <td>91.6932</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>fina_indicator</td>
+      <td>2025-09-30</td>
+      <td>4.9494</td>
+      <td>91.4999</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>fina_indicator</td>
+      <td>2025-12-31</td>
+      <td>6.4403</td>
+      <td>91.8225</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>fina_indicator</td>
+      <td>2026-03-31</td>
+      <td>2.1641</td>
+      <td>91.8356</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>fina_indicator</td>
+      <td>2026-06-30</td>
+      <td>3.7501</td>
+      <td>91.9207</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">limitation: [&#x27;report versions use declared supplier announcement days; same-day corrections use actual observation order, not a verified publication sequence&#x27;]
+corporate_actions security: cnstock.600000.SH.19991110 rows: 9 key: [&#x27;security_id&#x27;, &#x27;report_period&#x27;, &#x27;announcement_date&#x27;, &#x27;process_status&#x27;]
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>report_period</th>
+      <th>announcement_date</th>
+      <th>process_status</th>
+      <th>cash_dividend_before_tax_per_share</th>
+      <th>ex_date</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2024-12-31</td>
+      <td>2025-03-29</td>
+      <td>股东大会通过</td>
+      <td>0.41</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2024-12-31</td>
+      <td>2025-03-29</td>
+      <td>预案</td>
+      <td>0.41</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2024-12-31</td>
+      <td>2025-06-28</td>
+      <td>实施</td>
+      <td>0.41</td>
+      <td>2025-07-16</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2025-06-30</td>
+      <td>2025-08-28</td>
+      <td>股东大会通过</td>
+      <td>&lt;NA&gt;</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2025-06-30</td>
+      <td>2025-08-28</td>
+      <td>预案</td>
+      <td>0.0</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2025-12-31</td>
+      <td>2026-03-31</td>
+      <td>预案</td>
+      <td>0.42</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2025-12-31</td>
+      <td>2026-06-27</td>
+      <td>实施</td>
+      <td>0.42</td>
+      <td>2026-07-16</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2026-06-30</td>
+      <td>2026-08-28</td>
+      <td>股东大会通过</td>
+      <td>&lt;NA&gt;</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2026-06-30</td>
+      <td>2026-08-28</td>
+      <td>预案</td>
+      <td>0.0</td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">limitation: [&#x27;terminal states ordered by system observation under declared source policy; vendor revision/publication order is unknown&#x27;]
+</pre><pre class="output-text">top_holders_reports security: cnstock.600000.SH.19991110 rows: 6 key: [&#x27;security_id&#x27;, &#x27;report_period&#x27;]
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>report_period</th>
+      <th>group_completeness</th>
+      <th>holders</th>
+      <th>holder_count</th>
+      <th>top10_ratio</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2025-03-31</td>
+      <td>supplier_report_complete</td>
+      <td>[{"hold_amount_shares":1395571025.0,"hold_rati...</td>
+      <td>10</td>
+      <td>76.2265</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2025-06-30</td>
+      <td>supplier_report_complete</td>
+      <td>[{"hold_amount_shares":1395571025.0,"hold_rati...</td>
+      <td>10</td>
+      <td>75.3584</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2025-09-30</td>
+      <td>supplier_report_complete</td>
+      <td>[{"hold_amount_shares":945568990.0,"hold_ratio...</td>
+      <td>10</td>
+      <td>74.6127</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2025-12-31</td>
+      <td>supplier_report_complete</td>
+      <td>[{"hold_amount_shares":945568990.0,"hold_ratio...</td>
+      <td>10</td>
+      <td>75.2567</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2026-03-31</td>
+      <td>supplier_report_complete</td>
+      <td>[{"hold_amount_shares":945568990.0,"hold_ratio...</td>
+      <td>10</td>
+      <td>74.9193</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2026-06-30</td>
+      <td>supplier_report_complete</td>
+      <td>[{"hold_amount_shares":945568990.0,"hold_ratio...</td>
+      <td>10</td>
+      <td>74.8702</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">limitation: [&#x27;report versions use declared supplier announcement days; same-day corrections use actual observation order, not a verified publication sequence&#x27;]
+</pre><details><summary>展开示例代码</summary><pre class="code">for domain_name, requested, filters in examples:
+    segment = full_manifest[&#x27;domains&#x27;][domain_name]
+    rows = [r for p in segment[&#x27;partitions&#x27;]
+            for r in full.store.read_partition(p).to_pylist()]
+    if not rows:
+        print(domain_name, &#x27;当前范围无事件；保留真实空结果&#x27;)
+        continue
+    selected_id = bank_id if any(r[&#x27;security_id&#x27;] == bank_id for r in rows) else rows[0][&#x27;security_id&#x27;]
+    rows = [r for r in rows if r[&#x27;security_id&#x27;] == selected_id]
+    date_field = &#x27;report_period&#x27;
+    dates = sorted(str(r[date_field]) for r in rows)
+    fields = tuple(f for f in requested if f in segment[&#x27;contract&#x27;][&#x27;fields&#x27;] and f not in segment[&#x27;contract&#x27;][&#x27;logical_key&#x27;])
+    if not fields:
+        print(domain_name, &#x27;无可请求的非键字段&#x27;)
+        continue
+    q = EventQuery(domain_name, fields, (selected_id,), dates[0], dates[-1], cutoff_now,
+        &#x27;operational_pit_v1&#x27;, date_field, filters)
+    result = full.events(snapshot=FULL_SNAPSHOT, query=q)
+    event_results[domain_name] = result
+    print(domain_name, &#x27;security:&#x27;, selected_id, &#x27;rows:&#x27;, len(result.frame),
+          &#x27;key:&#x27;, segment[&#x27;contract&#x27;][&#x27;logical_key&#x27;])
+    display(result.frame.head(12))
+    print(&#x27;limitation:&#x27;, result.context.get(&#x27;limitations&#x27;))</pre></details></section><section class="example"><div class="example-label">真实执行 · 实施状态与股东组完整性</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>process_status</th>
+      <th>rows</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>预案</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>股东大会通过</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>实施</td>
+      <td>2</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">明确实施状态行: 2 ；其他状态不可直接当作已实施现金流。
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>report_period</th>
+      <th>holder_count</th>
+      <th>group_completeness</th>
+      <th>top10_ratio</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>2025-03-31</td>
+      <td>10</td>
+      <td>supplier_report_complete</td>
+      <td>76.2265</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>2025-06-30</td>
+      <td>10</td>
+      <td>supplier_report_complete</td>
+      <td>75.3584</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2025-09-30</td>
+      <td>10</td>
+      <td>supplier_report_complete</td>
+      <td>74.6127</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2025-12-31</td>
+      <td>10</td>
+      <td>supplier_report_complete</td>
+      <td>75.2567</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2026-03-31</td>
+      <td>10</td>
+      <td>supplier_report_complete</td>
+      <td>74.9193</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>2026-06-30</td>
+      <td>10</td>
+      <td>supplier_report_complete</td>
+      <td>74.8702</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">supplier_report_complete 只表示当前来源响应满足十名不同持有人及字段检查；不是独立全量认证。
+价格涨跌停为当日未复权边界，不代表一定可成交。
+预测类数据不在这次 FullSourcePlan 中，不能把缺域解释为零预测。
+</pre><details><summary>展开示例代码</summary><pre class="code">actions = event_results.get(&#x27;corporate_actions&#x27;)
+if actions is not None:
+    statuses = actions.frame[&#x27;process_status&#x27;].value_counts(dropna=False).rename_axis(&#x27;process_status&#x27;).reset_index(name=&#x27;rows&#x27;)
+    display(statuses)
+    implemented = actions.frame.loc[actions.frame[&#x27;process_status&#x27;].eq(&#x27;实施&#x27;)]
+    print(&#x27;明确实施状态行:&#x27;, len(implemented), &#x27;；其他状态不可直接当作已实施现金流。&#x27;)
+holders = event_results.get(&#x27;top_holders_reports&#x27;)
+if holders is not None:
+    display(holders.frame[[&#x27;report_period&#x27;,&#x27;holder_count&#x27;,&#x27;group_completeness&#x27;,&#x27;top10_ratio&#x27;]])
+    assert all(pd.isna(value) for value in holders.frame.loc[
+        ~holders.frame[&#x27;group_completeness&#x27;].eq(&#x27;supplier_report_complete&#x27;), &#x27;top10_ratio&#x27;])
+    print(&#x27;supplier_report_complete 只表示当前来源响应满足十名不同持有人及字段检查；不是独立全量认证。&#x27;)
+print(&#x27;价格涨跌停为当日未复权边界，不代表一定可成交。&#x27;)
+print(&#x27;预测类数据不在这次 FullSourcePlan 中，不能把缺域解释为零预测。&#x27;)
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实分红实施公告的两个截止时间 · 1</div><details><summary>展开示例代码</summary><pre class="code"># A real native implementation row has a later implementation announcement.
+action_id = full_scope[&#x27;identity_map&#x27;][&#x27;000001.SZ&#x27;]
+def implemented_dividend_at(cutoff, policy):
+    return full.events(snapshot=FULL_SNAPSHOT,
+        query=EventQuery(&#x27;corporate_actions&#x27;,
+            (&#x27;cash_dividend_before_tax_per_share&#x27;,
+             &#x27;implementation_announcement_date&#x27;,&#x27;record_date&#x27;,&#x27;ex_date&#x27;),
+            (action_id,), &#x27;2026-05-23&#x27;, &#x27;2026-05-23&#x27;, cutoff, policy,
+            &#x27;announcement_date&#x27;, {&#x27;process_status&#x27;:&#x27;实施&#x27;}))
+
+early = implemented_dividend_at(&#x27;2026-06-01T09:30:00+08:00&#x27;,
+    &#x27;best_effort_vendor_v1&#x27;)
+after_implementation = implemented_dividend_at(&#x27;2026-06-08T09:30:00+08:00&#x27;,
+    &#x27;best_effort_vendor_v1&#x27;)</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实分红实施公告的两个截止时间 · 2</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>cutoff</th>
+      <th>policy</th>
+      <th>visible_implementation_rows</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>2026-06-01 09:30</td>
+      <td>best_effort_vendor_v1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>2026-06-08 09:30</td>
+      <td>best_effort_vendor_v1</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2026-06-08 09:30</td>
+      <td>operational_pit_v1</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><details><summary>展开示例代码</summary><pre class="code">strict_after = implemented_dividend_at(&#x27;2026-06-08T09:30:00+08:00&#x27;,
+    &#x27;operational_pit_v1&#x27;)
+display(pd.DataFrame([
+    {&#x27;cutoff&#x27;:&#x27;2026-06-01 09:30&#x27;,&#x27;policy&#x27;:&#x27;best_effort_vendor_v1&#x27;,
+     &#x27;visible_implementation_rows&#x27;:len(early.frame)},
+    {&#x27;cutoff&#x27;:&#x27;2026-06-08 09:30&#x27;,&#x27;policy&#x27;:&#x27;best_effort_vendor_v1&#x27;,
+     &#x27;visible_implementation_rows&#x27;:len(after_implementation.frame)},
+    {&#x27;cutoff&#x27;:&#x27;2026-06-08 09:30&#x27;,&#x27;policy&#x27;:&#x27;operational_pit_v1&#x27;,
+     &#x27;visible_implementation_rows&#x27;:len(strict_after.frame)},
+]))
+assert len(early.frame) == 0
+assert len(after_implementation.frame) == 1
+assert len(strict_after.frame) == 0
+implementation = after_implementation.frame.iloc[0]
+assert str(implementation[&#x27;implementation_announcement_date&#x27;]) == &#x27;2026-06-05&#x27;</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实分红实施公告的两个截止时间 · 3</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>report_period</th>
+      <th>announcement_date</th>
+      <th>process_status</th>
+      <th>cash_dividend_before_tax_per_share</th>
+      <th>implementation_announcement_date</th>
+      <th>record_date</th>
+      <th>ex_date</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2025-12-31</td>
+      <td>2026-05-23</td>
+      <td>实施</td>
+      <td>0.36</td>
+      <td>2026-06-05</td>
+      <td>2026-06-11</td>
+      <td>2026-06-12</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">原公告 05-23、实施公告 06-05；完整实施行不能在 06-01 预知。
+06-08 仅按供应商公告时间假设可见；严格 historical cutoff 仍早于原 Raw 接收。
+</pre><details><summary>展开示例代码</summary><pre class="code">assert str(implementation[&#x27;record_date&#x27;]) == &#x27;2026-06-11&#x27;
+assert str(implementation[&#x27;ex_date&#x27;]) == &#x27;2026-06-12&#x27;
+assert implementation[&#x27;cash_dividend_before_tax_per_share&#x27;] == 0.36
+display(after_implementation.frame)
+print(&#x27;原公告 05-23、实施公告 06-05；完整实施行不能在 06-01 预知。&#x27;)
+print(&#x27;06-08 仅按供应商公告时间假设可见；严格 historical cutoff 仍早于原 Raw 接收。&#x27;)</pre></details></section><section id="section-7" class="markdown"><h2>7. 采集 plan、批量后处理和 checkpoint</h2>
+<p>执行入口是 <code>prepare → plan → run → verify → audit</code>。参考准备保留完整供应商成员与上市来源，debug 仅缩小后续事实证券范围。行情、因子和停复牌按交易日全市场请求，三表按公告月 VIP 批量请求，指标按报告季度请求；必须单股请求的股东来源仍按供应商接口执行。默认 8 个在途、300 次/分钟全局上限，主表另有限速。Raw 在响应收到时落盘，Canonical 按月批量写列。</p>
+<p>plan 固定选择器、范围、重试、限速和 base Snapshot；checkpoint 保存已成功 Raw 与发布块。接口失败重试有界，明确截断的响应要拆分；外部事实差异只提示 warning。中断后用同一 plan/operation 继续，成功接收时间保留，整作业完成后推进 current。</p>
+</section><section class="example"><div class="example-label">真实执行 · 持久作业状态与真实请求数量</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>status</th>
+      <th>completed_requests</th>
+      <th>planned_requests</th>
+      <th>trading_sessions</th>
+      <th>total_chunks</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>success</td>
+      <td>735</td>
+      <td>735</td>
+      <td>242</td>
+      <td>13</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">读取已完成作业状态；没有启动采集。
+</pre><details><summary>展开示例代码</summary><pre class="code">import subprocess
+cli = [sys.executable, &#x27;-m&#x27;, &#x27;axiom_data&#x27;, &#x27;--data-root&#x27;, str(ROOT)]
+status = json.loads(subprocess.check_output(cli + [&#x27;status&#x27;,&#x27;--plan&#x27;,str(ROOT.with_suffix(&#x27;.plan.json&#x27;))], text=True))
+display(pd.DataFrame([{k:status[k] for k in (&#x27;status&#x27;,&#x27;completed_requests&#x27;,&#x27;planned_requests&#x27;,&#x27;trading_sessions&#x27;,&#x27;total_chunks&#x27;)}]))
+assert status[&#x27;status&#x27;] == &#x27;success&#x27; and status[&#x27;completed_requests&#x27;] == 735
+print(&#x27;读取已完成作业状态；没有启动采集。&#x27;)
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 完整源 checkpoint 与离线 verify · 1</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>status</th>
+      <th>phase</th>
+      <th>planned_event_requests</th>
+      <th>completed_event_requests</th>
+      <th>event_raw_rows</th>
+      <th>event_raw_attempts</th>
+      <th>elapsed_seconds</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>success</td>
+      <td>complete</td>
+      <td>741</td>
+      <td>741</td>
+      <td>591007</td>
+      <td>741</td>
+      <td>152.311628</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">独立验证: {&#x27;verified&#x27;: True, &#x27;snapshot_id&#x27;: &#x27;s_a0db6028118997d93b9f70dff852b701b030b152a30b2e8d325c08ad64931049&#x27;, &#x27;market_verified&#x27;: True, &#x27;calendar_verified&#x27;: True, &#x27;selected_event_raw_batches&#x27;: 741, &#x27;unchanged_event_raw_batches&#x27;: 331, &#x27;event_raw_rows&#x27;: 591007, &#x27;coverage_basis&#x27;: &#x27;selected Raw requests, published facts and verified unchanged receipts; supplier completeness unverified&#x27;}
+</pre><details><summary>展开示例代码</summary><pre class="code">from axiom_data.full_sources import FullSourcePlan, full_source_status, verify_full_sources
+full_plan_path = Path(os.environ.get(&#x27;AXIOM_UNIFIED_PLAN&#x27;,
+    REPO / &#x27;delivery/csi1800_tushare_only_v4_202606_202608.plan.json&#x27;))
+plan_envelope = json.loads(full_plan_path.read_text())
+full_plan = FullSourcePlan.from_dict(plan_envelope[&#x27;job&#x27;])
+full_status = full_source_status(full.store, plan=full_plan,
+    operation_id=plan_envelope[&#x27;operation_id&#x27;])
+display(pd.DataFrame([{k:full_status.get(k) for k in (&#x27;status&#x27;,&#x27;phase&#x27;,&#x27;planned_event_requests&#x27;,
+    &#x27;completed_event_requests&#x27;,&#x27;event_raw_rows&#x27;,&#x27;event_raw_attempts&#x27;,&#x27;elapsed_seconds&#x27;)}]))
+assert full_status[&#x27;status&#x27;] == &#x27;success&#x27;
+verified_full = verify_full_sources(full.store, plan=full_plan,
+    operation_id=plan_envelope[&#x27;operation_id&#x27;])
+assert verified_full[&#x27;verified&#x27;] and verified_full[&#x27;snapshot_id&#x27;] == FULL_SNAPSHOT
+print(&#x27;独立验证:&#x27;, verified_full)</pre></details></section><section class="example"><div class="example-label">真实执行 · 完整源 checkpoint 与离线 verify · 2</div><pre class="output-text">真实完整源 audit: passed issues: 0 elapsed_seconds: 5.193
+固定计划离线 verify: True ；供应商覆盖限制: selected Raw requests, published facts and verified unchanged receipts; supplier completeness unverified
+</pre><details><summary>展开示例代码</summary><pre class="code">full_audit_path = Path(os.environ.get(&#x27;AXIOM_UNIFIED_AUDIT&#x27;,
+    REPO / &#x27;delivery/csi1800_tushare_only_v4_202606_202608.audit.json&#x27;))
+full_audit = json.loads(full_audit_path.read_text())
+assert full_audit[&#x27;snapshot_id&#x27;] == FULL_SNAPSHOT and full_audit[&#x27;status&#x27;] == &#x27;passed&#x27;
+assert not full_audit[&#x27;issues&#x27;]
+print(&#x27;真实完整源 audit:&#x27;, full_audit[&#x27;status&#x27;], &#x27;issues:&#x27;, len(full_audit[&#x27;issues&#x27;]),
+      &#x27;elapsed_seconds:&#x27;, full_audit[&#x27;elapsed_seconds&#x27;])
+full_verify_path = Path(os.environ.get(&#x27;AXIOM_UNIFIED_VERIFY&#x27;,
+    REPO / &#x27;delivery/csi1800_tushare_only_v4_202606_202608.verify.json&#x27;))
+full_verify = json.loads(full_verify_path.read_text())
+assert full_verify[&#x27;snapshot_id&#x27;] == FULL_SNAPSHOT and full_verify[&#x27;verified&#x27;]
+print(&#x27;固定计划离线 verify:&#x27;, full_verify[&#x27;verified&#x27;],
+      &#x27;；供应商覆盖限制:&#x27;, full_verify[&#x27;coverage_basis&#x27;])
+nochange_path = REPO / &#x27;delivery/csi1800_tushare_only_v4_202606_202608.nochange.json&#x27;</pre></details></section><section class="example"><div class="example-label">真实执行 · 完整源 checkpoint 与离线 verify · 3</div><pre class="output-text">完成作业同计划重放: {&#x27;basis&#x27;: &#x27;completed operation checkpoint returned without client source calls&#x27;, &#x27;raw_records_after&#x27;: 969, &#x27;raw_records_before&#x27;: 969, &#x27;snapshot_id&#x27;: &#x27;s_a0db6028118997d93b9f70dff852b701b030b152a30b2e8d325c08ad64931049&#x27;, &#x27;status&#x27;: &#x27;passed&#x27;, &#x27;supplier_requests_on_completed_replay&#x27;: 0}
+</pre><details><summary>展开示例代码</summary><pre class="code">if nochange_path.exists():
+    nochange = json.loads(nochange_path.read_text())
+    assert nochange[&#x27;snapshot_id&#x27;] == FULL_SNAPSHOT and nochange[&#x27;status&#x27;] == &#x27;passed&#x27;
+    print(&#x27;完成作业同计划重放:&#x27;, nochange)</pre></details></section><section id="section-8" class="markdown"><h2>8. Daily update 与历史 refresh</h2>
+<p>新增交易日使用 <code>mode=daily</code> 和原稳定身份绑定，固定上一版作 base；参考准备携带上一次 preparation，收新 dated 成员快照才更新区间。财务默认回看 31 个原公告日。供应商更正若涉及更早公告日或报告期，另建明确历史 refresh 计划，只补相关源范围；新响应有新的真实接收时间。</p>
+<p>bulk 小样本验证采集链路，daily 的空重复/晚到与发布语义由独立测试和既有真实增量证据验证；此次没有宣称在生产十二年根实际跑过 daily。股票历史并集和 ETF 的十二年配置均可直接交给 CLI；它们不依赖 agent，也不调用模型 API。</p>
+</section><section id="cell-33" class="markdown"><pre><code class="language-sh">
+axiom-data --data-root /absolute/data-12y prepare --config examples/delivery_csi1800_twelve_year.json --output-scope delivery/csi1800-twelve-year.scope.json --token-file /absolute/private/tushare-token.txt
+axiom-data --data-root /absolute/data-12y plan --scope delivery/csi1800-twelve-year.scope.json --operation-id csi1800-201411-202609-bulk --output delivery/csi1800-twelve-year.plan.json
+axiom-data --data-root /absolute/data-12y run --plan delivery/csi1800-twelve-year.plan.json --token-file /absolute/private/tushare-token.txt
+axiom-data --data-root /absolute/data-12y status --plan delivery/csi1800-twelve-year.plan.json
+axiom-data --data-root /absolute/data-12y verify --plan delivery/csi1800-twelve-year.plan.json
+axiom-data --data-root /absolute/data-12y audit --plan delivery/csi1800-twelve-year.plan.json --snapshot current --output delivery/csi1800-twelve-year.audit.json
+</code></pre>
+<p>参数与源修订窗口详见 <a href="../docs/cli.md">CLI</a>。</p>
+</section><section id="section-9" class="markdown"><h2>9. 生命周期与月度成员边界</h2>
+<p>上市、退市日期和状态采用 Tushare；不接官网补写生产数据。成员延续的是最近可见完整供应商快照，session、snapshot_date 和 Raw 收到时间分开。没有原历史观察的 strict 查询返回未知，best-effort 才采用明确的历史供应商假设。下面用真实主表与成员显示这些边界。</p>
+</section><section class="example"><div class="example-label">真实执行 · 真实供应商上市状态与时间资格 · 1</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>listing_date</th>
+      <th>delisting_date</th>
+      <th>vendor_delist_date</th>
+      <th>list_status</th>
+      <th>first_observed_at</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>1999-11-10</td>
+      <td>None</td>
+      <td>None</td>
+      <td>L</td>
+      <td>2026-09-28 13:16:33.564276+00:00</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>1991-04-03</td>
+      <td>None</td>
+      <td>None</td>
+      <td>L</td>
+      <td>2026-09-28 13:16:37.320913+00:00</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">生产上市与退市来源: tushare.local.stock_basic.v1
+</pre><details><summary>展开示例代码</summary><pre class="code"># Production listing and status facts come from the pinned Tushare Snapshot.
+listing_manifest = UNIFIED.store.load_snapshot(UNIFIED_SNAPSHOT)
+master_domain = listing_manifest[&#x27;domains&#x27;][&#x27;security_master&#x27;]
+assert master_domain[&#x27;source_profile&#x27;][&#x27;id&#x27;].startswith(&#x27;tushare.&#x27;)
+master = pd.DataFrame([r for part in master_domain[&#x27;partitions&#x27;]
+    for r in UNIFIED.store.read_partition(part).to_pylist()])
+listing_columns = [c for c in (&#x27;security_id&#x27;,&#x27;listing_date&#x27;,&#x27;delisting_date&#x27;,
+    &#x27;vendor_delist_date&#x27;,&#x27;list_status&#x27;,&#x27;first_observed_at&#x27;) if c in master.columns]
+display(master[listing_columns].head(8))
+print(&#x27;生产上市与退市来源:&#x27;, master_domain[&#x27;source_profile&#x27;][&#x27;id&#x27;])</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实供应商上市状态与时间资格 · 2</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>listing_date</th>
+      <th>delisting_date</th>
+      <th>event_type</th>
+      <th>first_observed_at</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000508.SZ.19930430</td>
+      <td>1993-04-30</td>
+      <td>1999-07-12</td>
+      <td>delisting</td>
+      <td>2026-09-28 13:16:38.388413+00:00</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600625.SH.19930106</td>
+      <td>1993-01-06</td>
+      <td>2001-04-23</td>
+      <td>delisting</td>
+      <td>2026-09-28 13:16:34.649002+00:00</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.000588.SZ.19960123</td>
+      <td>1996-01-23</td>
+      <td>2001-06-15</td>
+      <td>delisting</td>
+      <td>2026-09-28 13:16:38.388413+00:00</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.000015.SZ.19920625</td>
+      <td>1992-06-25</td>
+      <td>2001-10-22</td>
+      <td>delisting</td>
+      <td>2026-09-28 13:16:38.388413+00:00</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cnstock.000556.SZ.19940525</td>
+      <td>1994-05-25</td>
+      <td>2002-05-29</td>
+      <td>delisting</td>
+      <td>2026-09-28 13:16:38.388413+00:00</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cnstock.000003.SZ.19910703</td>
+      <td>1991-07-03</td>
+      <td>2002-06-14</td>
+      <td>delisting</td>
+      <td>2026-09-28 13:16:38.388413+00:00</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cnstock.000675.SZ.19961226</td>
+      <td>1996-12-26</td>
+      <td>2002-08-20</td>
+      <td>delisting</td>
+      <td>2026-09-28 13:16:38.388413+00:00</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>cnstock.000689.SZ.19961231</td>
+      <td>1996-12-31</td>
+      <td>2002-09-05</td>
+      <td>delisting</td>
+      <td>2026-09-28 13:16:38.388413+00:00</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">规范上市事件来源: tushare.stock_basic.listing_events.v1
+</pre><details><summary>展开示例代码</summary><pre class="code">if &#x27;listing_events&#x27; in listing_manifest[&#x27;domains&#x27;]:
+    event_domain = listing_manifest[&#x27;domains&#x27;][&#x27;listing_events&#x27;]
+    assert event_domain[&#x27;source_profile&#x27;][&#x27;id&#x27;].startswith(&#x27;tushare.&#x27;)
+    events = pd.DataFrame([r for part in event_domain[&#x27;partitions&#x27;]
+        for r in UNIFIED.store.read_partition(part).to_pylist()])
+    if not events.empty:
+        event_columns = [c for c in (&#x27;security_id&#x27;,&#x27;listing_date&#x27;,&#x27;delisting_date&#x27;,
+            &#x27;event_type&#x27;,&#x27;first_observed_at&#x27;) if c in events.columns]
+        delisted_events = (events.loc[events.delisting_date.notna()]
+            if &#x27;delisting_date&#x27; in events else events)
+        display(delisted_events[event_columns].head(8))
+        print(&#x27;规范上市事件来源:&#x27;, event_domain[&#x27;source_profile&#x27;][&#x27;id&#x27;])
+state_day = &#x27;2026-08-31&#x27;
+state_ids = (IDS[&#x27;000001.SZ&#x27;], IDS[&#x27;600000.SH&#x27;])</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实供应商上市状态与时间资格 · 3</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>market_state</th>
+      <th>close</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-31</td>
+      <td>unknown_status</td>
+      <td>11.72</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2026-08-31</td>
+      <td>unknown_status</td>
+      <td>9.16</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>market_state</th>
+      <th>close</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-31</td>
+      <td>unknown_status</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.600000.SH.19991110</td>
+      <td>2026-08-31</td>
+      <td>unknown_status</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">交易状态依据留存供应商事实和日历推导；外部交叉校验只能提示冲突，不改写生产值。
+严格历史 cutoff 早于原 Raw 接收，状态仍未知。
+</pre><details><summary>展开示例代码</summary><pre class="code">state_q = QuerySpec(&#x27;market_daily&#x27;, (&#x27;close&#x27;,), state_ids, (state_day,),
+    &#x27;best_effort_vendor_v1&#x27;, {state_day:state_day+&#x27;T20:30:00+08:00&#x27;})
+production_states = UNIFIED.states(snapshot=UNIFIED_SNAPSHOT, query=state_q)
+display(production_states.frame)
+past_states = UNIFIED.states(snapshot=UNIFIED_SNAPSHOT,
+    query=replace(state_q, pit_policy=&#x27;operational_pit_v1&#x27;))
+display(past_states.frame)
+assert past_states.frame.market_state.eq(&#x27;unknown_status&#x27;).all()
+print(&#x27;交易状态依据留存供应商事实和日历推导；外部交叉校验只能提示冲突，不改写生产值。&#x27;)
+print(&#x27;严格历史 cutoff 早于原 Raw 接收，状态仍未知。&#x27;)</pre></details></section><section class="example"><div class="example-label">真实执行 · 供应商实际频率、快照日期与 PIT · 1</div><pre class="output-text">生产成员来源: tushare.index_weight.dated_membership.v1
+固定 Snapshot: s_a0db6028118997d93b9f70dff852b701b030b152a30b2e8d325c08ad64931049 ；规范成员行: 3874
+成员覆盖摘要: {&#x27;basis&#x27;: &#x27;tushare_dated_index_weight_snapshot_v1&#x27;, &#x27;between_snapshots&#x27;: &#x27;carry_forward&#x27;, &#x27;limitations&#x27;: [&#x27;Supplier index_weight was observed on dated snapshots only; no intramonth membership change is proven.&#x27;, &#x27;Best-effort uses an assumed 18:00 Asia/Shanghai dated release; strict policies use actual Raw receipt.&#x27;]}
+</pre><details><summary>展开示例代码</summary><pre class="code"># A Tushare month-end snapshot is observed on its own trade_date.
+MEMBER_SNAPSHOT = UNIFIED_SNAPSHOT
+member_manifest = UNIFIED.store.load_snapshot(MEMBER_SNAPSHOT)
+member_domain = member_manifest[&#x27;domains&#x27;][&#x27;universe_membership&#x27;]
+member_coverage = member_domain[&#x27;coverage&#x27;]
+assert member_coverage[&#x27;basis&#x27;] == &#x27;tushare_dated_index_weight_snapshot_v1&#x27;
+assert member_coverage[&#x27;between_snapshots&#x27;] == &#x27;carry_forward&#x27;
+print(&#x27;生产成员来源:&#x27;, member_domain[&#x27;source_profile&#x27;][&#x27;id&#x27;])
+print(&#x27;固定 Snapshot:&#x27;, MEMBER_SNAPSHOT,
+      &#x27;；规范成员行:&#x27;, sum(p[&#x27;rows&#x27;] for p in member_domain[&#x27;partitions&#x27;]))
+print(&#x27;成员覆盖摘要:&#x27;, {k:v for k,v in member_coverage.items()
+    if k in (&#x27;basis&#x27;,&#x27;between_snapshots&#x27;,&#x27;universe_ids&#x27;,&#x27;observation_dates&#x27;,&#x27;limitations&#x27;)})
+state_rows = pd.DataFrame(member_coverage.get(&#x27;complete_states&#x27;, ()))</pre></details></section><section class="example"><div class="example-label">真实执行 · 供应商实际频率、快照日期与 PIT · 2</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>complete</th>
+      <th>dependency_raw_batch_ids</th>
+      <th>effective_from</th>
+      <th>effective_to</th>
+      <th>first_observed_at</th>
+      <th>member_count</th>
+      <th>member_set_sha256</th>
+      <th>member_set_source</th>
+      <th>raw_batch_id</th>
+      <th>revision_id</th>
+      <th>revision_sequence</th>
+      <th>source_snapshot_date</th>
+      <th>state_id</th>
+      <th>universe_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>12</th>
+      <td>True</td>
+      <td>[b_53fad64807cc41448f028719847d2ee9, b_7277acc...</td>
+      <td>2026-05-29</td>
+      <td>2026-06-30</td>
+      <td>2026-09-28T13:17:24.908931+00:00</td>
+      <td>1800</td>
+      <td>4b9d1d17ccd9875474ec3f10369699179b5cdf2ef98b06...</td>
+      <td>canonical_intervals_v1</td>
+      <td>b_53fad64807cc41448f028719847d2ee9</td>
+      <td>vendor:9f0d23f6e5910baacf346b1379116ef805178b2...</td>
+      <td>1</td>
+      <td>2026-05-29</td>
+      <td>vendor:csi1800:2026-05-29</td>
+      <td>csi1800</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>True</td>
+      <td>[b_b79a4a5d683548aaa11803d5edf648f3, b_1c3c1f6...</td>
+      <td>2026-06-30</td>
+      <td>2026-07-31</td>
+      <td>2026-09-28T13:17:26.380734+00:00</td>
+      <td>1800</td>
+      <td>869ca57470d399de6c11b1e3db3cde9d8b14fc705d1072...</td>
+      <td>canonical_intervals_v1</td>
+      <td>b_b79a4a5d683548aaa11803d5edf648f3</td>
+      <td>vendor:a8910eb6904cefcb0971b3a80d0349bd5cde133...</td>
+      <td>1</td>
+      <td>2026-06-30</td>
+      <td>vendor:csi1800:2026-06-30</td>
+      <td>csi1800</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>True</td>
+      <td>[b_18fbd2b97d7440b8b8b17f96bdee23e5, b_4fe02a3...</td>
+      <td>2026-07-31</td>
+      <td>2026-08-31</td>
+      <td>2026-09-28T13:17:27.310742+00:00</td>
+      <td>1800</td>
+      <td>869ca57470d399de6c11b1e3db3cde9d8b14fc705d1072...</td>
+      <td>canonical_intervals_v1</td>
+      <td>b_18fbd2b97d7440b8b8b17f96bdee23e5</td>
+      <td>vendor:091f1143725c1fd73de240279684fd5e213a87c...</td>
+      <td>1</td>
+      <td>2026-07-31</td>
+      <td>vendor:csi1800:2026-07-31</td>
+      <td>csi1800</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>True</td>
+      <td>[b_ccedf03a766d41c89d7e292efc276403, b_d2c26e2...</td>
+      <td>2026-08-31</td>
+      <td>None</td>
+      <td>2026-09-28T13:17:28.534869+00:00</td>
+      <td>1800</td>
+      <td>869ca57470d399de6c11b1e3db3cde9d8b14fc705d1072...</td>
+      <td>canonical_intervals_v1</td>
+      <td>b_ccedf03a766d41c89d7e292efc276403</td>
+      <td>vendor:1fe9cb9e4b4acc1c7443ff96c256dc5d26ed1c9...</td>
+      <td>1</td>
+      <td>2026-08-31</td>
+      <td>vendor:csi1800:2026-08-31</td>
+      <td>csi1800</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>is_member</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-07-31</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-03</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-31</td>
+      <td>True</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><details><summary>展开示例代码</summary><pre class="code">if not state_rows.empty:
+    selected = (state_rows.loc[state_rows.universe_id.eq(&#x27;csi1800&#x27;)]
+        if &#x27;universe_id&#x27; in state_rows else state_rows)
+    display(selected)
+
+MEMBER_DAYS = (&#x27;2026-07-31&#x27;,&#x27;2026-08-03&#x27;,&#x27;2026-08-31&#x27;)
+vendor_query = QuerySpec(&#x27;universe_membership&#x27;, (&#x27;is_member&#x27;,), (SYMBOL,),
+    MEMBER_DAYS, &#x27;best_effort_vendor_v1&#x27;,
+    {day:day+&#x27;T20:30:00+08:00&#x27; for day in MEMBER_DAYS}, universe_id=&#x27;csi1800&#x27;)
+vendor_members = UNIFIED.members(snapshot=MEMBER_SNAPSHOT, query=vendor_query)
+display(vendor_members.frame)
+member_meta = pd.DataFrame(vendor_members.field_meta[&#x27;is_member&#x27;][&#x27;by_key&#x27;])
+meta_columns = [c for c in (&#x27;security_id&#x27;,&#x27;session&#x27;,&#x27;snapshot_date&#x27;,&#x27;source_snapshot_date&#x27;,
+    &#x27;effective_from&#x27;,&#x27;first_observed_at&#x27;,&#x27;availability_basis&#x27;,&#x27;missing_reason&#x27;)
+    if c in member_meta.columns]</pre></details></section><section class="example"><div class="example-label">真实执行 · 供应商实际频率、快照日期与 PIT · 3</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>source_snapshot_date</th>
+      <th>first_observed_at</th>
+      <th>availability_basis</th>
+      <th>missing_reason</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-07-31</td>
+      <td>2026-07-31</td>
+      <td>2026-09-28T13:17:24.908931+00:00</td>
+      <td>declared_vendor_assumption</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-03</td>
+      <td>2026-07-31</td>
+      <td>2026-09-28T13:17:24.908931+00:00</td>
+      <td>declared_vendor_assumption</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-31</td>
+      <td>2026-08-31</td>
+      <td>2026-09-28T13:17:24.908931+00:00</td>
+      <td>declared_vendor_assumption</td>
+      <td>None</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>is_member</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-07-31</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-03</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-31</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">08-03 沿用最近的 07-31 供应商快照；08-31 新快照不倒填 8 月初。
+这只是 Tushare 供应商研究口径；月内真实调样时刻没有逐日来源。
+</pre><details><summary>展开示例代码</summary><pre class="code">display(member_meta[meta_columns])
+snapshot_by_session = member_meta.set_index(&#x27;session&#x27;)[&#x27;source_snapshot_date&#x27;]
+assert snapshot_by_session.loc[&#x27;2026-08-03&#x27;] == &#x27;2026-07-31&#x27;
+assert snapshot_by_session.loc[&#x27;2026-08-31&#x27;] == &#x27;2026-08-31&#x27;
+observed = vendor_members.frame.set_index(&#x27;session&#x27;).is_member
+assert pd.notna(observed.loc[&#x27;2026-07-31&#x27;])
+assert observed.loc[&#x27;2026-08-03&#x27;] == observed.loc[&#x27;2026-07-31&#x27;]
+strict = UNIFIED.members(snapshot=MEMBER_SNAPSHOT,
+    query=replace(vendor_query, pit_policy=&#x27;operational_pit_v1&#x27;))
+display(strict.frame)
+assert strict.frame.is_member.isna().all()
+print(&#x27;08-03 沿用最近的 07-31 供应商快照；08-31 新快照不倒填 8 月初。&#x27;)
+print(&#x27;这只是 Tushare 供应商研究口径；月内真实调样时刻没有逐日来源。&#x27;)
+CHANGED_ID = &#x27;cnstock.000506.SZ.19930312&#x27;
+CHANGE_DAYS = (&#x27;2026-05-29&#x27;,&#x27;2026-06-01&#x27;,&#x27;2026-06-30&#x27;,&#x27;2026-07-01&#x27;)</pre></details></section><section class="example"><div class="example-label">真实执行 · 供应商实际频率、快照日期与 PIT · 4</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>is_member</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000506.SZ.19930312</td>
+      <td>2026-05-29</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.000506.SZ.19930312</td>
+      <td>2026-06-01</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.000506.SZ.19930312</td>
+      <td>2026-06-30</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.000506.SZ.19930312</td>
+      <td>2026-07-01</td>
+      <td>True</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>session</th>
+      <th>source_snapshot_date</th>
+      <th>first_observed_at</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>2026-05-29</td>
+      <td>2026-05-29</td>
+      <td>2026-09-28T13:17:24.908931+00:00</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>2026-06-01</td>
+      <td>2026-05-29</td>
+      <td>2026-09-28T13:17:24.908931+00:00</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2026-06-30</td>
+      <td>2026-06-30</td>
+      <td>2026-09-28T13:17:26.380734+00:00</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2026-07-01</td>
+      <td>2026-06-30</td>
+      <td>2026-09-28T13:17:26.380734+00:00</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">000506 仅在供应商 06-30 新快照转为成员；没有倒填为 06-15 的精确调整。
+</pre><details><summary>展开示例代码</summary><pre class="code">change_query = QuerySpec(&#x27;universe_membership&#x27;, (&#x27;is_member&#x27;,), (CHANGED_ID,),
+    CHANGE_DAYS, &#x27;best_effort_vendor_v1&#x27;,
+    {day:day+&#x27;T20:30:00+08:00&#x27; for day in CHANGE_DAYS}, universe_id=&#x27;csi1800&#x27;)
+changed = UNIFIED.members(snapshot=MEMBER_SNAPSHOT, query=change_query)
+display(changed.frame)
+assert changed.frame.is_member.tolist() == [False,False,True,True]
+change_meta = pd.DataFrame(changed.field_meta[&#x27;is_member&#x27;][&#x27;by_key&#x27;])
+display(change_meta[[&#x27;session&#x27;,&#x27;source_snapshot_date&#x27;,&#x27;first_observed_at&#x27;]])
+assert change_meta.source_snapshot_date.tolist() == [
+    &#x27;2026-05-29&#x27;,&#x27;2026-05-29&#x27;,&#x27;2026-06-30&#x27;,&#x27;2026-06-30&#x27;]
+print(&#x27;000506 仅在供应商 06-30 新快照转为成员；没有倒填为 06-15 的精确调整。&#x27;)</pre></details></section><section class="example"><div class="example-label">真实执行 · 月末 Raw 的临时观测示例</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>index_code</th>
+      <th>requested_from</th>
+      <th>requested_to</th>
+      <th>rows</th>
+      <th>returned_trade_dates</th>
+      <th>raw_batch_id</th>
+      <th>observed_at</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>000300.SH</td>
+      <td>20260612</td>
+      <td>20260612</td>
+      <td>0</td>
+      <td></td>
+      <td>b_b382f8701049473c9645468637c02f24</td>
+      <td>2026-10-03T05:02:05.724878+00:00</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>000300.SH</td>
+      <td>20260615</td>
+      <td>20260615</td>
+      <td>0</td>
+      <td></td>
+      <td>b_91cc3b1bfd944b989ce71f08c663650a</td>
+      <td>2026-10-03T05:02:06.109068+00:00</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>000300.SH</td>
+      <td>20260630</td>
+      <td>20260630</td>
+      <td>300</td>
+      <td>20260630</td>
+      <td>b_862fbc2c4a41440c8598c7d9aeeae859</td>
+      <td>2026-10-03T05:02:06.507870+00:00</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>000300.SH</td>
+      <td>20260601</td>
+      <td>20260630</td>
+      <td>300</td>
+      <td>20260630</td>
+      <td>b_14e33c6e9be941bcb0408e2def4813ab</td>
+      <td>2026-10-03T05:02:06.884449+00:00</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>000905.SH</td>
+      <td>20260612</td>
+      <td>20260612</td>
+      <td>0</td>
+      <td></td>
+      <td>b_bce58844823b4a78b950182079d2d911</td>
+      <td>2026-10-03T05:02:07.277555+00:00</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>000905.SH</td>
+      <td>20260615</td>
+      <td>20260615</td>
+      <td>0</td>
+      <td></td>
+      <td>b_bf0f69de259d4d5f91afb1fad56d0063</td>
+      <td>2026-10-03T05:02:07.652712+00:00</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>000905.SH</td>
+      <td>20260630</td>
+      <td>20260630</td>
+      <td>500</td>
+      <td>20260630</td>
+      <td>b_9613b19b682d47aeaadd3f04ed526ad3</td>
+      <td>2026-10-03T05:02:08.045632+00:00</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>000905.SH</td>
+      <td>20260601</td>
+      <td>20260630</td>
+      <td>500</td>
+      <td>20260630</td>
+      <td>b_3bb98aaff5884434810c8de3fcec7bad</td>
+      <td>2026-10-03T05:02:08.437697+00:00</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>000852.SH</td>
+      <td>20260612</td>
+      <td>20260612</td>
+      <td>0</td>
+      <td></td>
+      <td>b_d2386f37ddbb4d78a5a5248c136072b8</td>
+      <td>2026-10-03T05:02:08.886354+00:00</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>000852.SH</td>
+      <td>20260615</td>
+      <td>20260615</td>
+      <td>0</td>
+      <td></td>
+      <td>b_bd34b0aafbd248a398cf57325ff24ae0</td>
+      <td>2026-10-03T05:02:09.245978+00:00</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>000852.SH</td>
+      <td>20260630</td>
+      <td>20260630</td>
+      <td>1000</td>
+      <td>20260630</td>
+      <td>b_022ff812362540af917171b1862481ad</td>
+      <td>2026-10-03T05:02:09.693241+00:00</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>000852.SH</td>
+      <td>20260601</td>
+      <td>20260630</td>
+      <td>1000</td>
+      <td>20260630</td>
+      <td>b_98481b4121c44e1981e8bada29e54d50</td>
+      <td>2026-10-03T05:02:11.272987+00:00</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">实际来源仅在六月末返回同日名单；逐日请求不能制造逐日事实。
+</pre><details><summary>展开示例代码</summary><pre class="code"># This is a saved live Tushare probe, independent of the tutorial&#x27;s production Snapshot.
+cadence = json.loads((REPO / &#x27;docs/tushare-membership-cadence.json&#x27;).read_text())
+probe_rows = []
+for item in cadence[&#x27;results&#x27;]:
+    params = item[&#x27;params&#x27;]
+    probe_rows.append({&#x27;index_code&#x27;:params[&#x27;index_code&#x27;],
+        &#x27;requested_from&#x27;:params[&#x27;start_date&#x27;], &#x27;requested_to&#x27;:params[&#x27;end_date&#x27;],
+        &#x27;rows&#x27;:item[&#x27;rows&#x27;], &#x27;returned_trade_dates&#x27;:&#x27;,&#x27;.join(item[&#x27;trade_date_counts&#x27;]),
+        &#x27;raw_batch_id&#x27;:item[&#x27;raw_batch_id&#x27;], &#x27;observed_at&#x27;:item[&#x27;observed_at&#x27;]})
+probe = pd.DataFrame(probe_rows)
+display(probe)
+assert len(probe) == 12
+for index_code, expected in ((&#x27;000300.SH&#x27;,300),(&#x27;000905.SH&#x27;,500),(&#x27;000852.SH&#x27;,1000)):
+    segment = probe.loc[probe.index_code.eq(index_code)]
+    assert segment.loc[segment.requested_from.isin((&#x27;20260612&#x27;,&#x27;20260615&#x27;)), &#x27;rows&#x27;].eq(0).all()
+    assert segment.loc[segment.requested_from.eq(&#x27;20260630&#x27;), &#x27;rows&#x27;].iloc[0] == expected
+    assert segment.loc[segment.requested_from.eq(&#x27;20260601&#x27;), &#x27;returned_trade_dates&#x27;].iloc[0] == &#x27;20260630&#x27;
+print(&#x27;实际来源仅在六月末返回同日名单；逐日请求不能制造逐日事实。&#x27;)
+MONTH_ENDS = (&#x27;2026-07-31&#x27;, &#x27;2026-08-31&#x27;)
+</pre></details></section><section id="section-10" class="markdown"><h2>10. 数据和代码变化时，哪些工作需要重做</h2>
+<p>先界定改动涉及哪个域、字段、日期和读取规则，再选择最小动作。财务按报告期和披露时间判断，不能仅按行情 session 判断影响范围。</p>
+<table>
+<thead>
+<tr>
+  <th>实际问题</th>
+  <th>当前最小流程</th>
+  <th>已有研究如何处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>用已有 close 计算新的动量</td>
+  <td>Reader 读取已存字段，Research 增加配方与参数；无需补拉或重建事实</td>
+  <td>原研究照常保留；新配方有自己的代码版本</td>
+</tr>
+<tr>
+  <td>新增供应商字段或接口</td>
+  <td>声明键、类型、单位、时间和来源映射。Raw 已含字段时离线重建；没采到时只补这个接口和窗口</td>
+  <td>用到新字段的研究保存新 Snapshot；原查询仍可读取原版本</td>
+</tr>
+<tr>
+  <td>原 Raw 漏拉、请求错误或供应商后来修订</td>
+  <td>补发对应选择器，追加真实接收记录；缺文件先从已验证副本恢复</td>
+  <td>记录错误范围和受影响数据引用，相关研究标为待复核</td>
+</tr>
+<tr>
+  <td>归一化、复权、PIT 或 schema 有错误/变化</td>
+  <td>归一化用修正版重建所选域；Reader/派生错误用修正版重读、重算；不兼容格式另做明确迁移</td>
+  <td>固定旧结果供对照，重跑实际受影响的实验；保留旧代码才能重现旧行为</td>
+</tr>
+</tbody>
+</table>
+<p><code>rebuild</code> 当前替换<strong>整个所选域</strong>，输入必须是这个域所需的完整 Raw 集合。标准 CLI 自动收集该域的 Raw；高级 <code>--request</code> 只给一天 Raw 会把该域重建成一天，并没有自动分区修补能力。未选域和旧 Snapshot 保持不变。增加任意新 endpoint 仍需写小 adapter、合同、映射和对应验证，不会由同逻辑 rebuild 自动完成。</p>
+<p>有日志半写时，Reader 仅读最后完整行之前的记录。恢复写入时先保留未完成尾片，再截到完整行边界；已完成记录的接收时间不变。已完成行损坏或对象摘要错误仍报错，需恢复正确字节或补采。新采样只能证明新观察，无法还原丢失的历史 vintage。</p>
+<p><strong>可以复现的结果也可能算错。</strong> 发现错误后，在修正记录中写清域/字段/窗口、错误版本、原因、替代版本和复核状态，关联到使用这些输入的实验。保留旧输出便于审计，同时标记它需要重算；其他未受影响实验继续有效。目前没有自动分析所有实验依赖的全局失效系统，也不需要先建设一个。完整操作边界见<a href="../docs/data-change-and-recovery.md">变更与修复</a>。</p>
+</section><section id="section-11" class="markdown"><h2>11. 故障恢复与搬移</h2>
+<p>Raw 半写的完整前缀读写已通过专项测试：只隔离末尾未完成片段，不改成功接收记录。完整行损坏仍需副本恢复。下面真实全年行情从同 Raw 重建所选域，其他域保持，current 不动；统一两证券样本此前已完成全域搬移与重建，逐域比较文件字节、合同和成员读取。</p>
+<p>这些是同一机器换目录与隔离环境的实际验证；跨操作系统是另外的部署验收。bundle 保存源文件闭包、接收日志和选定代码依赖，不会把重新收到的历史值伪装为旧 vintage。</p>
+</section><section class="example"><div class="example-label">真实执行 · 真实全年行情的离线重建与逐字节比较</div><pre class="output-text">{&#x27;elapsed_seconds&#x27;: 23.002, &#x27;market_partitions_byte_equal&#x27;: True, &#x27;unrelated_domains_equal&#x27;: True, &#x27;current_unchanged&#x27;: True, &#x27;new_snapshot&#x27;: &#x27;s_0e08a26191db89db542b66b2f3968c9abef59ae448871a231e49f5977a1abe56&#x27;}
+</pre><details><summary>展开示例代码</summary><pre class="code">BUNDLE = Path(str(ROOT) + &#x27;-bundle&#x27;)
+LOCAL = Data(TEMP / &#x27;relocated-market&#x27;)
+assert import_bundle(BUNDLE, LOCAL.store.root) == SNAPSHOT
+base = LOCAL.resolve(&#x27;current&#x27;)
+old = LOCAL.store.load_snapshot(base)
+start = time.perf_counter()
+rebuilt = LOCAL.rebuild(base_snapshot=base,
+    raw_batch_ids=old[&#x27;domains&#x27;][&#x27;market_daily&#x27;][&#x27;raw_batch_ids&#x27;], domains=[&#x27;market_daily&#x27;],
+    operation_id=&#x27;tutorial-real-market-rebuild&#x27;, build_context={&#x27;purpose&#x27;:&#x27;real offline tutorial&#x27;}, promote=False)
+new = LOCAL.store.load_snapshot(rebuilt.snapshot_id)
+assert new[&#x27;domains&#x27;][&#x27;market_daily&#x27;][&#x27;partitions&#x27;] == old[&#x27;domains&#x27;][&#x27;market_daily&#x27;][&#x27;partitions&#x27;]
+assert all(new[&#x27;domains&#x27;][k] == old[&#x27;domains&#x27;][k] for k in old[&#x27;domains&#x27;] if k != &#x27;market_daily&#x27;)
+assert LOCAL.resolve(&#x27;current&#x27;) == base
+print({&#x27;elapsed_seconds&#x27;:round(time.perf_counter()-start,3),&#x27;market_partitions_byte_equal&#x27;:True,
+       &#x27;unrelated_domains_equal&#x27;:True,&#x27;current_unchanged&#x27;:True,&#x27;new_snapshot&#x27;:rebuilt.snapshot_id})
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 统一 Snapshot 全域搬移、重建和成员重读 · 1</div><details><summary>展开示例代码</summary><pre class="code"># Same-host relocation and all-domain rebuild were completed from retained Tushare Raw.
+portable_path = Path(os.environ.get(&#x27;AXIOM_UNIFIED_PORTABLE_REPORT&#x27;,
+    REPO / &#x27;delivery/csi1800_tushare_only_v4_202606_202608.portable.json&#x27;))
+portable = json.loads(portable_path.read_text())
+assert portable[&#x27;status&#x27;] == &#x27;passed&#x27; and portable[&#x27;source_snapshot&#x27;] == FULL_SNAPSHOT
+assert portable[&#x27;current_unchanged&#x27;]
+assert set(portable[&#x27;domains&#x27;]) == set(full_manifest[&#x27;domains&#x27;])
+# The formal portable report already checked the whole bundle and every partition.
+# This cell checks the recorded result and independently rereads the moved data.
+assert Path(portable[&#x27;bundle&#x27;]).exists()
+restored_root = Path(os.environ.get(&#x27;AXIOM_UNIFIED_RESTORED_ROOT&#x27;, portable[&#x27;restored_root&#x27;]))
+restored = Data(restored_root)
+assert restored.resolve(&#x27;current&#x27;) == FULL_SNAPSHOT
+imported_manifest = restored.store.load_snapshot(FULL_SNAPSHOT)
+rebuilt_manifest = restored.store.load_snapshot(portable[&#x27;rebuilt_snapshot&#x27;])</pre></details></section><section class="example"><div class="example-label">真实执行 · 统一 Snapshot 全域搬移、重建和成员重读 · 2</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>domain</th>
+      <th>rows</th>
+      <th>partition_bytes_identical</th>
+      <th>source_profile_identical</th>
+      <th>contract_identical</th>
+      <th>coverage_identical</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>adjustment_factors</td>
+      <td>130</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>balance_sheet_events</td>
+      <td>13</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cash_flow_events</td>
+      <td>10</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>corporate_actions</td>
+      <td>20</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>financial_events</td>
+      <td>14</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>financial_indicator_events</td>
+      <td>12</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>listing_events</td>
+      <td>5888</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>market_daily</td>
+      <td>130</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>price_limits</td>
+      <td>130</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>security_master</td>
+      <td>2</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>security_status</td>
+      <td>0</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>top_holders_reports</td>
+      <td>12</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>trading_calendar</td>
+      <td>1338</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>universe_membership</td>
+      <td>3874</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+      <td>True</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><details><summary>展开示例代码</summary><pre class="code">portable_rows = []
+for domain_name, comparison in portable[&#x27;domains&#x27;].items():
+    same_contract = (full_manifest[&#x27;domains&#x27;][domain_name][&#x27;contract&#x27;] ==
+        imported_manifest[&#x27;domains&#x27;][domain_name][&#x27;contract&#x27;] ==
+        rebuilt_manifest[&#x27;domains&#x27;][domain_name][&#x27;contract&#x27;])
+    assert comparison[&#x27;partitions_identical&#x27;] and comparison[&#x27;profile_identical&#x27;] and same_contract
+    portable_rows.append({&#x27;domain&#x27;:domain_name,
+        &#x27;rows&#x27;:sum(p[&#x27;rows&#x27;] for p in full_manifest[&#x27;domains&#x27;][domain_name][&#x27;partitions&#x27;]),
+        &#x27;partition_bytes_identical&#x27;:True, &#x27;source_profile_identical&#x27;:True,
+        &#x27;contract_identical&#x27;:same_contract,
+        &#x27;coverage_identical&#x27;:comparison[&#x27;coverage_identical&#x27;]})
+display(pd.DataFrame(portable_rows))
+assert portable[&#x27;domains&#x27;][&#x27;listing_events&#x27;][&#x27;coverage_identical&#x27;]
+assert portable[&#x27;domains&#x27;][&#x27;universe_membership&#x27;][&#x27;coverage_identical&#x27;]
+source_probe = vendor_members.frame[[&#x27;security_id&#x27;,&#x27;session&#x27;,&#x27;is_member&#x27;]].reset_index(drop=True)</pre></details></section><section class="example"><div class="example-label">真实执行 · 统一 Snapshot 全域搬移、重建和成员重读 · 3</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>is_member</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-07-31</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-03</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-31</td>
+      <td>True</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>is_member</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000506.SZ.19930312</td>
+      <td>2026-05-29</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.000506.SZ.19930312</td>
+      <td>2026-06-01</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cnstock.000506.SZ.19930312</td>
+      <td>2026-06-30</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cnstock.000506.SZ.19930312</td>
+      <td>2026-07-01</td>
+      <td>True</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">同机换目录导入与 Raw 全域重建: 14 个域；供应商成员原根/搬移根/重建根一致。
+覆盖记录的 chunk/request 分组可不同；上市和成员 coverage 相同。 Market and event execution coverage records different chunk versus request grouping in the offline rebuild; all 14 canonical partitions and source profiles are identical, and both vendor listing and membership coverage are identical.
+</pre><details><summary>展开示例代码</summary><pre class="code">imported_probe = restored.members(snapshot=FULL_SNAPSHOT,
+    query=vendor_query).frame[[&#x27;security_id&#x27;,&#x27;session&#x27;,&#x27;is_member&#x27;]].reset_index(drop=True)
+rebuilt_probe = restored.members(snapshot=portable[&#x27;rebuilt_snapshot&#x27;],
+    query=vendor_query).frame[[&#x27;security_id&#x27;,&#x27;session&#x27;,&#x27;is_member&#x27;]].reset_index(drop=True)
+assert source_probe.equals(imported_probe) and source_probe.equals(rebuilt_probe)
+display(source_probe)
+source_change = changed.frame[[&#x27;security_id&#x27;,&#x27;session&#x27;,&#x27;is_member&#x27;]].reset_index(drop=True)
+imported_change = restored.members(snapshot=FULL_SNAPSHOT,
+    query=change_query).frame[[&#x27;security_id&#x27;,&#x27;session&#x27;,&#x27;is_member&#x27;]].reset_index(drop=True)
+rebuilt_change = restored.members(snapshot=portable[&#x27;rebuilt_snapshot&#x27;],
+    query=change_query).frame[[&#x27;security_id&#x27;,&#x27;session&#x27;,&#x27;is_member&#x27;]].reset_index(drop=True)
+assert source_change.equals(imported_change) and source_change.equals(rebuilt_change)
+display(source_change)
+print(&#x27;同机换目录导入与 Raw 全域重建:&#x27;, len(portable_rows), &#x27;个域；供应商成员原根/搬移根/重建根一致。&#x27;)
+print(&#x27;覆盖记录的 chunk/request 分组可不同；上市和成员 coverage 相同。&#x27;, portable[&#x27;coverage_note&#x27;])</pre></details></section><section id="section-12" class="markdown"><h2>12. Qlib 文件格式和实际消费者</h2>
+<p>exporter 只读已固定 Snapshot/Query，按月整理到临时映射数组，最后每证券字段写一个文件。<code>calendars/day.txt</code> 是完整开放日历，instrument 文件保存候选/成员区间，<code>.day.bin</code> 采用小端 float32，第一值为日历起始索引，后续保留原值与 NaN。manifest 固定查询、字段单位、身份映射、代码版本、文件摘要和容差。</p>
+<p>下方实际导出，再由 Research adapter 调用 Qlib。重复导出验证后复用，改变 cutoff/字段须新目录；它不会隐式训练、填财务数据或计算策略特征。</p>
+</section><section class="example"><div class="example-label">真实执行 · 从实际 Snapshot 按月导出 Qlib</div><pre class="output-text">实际临时导出: /var/folders/hq/xjtfsmm95nx1lpw034lk4cq00000gn/T/axiom-real-tutorial-pyi3_k7x/qlib-native
+QlibView: f4ebb4297ab7fd892c72ac767207365b9894843fcdb262f7e21339a820790f52
+字段: [&#x27;open&#x27;, &#x27;high&#x27;, &#x27;low&#x27;, &#x27;close&#x27;, &#x27;volume_shares&#x27;, &#x27;amount_cny&#x27;, &#x27;factor&#x27;, &#x27;up_limit&#x27;, &#x27;down_limit&#x27;]
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>domain</th>
+      <th>field</th>
+      <th>source_dtype</th>
+      <th>unit</th>
+      <th>price_basis</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>open</th>
+      <td>market_daily</td>
+      <td>open</td>
+      <td>float64</td>
+      <td>CNY/share</td>
+      <td>unadjusted</td>
+    </tr>
+    <tr>
+      <th>high</th>
+      <td>market_daily</td>
+      <td>high</td>
+      <td>float64</td>
+      <td>CNY/share</td>
+      <td>unadjusted</td>
+    </tr>
+    <tr>
+      <th>low</th>
+      <td>market_daily</td>
+      <td>low</td>
+      <td>float64</td>
+      <td>CNY/share</td>
+      <td>unadjusted</td>
+    </tr>
+    <tr>
+      <th>close</th>
+      <td>market_daily</td>
+      <td>close</td>
+      <td>float64</td>
+      <td>CNY/share</td>
+      <td>unadjusted</td>
+    </tr>
+    <tr>
+      <th>volume_shares</th>
+      <td>market_daily</td>
+      <td>volume_shares</td>
+      <td>int64</td>
+      <td>shares</td>
+      <td>unadjusted</td>
+    </tr>
+    <tr>
+      <th>amount_cny</th>
+      <td>market_daily</td>
+      <td>amount_cny</td>
+      <td>float64</td>
+      <td>CNY</td>
+      <td>unadjusted</td>
+    </tr>
+    <tr>
+      <th>factor</th>
+      <td>adjustment_factors</td>
+      <td>factor</td>
+      <td>float64</td>
+      <td>dimensionless</td>
+      <td>unadjusted</td>
+    </tr>
+    <tr>
+      <th>up_limit</th>
+      <td>price_limits</td>
+      <td>up_limit</td>
+      <td>float64</td>
+      <td>CNY/share</td>
+      <td>unadjusted</td>
+    </tr>
+    <tr>
+      <th>down_limit</th>
+      <td>price_limits</td>
+      <td>down_limit</td>
+      <td>float64</td>
+      <td>CNY/share</td>
+      <td>unadjusted</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><details><summary>展开示例代码</summary><pre class="code">sys.path.insert(0, str(WORKSPACE / &#x27;axiom-research&#x27; / &#x27;src&#x27;))
+from axiom_data import verify_qlib_export
+from axiom_research.qlib_adapter import QlibView
+import numpy as np, shutil
+qlib_spec = json.loads((REPO/&#x27;examples/qlib_stock_debug.spec.json&#x27;).read_text())
+qlib_queries = tuple(QuerySpec(**q) for q in qlib_spec[&#x27;queries&#x27;])
+qlib_members = QuerySpec(**qlib_spec[&#x27;universe_query&#x27;])
+qlib_target = TEMP/&#x27;qlib-native&#x27;
+qlib_manifest = UNIFIED.export_qlib(snapshot=UNIFIED_SNAPSHOT,
+    queries=qlib_queries,destination=qlib_target,universe_query=qlib_members,
+    universe_name=&#x27;csi1800&#x27;)
+print(&#x27;实际临时导出:&#x27;, qlib_target)
+print(&#x27;QlibView:&#x27;, qlib_manifest[&#x27;view_id&#x27;])
+print(&#x27;字段:&#x27;, list(qlib_manifest[&#x27;fields&#x27;]))
+display(pd.DataFrame(qlib_manifest[&#x27;fields&#x27;]).T)
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 查看实际 Qlib 文件与 float32 格式</div><pre class="output-text">实际目录:
+axiom-qlib.json
+calendars/day.txt
+features/cnstock.000001.sz.19910403/amount_cny.day.bin
+features/cnstock.000001.sz.19910403/close.day.bin
+features/cnstock.000001.sz.19910403/down_limit.day.bin
+features/cnstock.000001.sz.19910403/factor.day.bin
+features/cnstock.000001.sz.19910403/high.day.bin
+features/cnstock.000001.sz.19910403/low.day.bin
+features/cnstock.000001.sz.19910403/open.day.bin
+features/cnstock.000001.sz.19910403/up_limit.day.bin
+features/cnstock.000001.sz.19910403/volume_shares.day.bin
+features/cnstock.600000.sh.19991110/amount_cny.day.bin
+features/cnstock.600000.sh.19991110/close.day.bin
+features/cnstock.600000.sh.19991110/down_limit.day.bin
+features/cnstock.600000.sh.19991110/factor.day.bin
+features/cnstock.600000.sh.19991110/high.day.bin
+features/cnstock.600000.sh.19991110/low.day.bin
+features/cnstock.600000.sh.19991110/open.day.bin
+features/cnstock.600000.sh.19991110/up_limit.day.bin
+features/cnstock.600000.sh.19991110/volume_shares.day.bin
+instruments/all.txt
+instruments/csi1800.txt
+固定日历前五行: [&#x27;2026-06-01&#x27;, &#x27;2026-06-02&#x27;, &#x27;2026-06-03&#x27;, &#x27;2026-06-04&#x27;, &#x27;2026-06-05&#x27;]
+成员区间: CNSTOCK.000001.SZ.19910403	2026-06-01	2026-08-31
+CNSTOCK.600000.SH.19991110	2026-06-01	2026-08-31
+
+第一个float32为日历起始下标: 0.0 ；随后是实际 close: [10.99 11.08 10.99 10.82 10.98 11.03]
+浮点合同: {&#x27;dtype&#x27;: &#x27;little-endian float32&#x27;, &#x27;rtol&#x27;: 1e-06, &#x27;atol&#x27;: 1e-08}
+实测最大绝对rounding error: {&#x27;open&#x27;: 4.5776367230132564e-07, &#x27;high&#x27;: 4.5776367230132564e-07, &#x27;low&#x27;: 4.5776367230132564e-07, &#x27;close&#x27;: 4.5776367230132564e-07, &#x27;volume_shares&#x27;: 11.0, &#x27;amount_cny&#x27;: 123.44000005722046, &#x27;factor&#x27;: 6.738281257412382e-06, &#x27;up_limit&#x27;: 4.5776367230132564e-07, &#x27;down_limit&#x27;: 4.5776367230132564e-07}
+</pre><details><summary>展开示例代码</summary><pre class="code">print(&#x27;实际目录:&#x27;)
+print(&#x27;\n&#x27;.join(str(p.relative_to(qlib_target)) for p in sorted(qlib_target.rglob(&#x27;*&#x27;)) if p.is_file()))
+print(&#x27;固定日历前五行:&#x27;, (qlib_target/&#x27;calendars/day.txt&#x27;).read_text().splitlines()[:5])
+print(&#x27;成员区间:&#x27;, (qlib_target/&#x27;instruments/csi1800.txt&#x27;).read_text())
+first_instrument = next(iter(qlib_manifest[&#x27;instrument_map&#x27;].values()))
+binary = np.fromfile(qlib_target/&#x27;features&#x27;/first_instrument.lower()/&#x27;close.day.bin&#x27;,dtype=&#x27;&lt;f4&#x27;)
+print(&#x27;第一个float32为日历起始下标:&#x27;, binary[0], &#x27;；随后是实际 close:&#x27;, binary[1:7])
+print(&#x27;浮点合同:&#x27;, qlib_manifest[&#x27;numeric_format&#x27;])
+print(&#x27;实测最大绝对rounding error:&#x27;, qlib_manifest[&#x27;max_absolute_float32_error&#x27;])
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实 Qlib native read 和成员区间</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th></th>
+      <th>$close</th>
+      <th>$volume_shares</th>
+      <th>$factor</th>
+    </tr>
+    <tr>
+      <th>instrument</th>
+      <th>datetime</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="8" valign="top">CNSTOCK.000001.SZ.19910403</th>
+      <th>2026-06-01</th>
+      <td>10.99</td>
+      <td>95459568.0</td>
+      <td>134.579407</td>
+    </tr>
+    <tr>
+      <th>2026-06-02</th>
+      <td>11.08</td>
+      <td>88542840.0</td>
+      <td>134.579407</td>
+    </tr>
+    <tr>
+      <th>2026-06-03</th>
+      <td>10.99</td>
+      <td>82527168.0</td>
+      <td>134.579407</td>
+    </tr>
+    <tr>
+      <th>2026-06-04</th>
+      <td>10.82</td>
+      <td>86927080.0</td>
+      <td>134.579407</td>
+    </tr>
+    <tr>
+      <th>2026-06-05</th>
+      <td>10.98</td>
+      <td>100350336.0</td>
+      <td>134.579407</td>
+    </tr>
+    <tr>
+      <th>2026-06-08</th>
+      <td>11.03</td>
+      <td>109092648.0</td>
+      <td>134.579407</td>
+    </tr>
+    <tr>
+      <th>2026-06-09</th>
+      <td>11.13</td>
+      <td>114967232.0</td>
+      <td>134.579407</td>
+    </tr>
+    <tr>
+      <th>2026-06-10</th>
+      <td>11.32</td>
+      <td>154317632.0</td>
+      <td>134.579407</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">实际 Research adapter → Qlib D.features: 130 行
+命名成员集合: 130 行
+P04 引用绑定: s_a0db6028118997d93b9f70dff852b701b030b152a30b2e8d325c08ad64931049 f4ebb4297ab7fd892c72ac767207365b9894843fcdb262f7e21339a820790f52
+</pre><details><summary>展开示例代码</summary><pre class="code">verify_qlib_export(qlib_target,data=UNIFIED)
+consumer = QlibView(qlib_target).activate()
+qlib_native = consumer.read(fields=(&#x27;close&#x27;,&#x27;volume_shares&#x27;,&#x27;factor&#x27;))
+display(qlib_native.head(8))
+members_native = consumer.read(fields=(&#x27;close&#x27;,),universe=&#x27;csi1800&#x27;)
+print(&#x27;实际 Research adapter → Qlib D.features:&#x27;, len(qlib_native), &#x27;行&#x27;)
+print(&#x27;命名成员集合:&#x27;, len(members_native), &#x27;行&#x27;)
+print(&#x27;P04 引用绑定:&#x27;, consumer.reference[&#x27;snapshot_id&#x27;], consumer.reference[&#x27;view_id&#x27;])
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 重复导出复用与实际搬移读取</div><pre class="output-text">重复导出无写入；搬移后真实 Qlib 读取相同；源 current 不变。
+</pre><details><summary>展开示例代码</summary><pre class="code">file_times = {str(p.relative_to(qlib_target)):p.stat().st_mtime_ns
+              for p in qlib_target.rglob(&#x27;*&#x27;) if p.is_file()}
+reused = UNIFIED.export_qlib(snapshot=UNIFIED_SNAPSHOT,queries=qlib_queries,
+    destination=qlib_target,universe_query=qlib_members,universe_name=&#x27;csi1800&#x27;)
+assert reused[&#x27;view_id&#x27;] == qlib_manifest[&#x27;view_id&#x27;]
+assert file_times == {str(p.relative_to(qlib_target)):p.stat().st_mtime_ns
+                     for p in qlib_target.rglob(&#x27;*&#x27;) if p.is_file()}
+qlib_moved = TEMP/&#x27;qlib-relocated&#x27;; shutil.copytree(qlib_target,qlib_moved)
+moved_view = QlibView(qlib_moved).activate()
+pd.testing.assert_frame_equal(qlib_native,moved_view.read(fields=(&#x27;close&#x27;,&#x27;volume_shares&#x27;,&#x27;factor&#x27;)))
+assert moved_view.reference == consumer.reference
+verify_qlib_export(qlib_moved)
+print(&#x27;重复导出无写入；搬移后真实 Qlib 读取相同；源 current 不变。&#x27;)
+</pre></details></section><section id="section-13" class="markdown"><h2>13. ETF 独立来源与数据合同</h2>
+<p>基金有自己的稳定身份、日线单位、复权因子、限价和分红接口。七只 ETF 与沪深300基准覆盖真实三个月及预热，直接供 Research/Engine 读取；日线数据不能还原 09:35 的真实成交。执行改为当日开盘价的约定由 Engine 实施，Data 提供前日信号事实与当前开盘的单独 replay 请求。</p>
+</section><section class="example"><div class="example-label">真实执行 · 七 ETF 身份、域、单位、PIT 与 API 实读 · 1</div><details><summary>展开示例代码</summary><pre class="code"># A second fixed, real Tushare Snapshot holds only the seven ETF data scope.
+ETF_ROOT = Path(os.environ.get(&#x27;AXIOM_ETF_DATA_ROOT&#x27;,
+    WORKSPACE / &#x27;data/etf_rotation_daily_202606_202608&#x27;))
+ETF_SNAPSHOT = os.environ.get(&#x27;AXIOM_ETF_SNAPSHOT&#x27;,
+    &#x27;s_e32f4511b69d4fce9accad609feb4005f371cc5cb833ca260d6ae563b75558d1&#x27;)
+ETF = Data(ETF_ROOT)
+ETF_CURRENT_BEFORE = (ETF_ROOT/&#x27;current.json&#x27;).read_bytes()
+ETF_SCOPE = json.loads(Path(os.environ.get(&#x27;AXIOM_ETF_SCOPE&#x27;,
+    REPO / &#x27;delivery/etf_rotation_daily_202606_202608.scope.json&#x27;)).read_text())
+ETF_REPORT = json.loads(Path(os.environ.get(&#x27;AXIOM_ETF_REPORT&#x27;,
+    REPO / &#x27;delivery/etf_rotation_daily_202606_202608.report.json&#x27;)).read_text())
+assert ETF.resolve(&#x27;current&#x27;) == ETF_SNAPSHOT
+assert ETF_REPORT[&#x27;snapshot_id&#x27;] == ETF_SNAPSHOT
+assert ETF_REPORT[&#x27;verify&#x27;][&#x27;verified&#x27;] and ETF_REPORT[&#x27;audit&#x27;][&#x27;status&#x27;] == &#x27;passed&#x27;
+etf_manifest = ETF.store.load_snapshot(ETF_SNAPSHOT)</pre></details></section><section class="example"><div class="example-label">真实执行 · 七 ETF 身份、域、单位、PIT 与 API 实读 · 2</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>source_code</th>
+      <th>security_id</th>
+      <th>name</th>
+      <th>asset_type</th>
+      <th>listing_date</th>
+      <th>list_status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>510880.SH</td>
+      <td>cn.etf.SSE.510880.20070118</td>
+      <td>华泰柏瑞上证红利ETF</td>
+      <td>exchange_traded_fund</td>
+      <td>2007-01-18</td>
+      <td>L</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>510300.SH</td>
+      <td>cn.etf.SSE.510300.20120528</td>
+      <td>华泰柏瑞沪深300ETF</td>
+      <td>exchange_traded_fund</td>
+      <td>2012-05-28</td>
+      <td>L</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>510500.SH</td>
+      <td>cn.etf.SSE.510500.20130315</td>
+      <td>南方中证500ETF</td>
+      <td>exchange_traded_fund</td>
+      <td>2013-03-15</td>
+      <td>L</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>511010.SH</td>
+      <td>cn.etf.SSE.511010.20130325</td>
+      <td>国泰上证5年期国债ETF</td>
+      <td>exchange_traded_fund</td>
+      <td>2013-03-25</td>
+      <td>L</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>513100.SH</td>
+      <td>cn.etf.SSE.513100.20130515</td>
+      <td>国泰纳斯达克100ETF(QDII)</td>
+      <td>exchange_traded_fund</td>
+      <td>2013-05-15</td>
+      <td>L</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>518880.SH</td>
+      <td>cn.etf.SSE.518880.20130729</td>
+      <td>华安易富黄金ETF</td>
+      <td>exchange_traded_fund</td>
+      <td>2013-07-29</td>
+      <td>L</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>159915.SZ</td>
+      <td>cn.etf.SZSE.159915.20111209</td>
+      <td>易方达创业板ETF</td>
+      <td>exchange_traded_fund</td>
+      <td>2011-12-09</td>
+      <td>L</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">ETF scope: 2026-06-01 — 2026-08-31 ；预热从 2026-03-18 开始；日线实际交易日: 114 ；首尾: 2026-03-18 2026-08-31
+</pre><details><summary>展开示例代码</summary><pre class="code">etf_ids = tuple(ETF_SCOPE[&#x27;identity_map&#x27;][symbol] for symbol in ETF_SCOPE[&#x27;symbols&#x27;])
+master = [r for p in etf_manifest[&#x27;domains&#x27;][&#x27;security_master&#x27;][&#x27;partitions&#x27;]
+          for r in ETF.store.read_partition(p).to_pylist()]
+assert {r[&#x27;security_id&#x27;] for r in master} == set(etf_ids)
+display(pd.DataFrame(master)[[&#x27;source_code&#x27;,&#x27;security_id&#x27;,&#x27;name&#x27;,&#x27;asset_type&#x27;,&#x27;listing_date&#x27;,&#x27;list_status&#x27;]])
+calendar = [r for p in etf_manifest[&#x27;domains&#x27;][&#x27;trading_calendar&#x27;][&#x27;partitions&#x27;]
+            for r in ETF.store.read_partition(p).to_pylist()]
+open_sse = sorted(str(r[&#x27;session&#x27;]) for r in calendar if r[&#x27;exchange&#x27;] == &#x27;SSE&#x27;
+                  and r[&#x27;is_open&#x27;] and str(r[&#x27;session&#x27;]) &lt;= ETF_SCOPE[&#x27;end_session&#x27;])
+print(&#x27;ETF scope:&#x27;, ETF_SCOPE[&#x27;start_session&#x27;], &#x27;—&#x27;, ETF_SCOPE[&#x27;end_session&#x27;],
+      &#x27;；预热从&#x27;, ETF_SCOPE[&#x27;warmup_start_session&#x27;], &#x27;开始；日线实际交易日:&#x27;,
+      len(open_sse), &#x27;；首尾:&#x27;, open_sse[0], open_sse[-1])
+assert sum(p[&#x27;rows&#x27;] for p in etf_manifest[&#x27;domains&#x27;][&#x27;market_daily&#x27;][&#x27;partitions&#x27;]) == 7*114
+assert sum(p[&#x27;rows&#x27;] for p in etf_manifest[&#x27;domains&#x27;][&#x27;corporate_actions&#x27;][&#x27;partitions&#x27;]) == 44</pre></details></section><section class="example"><div class="example-label">真实执行 · 七 ETF 身份、域、单位、PIT 与 API 实读 · 3</div><details><summary>展开示例代码</summary><pre class="code">def etf_read(domain, fields, day, cutoff, *, purpose=&#x27;decision_facts&#x27;, securities=etf_ids):
+    return ETF.read(snapshot=ETF_SNAPSHOT, query=QuerySpec(domain, tuple(fields),
+        tuple(securities), (day,), &#x27;best_effort_vendor_v1&#x27;, {day:cutoff}, purpose=purpose))
+
+prior_day = &#x27;2026-08-28&#x27;
+current_day = &#x27;2026-08-31&#x27;
+prior_cutoff = prior_day+&#x27;T20:30:00+08:00&#x27;
+prior_bar = etf_read(&#x27;market_daily&#x27;,
+    (&#x27;open&#x27;,&#x27;high&#x27;,&#x27;low&#x27;,&#x27;close&#x27;,&#x27;volume_units&#x27;,&#x27;amount_cny&#x27;), prior_day, prior_cutoff)
+prior_factor = etf_read(&#x27;adjustment_factors&#x27;, (&#x27;factor&#x27;,), prior_day, prior_cutoff)
+benchmark = etf_read(&#x27;benchmark_daily&#x27;, (&#x27;close&#x27;,), prior_day, prior_cutoff,
+    securities=(&#x27;000300.SH&#x27;,))
+limits = etf_read(&#x27;price_limits&#x27;, (&#x27;up_limit&#x27;,&#x27;down_limit&#x27;), current_day,
+    current_day+&#x27;T09:00:00+08:00&#x27;)
+# An opening price is a historical market-replay outcome. It is never a same-day
+# input to a pre-open decision, and the rest of that day&#x27;s bar is not queried here.</pre></details></section><section class="example"><div class="example-label">真实执行 · 七 ETF 身份、域、单位、PIT 与 API 实读 · 4</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>open</th>
+      <th>high</th>
+      <th>low</th>
+      <th>close</th>
+      <th>volume_units</th>
+      <th>amount_cny</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cn.etf.SZSE.159915.20111209</td>
+      <td>2026-08-28</td>
+      <td>3.478</td>
+      <td>3.539</td>
+      <td>3.44</td>
+      <td>3.443</td>
+      <td>1485427127</td>
+      <td>5179583482.6</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cn.etf.SSE.510300.20120528</td>
+      <td>2026-08-28</td>
+      <td>4.684</td>
+      <td>4.706</td>
+      <td>4.675</td>
+      <td>4.679</td>
+      <td>604693322</td>
+      <td>2835120646.0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cn.etf.SSE.510500.20130315</td>
+      <td>2026-08-28</td>
+      <td>7.96</td>
+      <td>8.004</td>
+      <td>7.913</td>
+      <td>7.923</td>
+      <td>267221620</td>
+      <td>2125117295.0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cn.etf.SSE.510880.20070118</td>
+      <td>2026-08-28</td>
+      <td>3.45</td>
+      <td>3.475</td>
+      <td>3.425</td>
+      <td>3.461</td>
+      <td>132670400</td>
+      <td>457855094.0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cn.etf.SSE.511010.20130325</td>
+      <td>2026-08-28</td>
+      <td>141.137</td>
+      <td>141.137</td>
+      <td>141.08</td>
+      <td>141.112</td>
+      <td>18388500</td>
+      <td>2594813442.0</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cn.etf.SSE.513100.20130515</td>
+      <td>2026-08-28</td>
+      <td>2.244</td>
+      <td>2.247</td>
+      <td>2.229</td>
+      <td>2.235</td>
+      <td>108671134</td>
+      <td>243076831.0</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cn.etf.SSE.518880.20130729</td>
+      <td>2026-08-28</td>
+      <td>9.437</td>
+      <td>9.475</td>
+      <td>9.398</td>
+      <td>9.475</td>
+      <td>473701359</td>
+      <td>4462695029.0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>factor</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cn.etf.SZSE.159915.20111209</td>
+      <td>2026-08-28</td>
+      <td>1.0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cn.etf.SSE.510300.20120528</td>
+      <td>2026-08-28</td>
+      <td>1.2671</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cn.etf.SSE.510500.20130315</td>
+      <td>2026-08-28</td>
+      <td>0.3401</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cn.etf.SSE.510880.20070118</td>
+      <td>2026-08-28</td>
+      <td>1.8136</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cn.etf.SSE.511010.20130325</td>
+      <td>2026-08-28</td>
+      <td>1.0375</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cn.etf.SSE.513100.20130515</td>
+      <td>2026-08-28</td>
+      <td>5.0019</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cn.etf.SSE.518880.20130729</td>
+      <td>2026-08-28</td>
+      <td>1.0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>up_limit</th>
+      <th>down_limit</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cn.etf.SZSE.159915.20111209</td>
+      <td>2026-08-31</td>
+      <td>4.132</td>
+      <td>2.754</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cn.etf.SSE.510300.20120528</td>
+      <td>2026-08-31</td>
+      <td>5.147</td>
+      <td>4.211</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cn.etf.SSE.510500.20130315</td>
+      <td>2026-08-31</td>
+      <td>8.715</td>
+      <td>7.131</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cn.etf.SSE.510880.20070118</td>
+      <td>2026-08-31</td>
+      <td>3.807</td>
+      <td>3.115</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cn.etf.SSE.511010.20130325</td>
+      <td>2026-08-31</td>
+      <td>155.223</td>
+      <td>127.001</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cn.etf.SSE.513100.20130515</td>
+      <td>2026-08-31</td>
+      <td>2.459</td>
+      <td>2.012</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cn.etf.SSE.518880.20130729</td>
+      <td>2026-08-31</td>
+      <td>10.423</td>
+      <td>8.528</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>close</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>000300.SH</td>
+      <td>2026-08-28</td>
+      <td>4609.1764</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>open</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cn.etf.SZSE.159915.20111209</td>
+      <td>2026-08-31</td>
+      <td>3.389</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cn.etf.SSE.510300.20120528</td>
+      <td>2026-08-31</td>
+      <td>4.64</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cn.etf.SSE.510500.20130315</td>
+      <td>2026-08-31</td>
+      <td>7.85</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>cn.etf.SSE.510880.20070118</td>
+      <td>2026-08-31</td>
+      <td>3.466</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>cn.etf.SSE.511010.20130325</td>
+      <td>2026-08-31</td>
+      <td>141.116</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>cn.etf.SSE.513100.20130515</td>
+      <td>2026-08-31</td>
+      <td>2.207</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>cn.etf.SSE.518880.20130729</td>
+      <td>2026-08-31</td>
+      <td>9.16</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">单位: {&#x27;open&#x27;: &#x27;CNY/fund unit&#x27;, &#x27;high&#x27;: &#x27;CNY/fund unit&#x27;, &#x27;low&#x27;: &#x27;CNY/fund unit&#x27;, &#x27;close&#x27;: &#x27;CNY/fund unit&#x27;, &#x27;volume_units&#x27;: &#x27;fund units&#x27;, &#x27;amount_cny&#x27;: &#x27;CNY&#x27;}
+日线一条真实来源: {&#x27;security_id&#x27;: &#x27;cn.etf.SZSE.159915.20111209&#x27;, &#x27;session&#x27;: &#x27;2026-08-28&#x27;, &#x27;revision_id&#x27;: &#x27;terminal:107290163259fbe5d5eff6c8c2a8b5d2df16e08f0b050fdb33333a56d575c949&#x27;, &#x27;revision_sequence&#x27;: None, &#x27;raw_batch_id&#x27;: &#x27;b_6a5de10d5b84462199a50c3970d8b133&#x27;, &#x27;usable_from&#x27;: &#x27;2026-08-28T20:00:00+08:00&#x27;, &#x27;first_observed_at&#x27;: &#x27;2026-10-03T06:01:34.876904+00:00&#x27;, &#x27;availability_basis&#x27;: &#x27;declared_vendor_assumption&#x27;, &#x27;evidence_ref&#x27;: None, &#x27;missing_reason&#x27;: None}
+</pre><details><summary>展开示例代码</summary><pre class="code">replay_open = etf_read(&#x27;market_daily&#x27;, (&#x27;open&#x27;,), current_day,
+    current_day+&#x27;T20:30:00+08:00&#x27;, purpose=&#x27;market_replay&#x27;)
+assert all(len(batch.frame) == 7 for batch in
+           (prior_bar, prior_factor, limits, replay_open))
+assert len(benchmark.frame) == 1
+display(prior_bar.frame)
+display(prior_factor.frame)
+display(limits.frame)
+display(benchmark.frame)
+display(replay_open.frame)
+print(&#x27;单位:&#x27;, {k:v[&#x27;unit&#x27;] for k,v in prior_bar.field_meta.items()})
+print(&#x27;日线一条真实来源:&#x27;, prior_bar.field_meta[&#x27;close&#x27;][&#x27;by_key&#x27;][0])
+strict_old = ETF.read(snapshot=ETF_SNAPSHOT,
+    query=QuerySpec(&#x27;market_daily&#x27;, (&#x27;close&#x27;,), etf_ids, (prior_day,),
+        &#x27;operational_pit_v1&#x27;, {prior_day:prior_cutoff}))</pre></details></section><section class="example"><div class="example-label">真实执行 · 七 ETF 身份、域、单位、PIT 与 API 实读 · 5</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>announcement_date</th>
+      <th>process_status</th>
+      <th>cash_dividend_per_unit</th>
+      <th>ex_date</th>
+      <th>pay_date</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cn.etf.SSE.510500.20130315</td>
+      <td>2026-07-08</td>
+      <td>实施</td>
+      <td>0.149</td>
+      <td>2026-07-15</td>
+      <td>2026-07-20</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cn.etf.SSE.511010.20130325</td>
+      <td>2026-03-20</td>
+      <td>实施</td>
+      <td>0.5715</td>
+      <td>2026-03-25</td>
+      <td>2026-03-30</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>cn.etf.SSE.511010.20130325</td>
+      <td>2026-06-22</td>
+      <td>实施</td>
+      <td>0.8144</td>
+      <td>2026-06-25</td>
+      <td>2026-06-30</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">分红原生键: [&#x27;security_id&#x27;, &#x27;announcement_date&#x27;, &#x27;process_status&#x27;]
+当前窗口内可见事件: 3 ；全 Snapshot 来源事件行: 44
+旧日严格 cutoff 早于原 Raw 接收，不能回填日线可见性。
+</pre><details><summary>展开示例代码</summary><pre class="code">assert strict_old.frame[&#x27;close&#x27;].isna().all()
+
+dividends = ETF.events(snapshot=ETF_SNAPSHOT,
+    query=EventQuery(&#x27;corporate_actions&#x27;,
+        (&#x27;cash_dividend_per_unit&#x27;,&#x27;ex_date&#x27;,&#x27;pay_date&#x27;), etf_ids,
+        ETF_SCOPE[&#x27;warmup_start_session&#x27;], ETF_SCOPE[&#x27;end_session&#x27;],
+        datetime.now(timezone.utc).isoformat(), &#x27;operational_pit_v1&#x27;,
+        &#x27;announcement_date&#x27;, {}))
+display(dividends.frame)
+print(&#x27;分红原生键:&#x27;, etf_manifest[&#x27;domains&#x27;][&#x27;corporate_actions&#x27;][&#x27;contract&#x27;][&#x27;logical_key&#x27;])
+print(&#x27;当前窗口内可见事件:&#x27;, len(dividends.frame),
+      &#x27;；全 Snapshot 来源事件行:&#x27;,
+      sum(p[&#x27;rows&#x27;] for p in etf_manifest[&#x27;domains&#x27;][&#x27;corporate_actions&#x27;][&#x27;partitions&#x27;]))
+print(&#x27;旧日严格 cutoff 早于原 Raw 接收，不能回填日线可见性。&#x27;)</pre></details></section><section id="section-14" class="markdown"><h2>14. 附录：跨仓接口与职责</h2>
+<p>Data 不导入 Research、Engine 或 UI。消费者的薄 adapter 接受固定 Snapshot 与 Query，再按各自协议映射，不在查询时采集或修复。以下实际合同调用使用两个观察月末，验证引用与单位传递，完整账户回测另属 Engine/Trade。</p>
+<table>
+<thead>
+<tr>
+  <th>调用链</th>
+  <th>真正传递的对象</th>
+  <th>本教程证明与边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Research → Data</td>
+  <td><code>Data.read(snapshot, QuerySpec)</code> → <code>DataBatch</code></td>
+  <td>实际价格、字段来源、PIT；Research 定义 Feature/Label</td>
+</tr>
+<tr>
+  <td>Research adapter → Engine/Core</td>
+  <td><code>FactBatch + ExecutionContext + FeaturePlan</code></td>
+  <td>真实月末事实执行 identity/lag/return；不是完整策略回测</td>
+</tr>
+<tr>
+  <td>Engine/Runtime → Data</td>
+  <td><code>DecisionBatchGate</code> 固定批次版本；decision 与 market_replay 分开</td>
+  <td>实际读取及引用记录；没有委托、成交、账户仿真</td>
+</tr>
+<tr>
+  <td>Data / Research → UI</td>
+  <td><code>records + field_meta + context</code> → P12 <code>ChartContext/ChartLayer</code></td>
+  <td>真实 JSON 图层；不是已经部署的 BFF/浏览器应用</td>
+</tr>
+</tbody>
+</table>
+<p>四个 repo 同机函数调用即可。Core 不直接读 Parquet；UI 不自己重算事实，也不触发供应商请求。</p>
+</section><section class="example"><div class="example-label">真实执行 · Research / Core / Runtime / UI 真实薄接口 · 1</div><details><summary>展开示例代码</summary><pre class="code">sys.path.insert(0, str(WORKSPACE / &#x27;axiom-research&#x27; / &#x27;src&#x27;))
+sys.path.insert(0, str(WORKSPACE / &#x27;axiom-engine&#x27; / &#x27;src&#x27;))
+sys.path.insert(0, str(WORKSPACE / &#x27;axiom-ui&#x27; / &#x27;src&#x27;))
+from axiom_engine.runtime import DecisionBatchGate
+from axiom_research.data_adapter import adapt_decision_batch
+from axiom_ui import chart_context, project_data_layer, unavailable_layer
+
+# Runtime pins one concrete Snapshot and records both domain queries.
+# The unified Snapshot includes two-security market facts and Tushare membership snapshots.
+# This is a best-effort vendor-snapshot protocol demonstration, not a strict
+# historical 2026-08 decision: the membership dependencies arrived later.
+gate = DecisionBatchGate(UNIFIED)
+gate.pin_session(MONTH_ENDS[-1], snapshot=MEMBER_SNAPSHOT)
+clock = MONTH_ENDS[-1] + &#x27;T20:30:00+08:00&#x27;
+fact_query = query(sessions=MONTH_ENDS)
+facts = gate.read_decision(decision_session=MONTH_ENDS[-1], query=fact_query, clock=clock)
+vendor_member_query = replace(query((&#x27;is_member&#x27;,), sessions=MONTH_ENDS,
+    domain=&#x27;universe_membership&#x27;), universe_id=&#x27;csi1800&#x27;)</pre></details></section><section class="example"><div class="example-label">真实执行 · Research / Core / Runtime / UI 真实薄接口 · 2</div><pre class="output-text">成员查询 policy: best_effort_vendor_v1 ；历史成员限制: [&#x27;vendor release time is an assumption, not historical vintage evidence&#x27;, &#x27;Supplier index_weight was observed on dated snapshots only; no intramonth membership change is proven.&#x27;, &#x27;Best-effort uses an assumed 18:00 Asia/Shanghai dated release; strict policies use actual Raw receipt.&#x27;]
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>availability</th>
+      <th>cutoff</th>
+      <th>reasons</th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>sources</th>
+      <th>valid</th>
+      <th>values</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>[2026-07-31T12:00:00Z, None, 2026-07-31T12:00:...</td>
+      <td>2026-07-31T12:30:00Z</td>
+      <td>[[], [INSUFFICIENT_HISTORY], [MISSING]]</td>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-07-31</td>
+      <td>[[sha256:d730a0d0410cb729b0ad9ca3ec5ff2e38e66e...</td>
+      <td>[True, False, False]</td>
+      <td>[11.63, None, None]</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>[2026-08-31T12:00:00Z, 2026-07-31T12:00:00Z, 2...</td>
+      <td>2026-08-31T12:30:00Z</td>
+      <td>[[], [], []]</td>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-31</td>
+      <td>[[sha256:bcf4678dadf562e45127ded94742996bdb540...</td>
+      <td>[True, True, True]</td>
+      <td>[11.72, 11.63, 0.007738607050730817]</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">Core输入单位: CNY/share
+</pre><details><summary>展开示例代码</summary><pre class="code">refs = gate.read_decision(decision_session=MONTH_ENDS[-1], query=vendor_member_query, clock=clock)
+assert refs.frame.is_member.tolist() == [True,True]
+print(&#x27;成员查询 policy:&#x27;, refs.context[&#x27;query&#x27;][&#x27;pit_policy&#x27;],
+      &#x27;；历史成员限制:&#x27;, refs.context[&#x27;limitations&#x27;])
+recipe = &#x27;sha256:&#x27; + hashlib.sha256(b&#x27;real month-end identity-lag-return tutorial v1&#x27;).hexdigest()
+adapted = adapt_decision_batch(facts, reference=refs, recipe_ref=recipe)
+core_output = adapted.execute().to_dict()
+display(pd.DataFrame(core_output[&#x27;rows&#x27;]))
+print(&#x27;Core输入单位:&#x27;, adapted.plan.to_dict()[&#x27;input_schema&#x27;][0][&#x27;unit&#x27;])
+assert adapted.plan.to_dict()[&#x27;input_schema&#x27;][0][&#x27;unit&#x27;] == &#x27;CNY/share&#x27;
+assert len(gate.references) == 2
+# This return spans TWO OBSERVED MONTH-ENDS, not two consecutive trading days.
+raw_close = facts.frame.close.tolist()
+assert abs(core_output[&#x27;rows&#x27;][1][&#x27;values&#x27;][2] - (raw_close[1]/raw_close[0]-1)) &lt; 1e-12
+view_for_ui = adapted.view_ref.to_dict()</pre></details></section><section class="example"><div class="example-label">真实执行 · Research / Core / Runtime / UI 真实薄接口 · 3</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>security_id</th>
+      <th>session</th>
+      <th>value</th>
+      <th>provenance</th>
+      <th>missing_reason</th>
+      <th>source_available_time</th>
+      <th>observed_time</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-07-31</td>
+      <td>11.63</td>
+      <td>{'security_id': 'cnstock.000001.SZ.19910403', ...</td>
+      <td>None</td>
+      <td>2026-07-31T20:00:00+08:00</td>
+      <td>2026-09-28T15:06:01.854164+00:00</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>cnstock.000001.SZ.19910403</td>
+      <td>2026-08-31</td>
+      <td>11.72</td>
+      <td>{'security_id': 'cnstock.000001.SZ.19910403', ...</td>
+      <td>None</td>
+      <td>2026-08-31T20:00:00+08:00</td>
+      <td>2026-09-28T15:06:14.947033+00:00</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">Data wire: [&#x27;records&#x27;, &#x27;field_meta&#x27;, &#x27;context&#x27;]
+UI协议: p12_chart_projection_v1 固定版本: s_a0db6028118997d93b9f70dff852b701b030b152a30b2e8d325c08ad64931049
+无成交产物时 UI 明确 unavailable: {&#x27;contract_version&#x27;: &#x27;p12_chart_projection_v1&#x27;, &#x27;role&#x27;: &#x27;fill&#x27;, &#x27;requested_ref&#x27;: None, &#x27;requested_stage&#x27;: None, &#x27;unit&#x27;: None, &#x27;status&#x27;: &#x27;LAYER_UNAVAILABLE&#x27;, &#x27;points&#x27;: None, &#x27;is_reconstructed&#x27;: False, &#x27;generated_at&#x27;: &#x27;2026-10-03T10:54:50.670987+00:00&#x27;}
+</pre><details><summary>展开示例代码</summary><pre class="code">chart = chart_context(mode=&#x27;run_replay&#x27;, security_id=SYMBOL,
+    session_refs={d: view_for_ui for d in MONTH_ENDS}, price_basis=&#x27;unadjusted&#x27;,
+    adjustment_anchor=None, time_axis=&#x27;decision_available&#x27;)
+layer = project_data_layer(facts, field=&#x27;close&#x27;, security_id=SYMBOL, role=&#x27;data_fact&#x27;, chart=chart)
+display(pd.DataFrame(layer[&#x27;points&#x27;]))
+assert [p[&#x27;value&#x27;] for p in layer[&#x27;points&#x27;]] == raw_close
+print(&#x27;Data wire:&#x27;, list(facts.to_response()))
+print(&#x27;UI协议:&#x27;, layer[&#x27;contract_version&#x27;], &#x27;固定版本:&#x27;, layer[&#x27;source_ref&#x27;][&#x27;snapshot_id&#x27;])
+print(&#x27;无成交产物时 UI 明确 unavailable:&#x27;, unavailable_layer(role=&#x27;fill&#x27;, requested_ref=None))
+# Replay-side access is explicitly separate from decision-side facts.
+market_query = replace(fact_query, purpose=&#x27;market_replay&#x27;)
+market = gate.read_market(decision_session=MONTH_ENDS[-1], query=market_query, clock=clock)
+assert market.context[&#x27;query&#x27;][&#x27;purpose&#x27;] == &#x27;market_replay&#x27;</pre></details></section><section id="section-15" class="markdown"><h2>15. 附录：部署验证、容量与局限</h2>
+<p>验证包安装、采集恢复、源映射、查询、bundle 搬移与 Qlib 分别回答不同问题。一年固定1800市场样本用于吞吐和字节基线，两证券与ETF样本用于完整接口和事件映射。十二年耗时/容量仍是估计，要等真实历史并集准备后按范围调整。</p>
+</section><section class="example"><div class="example-label">真实执行 · 本次重新运行全年离线审计</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>domain</th>
+      <th>source_mapping_rows_checked</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>adjustment_factors</td>
+      <td>434911</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>benchmark_daily</td>
+      <td>242</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>market_daily</td>
+      <td>434464</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">本次重新离线核对: limited 秒: 11.729
+</pre><details><summary>展开示例代码</summary><pre class="code">from axiom_data.bulk_jobs import BulkJobPlan
+plan_envelope = json.loads(ROOT.with_suffix(&#x27;.plan.json&#x27;).read_text())
+# Plan envelope is a CLI artifact; use the public deserializer for its job.
+frozen_job = BulkJobPlan.from_dict(plan_envelope[&#x27;job&#x27;])
+fresh_audit = audit_snapshot(DATA.store, snapshot_id=SNAPSHOT, plan=frozen_job)
+display(pd.DataFrame([{&#x27;domain&#x27;: k, &#x27;source_mapping_rows_checked&#x27;: v}
+    for k, v in fresh_audit[&#x27;source_mapping_checks&#x27;].items()]))
+assert fresh_audit[&#x27;source_mapping_checks&#x27;] == AUDIT[&#x27;source_mapping_checks&#x27;]
+assert fresh_audit[&#x27;missing_market_cells&#x27;] == fresh_audit[&#x27;known_suspension_missing_cells&#x27;] == 158
+print(&#x27;本次重新离线核对:&#x27;, fresh_audit[&#x27;status&#x27;], &#x27;秒:&#x27;, fresh_audit[&#x27;elapsed_seconds&#x27;])
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 实际大小分解与外推基线</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>component</th>
+      <th>files</th>
+      <th>bytes</th>
+      <th>MiB</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>raw</td>
+      <td>1791</td>
+      <td>252739100</td>
+      <td>241.03</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>canonical</td>
+      <td>70</td>
+      <td>44813913</td>
+      <td>42.74</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>snapshots</td>
+      <td>20</td>
+      <td>36544652</td>
+      <td>34.85</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>operations</td>
+      <td>33</td>
+      <td>1059911</td>
+      <td>1.01</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">工作数据根: {&#x27;files&#x27;: 1916, &#x27;bytes&#x27;: 335157660, &#x27;MiB&#x27;: 319.63}
+</pre><pre class="output-text">当前搬移包: {&#x27;files&#x27;: 835, &#x27;bytes&#x27;: 252134085, &#x27;MiB&#x27;: 240.45}
+此前真实运行计时（非本次重新联网）: {&#x27;bulk_active_process_seconds&#x27;: 193.56, &#x27;bulk_wall_including_fix_pause_seconds&#x27;: 282.616, &#x27;bulk_peak_rss_bytes&#x27;: 327614464, &#x27;offline_full_rebuild_seconds&#x27;: 38.59, &#x27;audit_seconds&#x27;: 10.864, &#x27;note&#x27;: &#x27;Two resumed real processes; no clean uninterrupted full-year or 12-year timing claim.&#x27;}
+12×一年 active runtime: 38.7 分钟
+12×一年目录 logical bytes: 3.75 GiB
+</pre><details><summary>展开示例代码</summary><pre class="code">sizes = pd.DataFrame([{&#x27;component&#x27;: name, **measure_tree(ROOT/name)}
+    for name in (&#x27;raw&#x27;, &#x27;canonical&#x27;, &#x27;snapshots&#x27;, &#x27;operations&#x27;)])
+display(sizes)
+print(&#x27;工作数据根:&#x27;, measure_tree(ROOT))
+print(&#x27;当前搬移包:&#x27;, measure_tree(Path(str(ROOT)+&#x27;-bundle&#x27;)))
+print(&#x27;此前真实运行计时（非本次重新联网）:&#x27;, RUN[&#x27;timing&#x27;])
+print(&#x27;12×一年 active runtime:&#x27;, round(RUN[&#x27;timing&#x27;][&#x27;bulk_active_process_seconds&#x27;]*12/60, 1), &#x27;分钟&#x27;)
+print(&#x27;12×一年目录 logical bytes:&#x27;, round(measure_tree(ROOT)[&#x27;bytes&#x27;]*12/2**30, 2), &#x27;GiB&#x27;)
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 完整源实测字节</div><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>component</th>
+      <th>files</th>
+      <th>bytes</th>
+      <th>MiB</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>raw</td>
+      <td>794</td>
+      <td>126359144</td>
+      <td>120.51</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>canonical</td>
+      <td>58</td>
+      <td>834293</td>
+      <td>0.80</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>snapshots</td>
+      <td>28</td>
+      <td>59176344</td>
+      <td>56.43</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>operations</td>
+      <td>81</td>
+      <td>887956</td>
+      <td>0.85</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">完整源小样本根合计: {&#x27;files&#x27;: 963, &#x27;bytes&#x27;: 187257821, &#x27;MiB&#x27;: 178.58}
+这是两证券三个月及财务 warmup 的现场字节，不外推为十二年全市场实测。
+</pre><details><summary>展开示例代码</summary><pre class="code">full_sizes = pd.DataFrame([{&#x27;component&#x27;:name, **measure_tree(FULL_ROOT/name)}
+    for name in (&#x27;raw&#x27;,&#x27;canonical&#x27;,&#x27;snapshots&#x27;,&#x27;operations&#x27;)])
+display(full_sizes)
+print(&#x27;完整源小样本根合计:&#x27;, measure_tree(FULL_ROOT))
+print(&#x27;这是两证券三个月及财务 warmup 的现场字节，不外推为十二年全市场实测。&#x27;)
+</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实内容复用与事件读取计时</div><pre class="output-text">{&#x27;observations&#x27;: 969, &#x27;payload_refs&#x27;: 969, &#x27;distinct_payloads&#x27;: 793, &#x27;reused_payload_refs&#x27;: 176, &#x27;content_objects&#x27;: 793}
+</pre><div class="table-scroll"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>query</th>
+      <th>rows</th>
+      <th>seconds</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>first</td>
+      <td>7</td>
+      <td>0.029172</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>repeat</td>
+      <td>7</td>
+      <td>0.026780</td>
+    </tr>
+  </tbody>
+</table>
+</div></div><pre class="output-text">相同字节复用对象；重复观察保留接收记录。小样本读取计时仅描述此机器此查询。
+</pre><details><summary>展开示例代码</summary><pre class="code">from collections import Counter
+receipts = [json.loads(line) for line in (FULL_ROOT/&#x27;raw/fetches.jsonl&#x27;).read_text().splitlines()]
+payloads = [r[&#x27;payload_sha256&#x27;] for r in receipts if r.get(&#x27;payload_sha256&#x27;)]
+counts = Counter(payloads)
+objects = {p.parent.name for p in (FULL_ROOT/&#x27;raw/objects&#x27;).rglob(&#x27;payload.bin&#x27;)}
+assert all(digest in objects for digest in counts)
+print({&#x27;observations&#x27;:len(receipts), &#x27;payload_refs&#x27;:len(payloads),
+       &#x27;distinct_payloads&#x27;:len(counts),
+       &#x27;reused_payload_refs&#x27;:sum(n-1 for n in counts.values()),
+       &#x27;content_objects&#x27;:len(objects)})
+read_times = []
+for label in (&#x27;first&#x27;,&#x27;repeat&#x27;):
+    started = time.perf_counter()
+    reread = full.events(snapshot=FULL_SNAPSHOT, query=income_query)
+    read_times.append({&#x27;query&#x27;:label,&#x27;rows&#x27;:len(reread.frame),
+        &#x27;seconds&#x27;:round(time.perf_counter()-started,6)})
+display(pd.DataFrame(read_times))
+print(&#x27;相同字节复用对象；重复观察保留接收记录。小样本读取计时仅描述此机器此查询。&#x27;)
+</pre></details></section><section id="section-16" class="markdown"><h2>16. 附录：运行环境与样本证据</h2>
+<p>唯一编辑源是本仓两份 <code>.ipynb</code>，HTML 由它们生成。<a href="../docs/design/02_axiom_data.md">Data 设计</a>规定目标，<a href="../docs/design/01_axiom_overview.md">总纲</a>定义仓库边界；本教程展示当前实现及真实有限窗口，不把小样本当十二年验收。</p>
+<p>初始化 helper 是 <a href="../examples/tutorial_support.py">tutorial_support.py</a>，只读固定数据和本地验证文件、分配临时目录，不请求供应商。完整代码由附录入口重跑：安装 <code>requirements-notebooks.txt</code>，使用 <code>examples/real_tutorials.py</code> 执行已有 notebook 并生成 HTML。Qlib 章节另外需要 <code>requirements-qlib.lock</code>；跨仓附录需要同级 Engine、Research、UI 的薄 adapter。普通 Data 采集/Reader 只需基础包。</p>
+<p>默认本地真实数据保存在 <code>../data/</code>，没有推送到 GitHub。路径可用 <code>AXIOM_WORKSPACE</code>、<code>AXIOM_TUTORIAL_DATA_ROOT</code>、<code>AXIOM_UNIFIED_DATA_ROOT</code> 等环境变量更改；本地 <code>delivery/</code> 保留采集与便携报告。源数据完整闭包经 bundle 搬移，并非仅克隆 repo 就会拥有这些样本。静态输出可直接阅读；全十二年准备/采集、跨操作系统搬移和整个 Engine 回测有各自的验证范围。</p>
+</section><section id="cell-70" class="markdown"><h3>真实证据的范围</h3>
+<p>本轮交付包含Reader与Qlib两条读取路径。真实来源窗口验证映射与实际接口，独立语义反例验证自然样本没有出现的边界；最新测试数量、安装包与搬移证据以 <code>delivery/final-code-acceptance-20261003.json</code> 为准。</p>
+<p>代码验收与十二年全量数据覆盖分别记录。生产事实接受Tushare供应商内容，外部核对只作warning；终态历史缺少的公开版本不被虚构为严格PIT证据。</p>
+<table>
+<thead>
+<tr>
+  <th>范围</th>
+  <th>当前证据</th>
+  <th>尚未证明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Raw / typed Canonical / Snapshot / Query、恢复及搬移</td>
+  <td>一年 1800 真实运行；两证券统一 Snapshot 的 14 启用域同机全域 Raw 重建与搬移</td>
+  <td>十二年实际运行；异操作系统搬移</td>
+</tr>
+<tr>
+  <td>PIT、停牌与缺价、源映射</td>
+  <td>Tushare 原响应、真实观察与反例夹具；生产上市/退市值不由外部资料改写</td>
+  <td>供应商历史字段的完整性；历史实际接收前的可见性</td>
+</tr>
+<tr>
+  <td>成员、Research/Core/Runtime/UI 薄接口</td>
+  <td>Tushare 成员观测和价格进入真实薄接口，来源频率与延续规则在章节内明确</td>
+  <td>十二年逐日来源完整性、严格历史成员 PIT、持仓全回测、完整 UI 产品</td>
+</tr>
+<tr>
+  <td>财务 / 通用事件、TTM、撤销修订</td>
+  <td>Tushare 两证券三个月完整源的报告期事件与 PIT 读取；金额 CNY 抽样核对；合成反例测试</td>
+  <td>十二年全池的供应商完整性；所有历史修订的公开时刻</td>
+</tr>
+<tr>
+  <td>七只 ETF 的日线数据</td>
+  <td>独立 Tushare Snapshot 的身份、114 交易日 OHLCV/因子/涨跌停、分红、日历和基准，真实 API 读取及8域搬移重建</td>
+  <td>十二年 ETF 范围、归消费者所有的研究信号、开盘撮合或策略回测</td>
+</tr>
+<tr>
+  <td>Qlib</td>
+  <td>股票与ETF固定投影由实际Qlib 0.9.7读取；键、NaN及8352个数值单元与Reader等价，成员区间及换目录读取验证</td>
+  <td>全量导出测速；任意模型、processor或策略配方的等价性</td>
+</tr>
+</tbody>
+</table>
+<p>验收证据与独立全量作业命令见仓库 <code>DELIVERY.md</code>、<code>delivery/final-code-acceptance-20261003.json</code>、<code>docs/design-conformance.md</code> 和 <code>docs/demo-acceptance.md</code>。供应商完整性、实际历史公开时刻、另一操作系统与消费者完整产品是证据或职责边界，不作为本轮尚待开发的Data代码。</p>
+</section><section class="example"><div class="example-label">真实执行 · 确认正式根不变并清理临时数据</div><pre class="output-text">正式数据根的 current 未变化；教程无供应商调用。临时文件即将清理。
+</pre><details><summary>展开示例代码</summary><pre class="code">assert DATA.resolve(&#x27;current&#x27;) == CURRENT_BEFORE
+assert ((UNIFIED_ROOT/&#x27;current.json&#x27;).read_bytes()
+    if (UNIFIED_ROOT/&#x27;current.json&#x27;).exists() else None) == UNIFIED_CURRENT_BEFORE
+assert (ETF_ROOT/&#x27;current.json&#x27;).read_bytes() == ETF_CURRENT_BEFORE
+print(&#x27;正式数据根的 current 未变化；教程无供应商调用。临时文件即将清理。&#x27;)
+TEMPDIR.cleanup()
+</pre></details></section></main></div></body></html>
