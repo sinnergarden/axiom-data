@@ -58,10 +58,15 @@ def freeze_builder():
             archive = direct.get("archive_info") or {}
             digest = (archive.get("hashes") or {}).get("sha256")
             url = direct.get("url")
-            if not digest or not url:
+            checkout = None
+            if url and direct.get("dir_info") is not None and urlsplit(url).scheme == "file":
+                checkout = Path(unquote(urlsplit(url).path))
+                if _git(checkout, "status", "--porcelain", "--untracked-files=all"):
+                    raise DataError("installed source origin is dirty; retain a wheel instead")
+            elif not digest or not url:
                 raise DataError("installed builder needs its wheel origin and SHA256")
             parsed = urlsplit(url)
-            if parsed.scheme == "file":
+            if checkout is None and parsed.scheme == "file":
                 wheel = Path(unquote(parsed.path))
                 if not wheel.is_file() or sha256(wheel.read_bytes()).hexdigest() != digest:
                     raise DataError("retain the original installed wheel for builder recovery")
@@ -81,8 +86,22 @@ def freeze_builder():
                             and p.suffix in {".py", ".json"} and "__pycache__" not in p.parts}
             if not actual_files <= tracked.keys():
                 raise DataError("installed builder contains unrecorded source files")
-            source = {"kind": "installed_wheel", "name": dist.metadata["Name"],
-                      "version": dist.version, "origin": url, "sha256": digest}
+            if checkout is not None:
+                expected = {p.relative_to(checkout/"src/axiom_data"): p for p in (checkout/"src/axiom_data").rglob("*")
+                            if p.is_file() and p.suffix in {".py", ".json"} and "__pycache__" not in p.parts}
+                if {p.relative_to(package) for p in actual_files} != expected.keys():
+                    raise DataError("installed source inventory differs from its clean Git origin")
+                if any(sha256((package/name).read_bytes()).hexdigest() != sha256(path.read_bytes()).hexdigest()
+                       for name, path in expected.items()):
+                    raise DataError("installed source bytes differ from its clean Git origin")
+                if any(sha256((checkout/name).read_bytes()).hexdigest() != value for name, value in locks.items()):
+                    raise DataError("installed locks differ from their clean Git origin")
+                source = {"kind": "git_commit", "commit": _git(checkout, "rev-parse", "HEAD"),
+                          "repository": _git(checkout, "config", "--get", "remote.origin.url"),
+                          "installation_origin": url, "version": dist.version}
+            else:
+                source = {"kind": "installed_wheel", "name": dist.metadata["Name"],
+                          "version": dist.version, "origin": url, "sha256": digest}
         except (metadata.PackageNotFoundError, OSError, ValueError) as exc:
             raise DataError("cannot verify installed builder origin") from exc
     if "requirements-local.lock" not in locks:
