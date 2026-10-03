@@ -2,6 +2,8 @@
 
 Data的常规跨仓接口是`Snapshot + QuerySpec → DataBatch`。Research/Runtime将其映射为Core输入，UI使用JSON事实图层。Qlib接入属于P04：需要这个后端时，显式导出固定数字日频查询，Research的薄adapter读取它。Qlib不是Raw或Canonical的替代品，也不是日更必须构建的View。
 
+发布状态：Data导出已发布；下方 Research `QlibView` 为本地已执行但尚未提交的 adapter，Research/main `2699fbc` 不含此文件。克隆该提交不会获得它；可用原生 Qlib 加载同一导出目录。此处不代表行情＋财务联合 FeatureBuild 已实现。
+
 ## 调用与实际输出
 
 ```python

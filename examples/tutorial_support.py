@@ -18,8 +18,10 @@ from IPython.display import display, HTML
 WORKSPACE = Path(os.environ.get('AXIOM_WORKSPACE', Path.cwd())).resolve()
 if not (WORKSPACE / 'axiom-data').exists():
     WORKSPACE = next(p for p in Path.cwd().parents if (p / 'axiom-data').exists())
-for repo in ('axiom-data',):
-    sys.path.insert(0, str(WORKSPACE / repo / 'src'))
+# A retained installed wheel can be selected while executing/editing notebooks.
+# Its builder identity is verified independently of the mutable teaching files.
+PACKAGE_PATH = os.environ.get('AXIOM_TUTORIAL_DATA_PACKAGE')
+sys.path.insert(0, PACKAGE_PATH or str(WORKSPACE / 'axiom-data' / 'src'))
 from axiom_data import (Data, QuerySpec, EventQuery, adjust_prices,
                         import_bundle, single_quarter, ttm)
 from axiom_data.sources import _rows

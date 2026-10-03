@@ -48,6 +48,8 @@ Data 只提供可信事实与稳定派生；Research 不直接读 raw 或未登�
 
 Model/Feature 插件发布为独立、冻结的轻量运行包，生产不 import mutable Research 源码树。Research 可调用 Trade 的离线公共 API，Trade 不依赖 Research 训练主包，避免循环依赖。
 
+当前发布与本地实现分开：GitHub Research/main `2699fbc` 只有 R0 合同/API；本地 Data/Qlib/ViewRef adapter 尚未提交，验收仅证明这份本地工作树。Engine/main `c8a506b` 已有 Core（包括 asof 与逐session cutoff），本地 Runtime 尚未提交。行情＋财务联合输入、FeatureBuild面板保存/读取和跨实验复用仍待 Research 实现；后文为目标职责，不能当作已交付能力。新增路径应复用 Core 执行器，不另写 PIT Reader 或 Feature 执行器。
+
 ## 3. 核心产物合同（P01、P05、P06）
 
 | 产物 | 必需内容 | 不能混淆 |

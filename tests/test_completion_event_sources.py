@@ -38,6 +38,38 @@ def income(period, amount, announcement):
 
 
 class EventSourceTests(unittest.TestCase):
+    def test_same_announcement_revision_timeline_receipt_is_not_backfilled(self):
+        # Hypothetical quarter: the supplier keeps the same announcement day
+        # for the correction, so terminal history cannot prove its old vintage.
+        clocks = ('2024-04-30T09:35:00+08:00', '2024-05-07T09:35:00+08:00',
+                  '2024-05-07T10:05:00+08:00', '2024-05-09T09:35:00+08:00')
+        cases = (
+            ('timely', [('2024-04-30T09:20:00+08:00', 100), ('2024-05-09T09:20:00+08:00', 120)],
+             [100, 100, 100, 120]),
+            ('late', [('2024-05-07T10:00:00+08:00', 100), ('2024-05-09T09:20:00+08:00', 120)],
+             [None, None, 100, 120]),
+            ('backfill', [('2026-10-03T00:00:00Z', 120)], [None, None, None, None]),
+        )
+        for name, observations, expected in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                store = LocalStore(directory)
+                ids = []
+                for i, (receipt, amount) in enumerate(observations):
+                    ids.append(collect_event_response(store, client=Client([[income('20240331', amount, '20240429')]]),
+                        endpoint='income', params={'ts_code': '000001.SZ', 'period': '20240331', 'report_type': '1'},
+                        identity_map=IDS, observed_at=receipt, operation_id=name, batch_index=i,
+                        next_open_session_by_date={'2024-04-29': '2024-04-30'})['batch_id'])
+                sid = apply_saved_raw(store, base_snapshot=None, raw_batch_ids=ids,
+                    operation_id=name + '-publish', build_context={'synthetic': True}).snapshot_id
+                for policy in ('operational_pit_v1', 'market_pit_safe_v1', 'best_effort_vendor_v1'):
+                    values = []
+                    for clock in clocks:
+                        result = Data(directory).events(snapshot=sid, query=EventQuery('financial_events',
+                            ('total_revenue',), ('sec-bank',), '2024-03-31', '2024-03-31', clock, policy,
+                            'report_period', {'endpoint': 'income', 'report_type': '1'}))
+                        values.append(None if result.frame.empty else result.frame.iloc[0]['total_revenue'])
+                    self.assertEqual(values, [120] * 4 if policy == 'best_effort_vendor_v1' else expected)
+
     def test_income_adapter_to_events_and_ttm_with_native_keys(self):
         rows = [income("20190331", 10, "20190420"),
                 income("20190630", 30, "20190820"),

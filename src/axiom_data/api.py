@@ -184,6 +184,19 @@ class Data:
                       query=batch.context["query"], rows=len(batch.frame))
         return report
 
+    def dictionary(self, *, snapshot: str | None = None, domains=None,
+                   raw_batch_id: str | None = None) -> dict:
+        """Read supported fact mappings, optionally overlaid by a fixed Snapshot.
+
+        Returns JSON-ready field meanings, source/canonical units, conversions,
+        time rules and query methods. Snapshot availability is declaration only;
+        queries establish actual values/visibility. No writes or supplier calls.
+        Optional raw_batch_id inspects only that saved response's extra columns.
+        """
+        from .dictionary import fact_dictionary
+        return fact_dictionary(self.store, snapshot=snapshot, domains=domains,
+                               raw_batch_id=raw_batch_id)
+
     def clear_cache(self) -> None:
         """Drop local readers; never deletes data or persisted research results."""
         self._readers.clear()

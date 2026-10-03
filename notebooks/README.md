@@ -9,10 +9,12 @@ Researcher 从事实链路、固定版本和第一次读取开始，解释时间
 基础 Data 运行不需要教学工具或 Qlib。复跑完整两教程需要本地真实样本和已保存的验收报告，并安装教学及 Qlib 消费依赖。另提供同级 Engine、Research、UI 的薄 adapter 源码；Data 包本身不依赖它们。已测锁定环境为 Python 3.12/macOS，其他平台需解析适用环境。
 
 ```sh
-python -m pip install -r requirements-local.lock -e .
+python -m pip install -r requirements-local.lock
+python -m pip wheel . --no-deps --no-build-isolation --wheel-dir /absolute/retained-wheels
+python -m pip install /absolute/retained-wheels/axiom_data-<version>-py3-none-any.whl
 python -m pip install -r requirements-notebooks.txt -r requirements-qlib.lock
 python -m ipykernel install --user --name axiom-data --display-name 'Axiom Data'
-python examples/real_tutorials.py
+AXIOM_TUTORIAL_DATA_PACKAGE="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" python examples/real_tutorials.py
 ```
 
 本命令执行已有 notebook、更新输出并生成 HTML，不生成另一份正文。只读正式样本，写入演示使用临时数据根，不加载 token 或联网采集。`--no-execute` 只渲染已有输出，不记作新执行。运行报告在本地 `docs/real-tutorial-validation.json`，未推送生产数据或运行日志。
@@ -24,3 +26,7 @@ python examples/real_tutorials.py
 表格来自一年固定1800行情样本、两证券完整来源样本和七ETF日线样本，三者各有固定版本。两证券原教学样本含留存原供应商响应的离线回放，receipt 属于回放时间；新鲜生产入口验证另见 [bulk preflight](../docs/bulk-preflight.md)。合成测试只证明相应语义边界，不当作供应商数据。
 
 [权威设计](../docs/design/README.md)规定目标，[当前交付](../DELIVERY.md)记录已测范围。研究策略、模型、账户回测和 UI 产品仍由其 owner 实现和验收。
+
+当前 Research/main `2699fbc` 只有 R0 合同；教程 Qlib/Data/ViewRef adapter 与 Engine Runtime 是本地未提交文件，跨仓附录依赖这份本地工作树，不当作 GitHub 已发布实现。主线查询保存直接用 Data QuerySpec，不依赖 Research。联合行情/财务 FeatureBuild 的实现仍待决定。
+
+上面的 wheel 必须留存原文件，kernel 与运行命令使用同一安装环境。`AXIOM_TUTORIAL_DATA_PACKAGE` 指向该 wheel 的 site-packages；否则 helper 默认读源码树，离线构建需要干净且可恢复的 commit。执行更新 notebook 会使源码树变脏，留存安装包可以独立固定实际 builder；不允许只写一个旧 HEAD 代替真实代码来源。
