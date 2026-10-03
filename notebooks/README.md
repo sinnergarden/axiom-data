@@ -11,7 +11,7 @@ Researcher 从事实链路、固定版本和第一次读取开始，解释时间
 ```sh
 python -m pip install -r requirements-local.lock
 python -m pip wheel . --no-deps --no-build-isolation --wheel-dir /absolute/retained-wheels
-python -m pip install /absolute/retained-wheels/axiom_data-<version>-py3-none-any.whl
+python -m pip install /absolute/retained-wheels/axiom_data-0.3.3-py3-none-any.whl
 python -m pip install -r requirements-notebooks.txt -r requirements-qlib.lock
 python -m ipykernel install --user --name axiom-data --display-name 'Axiom Data'
 AXIOM_TUTORIAL_DATA_PACKAGE="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" python examples/real_tutorials.py

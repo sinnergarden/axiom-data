@@ -57,7 +57,7 @@ class EventSourceTests(unittest.TestCase):
                 for i, (receipt, amount) in enumerate(observations):
                     ids.append(collect_event_response(store, client=Client([[income('20240331', amount, '20240429')]]),
                         endpoint='income', params={'ts_code': '000001.SZ', 'period': '20240331', 'report_type': '1'},
-                        identity_map=IDS, observed_at=receipt, operation_id=name, batch_index=i,
+                        identity_map=IDS, observed_at=datetime.fromisoformat(receipt.replace("Z", "+00:00")), operation_id=name, batch_index=i,
                         next_open_session_by_date={'2024-04-29': '2024-04-30'})['batch_id'])
                 sid = apply_saved_raw(store, base_snapshot=None, raw_batch_ids=ids,
                     operation_id=name + '-publish', build_context={'synthetic': True}).snapshot_id

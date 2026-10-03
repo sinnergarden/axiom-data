@@ -370,6 +370,54 @@ assert not (ROOT/&#x27;views&#x27;).exists()
 print(&#x27;没有强制物化 View 目录。&#x27;)
 </pre></details></section><section id="section-5" class="markdown"><h2>5. Reader 如何应用时间与缺失规则</h2>
 <p>Reader 从固定版本读取所需列和分区，再按 policy/cutoff 选择可见事实。返回 DataBatch 的 frame、字段单位/来源和 context。逐字段来源元数据有成本，后续优化应保持语义等价；它不成为全量采集的新增门槛。<a href="researcher_tutorial.html#section-4">Researcher 时间例子</a>解释历史假设与真实在线观察的区别。</p>
+<p>同一财报的回采/及时日更/晚到/修订例子见 Researcher 第4节；其中文表格已由离线反例验证。Snapshot 覆盖一年，默认 DAYS 只选择末尾六个交易日。合法空值不阻止其他键读取；日内停牌归 <code>unknown_status</code>，具体原因在元数据。</p>
+<table>
+<thead>
+<tr>
+  <th><code>market_state</code></th>
+  <th>中文含义与成立条件</th>
+  <th>研究如何使用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>normal_trading</code></td>
+  <td>日历开市、身份有效、状态明确未全天停牌，所需行情字段均可见</td>
+  <td>继续使用所请求事实；不等于日内可成交证明</td>
+</tr>
+<tr>
+  <td><code>calendar_closed</code></td>
+  <td>可见日历明确闭市</td>
+  <td>诊断行保留，价格为空，不补成交易 bar</td>
+</tr>
+<tr>
+  <td><code>not_listed</code></td>
+  <td>可见身份表明该日早于上市</td>
+  <td>价格为空，不属于该证券有效交易期</td>
+</tr>
+<tr>
+  <td><code>delisted</code></td>
+  <td>可见身份/生命周期表明已越过退市有效边界</td>
+  <td>价格为空；不推断来源未给的日内边界</td>
+</tr>
+<tr>
+  <td><code>suspended</code></td>
+  <td>可见来源明确全天停牌</td>
+  <td>保留停牌解释；行情不存在时保持空值</td>
+</tr>
+<tr>
+  <td><code>source_gap</code></td>
+  <td>身份/状态明确、声明范围覆盖，但所需行情事实缺失</td>
+  <td>保持空值及 <code>market_fact_missing</code>，定位对应源窗口</td>
+</tr>
+<tr>
+  <td><code>unknown_status</code></td>
+  <td>日历、身份、状态或行情可见性不足；也包括日内停牌</td>
+  <td>看 <code>market_state</code> 的字段元数据原因；不默认正常或全天停牌</td>
+</tr>
+</tbody>
+</table>
+<p>日内停牌的具体原因是 <code>partial_session_suspension</code>；未到 cutoff 常见 <code>not_visible_at_cutoff</code>，没有源行常见 <code>source_missing</code>。这些合法缺失允许其他证券/日期继续读取。缺少所需域、未声明字段、单位/身份错误或文件损坏会明确报错，需要定位修正。<code>source_gap</code> 是固定 Snapshot 的覆盖诊断，不证明历史当天已经知道缺口。</p>
 </section><section class="example"><div class="example-label">真实执行 · 真实 DataBatch</div><div class="table-scroll"><div>
 <style scoped>
     .dataframe tbody tr th:only-of-type {
@@ -762,6 +810,7 @@ print(&#x27;全范围缺价:&#x27;, AUDIT[&#x27;missing_market_cells&#x27;],
       AUDIT[&#x27;missing_market_cells&#x27;] - AUDIT[&#x27;known_suspension_missing_cells&#x27;])
 </pre></details></section><section id="section-6" class="markdown"><h2>6. 完整来源的原生键与 Schema</h2>
 <p>行情以交易日和证券为键，财报保留 endpoint、report_type、报告期以及修订；股东以整组报告替换；分红包含过程状态。以下读取两证券完整源的真实 schema、单位与首行。空域保持空，资产存量不应用收入累计转单季公式。</p>
+<p>统一字段入口为 <code>data.dictionary(snapshot=固定ID)</code>；代码支持与该 Snapshot 声明分开。只有显式传 <code>raw_batch_id</code> 才查看那一份已存响应的未映射列，不扫描全库 Raw。</p>
 </section><section class="example"><div class="example-label">真实执行 · 完整源发布范围 · 1</div><div class="table-scroll"><div>
 <style scoped>
     .dataframe tbody tr th:only-of-type {
@@ -1033,53 +1082,77 @@ print(&#x27;此 Snapshot 同时含 Tushare 成员观测；供应商源由留存�
   <thead>
     <tr style="text-align: right;">
       <th></th>
-      <th>domain</th>
-      <th>field</th>
-      <th>dtype</th>
-      <th>unit</th>
-      <th>basis</th>
+      <th>域</th>
+      <th>Raw字段</th>
+      <th>规范字段</th>
+      <th>含义</th>
+      <th>类型</th>
+      <th>规范单位</th>
+      <th>口径</th>
+      <th>时间角色</th>
+      <th>查询方法</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th>0</th>
-      <td>financial_events</td>
-      <td>actual_announcement_date</td>
-      <td>date</td>
+      <td>adjustment_factors</td>
+      <td>None</td>
+      <td>evidence_ref</td>
+      <td>修订公开时刻证据引用</td>
+      <td>string</td>
       <td>None</td>
       <td>None</td>
+      <td>None</td>
+      <td>Data.read / QuerySpec；security_id、session 为隐含键</td>
     </tr>
     <tr>
       <th>1</th>
-      <td>financial_events</td>
-      <td>announcement_date</td>
-      <td>date</td>
+      <td>adjustment_factors</td>
+      <td>adj_factor</td>
+      <td>factor</td>
+      <td>供应商累计复权因子；调整价使用因子比</td>
+      <td>float64</td>
+      <td>dimensionless</td>
       <td>None</td>
       <td>None</td>
+      <td>Data.read / QuerySpec；security_id、session 为隐含键</td>
     </tr>
     <tr>
       <th>2</th>
-      <td>financial_events</td>
-      <td>basis</td>
-      <td>string</td>
+      <td>adjustment_factors</td>
       <td>None</td>
-      <td>None</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>financial_events</td>
-      <td>endpoint</td>
-      <td>string</td>
-      <td>None</td>
-      <td>None</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>financial_events</td>
       <td>first_observed_at</td>
+      <td>本系统首次实际接收本修订的时刻</td>
       <td>timestamp</td>
       <td>None</td>
       <td>None</td>
+      <td>系统知识时间</td>
+      <td>Data.read / QuerySpec；security_id、session 为隐含键</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>adjustment_factors</td>
+      <td>None</td>
+      <td>raw_batch_id</td>
+      <td>实际 Raw 接收记录引用</td>
+      <td>string</td>
+      <td>None</td>
+      <td>None</td>
+      <td>None</td>
+      <td>Data.read / QuerySpec；security_id、session 为隐含键</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>adjustment_factors</td>
+      <td>None</td>
+      <td>revision_id</td>
+      <td>内容修订身份</td>
+      <td>string</td>
+      <td>None</td>
+      <td>None</td>
+      <td>None</td>
+      <td>Data.read / QuerySpec；security_id、session 为隐含键</td>
     </tr>
     <tr>
       <th>...</th>
@@ -1088,51 +1161,76 @@ print(&#x27;此 Snapshot 同时含 Tushare 成员观测；供应商源由留存�
       <td>...</td>
       <td>...</td>
       <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
     </tr>
     <tr>
-      <th>85</th>
+      <th>250</th>
       <td>universe_membership</td>
-      <td>first_observed_at</td>
-      <td>timestamp</td>
       <td>None</td>
-      <td>None</td>
-    </tr>
-    <tr>
-      <th>86</th>
-      <td>universe_membership</td>
-      <td>membership_id</td>
+      <td>revision_id</td>
+      <td>内容修订身份</td>
       <td>string</td>
       <td>None</td>
       <td>None</td>
+      <td>None</td>
+      <td>成员区间合同；查询使用 is_member 投影</td>
     </tr>
     <tr>
-      <th>87</th>
+      <th>251</th>
       <td>universe_membership</td>
+      <td>None</td>
+      <td>revision_sequence</td>
+      <td>声明的修订次序</td>
+      <td>int64</td>
+      <td>None</td>
+      <td>None</td>
+      <td>None</td>
+      <td>成员区间合同；查询使用 is_member 投影</td>
+    </tr>
+    <tr>
+      <th>252</th>
+      <td>universe_membership</td>
+      <td>None</td>
       <td>security_id</td>
+      <td>稳定证券身份</td>
       <td>string</td>
       <td>None</td>
       <td>None</td>
+      <td>None</td>
+      <td>成员区间合同；查询使用 is_member 投影</td>
     </tr>
     <tr>
-      <th>88</th>
+      <th>253</th>
       <td>universe_membership</td>
+      <td>None</td>
       <td>source_available_at</td>
+      <td>修订绑定的市场公开时刻，须有证据</td>
       <td>timestamp</td>
       <td>None</td>
       <td>None</td>
+      <td>有证据的市场知识时间</td>
+      <td>成员区间合同；查询使用 is_member 投影</td>
     </tr>
     <tr>
-      <th>89</th>
+      <th>254</th>
       <td>universe_membership</td>
+      <td>None</td>
       <td>universe_id</td>
+      <td>成员池身份</td>
       <td>string</td>
       <td>None</td>
       <td>None</td>
+      <td>None</td>
+      <td>成员区间合同；查询使用 is_member 投影</td>
     </tr>
   </tbody>
 </table>
-<p>90 rows × 5 columns</p>
-</div></div><pre class="output-text">financial_events Arrow: security_id: string not null
+<p>183 rows × 9 columns</p>
+</div></div><pre class="output-text">显式一份财务 Raw 中尚未映射字段数: 0
+financial_events Arrow: security_id: string not null
 session: string
 revision_id: string not null
 revision_sequence: int64
@@ -1772,17 +1870,18 @@ dependency_raw_batch_ids: list&lt;element: string&gt;
     </tr>
   </tbody>
 </table>
-</div></div><details><summary>展开示例代码</summary><pre class="code"># Inspect the stored schema, source contract, and one real row in each domain.
-schema_rows = []
-for name in source_domains:
-    segment = full_manifest[&#x27;domains&#x27;][name]
-    fields = segment[&#x27;contract&#x27;][&#x27;fields&#x27;]
-    for field, spec in fields.items():
-        if field in (&#x27;raw_batch_id&#x27;, &#x27;revision_id&#x27;, &#x27;revision_sequence&#x27;, &#x27;evidence_ref&#x27;):
-            continue
-        schema_rows.append({&#x27;domain&#x27;:name, &#x27;field&#x27;:field, &#x27;dtype&#x27;:spec[&#x27;dtype&#x27;],
-            &#x27;unit&#x27;:spec.get(&#x27;unit&#x27;), &#x27;basis&#x27;:spec.get(&#x27;basis&#x27;)})
-display(pd.DataFrame(schema_rows))
+</div></div><details><summary>展开示例代码</summary><pre class="code">facts = full.dictionary(snapshot=FULL_SNAPSHOT)
+dictionary_frame = pd.DataFrame(facts[&#x27;fields&#x27;])
+available = dictionary_frame[dictionary_frame.snapshot_available.eq(True)]
+display(available[[&#x27;domain&#x27;,&#x27;raw_field&#x27;,&#x27;canonical_field&#x27;,&#x27;meaning&#x27;,&#x27;dtype&#x27;,&#x27;unit&#x27;,&#x27;basis&#x27;,&#x27;time_role&#x27;,&#x27;query_method&#x27;]]
+    .rename(columns={&#x27;domain&#x27;:&#x27;域&#x27;,&#x27;raw_field&#x27;:&#x27;Raw字段&#x27;,&#x27;canonical_field&#x27;:&#x27;规范字段&#x27;,&#x27;meaning&#x27;:&#x27;含义&#x27;,
+                     &#x27;dtype&#x27;:&#x27;类型&#x27;,&#x27;unit&#x27;:&#x27;规范单位&#x27;,&#x27;basis&#x27;:&#x27;口径&#x27;,&#x27;time_role&#x27;:&#x27;时间角色&#x27;,&#x27;query_method&#x27;:&#x27;查询方法&#x27;}))
+raw_id = full_manifest[&#x27;domains&#x27;][&#x27;financial_events&#x27;][&#x27;raw_batch_ids&#x27;][0]
+one_raw_dictionary = full.dictionary(snapshot=FULL_SNAPSHOT,
+    domains=(&#x27;financial_events&#x27;,), raw_batch_id=raw_id)
+raw_only = pd.DataFrame([r for r in one_raw_dictionary[&#x27;fields&#x27;] if not r[&#x27;supported&#x27;]])
+print(&#x27;显式一份财务 Raw 中尚未映射字段数:&#x27;, len(raw_only))
+if not raw_only.empty: display(raw_only[[&#x27;raw_field&#x27;,&#x27;status&#x27;,&#x27;query_method&#x27;]].head(20))
 for name in source_domains:
     segment = full_manifest[&#x27;domains&#x27;][name]
     first = next((p for p in segment[&#x27;partitions&#x27;] if p[&#x27;rows&#x27;]), None)
@@ -1791,8 +1890,7 @@ for name in source_domains:
         continue
     table = full.store.read_partition(first)
     print(name, &#x27;Arrow:&#x27;, table.schema)
-    display(table.slice(0, 1).to_pandas())
-</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实收入事件与逐项来源</div><div class="table-scroll"><div>
+    display(table.slice(0, 1).to_pandas())</pre></details></section><section class="example"><div class="example-label">真实执行 · 真实收入事件与逐项来源</div><div class="table-scroll"><div>
 <style scoped>
     .dataframe tbody tr th:only-of-type {
         vertical-align: middle;
@@ -2476,7 +2574,7 @@ event_results = {}</pre></details></section><section class="example"><div class=
   </tbody>
 </table>
 </div></div><pre class="output-text">limitation: [&#x27;report versions use declared supplier announcement days; same-day corrections use actual observation order, not a verified publication sequence&#x27;]
-</pre><pre class="output-text">cash_flow_events</pre><pre class="output-text"> security: cnstock.600000.SH.19991110 rows: 4 key: [&#x27;security_id&#x27;, &#x27;endpoint&#x27;, &#x27;report_type&#x27;, &#x27;report_period&#x27;]
+</pre><pre class="output-text">cash_flow_events security: cnstock.600000.SH.19991110 rows: 4 key: [&#x27;security_id&#x27;, &#x27;endpoint&#x27;, &#x27;report_type&#x27;, &#x27;report_period&#x27;]
 </pre><div class="table-scroll"><div>
 <style scoped>
     .dataframe tbody tr th:only-of-type {
@@ -2728,7 +2826,7 @@ corporate_actions security: cnstock.600000.SH.19991110 rows: 9 key: [&#x27;secur
   </tbody>
 </table>
 </div></div><pre class="output-text">limitation: [&#x27;terminal states ordered by system observation under declared source policy; vendor revision/publication order is unknown&#x27;]
-</pre><pre class="output-text">top_holders_reports security: cnstock.600000.SH.19991110 rows: 6 key: [&#x27;security_id&#x27;, &#x27;report_period&#x27;]
+top_holders_reports security: cnstock.600000.SH.19991110 rows: 6 key: [&#x27;security_id&#x27;, &#x27;report_period&#x27;]
 </pre><div class="table-scroll"><div>
 <style scoped>
     .dataframe tbody tr th:only-of-type {
@@ -4087,7 +4185,8 @@ MONTH_ENDS = (&#x27;2026-07-31&#x27;, &#x27;2026-08-31&#x27;)
 </section><section id="section-11" class="markdown"><h2>11. 故障恢复与搬移</h2>
 <p>Raw 半写的完整前缀读写已通过专项测试：只隔离末尾未完成片段，不改成功接收记录。完整行损坏仍需副本恢复。下面真实全年行情从同 Raw 重建所选域，其他域保持，current 不动；统一两证券样本此前已完成全域搬移与重建，逐域比较文件字节、合同和成员读取。</p>
 <p>这些是同一机器换目录与隔离环境的实际验证；跨操作系统是另外的部署验收。bundle 保存源文件闭包、接收日志和选定代码依赖，不会把重新收到的历史值伪装为旧 vintage。</p>
-</section><section class="example"><div class="example-label">真实执行 · 真实全年行情的离线重建与逐字节比较</div><pre class="output-text">{&#x27;elapsed_seconds&#x27;: 23.002, &#x27;market_partitions_byte_equal&#x27;: True, &#x27;unrelated_domains_equal&#x27;: True, &#x27;current_unchanged&#x27;: True, &#x27;new_snapshot&#x27;: &#x27;s_0e08a26191db89db542b66b2f3968c9abef59ae448871a231e49f5977a1abe56&#x27;}
+<p>恢复先查原 operation 的阶段、失败块与已完成 Raw，再用同 plan 继续。已成功接收不重新请求；归一化失败的成功 Raw 用 <code>apply_saved_raw</code> 继续。没有源行/缺季度保留合法缺失；身份、单位和文件错误修正后才重跑对应操作。此处的反例使用临时根，实际正式根没有重新采集。</p>
+</section><section class="example"><div class="example-label">真实执行 · 真实全年行情的离线重建与逐字节比较</div><pre class="output-text">{&#x27;elapsed_seconds&#x27;: 23.525, &#x27;market_partitions_byte_equal&#x27;: True, &#x27;unrelated_domains_equal&#x27;: True, &#x27;current_unchanged&#x27;: True, &#x27;new_snapshot&#x27;: &#x27;s_7c138f72bb15630d19c4a4444854db6616d56c6b4c8a48cbc0841f57c11c0b12&#x27;}
 </pre><details><summary>展开示例代码</summary><pre class="code">BUNDLE = Path(str(ROOT) + &#x27;-bundle&#x27;)
 LOCAL = Data(TEMP / &#x27;relocated-market&#x27;)
 assert import_bundle(BUNDLE, LOCAL.store.root) == SNAPSHOT
@@ -4400,8 +4499,9 @@ print(&#x27;覆盖记录的 chunk/request 分组可不同；上市和成员 cove
 <p>exporter 只读已固定 Snapshot/Query，按月整理到临时映射数组，最后每证券字段写一个文件。<code>calendars/day.txt</code> 是完整开放日历，instrument 文件保存候选/成员区间，<code>.day.bin</code> 采用小端 float32，第一值为日历起始索引，后续保留原值与 NaN。manifest 固定查询、字段单位、身份映射、代码版本、文件摘要和容差。</p>
 <p>下方实际导出，再由 Research adapter 调用 Qlib。重复导出验证后复用，改变 cutoff/字段须新目录；它不会隐式训练、填财务数据或计算策略特征。</p>
 <p>固定 Snapshot、范围/字段、PIT/cutoffs 和映射复用同一持久目录；换模型或仅用已有字段改 Feature 公式不重导。Research 提供需求并消费，Data 负责格式导出。首次导出可作为一次性准备，不在每次策略研究重复支付成本。日历也先按 PIT 筛可见修订；未知日历会拒绝导出，不能取所有旧开市行的并集。</p>
-</section><section class="example"><div class="example-label">真实执行 · 从实际 Snapshot 按月导出 Qlib</div><pre class="output-text">实际临时导出: /var/folders/hq/xjtfsmm95nx1lpw034lk4cq00000gn/T/axiom-real-tutorial-pyi3_k7x/qlib-native
-QlibView: f4ebb4297ab7fd892c72ac767207365b9894843fcdb262f7e21339a820790f52
+<p>固定查询重复导出验证并命中原文件；测试检查文件 mtime 不变，不重读全量供应商。Research QlibView 目前是本地未提交 adapter，Data 的导出不依赖它。联合财务投影与持久 FeatureBuild 尚待 Research 实现；Core 已有 asof 和逐 session cutoff 可复用。</p>
+</section><section class="example"><div class="example-label">真实执行 · 从实际 Snapshot 按月导出 Qlib</div><pre class="output-text">实际临时导出: /var/folders/hq/xjtfsmm95nx1lpw034lk4cq00000gn/T/axiom-real-tutorial-0_wr_by8/qlib-native
+QlibView: 1d1c55ff90848d5ea591ac6719461f5a8e143bf347b74f30003a8673e5b704ae
 字段: [&#x27;open&#x27;, &#x27;high&#x27;, &#x27;low&#x27;, &#x27;close&#x27;, &#x27;volume_shares&#x27;, &#x27;amount_cny&#x27;, &#x27;factor&#x27;, &#x27;up_limit&#x27;, &#x27;down_limit&#x27;]
 </pre><div class="table-scroll"><div>
 <style scoped>
@@ -4642,7 +4742,7 @@ print(&#x27;实测最大绝对rounding error:&#x27;, qlib_manifest[&#x27;max_abs
 </table>
 </div></div><pre class="output-text">实际 Research adapter → Qlib D.features: 130 行
 命名成员集合: 130 行
-P04 引用绑定: s_a0db6028118997d93b9f70dff852b701b030b152a30b2e8d325c08ad64931049 f4ebb4297ab7fd892c72ac767207365b9894843fcdb262f7e21339a820790f52
+P04 引用绑定: s_a0db6028118997d93b9f70dff852b701b030b152a30b2e8d325c08ad64931049 1d1c55ff90848d5ea591ac6719461f5a8e143bf347b74f30003a8673e5b704ae
 </pre><details><summary>展开示例代码</summary><pre class="code">verify_qlib_export(qlib_target,data=UNIFIED)
 consumer = QlibView(qlib_target).activate()
 qlib_native = consumer.read(fields=(&#x27;close&#x27;,&#x27;volume_shares&#x27;,&#x27;factor&#x27;))
@@ -5276,6 +5376,7 @@ print(&#x27;旧日严格 cutoff 早于原 Raw 接收，不能回填日线可见�
 </tbody>
 </table>
 <p>四个 repo 同机函数调用即可。Core 不直接读 Parquet；UI 不自己重算事实，也不触发供应商请求。</p>
+<p><strong>发布状态（本轮核对）：</strong> Research GitHub/main <code>2699fbc</code> 只有 R0 合同；这里调用的 Data/Qlib/ViewRef adapter 是本地未提交文件。Engine GitHub/main <code>c8a506b</code> 已有 Core，Runtime 也是本地未提交实现。本附录证明本地函数链路，不声称这些 adapter 已随 GitHub 发布，也不声称完成联合财务 FeatureBuild。</p>
 </section><section class="example"><div class="example-label">真实执行 · Research / Core / Runtime / UI 真实薄接口 · 1</div><details><summary>展开示例代码</summary><pre class="code">sys.path.insert(0, str(WORKSPACE / &#x27;axiom-research&#x27; / &#x27;src&#x27;))
 sys.path.insert(0, str(WORKSPACE / &#x27;axiom-engine&#x27; / &#x27;src&#x27;))
 sys.path.insert(0, str(WORKSPACE / &#x27;axiom-ui&#x27; / &#x27;src&#x27;))
@@ -5414,7 +5515,7 @@ view_for_ui = adapted.view_ref.to_dict()</pre></details></section><section class
 </table>
 </div></div><pre class="output-text">Data wire: [&#x27;records&#x27;, &#x27;field_meta&#x27;, &#x27;context&#x27;]
 UI协议: p12_chart_projection_v1 固定版本: s_a0db6028118997d93b9f70dff852b701b030b152a30b2e8d325c08ad64931049
-无成交产物时 UI 明确 unavailable: {&#x27;contract_version&#x27;: &#x27;p12_chart_projection_v1&#x27;, &#x27;role&#x27;: &#x27;fill&#x27;, &#x27;requested_ref&#x27;: None, &#x27;requested_stage&#x27;: None, &#x27;unit&#x27;: None, &#x27;status&#x27;: &#x27;LAYER_UNAVAILABLE&#x27;, &#x27;points&#x27;: None, &#x27;is_reconstructed&#x27;: False, &#x27;generated_at&#x27;: &#x27;2026-10-03T10:54:50.670987+00:00&#x27;}
+无成交产物时 UI 明确 unavailable: {&#x27;contract_version&#x27;: &#x27;p12_chart_projection_v1&#x27;, &#x27;role&#x27;: &#x27;fill&#x27;, &#x27;requested_ref&#x27;: None, &#x27;requested_stage&#x27;: None, &#x27;unit&#x27;: None, &#x27;status&#x27;: &#x27;LAYER_UNAVAILABLE&#x27;, &#x27;points&#x27;: None, &#x27;is_reconstructed&#x27;: False, &#x27;generated_at&#x27;: &#x27;2026-10-03T15:05:13.908000+00:00&#x27;}
 </pre><details><summary>展开示例代码</summary><pre class="code">chart = chart_context(mode=&#x27;run_replay&#x27;, security_id=SYMBOL,
     session_refs={d: view_for_ui for d in MONTH_ENDS}, price_basis=&#x27;unadjusted&#x27;,
     adjustment_anchor=None, time_axis=&#x27;decision_available&#x27;)
@@ -5469,7 +5570,7 @@ assert market.context[&#x27;query&#x27;][&#x27;purpose&#x27;] == &#x27;market_re
     </tr>
   </tbody>
 </table>
-</div></div><pre class="output-text">本次重新离线核对: limited 秒: 11.729
+</div></div><pre class="output-text">本次重新离线核对: limited 秒: 11.779
 </pre><details><summary>展开示例代码</summary><pre class="code">from axiom_data.bulk_jobs import BulkJobPlan
 plan_envelope = json.loads(ROOT.with_suffix(&#x27;.plan.json&#x27;).read_text())
 # Plan envelope is a CLI artifact; use the public deserializer for its job.
@@ -5536,10 +5637,10 @@ print(&#x27;本次重新离线核对:&#x27;, fresh_audit[&#x27;status&#x27;], &#
   </tbody>
 </table>
 </div></div><pre class="output-text">工作数据根: {&#x27;files&#x27;: 1916, &#x27;bytes&#x27;: 335157660, &#x27;MiB&#x27;: 319.63}
-</pre><pre class="output-text">当前搬移包: {&#x27;files&#x27;: 835, &#x27;bytes&#x27;: 252134085, &#x27;MiB&#x27;: 240.45}
+当前搬移包: {&#x27;files&#x27;: 835, &#x27;bytes&#x27;: 252134085, &#x27;MiB&#x27;: 240.45}
 此前真实运行计时（非本次重新联网）: {&#x27;bulk_active_process_seconds&#x27;: 193.56, &#x27;bulk_wall_including_fix_pause_seconds&#x27;: 282.616, &#x27;bulk_peak_rss_bytes&#x27;: 327614464, &#x27;offline_full_rebuild_seconds&#x27;: 38.59, &#x27;audit_seconds&#x27;: 10.864, &#x27;note&#x27;: &#x27;Two resumed real processes; no clean uninterrupted full-year or 12-year timing claim.&#x27;}
 12×一年 active runtime: 38.7 分钟
-12×一年目录 logical bytes: 3.75 GiB
+</pre><pre class="output-text">12×一年目录 logical bytes: 3.75 GiB
 </pre><details><summary>展开示例代码</summary><pre class="code">sizes = pd.DataFrame([{&#x27;component&#x27;: name, **measure_tree(ROOT/name)}
     for name in (&#x27;raw&#x27;, &#x27;canonical&#x27;, &#x27;snapshots&#x27;, &#x27;operations&#x27;)])
 display(sizes)
@@ -5639,13 +5740,13 @@ print(&#x27;这是两证券三个月及财务 warmup 的现场字节，不外推
       <th>0</th>
       <td>first</td>
       <td>7</td>
-      <td>0.029172</td>
+      <td>0.028731</td>
     </tr>
     <tr>
       <th>1</th>
       <td>repeat</td>
       <td>7</td>
-      <td>0.026780</td>
+      <td>0.026691</td>
     </tr>
   </tbody>
 </table>
@@ -5672,6 +5773,7 @@ print(&#x27;相同字节复用对象；重复观察保留接收记录。小样�
 <p>唯一编辑源是本仓两份 <code>.ipynb</code>，HTML 由它们生成。<a href="../docs/design/02_axiom_data.md">Data 设计</a>规定目标，<a href="../docs/design/01_axiom_overview.md">总纲</a>定义仓库边界；本教程展示当前实现及真实有限窗口，不把小样本当十二年验收。</p>
 <p>初始化 helper 是 <a href="../examples/tutorial_support.py">tutorial_support.py</a>，只读固定数据和本地验证文件、分配临时目录，不请求供应商。完整代码由附录入口重跑：安装 <code>requirements-notebooks.txt</code>，使用 <code>examples/real_tutorials.py</code> 执行已有 notebook 并生成 HTML。Qlib 章节另外需要 <code>requirements-qlib.lock</code>；跨仓附录需要同级 Engine、Research、UI 的薄 adapter。普通 Data 采集/Reader 只需基础包。</p>
 <p>默认本地真实数据保存在 <code>../data/</code>，没有推送到 GitHub。路径可用 <code>AXIOM_WORKSPACE</code>、<code>AXIOM_TUTORIAL_DATA_ROOT</code>、<code>AXIOM_UNIFIED_DATA_ROOT</code> 等环境变量更改；本地 <code>delivery/</code> 保留采集与便携报告。源数据完整闭包经 bundle 搬移，并非仅克隆 repo 就会拥有这些样本。静态输出可直接阅读；全十二年准备/采集、跨操作系统搬移和整个 Engine 回测有各自的验证范围。</p>
+<p>执行 notebook 会更新教学文件；若示例涉及离线构建，用 <code>AXIOM_TUTORIAL_DATA_PACKAGE</code> 指向留存并安装的当前 wheel 的 site-packages，使 builder 固定真实安装包。它不绕过源码/安装包的来源校验。</p>
 </section><section id="cell-70" class="markdown"><h3>真实证据的范围</h3>
 <p>本轮交付包含Reader与Qlib两条读取路径。真实来源窗口验证映射与实际接口，独立语义反例验证自然样本没有出现的边界；最新测试数量、安装包与搬移证据以 <code>delivery/final-code-acceptance-20261003.json</code> 为准。</p>
 <p>代码验收与十二年全量数据覆盖分别记录。生产事实接受Tushare供应商内容，外部核对只作warning；终态历史缺少的公开版本不被虚构为严格PIT证据。</p>
