@@ -63,3 +63,19 @@ Qlib目录自身可闭包搬移并直接读取；需要重建它时另带原Snap
 
 
 当前0.3.1另完成四组新鲜完整来源采集、真实中断续跑及独立安装搬移；旧Raw半写恢复与四类变更边界已验证/写明，见[当前preflight](docs/bulk-preflight.md)。此前与当前的原型、包版本和验证范围分别保留。
+
+Public design/tutorial editing now lives in [axiom-docs](https://github.com/sinnergarden/axiom-docs). This repository retains code, configuration and local measured reports.
+
+## 0.3.4 bounded follow-up
+
+Offline `Data.rebuild` now accepts explicit per-domain `canonical_symbols` over
+saved whole-market Raw, with append-only stable mappings. It records the derived
+selection without changing original requests, receipts or old Snapshots. Supply
+the full selected-domain Raw closure; selected domains are rebuilt and unrelated
+domains are reused. Missing Raw rows remain missing. Sixteen relevant Raw/rebuild,
+field-evolution, resume, identity and update tests passed against the retained wheel;
+this is not a rerun of the full historical suite.
+
+Public editable design/tutorial sources have moved to axiom-docs; old entries
+are links. The twelve-year run remains paused on the original 0.3.3 wheel/plan,
+with saved Raw/checkpoints unchanged. 0.3.4 does not authorize or resume collection.

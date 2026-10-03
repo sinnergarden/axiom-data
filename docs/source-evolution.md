@@ -1,30 +1,3 @@
-# 新增来源与供应商变更
+# Documentation moved
 
-Tushare 的[数据上新与变更记录](https://tushare.pro/document/1?doc_id=9)是接源前的检查入口，
-不是自动采集任务。2026-09-28 核对时，与当前设计相关的例子包括：2026-07-06 A 股日线新增
-盘后成交量/额字段，2026-09-07 ETF 涨跌停从 `stk_limit` 迁至 `etf_limit`，以及
-2026-08-12 发布供应商因子库。日期、参数、单位与权限仍以具体 endpoint 文档及真实小样本为准。
-
-新接口沿用 Raw → contract/profile → Canonical → Snapshot → Reader，无需新增发布平台。
-
-| 变化 | 最小实现动作 | 旧数据与研究语义 |
-|---|---|---|
-| 同一接口新增字段 | 在显式请求 fields、contract dtype/unit、profile mapping 中加入 nullable 字段；核对生效日期与空值 | Raw 原来确实收到此字段才可离线 rebuild；原请求没取到它时须补采，不能从不存在的字节重建。旧 Snapshot 不改。 |
-| 字段改名或单位变化 | 新版本映射，保留原响应；从固定 Raw 显式重建或补采 | 不按数值猜单位，不把旧单位数据直接拼入同名新列。 |
-| 接口迁移，例如 ETF 限价 | 给资产类别与新 endpoint 单独声明来源合同，再明确历史范围与切换时间 | 不假设股票与 ETF 有相同覆盖、规则或身份；原 adapter 仍能重建旧 Raw。 |
-| 新日频事实 | 增加小的来源 adapter 和所需字段；复用 `Data.read` | 保留 security/session、单位、修订与 PIT；不默认物化 View。 |
-| 新事件，例如增发/公告 | 保留原生事件键、状态、经济时间和披露时间；复用 `Data.events` | 不直接压平为每日值，也不把预案当成已实施公司行动。 |
-| 供应商计算的因子 | 在独立域保存供应商原值、公式/版本（若提供）、单位、可用时间与限制 | 它是外部供应商结果，不等同于 Research 自己计算的 Feature。来源没有历史公式或 vintage 时明确限制；不能凭一个因子名就保证无未来信息。 |
-
-每次扩展只需完成一次明确接入：
-
-1. 选研究实际需要的字段与范围，确认主键、单位、时间、修订、权限与截断规则。
-2. 保存一份小响应 Raw，用独立预期核对映射、空值和 PIT；失败不推进 current。
-3. 必要时更新域合同并显式 rebuild；保留旧 Snapshot，验证同一旧查询仍可复现。
-4. 在 Notebook 展示新增字段/事件的真实返回形状；需要计算时由 Research 增加配方。
-
-当前入口是 `provider_local.py` / `bulk_jobs.py`（日频与参考）、`full_sources.py`（统一批量编排），`event_sources.py`
-（财务、股东、公司行动与限价），`Data.rebuild(domain_overrides=...)`（显式解释修订）。
-源合同及身份表固定在 Snapshot 中；改变解释配置时显式重建，不在读请求中偷偷换口径。
-
-不自动跟随网页上新采集所有接口，不建立通用插件注册平台；确有研究用途再接入。
+The sole editable source is [docs/source-evolution.md](https://github.com/sinnergarden/axiom-docs/blob/main/docs/source-evolution.md).

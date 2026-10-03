@@ -147,6 +147,11 @@ class Data:
         ``domain_overrides`` explicitly replaces selected domains' contract,
         source_profile or normalizer when correcting a mapping or adding fields;
         original source bytes and their observation timestamps remain unchanged.
+        A ``canonical_symbols`` override selects explicitly bound source codes
+        already present in saved whole-market Raw. It is recorded as a derived
+        selection; missing source rows remain missing, without refetching.
+        Supply the full Raw closure and desired symbol scope for each replaced
+        domain. Only affected domains are rebuilt; old Snapshots stay readable.
         """
         from .updates import rebuild_from_raw
         return rebuild_from_raw(self.store, base_snapshot=base_snapshot,

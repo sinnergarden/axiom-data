@@ -1,25 +1,3 @@
-# 完整 Data 交付验收
+# Documentation moved
 
-本轮依据 `docs/design/02_axiom_data.md` 及用户最新决定施工。财务、PIT、供应商退市边界与历史成员不是行情交付之后推迟的项目。生产数据只用 Tushare，外部核对只作 warning。此前一年行情报告是既有证据，不代表下表全部完成。
-
-验收同时具备可独立运行的代码、语义边界测试、真实来源核对与已执行教程。本轮以下14项已完成，汇总见最终代码验收（本地记录：`delivery/final-code-acceptance-20261003.json`）。完成范围为约定的代码和原型验收，十二年全量网络采集尚未运行。
-
-- [x] 一个入口完成 prepare、plan、init/bulk/daily、恢复与完整 Snapshot 发布；行情及事件使用适合来源的批量方式。
-- [x] 财务原生报告键、明确金额单位、报告期/公告日区别、修订选择、单季与 TTM；真实 Tushare 数据的映射核对与一次单位抽样，不要求逐份 PDF 认证。
-- [x] 分红送转实施状态、股东报告组、涨跌停；空响应、字段缺失与整组完整性含义明确。
-- [x] 历史股票池使用 Tushare dated 快照及最近快照延续；无月底回填；读集合、当日成员、池外持仓、退出再入、warmup 与原始快照日期可运行。
-- [x] 追加7ETF日线数据源：身份、未复权日线、基金复权因子、分红、价格限制、日历和基准；21交易日预热与独立运行配置，不含策略feature或回测。
-- [x] 闭市、未上市、整日/盘中停牌、缺数和摘牌边界可解释；退市不等于最后一个有行情的日期。
-- [x] operational、market-safe、best-effort 与分段 PIT 可验证；实际 receipt 不改写，可选公开证据按精确版本绑定并随数据搬移，不成为普通采集门槛。
-- [x] 所有启用域均能从原 Raw 离线重建；重复更新不改变首次观察时间，失败不推进 current。
-- [x] 固定格式数据与源码/环境可搬移；导入后离线读、重建及消费者接口复验。
-- [x] Research、Engine/Core、Runtime、UI 的 Data 接口有真实执行证据；不把薄接口冒称为完整回测/UI 产品。
-- [x] Qlib P04显式导出与Research实际读取已实现；固定Query的键/开放日历、原始单位、NaN、数值容差及成员退出/再入等价，真实股票/ETF与独立安装后搬移读取通过，双教程实际执行。
-- [x] Researcher 与 Developer 教程按系统介绍组织，使用实际输出并全量运行，设计文档同步。
-- [x] 仓库只保留当前实现、必要测试/教程与现行文档；移走历史副本，删除重复入口和废弃兼容路径，安装包重新构建验证。
-- [x] 按完整原型域实测容量和处理时间，给出十二年独立运行/恢复命令及来源能力边界；正常运行无需 agent 或模型 token。
-
-Qlib按用户最新要求纳入本轮必交范围，见[接口合同](qlib-interface.md)；使用任务仍可选择Reader或Qlib。不创建额外框架、全公告OCR或完整交易前端。先前要求官方调样闭合的政策已被用户最新的Tushare-only决定覆盖，不再作为剩余交付项。
-
-
-新增0.3.1完整来源采集、恢复、包安装与教学重写的最新证据见[当前preflight](bulk-preflight.md)，旧汇总保持原日期与包版本。设计仅在[唯一入口](design/README.md)修改。
+The sole editable source is [docs/completion-checklist.md](https://github.com/sinnergarden/axiom-docs/blob/main/docs/completion-checklist.md).

@@ -1,7 +1,7 @@
 # Working on Axiom Data
 
-The target design is `docs/design/02_axiom_data.md`. The executed real tutorials in `notebooks/` explain it.
-Run `examples/real_tutorials.py` to rebuild both via Jupyter; synthetic boundary
+The target design is `../axiom-docs/docs/design/02_axiom_data.md`. The executed real tutorials in `../axiom-docs/notebooks/` explain it.
+Run `../axiom-docs/examples/real_tutorials.py` to rebuild both via Jupyter; synthetic boundary
 fixtures remain separate and are not production evidence.
 
 The local public entry is `axiom_data.Data`. New storage is Raw observations,
@@ -36,7 +36,7 @@ workers and monthly output. Reuse the same plan after interruption; never rewrit
 Raw receipt times or turn a capped response into complete coverage. See
 `docs/delivery-validation.json` for measured one-year evidence, not twelve-year proof.
 
-The current complete-delivery scope is `docs/completion-checklist.md`: financial
+The current complete-delivery scope is `../axiom-docs/docs/completion-checklist.md`: financial
 sources, PIT semantics, vendor lifecycle boundaries, historical membership,
 Reader and Qlib consumer protocols and both executed tutorials are required. Market-only results
 must not be described as final delivery. No new registry or admission framework.

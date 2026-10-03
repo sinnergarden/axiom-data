@@ -72,3 +72,5 @@ PYTHONPATH=src:tests:../axiom-engine/src:../axiom-research/src:../axiom-ui/src p
 ```
 
 [设计对照](docs/design-conformance.md) 与 [验收索引](docs/demo-acceptance.md) 区分真实来源核对、语义反例测试与按消费者启用的条件项。
+
+Public design/tutorial editing now lives in [axiom-docs](https://github.com/sinnergarden/axiom-docs). This repository retains code, configuration and local measured reports.

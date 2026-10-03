@@ -1,13 +1,3 @@
-# Demo 的完成边界
+# Documentation moved
 
-当前目标是 [完整交付清单](completion-checklist.md)，不是市场数据 MVP。权威设计为 [AX-DATA](design/02_axiom_data.md)。必须同时完成接口、正确存储/PIT、适当反例、真实完整来源小窗口与系统化双教程。
-
-财务/股东、交易状态、供应商上市/退市日期、历史成员与 PIT 是本轮 Data 内容。生产来源只用 Tushare，信任供应商内容；外部核对只作 warning，不改写生产事实，不成为发布门槛。Axiom 自己的请求、键、单位、映射与文件错误仍须修复。
-
-Data消费协议与Research/Core/Runtime/UI薄接口须真实执行。Qlib已按用户最新要求纳入本轮：显式导出、实际消费、Reader等价与搬移读取必须验收，两套教程必须教学。完整模型、账户撮合或浏览器应用仍由各owner完成。十二年数据不必本轮实际下载，但现存代码/配置必须能独立执行，不能依赖agent临时生成补救脚本。
-
-成员口径按用户最新决定为最近供应商快照延续：截至研究日选择可见且 trade_date 不晚于该日的完整快照，继续使用到下一份。没有此前快照时返回 unknown；空响应不清空名单；不把月底新名单回填月初，也不声称精确官方每日成员。历史候选是供应商所有快照并集，另含 warmup 与池外持仓。月内短暂进出可能遗漏，作为来源限制说明，不阻断初始化。
-
-十二年运行不用模型或 agent：现有 CLI 根据配置批量采集、后处理、保存进度和恢复。正常数据作业不消耗模型 token。供应商权限、网络或本地代码异常通过机器报告呈现；只有需要改代码或人工解释时才介入。PIT 不保证回测收益只低估。
-
-代码只保留普通 Python 函数和必要数据合同。无 registry/service/admission；统一 CLI、固定计划、Raw 续跑、按需 Reader。历史源码在仓库外备份，旧数据不自动迁移。验收索引见 [D01–D18](demo-acceptance.md)，实际范围见 [设计对照](design-conformance.md)。
+The sole editable source is [docs/demo-completion-contract.md](https://github.com/sinnergarden/axiom-docs/blob/main/docs/demo-completion-contract.md).

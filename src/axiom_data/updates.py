@@ -581,6 +581,11 @@ class _SavedBatch:
         override = override or {}
         self.domain = raw["domain"]
         self.request = raw["request"]
+        if "canonical_symbols" in override:
+            # This is a derived normalization selection, never a new fetch or
+            # a mutation of the immutable original Raw request/receipt.
+            self.request = {**self.request,
+                            "canonical_symbols": list(override["canonical_symbols"])}
         self.contract = override.get("contract", raw["contract"])
         self.source_profile = override.get("source_profile", raw["source_profile"])
         self.normalizer = override.get("normalizer", raw["normalizer"])
@@ -658,12 +663,18 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
         raise DataError("rebuild override names must be selected domains")
     for name, override in overrides.items():
         if not isinstance(override, Mapping) or not set(override).issubset(
-                {"contract", "source_profile", "normalizer"}):
+                {"contract", "source_profile", "normalizer", "canonical_symbols"}):
             raise DataError(f"invalid rebuild override for {name}")
         if (("contract" in override and not isinstance(override["contract"], Mapping)) or
                 ("source_profile" in override and not isinstance(override["source_profile"], Mapping)) or
                 ("normalizer" in override and not isinstance(override["normalizer"], str))):
             raise DataError(f"invalid rebuild override values for {name}")
+        if "canonical_symbols" in override:
+            codes = override["canonical_symbols"]
+            if (not isinstance(codes, (list, tuple)) or not codes or
+                    any(not isinstance(code, str) or not code for code in codes) or
+                    len(set(codes)) != len(codes)):
+                raise DataError("canonical_symbols needs unique nonempty source codes")
     fingerprint = _fingerprint({"kind": "rebuild", "base_snapshot": base_snapshot,
                                 "raw_batch_ids": ids, "domains": wanted,
                                 "build_context": dict(build_context), "promote": promote,
@@ -719,6 +730,15 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                 if not isinstance(contract, dict) or not isinstance(profile, dict) or not isinstance(normalizer, str):
                     raise DataError(f"Raw {batch_id} lacks domain/contract/normalizer metadata for rebuild")
                 override = overrides.get(domain, {})
+                if "canonical_symbols" in override:
+                    if "canonical_symbols" not in raw["request"]:
+                        raise DataError("offline selection requires an original canonical_symbols request")
+                    old_map = raw["source_profile"].get("identity_map", {})
+                    new_map = override.get("source_profile", raw["source_profile"]).get("identity_map", {})
+                    if any(new_map.get(code) != identity for code, identity in old_map.items()):
+                        raise ConflictError("offline symbol expansion cannot remap a stable identity")
+                    if any(code not in new_map for code in override["canonical_symbols"]):
+                        raise DataError("offline selected symbols require explicit stable identities")
                 batch = _SavedBatch(store, raw, override)
                 grouped[domain].append((batch, raw))
             if any(not entries for entries in grouped.values()):
@@ -758,6 +778,10 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                                              "operation_id": operation_id,
                                              "rebuild_config": {k: v for k, v in build_context.items() if k != "builder"}}
                 replacements["universe_membership"] = rebuilt
+            selections = {name: list(override["canonical_symbols"])
+                          for name, override in overrides.items() if "canonical_symbols" in override}
+            if selections:
+                build_context = {**build_context, "canonical_selection": selections}
             state["raw_batch_ids"] = list(ids)
             store.write_operation(operation_id, state)
             return _publish(store, base_snapshot, base, grouped, build_context, promote,

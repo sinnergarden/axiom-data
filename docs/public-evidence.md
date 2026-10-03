@@ -1,17 +1,3 @@
-# 公开证据与首次观察
+# Documentation moved
 
-财务批量采集、日常更新和离线重建以 Tushare 为来源，不要求下载或解析财报 PDF。接源时可以用发行人报表抽样核对单位；这不是每条数据的发布条件。Axiom 负责来源到本地的正确映射与时间语义，供应商内容本身仍可能有错误。
-
-下面的文档证据接口只用于需要额外证明某个历史版本公开时间的场景。普通历史研究使用已声明的供应商公告日期假设；不能因为未附 PDF 就判定财务数据没有采集成功，也不能把该假设称为严格历史版本证明。
-
-首次观察时间回答“Axiom 什么时候取得这份内容”。公开证据回答“这个具体版本何时已经对市场公开”。它们是两个时间，补证据不改首次观察，也不修改旧 Snapshot。
-
-`attach_public_evidence` 接收保留的原始文档字节、来源 URL，以及人工核对过的断言。每个断言明确 domain、完整逻辑键、revision_id、全部业务字段、公开可用时间和文档位置。函数先保存 Raw，再核对断言与目标 Snapshot 是否完全匹配；字段缺失、错误版本或错误数值不能发布。
-
-证据以普通 `public_evidence` 域持久化。原文以可逆 base64 放入 Raw JSON，Canonical 只保存摘要、定位信息与断言。Reader 按逻辑键和 revision 精确连接这张小表；`market_pit_safe_v1` 才使用绑定的公开时间，`operational_pit_v1` 仍使用原事实的首次观察。后来的修订没有同版本证据就不会继承旧版本的公开日期。
-
-这个接口不自动判断公告的真实性，也不自动解读 PDF。调用者必须独立核对字段与口径，不能把查询结果原样抄进断言就称为独立证据。仅有公告日期时，按已声明的下一交易日规则给出保守可用时间；不得虚构公告时分秒。若公告只证明少数字段，应将它们接入独立事实域，不能借此认证整份终态主表。
-
-证据与其他域共同固定在 Snapshot 中，现有 export/import 与 Raw rebuild 即可覆盖，不需要额外证据服务。端到端反例见 `tests/test_public_evidence.py`：旧版本不变、严格与实际观察语义分开、新修订不得借用旧证据、错误断言保留 Raw 但不发布、离线搬移和重建。
-
-生产数值仍只来自Tushare。该可选接口只改变精确版本的市场公开时间解释，不以外部文档覆盖供应商日期或数值。外部cross-check结果保存为warning，不进入默认prepare/run/current门槛。
+The sole editable source is [docs/public-evidence.md](https://github.com/sinnergarden/axiom-docs/blob/main/docs/public-evidence.md).
