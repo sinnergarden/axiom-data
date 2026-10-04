@@ -325,3 +325,17 @@ class FundShareConversionTests(unittest.TestCase):
                 build_context=CONTEXT, promote=False)["snapshot_id"]
         with self.assertRaisesRegex(DataError, "ratio_numerator differs"):
             audit_snapshot(self.data.store, snapshot_id=altered)
+
+    def test_audit_rejects_readable_raw_missing_from_snapshot_closure(self):
+        result = self.update(None, "closed-source", conversion_batch())
+        domain = deepcopy(self.data.store.load_snapshot(result.snapshot_id)
+                          ["domains"]["fund_share_conversions"])
+        raw_id, = domain["raw_batch_ids"]
+        self.assertTrue(self.data.store.get_raw(raw_id))
+        domain["raw_batch_ids"] = []
+        with self.data.store.writer():
+            broken = self.data.store.publish_snapshot(
+                {"fund_share_conversions": domain}, parent_snapshot=result.snapshot_id,
+                build_context=CONTEXT, promote=False)["snapshot_id"]
+        with self.assertRaisesRegex(DataError, "incompatible reviewed Raw"):
+            audit_snapshot(self.data.store, snapshot_id=broken)

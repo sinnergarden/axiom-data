@@ -480,7 +480,10 @@ def _audit_conversion_raw(store, domain, raw_id, canonical):
     are checked separately from the ingestion path.
     """
     raw = store.get_raw(raw_id)
-    if (raw.get('domain') != 'fund_share_conversions' or
+    if (raw_id not in domain['raw_batch_ids'] or
+            raw.get('status') not in {'success', 'empty'} or
+            (canonical and raw.get('status') != 'success') or
+            raw.get('domain') != 'fund_share_conversions' or
             raw.get('normalizer') != 'reviewed_fund_share_conversions_v1' or
             raw.get('contract') != domain['contract'] or
             raw.get('source_profile', {}).get('id') != 'issuer_fund_disclosure_supplement_v1'):
