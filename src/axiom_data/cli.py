@@ -100,6 +100,13 @@ def _parser() -> argparse.ArgumentParser:
     run = commands.add_parser("run", help="Resume a planned job and publish after completion")
     run.add_argument("--plan", required=True, type=Path)
     run.add_argument("--token-file", type=Path, help="Private plain-text token or SDK CSV")
+    continuation = commands.add_parser("continue-financial", help="Continue a stopped VIP financial job under a new bound builder")
+    continuation.add_argument("--plan", required=True, type=Path, help="Unchanged original full-source plan")
+    continuation.add_argument("--operation-id", required=True, help="New continuation operation ID")
+    continuation.add_argument("--source-checkpoint-sha256", required=True, help="Reviewed SHA256 of the stopped original checkpoint")
+    continuation.add_argument("--token-file", type=Path)
+    continuation.add_argument("--dry-run", action="store_true", help="Read bindings and reusable receipts only; no writes or source calls")
+    continuation.add_argument("--no-promote", action="store_true")
     status = commands.add_parser("status", help="Show durable job progress without source calls")
     status.add_argument("--plan", required=True, type=Path)
     read = commands.add_parser("read", help="Read a pinned Snapshot")
@@ -138,6 +145,8 @@ def _parser() -> argparse.ArgumentParser:
     verify_target = verify.add_mutually_exclusive_group(required=True)
     verify_target.add_argument("--bundle", type=Path)
     verify_target.add_argument("--plan", type=Path)
+    for reader_command in (status, audit, verify):
+        reader_command.add_argument("--continuation-operation-id", help="Read the new operation using its unchanged original plan")
     return parser
 
 
@@ -255,6 +264,14 @@ def _load_plan(path: Path):
             if type(envelope[name]) is not int or envelope[name] < 1:
                 raise ValueError(f"invalid plan {name}")
     return envelope, job
+
+
+def _check_continuation_read(store, envelope, job, operation_id, state):
+    from .financial_continuation import verify_continuation_binding
+    if (envelope["schema_version"] != _FULL_SCHEMA or not _ID.fullmatch(operation_id) or
+            not state or state.get("source_operation_id") != envelope["operation_id"]):
+        raise ValueError("continuation operation does not reference this original full-source plan")
+    verify_continuation_binding(store, state, job)
 
 
 def _runner_fingerprint(envelope: dict[str, Any], job: Any) -> str:
@@ -704,6 +721,38 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
             stream.write(encoded)
         return {"plan": str(args.output), "operation_id": args.operation_id,
                 "base_snapshot": body["base_snapshot"], "estimate": estimate}
+    if command == "continue-financial":
+        from .builder import freeze_builder
+        from .financial_continuation import continue_financial_bulk, prepare_financial_continuation
+        from .storage import LocalStore
+        envelope, job = _load_plan(args.plan)
+        if envelope["schema_version"] != _FULL_SCHEMA or not _ID.fullmatch(args.operation_id):
+            raise ValueError("financial continuation needs a full-source plan and safe new operation ID")
+        store = LocalStore(_root(args))
+        source = store.read_operation(envelope["operation_id"])
+        if not source or source.get("fingerprint") != _runner_fingerprint(envelope, job):
+            raise ValueError("stopped source checkpoint belongs to a different CLI plan")
+        options = {"plan": job, "source_operation_id": envelope["operation_id"],
+                   "source_checkpoint_sha256": args.source_checkpoint_sha256}
+        if args.dry_run:
+            binding = prepare_financial_continuation(store, **options)
+            return {"dry_run": True, "operation_id": args.operation_id,
+                    "source_operation_id": binding["source_operation_id"],
+                    "source_checkpoint_sha256": args.source_checkpoint_sha256,
+                    "event_base_snapshot": binding["event_base_snapshot"],
+                    "source_builder": binding["source_builder"], "new_builder": freeze_builder(),
+                    "planned_event_requests": binding["planned_event_requests"],
+                    "reused_initial_requests": binding["reused_initial_requests"],
+                    "remaining_initial_requests": binding["planned_event_requests"] - binding["reused_initial_requests"],
+                    "field_policy": binding["field_policy"], "supplier_calls": 0}
+        receipt = continue_financial_bulk(store, **options, operation_id=args.operation_id,
+            client=client or _LazySourceClient(args.token_file), promote=envelope["promote"] and not args.no_promote,
+            **{name: envelope[name] for name in ("max_attempts", "max_workers", "min_interval_seconds",
+                                               "global_calls_per_minute", "stock_basic_calls_per_minute")})
+        state = store.read_operation(args.operation_id)
+        return {**_result(receipt), "verification": state["verification"],
+                "audit": {"status": state["audit"]["status"],
+                          "source_mapping_checks": state["audit"].get("source_mapping_checks", {})}}
     if command == "run":
         from .storage import LocalStore
         envelope, job = _load_plan(args.plan)
@@ -750,20 +799,24 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
             from .full_sources import full_source_status as status_fn
         else:
             from .bulk_jobs import bulk_job_status as status_fn
-        operation_id = envelope["operation_id"]
+        operation_id = args.continuation_operation_id or envelope["operation_id"]
         store = LocalStore(_root(args))
         state = store.read_operation(operation_id)
+        if args.continuation_operation_id:
+            _check_continuation_read(store, envelope, job, operation_id, state)
         if state is None:
             return {"operation_id": operation_id, **status_fn(store, plan=job,
                                                        operation_id=operation_id)}
         expected_kind = ("etf_job_v1" if envelope["schema_version"] == _ETF_SCHEMA else
                          "full_source_job_v1" if envelope["schema_version"] == _FULL_SCHEMA
                          else "bulk_job_v2" if envelope["schema_version"] == _PLAN_SCHEMA_V2 else "bulk_job")
+        if args.continuation_operation_id:
+            expected_kind = "full_source_financial_continuation_v1"
         if state.get("kind") != expected_kind:
             raise ValueError("operation ID belongs to a different job kind")
         if (state.get("plan_fingerprint") != job.fingerprint() or
                 state.get("base_snapshot") != envelope["base_snapshot"] or
-                state.get("fingerprint") != _runner_fingerprint(envelope, job)):
+                (not args.continuation_operation_id and state.get("fingerprint") != _runner_fingerprint(envelope, job))):
             raise ValueError("checkpoint belongs to a different plan")
         result = state.get("result") or {}
         progress = status_fn(store, plan=job, operation_id=operation_id)
@@ -785,10 +838,13 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
         from .protocols import DataError
         from .verification import audit_snapshot
         envelope, job = _load_plan(args.plan)
+        operation_id = args.continuation_operation_id or envelope["operation_id"]
         data = Data(_root(args))
         try:
             snapshot = data.resolve(args.snapshot)
-            state = data.store.read_operation(envelope["operation_id"])
+            state = data.store.read_operation(operation_id)
+            if args.continuation_operation_id:
+                _check_continuation_read(data.store, envelope, job, operation_id, state)
             result_snapshot = (state.get("candidate_snapshot") if envelope["schema_version"] == _ETF_SCHEMA
                                else state.get("result", {}).get("snapshot_id")) if state else None
             if (state is None or state.get("status") != "success" or
@@ -804,7 +860,7 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
                                         base_snapshot=state.get("base_snapshot"))
         except DataError as exc:
             report = {"status": "failed", "snapshot": args.snapshot,
-                      "plan_operation_id": envelope["operation_id"],
+                      "plan_operation_id": operation_id,
                       "issues": [{"type": type(exc).__name__, "message": str(exc)}]}
         _write_atomic_json(args.output, report)
         return {"status": report["status"], "report": str(args.output),
@@ -891,15 +947,18 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
             from .storage import LocalStore
             envelope, job = _load_plan(args.plan)
             store = LocalStore(_root(args))
-            state = store.read_operation(envelope["operation_id"])
-            if state is not None and state.get("fingerprint") != _runner_fingerprint(envelope, job):
+            operation_id = args.continuation_operation_id or envelope["operation_id"]
+            state = store.read_operation(operation_id)
+            if args.continuation_operation_id:
+                _check_continuation_read(store, envelope, job, operation_id, state)
+            if state is not None and not args.continuation_operation_id and state.get("fingerprint") != _runner_fingerprint(envelope, job):
                 raise ValueError("checkpoint belongs to a different plan")
             if envelope["schema_version"] == _ETF_SCHEMA:
                 from .etf_jobs import verify_etf_job
                 return verify_etf_job(store, plan=job, operation_id=envelope["operation_id"])
             if envelope["schema_version"] == _FULL_SCHEMA:
                 from .full_sources import verify_full_sources
-                return verify_full_sources(store, plan=job, operation_id=envelope["operation_id"])
+                return verify_full_sources(store, plan=job, operation_id=operation_id)
             from .bulk_jobs import verify_bulk_job
             return verify_bulk_job(store, plan=job, operation_id=envelope["operation_id"])
         from .portable import verify_bundle

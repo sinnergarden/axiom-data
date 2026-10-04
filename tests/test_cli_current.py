@@ -53,7 +53,7 @@ class CliCurrentTests(unittest.TestCase):
         )
         result = subprocess.run([sys.executable, "-c", program], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("{prepare,plan,run,status,read,inspect,audit,rebuild,export,import,qlib-export,qlib-verify,verify}", result.stdout)
+        self.assertIn("{prepare,plan,run,continue-financial,status,read,inspect,audit,rebuild,export,import,qlib-export,qlib-verify,verify}", result.stdout)
         module = subprocess.run([sys.executable, "-m", "axiom_data", "--help"],
                                 capture_output=True, text=True)
         self.assertEqual(module.returncode, 0, module.stderr)
