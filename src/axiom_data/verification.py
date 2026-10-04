@@ -7,9 +7,11 @@ normal trading states or vendor completeness. No source calls or repairs occur.
 from __future__ import annotations
 
 from collections import defaultdict
+import base64
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from functools import lru_cache
+from hashlib import sha256
 import json
 import math
 import time
@@ -470,6 +472,59 @@ def _audit_listing_raw(store: LocalStore, domain: Mapping[str, Any], raw_id: str
     return len(canonical)
 
 
+def _audit_conversion_raw(store, domain, raw_id, canonical):
+    """Independently compare persisted native fields with retained reviewed rows.
+
+    This does not invoke the normalizer or re-interpret PDF text. Exact issuer
+    meaning remains manually reviewed; document bytes and source-field mapping
+    are checked separately from the ingestion path.
+    """
+    raw = store.get_raw(raw_id)
+    if (raw.get('domain') != 'fund_share_conversions' or
+            raw.get('normalizer') != 'reviewed_fund_share_conversions_v1' or
+            raw.get('contract') != domain['contract'] or
+            raw.get('source_profile', {}).get('id') != 'issuer_fund_disclosure_supplement_v1'):
+        raise DataError('fund_share_conversions references incompatible reviewed Raw')
+    bundle = json.loads(store.read_raw_record(raw))
+    documents = {}
+    for document in bundle['documents']:
+        identity = document['document_id']
+        original = base64.b64decode(document['document_base64'], validate=True)
+        if identity in documents or not original or sha256(original).hexdigest() != document['sha256']:
+            raise DataError('fund_share_conversions original document hash/identity mismatch')
+        documents[identity] = document
+    source = {}
+    for original in bundle['records']:
+        key = (original['security_id'], original['event_id'], original['revision_sequence'])
+        if key in source:
+            raise DataError('fund_share_conversions duplicate reviewed source revision')
+        refs = json.loads(original['document_refs'])
+        if not refs or any(ref not in documents for ref in refs):
+            raise DataError('fund_share_conversions reviewed document ref is absent')
+        source[key] = original
+    metadata = {'revision_id', 'revision_sequence', 'first_observed_at', 'raw_batch_id',
+                'source_available_at', 'evidence_ref'}
+    for row in canonical:
+        key = (row['security_id'], row['event_id'], row['revision_sequence'])
+        original = source.get(key)
+        if original is None or row['raw_batch_id'] != raw_id:
+            raise DataError('fund_share_conversions canonical revision absent from referenced Raw')
+        _audit_raw_observation(row, raw)
+        for field, spec in domain['contract']['fields'].items():
+            if field in metadata:
+                continue
+            actual, expected = row[field], original[field]
+            if spec['dtype'] == 'date':
+                actual = _canonical_date(actual)
+            if field == 'document_refs':
+                actual, expected = sorted(json.loads(actual)), sorted(json.loads(expected))
+            if actual != expected:
+                raise DataError(f'fund_share_conversions.{field} differs from retained reviewed record')
+        if row.get('source_available_at') is not None or row.get('evidence_ref') is not None:
+            raise DataError('fund_share_conversions input must not certify historical public time')
+    return len(canonical)
+
+
 def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
                    base_snapshot: str | None = None) -> dict:
     """Audit all referenced partitions; memory is bounded by one partition.
@@ -544,10 +599,12 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
             continue
         report['row_counts'][name] = 0
         inverse.update({identity: code for code, identity in domain['source_profile'].get('identity_map', {}).items()})
-        event_domain = name in _EVENT_FIELDS or name == 'listing_events'
+        event_domain = name in _EVENT_FIELDS or name in {'listing_events', 'fund_share_conversions'}
         profile_id = str(domain.get('source_profile', {}).get('id', ''))
         supported_event = (profile_id.startswith('tushare.local.') if name in _EVENT_FIELDS
                            else profile_id == 'tushare.stock_basic.listing_events.v1') if event_domain else False
+        if name == 'fund_share_conversions':
+            supported_event = profile_id == 'issuer_fund_disclosure_supplement_v1'
         audited_raw_ids = set()
         if event_domain:
             report['source_mapping_checks'][name] = 0
@@ -557,6 +614,9 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
             elif name == 'listing_events':
                 report['limitations'].append(
                     'Listing event dates are accepted Tushare stock_basic fields under the declared boundary policy; historical public vintage is not established.')
+            elif name == 'fund_share_conversions':
+                report['limitations'].append(
+                    'Issuer checks bind retained manual extracts and original bytes; complete history and exact historical public instants remain unverified.')
         for part in domain['partitions']:
             rows = store.read_partition(part).to_pylist()
             report['row_counts'][name] += len(rows)
@@ -571,9 +631,12 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
                     grouped[row.get('raw_batch_id')].append(row)
                 for raw_id, canonical in grouped.items():
                     audited_raw_ids.add(raw_id)
-                    checked = (_audit_event_raw(store, name, domain, raw_id, canonical)
-                               if name in _EVENT_FIELDS else
-                               _audit_listing_raw(store, domain, raw_id, canonical))
+                    if name == 'fund_share_conversions':
+                        checked = _audit_conversion_raw(store, domain, raw_id, canonical)
+                    else:
+                        checked = (_audit_event_raw(store, name, domain, raw_id, canonical)
+                                   if name in _EVENT_FIELDS else
+                                   _audit_listing_raw(store, domain, raw_id, canonical))
                     report['source_mapping_checks'][name] += checked
                 continue
             if name not in mapping:
@@ -641,7 +704,9 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
             # domain closure and must have valid original bytes and scope.
             for raw_id in domain['raw_batch_ids']:
                 if raw_id not in audited_raw_ids:
-                    if name in _EVENT_FIELDS:
+                    if name == 'fund_share_conversions':
+                        _audit_conversion_raw(store, domain, raw_id, [])
+                    elif name in _EVENT_FIELDS:
                         _audit_event_raw(store, name, domain, raw_id, [])
                     else:
                         _audit_listing_raw(store, domain, raw_id, [])

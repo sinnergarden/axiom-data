@@ -422,6 +422,9 @@ def _build_domain(store: LocalStore, name: str, old: Mapping[str, Any] | None,
                 merged, changed = _merge_terminal(existing, rows, contract)
             else:
                 merged, changed = _merge_rows(existing, rows, contract)
+            if name == "fund_share_conversions":
+                from .fund_share_conversions import validate_conversion_order
+                validate_conversion_order(merged)
             if changed or previous is None:
                 partitions[month] = store.write_partition(name, month, merged, contract)
                 facts_changed = True

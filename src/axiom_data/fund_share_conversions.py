@@ -118,6 +118,11 @@ def prepare_conversion_rows(batch: IngestBatch) -> list[dict]:
     if (batch.domain != DOMAIN or dict(batch.contract) != CONTRACT or
             batch.source_profile.get("id") != "issuer_fund_disclosure_supplement_v1"):
         raise DataError("reviewed conversions require their frozen domain/contract/profile")
+    clock = (batch.source_profile.get("availability") or {}).get("next_open_session_by_date", {})
+    expected = reviewed_fund_share_conversion_batch(
+        batch.payload, observed_at=batch.observed_at, next_open_session_by_date=clock)
+    if dict(batch.source_profile) != dict(expected.source_profile):
+        raise DataError("reviewed conversions require the frozen field mapping and announcement clock")
     try:
         bundle = json.loads(batch.payload)
     except (ValueError, UnicodeDecodeError) as exc:
@@ -158,8 +163,6 @@ def prepare_conversion_rows(batch: IngestBatch) -> list[dict]:
         documents[identity] = doc
 
     rows = []
-    events = {}
-    clock = (batch.source_profile.get("availability") or {}).get("next_open_session_by_date", {})
     for source in bundle["records"]:
         if not isinstance(source, dict) or set(source) != _INPUT_FIELDS:
             raise DataError("reviewed conversion record fields differ from the frozen input contract")
@@ -226,12 +229,24 @@ def prepare_conversion_rows(batch: IngestBatch) -> list[dict]:
                    doc["process_status"] == row["process_status"] for doc in referenced):
             raise DataError("revision announcement/stage requires its own reviewed document")
         row["document_refs"] = json.dumps(sorted(refs), ensure_ascii=False, separators=(",", ":"))
-        events.setdefault((row["security_id"], row["event_id"]), []).append(row)
         rows.append(row)
+    validate_conversion_order(rows)
+    return rows
+
+
+def validate_conversion_order(rows) -> None:
+    """Reject document-order regression within input and across merged revisions.
+
+    Update calls this again after merging the full native history partition,
+    before any canonical write. A later bundle cannot put an old planned notice
+    above its already retained result or move its knowledge date backwards.
+    """
+    events = {}
+    for row in rows:
+        events.setdefault((row["security_id"], row["event_id"]), []).append(row)
     for revisions in events.values():
         ordered = sorted(revisions, key=lambda row: row["revision_sequence"])
         for previous, later in zip(ordered, ordered[1:]):
             if (previous["announcement_date"] > later["announcement_date"] or
                     (previous["process_status"] == "implemented" and later["process_status"] == "planned")):
                 raise DataError("reviewed document sequence contradicts plan/result order")
-    return rows

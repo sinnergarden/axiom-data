@@ -1,6 +1,8 @@
 """Synthetic bundles exercising the two reviewed events, never production receipts."""
 
 import base64
+from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -14,6 +16,7 @@ from axiom_data import (Data, DataError, EventQuery, IngestBatch,
                         QuerySpec, UpdateRequest, reviewed_fund_share_conversion_batch)
 from axiom_data.protocols import ConflictError
 from axiom_data.provider_local import _contract, _f
+from axiom_data.verification import audit_snapshot
 
 
 RECEIPT = datetime(2026, 10, 4, 15, tzinfo=timezone.utc)
@@ -272,3 +275,50 @@ class FundShareConversionTests(unittest.TestCase):
             self.update(base, "conflicting-extract", conversion_batch(bundle))
         self.assertEqual(self.data.resolve(), base)
         self.assertEqual(len(self.data.store.find_raw_by_operation("conflicting-extract")), 1)
+
+    def test_frozen_mapping_and_announcement_clock_cannot_be_overridden(self):
+        base = self.update(None, "original", conversion_batch(), promote=True).snapshot_id
+        original = conversion_batch()
+        for kind in ("mapping", "clock"):
+            profile = deepcopy(original.source_profile)
+            if kind == "mapping":
+                profile["field_map"].update(ratio_numerator="ratio_denominator",
+                                           ratio_denominator="ratio_numerator")
+            else:
+                profile["availability"].update(date_rule="same_day_release", session_release_time="00:00:00")
+            with self.assertRaisesRegex(DataError, "frozen field mapping and announcement clock"):
+                self.update(base, "changed-" + kind, replace(original, source_profile=profile))
+            self.assertEqual(self.data.resolve(), base)
+            self.assertEqual(len(self.data.store.find_raw_by_operation("changed-" + kind)), 1)
+
+    def test_later_bundle_cannot_regress_completed_event_to_old_plan(self):
+        base = self.update(None, "completed", conversion_batch(), promote=True).snapshot_id
+        before = self.query(base, "2022-01-17T09:30:00+08:00", symbols=(SEC513,)).to_json()
+        bundle = fixture_bundle()
+        bundle["documents"] = bundle["documents"][:1]
+        bundle["records"] = bundle["records"][:1]
+        bundle["records"][0].update(revision_sequence=3, ratio_numerator=6)
+        with self.assertRaisesRegex(DataError, "document sequence contradicts"):
+            self.update(base, "regressed-plan", conversion_batch(bundle))
+        self.assertEqual(self.data.resolve(), base)
+        self.assertEqual(len(self.data.store.find_raw_by_operation("regressed-plan")), 1)
+        self.assertEqual(self.query(base, "2022-01-17T09:30:00+08:00", symbols=(SEC513,)).to_json(), before)
+
+    def test_independent_audit_checks_native_mapping_and_retained_source_closure(self):
+        result = self.update(None, "auditable", conversion_batch())
+        report = audit_snapshot(self.data.store, snapshot_id=result.snapshot_id)
+        self.assertEqual(report["source_mapping_checks"]["fund_share_conversions"], 4)
+        self.assertTrue(any("manual extracts" in text for text in report["limitations"]))
+        manifest = self.data.store.load_snapshot(result.snapshot_id)
+        domain = deepcopy(manifest["domains"]["fund_share_conversions"])
+        part, = domain["partitions"]
+        rows = self.data.store.read_partition(part).to_pylist()
+        rows[0]["ratio_numerator"] = 7
+        with self.data.store.writer():
+            domain["partitions"] = [self.data.store.write_partition(
+                "fund_share_conversions", "history", rows, domain["contract"])]
+            altered = self.data.store.publish_snapshot(
+                {"fund_share_conversions": domain}, parent_snapshot=result.snapshot_id,
+                build_context=CONTEXT, promote=False)["snapshot_id"]
+        with self.assertRaisesRegex(DataError, "ratio_numerator differs"):
+            audit_snapshot(self.data.store, snapshot_id=altered)
