@@ -36,7 +36,8 @@ CONTRACT = _contract(DOMAIN, ("security_id", "event_id"), {
     "ratio_denominator": _f("int64", False, "dimensionless"),
 })
 CONTRACT["contract_id"] = "local.fund_share_conversions.reviewed_disclosure.v1"
-CONTRACT["fields"]["revision_sequence"]["nullable"] = False
+CONTRACT["fields"]["revision_sequence"] = {
+    **CONTRACT["fields"]["revision_sequence"], "nullable": False}
 _META = {"revision_id", "revision_sequence", "first_observed_at", "raw_batch_id",
          "source_available_at", "evidence_ref"}
 _INPUT_FIELDS = set(CONTRACT["fields"]) - _META | {"revision_sequence"}
