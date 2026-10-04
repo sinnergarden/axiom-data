@@ -516,7 +516,7 @@ def full_source_status(store: LocalStore, *, plan: FullSourcePlan,
              "membership_complete_states", "reused_event_requests")} | {
              "operation_id": operation_id, "elapsed_seconds": elapsed}
     from .bulk_jobs import bulk_job_status
-    reference_operation = state.get("source_operation_id", operation_id)
+    reference_operation = state.get("reference_operation_id", state.get("source_operation_id", operation_id))
     for phase, child_plan in (("market", plan.market), ("calendar", _calendar_job(plan))):
         child = store.read_operation(f"{reference_operation}.{phase}")
         if child is not None:
@@ -550,7 +550,7 @@ def verify_full_sources(store: LocalStore, *, plan: FullSourcePlan,
     if continuation:
         from .financial_continuation import verify_continuation_selectors
         reuse_report = verify_continuation_selectors(store, state, plan, operation_id)
-    reference_operation = state.get("source_operation_id", operation_id) if continuation else operation_id
+    reference_operation = state.get("reference_operation_id", state.get("source_operation_id", operation_id)) if continuation else operation_id
     market = verify_bulk_job(store, plan=plan.market, operation_id=f"{reference_operation}.market")
     calendar = verify_bulk_job(store, plan=_calendar_job(plan), operation_id=f"{reference_operation}.calendar")
     snapshot = store.load_snapshot(state["result"]["snapshot_id"])

@@ -251,3 +251,59 @@ class FinancialContinuationTests(unittest.TestCase):
             with self.assertRaises(CoverageError):
                 verify_continuation_selectors(self.store, self.store.read_operation("cap-continuation"),
                                              plan, "cap-continuation")
+
+    def test_new_builder_chains_stopped_continuation_and_reuses_unpublished_chunk(self):
+        def stop_second_publish(*args, **kwargs):
+            if kwargs['operation_id'].endswith('.c000001.publish'):
+                raise RuntimeError('retained response publication stopped')
+            return apply_saved_raw(*args, **kwargs)
+
+        old_client = Client(continuation=True)
+        with patch('axiom_data.financial_continuation.apply_saved_raw', side_effect=stop_second_publish):
+            with self.assertRaises(RuntimeError):
+                self.run_continuation(old_client)
+        self.assertEqual(old_client.calls, [])
+        source_files = {p.name:p.read_bytes() for p in (self.store.root/'operations').glob('continuation*.json')}
+        source_sha = sha256(source_files['continuation.json']).hexdigest()
+        binding = prepare_financial_continuation(self.store, plan=self.plan,
+            source_operation_id='continuation', source_checkpoint_sha256=source_sha)
+        self.assertEqual(binding['reference_operation_id'], 'original')
+        self.assertEqual(binding['reused_initial_requests'], 17)
+        new_builder = deepcopy(freeze_builder())
+        new_builder['source']['sha256'] = 'new-reviewed-builder'
+        options = {**self.options, 'operation_id':'next-continuation',
+                   'source_operation_id':'continuation', 'source_checkpoint_sha256':source_sha}
+        client = Client(continuation=True)
+        with patch('axiom_data.builder.freeze_builder', return_value=new_builder):
+            result = continue_financial_bulk(self.store, client=client, **options)
+        self.assertEqual(len(client.calls), 5)
+        state = self.store.read_operation('next-continuation')
+        self.assertEqual(state['builder'], new_builder)
+        self.assertEqual(state['reference_operation_id'], 'original')
+        self.assertEqual(state['source_binding']['source_builder'], self.store.read_operation('continuation')['builder'])
+        report = verify_full_sources(self.store, plan=self.plan, operation_id='next-continuation')
+        self.assertEqual(report['reused_event_requests'], 17)
+        self.assertEqual(report['source_operation_id'], 'continuation')
+        for name, data in source_files.items():
+            self.assertEqual((self.store.root/'operations'/name).read_bytes(), data)
+        self.assert_original_unchanged()
+        # CLI readers keep the unchanged original plan while explicitly reading
+        # the newest operation, whose immediate source is another continuation.
+        body = dict(schema_version=cli._FULL_SCHEMA, job=self.plan.to_dict(), operation_id='original',
+                    base_snapshot=None, promote=False, **OPTIONS)
+        path = self.store.root/'chain.plan.json'
+        path.write_text(json.dumps({**body, 'plan_sha256':cli._digest(body)}))
+        for command in ('status', 'verify'):
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(cli.main(['--data-root',str(self.store.root),command,'--plan',str(path),
+                    '--continuation-operation-id','next-continuation'],client=client),0)
+        before = self.store.raw_log_size()
+        with patch('axiom_data.builder.freeze_builder', return_value=new_builder):
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(cli.main(['--data-root',str(self.store.root),'continue-financial','--plan',str(path),
+                    '--operation-id','review-next','--source-operation-id','continuation',
+                    '--source-checkpoint-sha256',source_sha,'--dry-run'],client=client),0)
+        self.assertEqual(json.loads(output.getvalue())['reference_operation_id'], 'original')
+        self.assertEqual(self.store.raw_log_size(), before)
+        self.assertEqual(len(client.calls),5)

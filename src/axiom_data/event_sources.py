@@ -63,6 +63,8 @@ _STATEMENTS = {"income", "income_vip", "balancesheet", "balancesheet_vip",
 _INDICATORS = {"fina_indicator", "fina_indicator_vip"}
 _FINANCIAL = _STATEMENTS | _INDICATORS
 _STATEMENT_CONTEXT = ("comp_type", "end_type", "update_flag")
+_DIVIDEND_KEY = ("ts_code", "end_date", "ann_date", "div_proc")
+_DIVIDEND_VALUES = tuple(field for field in _FIELDS["dividend"] if field not in _DIVIDEND_KEY)
 
 
 def request_fields(endpoint: str) -> tuple[str, ...]:
@@ -183,6 +185,18 @@ for _endpoint in ("income", "balancesheet", "cashflow", "fina_indicator"):
             _spec["status_field"] = f"{_name}__status"
             _financial_fields[f"{_name}__status"] = _f("string")
 
+# Dividend ambiguity concerns the identity of the entire economic action.
+# Keep its native key; implementation/ex dates can themselves be corrected.
+_dividend_contract = CONTRACTS["dividend"]
+_dividend_contract["contract_id"] = "local.corporate_actions.tushare.v2"
+_dividend_contract["fields"].update(source_issue=_f("string"), source_candidate_count=_f("int64"),
+                                    candidate_economic_dates=_f("string"))
+for _name, _spec in list(_dividend_contract["fields"].items()):
+    if _name not in set(_dividend_contract["logical_key"]) | set(_META) | {
+            "source_issue", "source_candidate_count", "candidate_economic_dates"}:
+        _spec["status_field"] = f"{_name}__status"
+        _dividend_contract["fields"][f"{_name}__status"] = _f("string")
+
 
 def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
                          next_open_session_by_date: Mapping[str, str] | None = None) -> dict[str, Any]:
@@ -196,7 +210,7 @@ def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
         raise DataError("event source needs stable explicit identity_map")
     canonical_endpoint = endpoint.removesuffix("_vip")
     profile: dict[str, Any] = {
-        "id": f"tushare.local.{canonical_endpoint}.{'v2' if endpoint in _FINANCIAL else 'v1'}", "endpoint": canonical_endpoint,
+        "id": f"tushare.local.{canonical_endpoint}.{'v2' if endpoint in _FINANCIAL or endpoint == 'dividend' else 'v1'}", "endpoint": canonical_endpoint,
         "identity_map": dict(identity_map), "revision_order": (
             "announcement_day_then_terminal_v1" if canonical_endpoint in {
                 "income", "balancesheet", "cashflow", "fina_indicator", "top10_holders"}
@@ -302,6 +316,15 @@ def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
         profile["null_values"] = {"implementation_announcement_date": [""],
                                   "record_date": [""], "ex_date": [""]}
         profile["action_semantics"] = "process_status is native; only explicit 实施 means implemented"
+        fm.update(source_issue="__source_issue", source_candidate_count="__source_candidate_count",
+                  candidate_economic_dates="__candidate_economic_dates")
+        for name, spec in CONTRACTS[endpoint]["fields"].items():
+            if status_field := spec.get("status_field"):
+                fm[status_field] = f"__status__{fm[name]}"
+        profile["same_observation_policy"] = (
+            "distinct returned rows under one native action key make the entire action "
+            "unavailable; no stable supplier action ID or revision order was captured; "
+            "dates and amounts are source_missing, including unanimous zero amounts")
     elif endpoint == "top10_holders":
         fm.update(security_id="ts_code", report_period="end_date",
                   announcement_date="ann_date", actual_announcement_date="ann_date",
@@ -486,6 +509,49 @@ def _response_issue(endpoint: str, rows: list[dict[str, Any]] | None,
     return None
 
 
+def _dividend_unique(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Deduplicate exact source actions; never compose or order ambiguous ones.
+
+    A differing implementation date, ex date or amount does not establish a
+    different action or a later revision. Preserve the native key and Raw group,
+    but mark every economic date/amount unavailable for that observation.
+    """
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    for row in rows:
+        native = {field: row.get(field) for field in _FIELDS["dividend"]}
+        for field in ("imp_ann_date", "record_date", "ex_date"):
+            if native[field] == "":
+                native[field] = None
+        group = groups.setdefault(tuple(native[field] for field in _DIVIDEND_KEY), [])
+        if native not in group:
+            group.append(native)
+    result = []
+    for group in groups.values():
+        row = dict(group[0])
+        row["__source_candidate_count"] = len(group)
+        row["__source_issue"] = "ambiguous_action_identity_or_revision" if len(group) > 1 else None
+        row["__candidate_economic_dates"] = None
+        if len(group) > 1:
+            from .sources import _typed
+            for item in group:
+                for field in _DIVIDEND_VALUES:
+                    # Whole-action ambiguity does not erase conversion errors
+                    # that ordinary source normalization would reject.
+                    _typed(item[field], 'date' if field in {'imp_ann_date', 'record_date', 'ex_date'}
+                           else 'float64', field, 'YYYYMMDD')
+            # This summary is part of terminal content. A changed candidate
+            # date set must create a new observation even when all action
+            # values are unavailable and the candidate count stays the same.
+            dates = {field: sorted({item[field] for item in group}, key=lambda value: value or '')
+                     for field in ('imp_ann_date', 'record_date', 'ex_date')}
+            row["__candidate_economic_dates"] = json.dumps(dates, sort_keys=True, separators=(',', ':'))
+            for field in _DIVIDEND_VALUES:
+                row[field] = None
+                row[f"__status__{field}"] = "source_missing"
+        result.append(row)
+    return result
+
+
 def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
     """Validate full saved supplier rows and select the frozen canonical scope.
 
@@ -521,6 +587,8 @@ def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
         for row in unique:
             row["__endpoint"] = endpoint.removesuffix("_vip")
         return unique
+    if endpoint == "dividend":
+        return _dividend_unique(rows)
     if endpoint == "top10_holders":
         groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
         for row in rows:

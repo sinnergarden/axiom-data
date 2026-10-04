@@ -103,6 +103,7 @@ def _parser() -> argparse.ArgumentParser:
     continuation = commands.add_parser("continue-financial", help="Continue a stopped VIP financial job under a new bound builder")
     continuation.add_argument("--plan", required=True, type=Path, help="Unchanged original full-source plan")
     continuation.add_argument("--operation-id", required=True, help="New continuation operation ID")
+    continuation.add_argument("--source-operation-id", help="Stopped continuation to reuse; default is the original plan operation")
     continuation.add_argument("--source-checkpoint-sha256", required=True, help="Reviewed SHA256 of the stopped original checkpoint")
     continuation.add_argument("--token-file", type=Path)
     continuation.add_argument("--dry-run", action="store_true", help="Read bindings and reusable receipts only; no writes or source calls")
@@ -269,7 +270,7 @@ def _load_plan(path: Path):
 def _check_continuation_read(store, envelope, job, operation_id, state):
     from .financial_continuation import verify_continuation_binding
     if (envelope["schema_version"] != _FULL_SCHEMA or not _ID.fullmatch(operation_id) or
-            not state or state.get("source_operation_id") != envelope["operation_id"]):
+            not state or state.get("reference_operation_id", state.get("source_operation_id")) != envelope["operation_id"]):
         raise ValueError("continuation operation does not reference this original full-source plan")
     verify_continuation_binding(store, state, job)
 
@@ -729,15 +730,22 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
         if envelope["schema_version"] != _FULL_SCHEMA or not _ID.fullmatch(args.operation_id):
             raise ValueError("financial continuation needs a full-source plan and safe new operation ID")
         store = LocalStore(_root(args))
-        source = store.read_operation(envelope["operation_id"])
-        if not source or source.get("fingerprint") != _runner_fingerprint(envelope, job):
+        reference = store.read_operation(envelope["operation_id"])
+        if not reference or reference.get("fingerprint") != _runner_fingerprint(envelope, job):
             raise ValueError("stopped source checkpoint belongs to a different CLI plan")
-        options = {"plan": job, "source_operation_id": envelope["operation_id"],
+        source_id = args.source_operation_id or envelope["operation_id"]
+        if not _ID.fullmatch(source_id):
+            raise ValueError("continuation source operation ID is unsafe")
+        if source_id != envelope["operation_id"]:
+            previous = store.read_operation(source_id)
+            _check_continuation_read(store, envelope, job, source_id, previous)
+        options = {"plan": job, "source_operation_id": source_id,
                    "source_checkpoint_sha256": args.source_checkpoint_sha256}
         if args.dry_run:
             binding = prepare_financial_continuation(store, **options)
             return {"dry_run": True, "operation_id": args.operation_id,
                     "source_operation_id": binding["source_operation_id"],
+                    "reference_operation_id": binding.get("reference_operation_id", binding["source_operation_id"]),
                     "source_checkpoint_sha256": args.source_checkpoint_sha256,
                     "event_base_snapshot": binding["event_base_snapshot"],
                     "source_builder": binding["source_builder"], "new_builder": freeze_builder(),

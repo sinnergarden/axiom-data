@@ -1,4 +1,4 @@
-"""Explicit continuation of a stopped VIP financial bulk under a new builder.
+"""Explicit continuation of a stopped full-source event bulk under a new builder.
 
 The original operation remains immutable. Start from its verified reference
 Snapshot, replay retained event responses under new operation IDs, then collect
@@ -49,7 +49,7 @@ def prepare_financial_continuation(store: LocalStore, *, plan: FullSourcePlan,
                                     source_checkpoint_sha256: str) -> dict[str, Any]:
     """Read and bind a stopped source operation and reusable Raw; zero writes/calls.
 
-    Scope is the VIP financial phase, before any capped event split. Completed
+    Scope is an event phase before any retained capped split. Completed
     market/calendar and reference publication checkpoints are referenced by
     their original IDs; completed event publications must form their old chain.
     A pending selector can reuse well-formed retained bytes after correction.
@@ -57,35 +57,40 @@ def prepare_financial_continuation(store: LocalStore, *, plan: FullSourcePlan,
     rather than silently choosing one response.
     """
     source = store.read_operation(source_operation_id)
-    if (not source or source.get("kind") != "full_source_job_v1" or
+    if (not source or source.get("kind") not in {"full_source_job_v1", KIND} or
             source.get("status") not in {"failed", "interrupted"} or
             source.get("plan_fingerprint") != plan.fingerprint() or
-            source.get("phase") not in {"income", "balancesheet", "cashflow", "fina_indicator"} or
+            source.get("phase") not in set(plan.event_endpoints) | {"validating"} or
             plan.income_strategy != "vip_month"):
-        raise CoverageError("continuation requires the matching stopped VIP financial operation")
+        raise CoverageError("continuation requires the matching stopped full-source event operation")
     if _checkpoint_hash(store, source_operation_id) != source_checkpoint_sha256:
         raise ConflictError("source checkpoint differs from the reviewed continuation binding")
-    market = store.read_operation(source_operation_id + ".market")
-    calendar = store.read_operation(source_operation_id + ".calendar")
+    chained = source["kind"] == KIND
+    if chained:
+        verify_continuation_binding(store, source, plan)
+    reference_id = source.get("reference_operation_id", source.get("source_operation_id")) if chained else source_operation_id
+    market = store.read_operation(reference_id + ".market")
+    calendar = store.read_operation(reference_id + ".calendar")
     if not market or not calendar or market.get("status") != "success" or calendar.get("status") != "success":
         raise CoverageError("continuation requires completed original market and calendar")
-    prior_id = source_operation_id + (".membership.publish" if plan.membership_source else ".calendar")
+    prior_id = reference_id + (".membership.publish" if plan.membership_source else ".calendar")
     prior = store.read_operation(prior_id)
     if not prior or prior.get("status") != "success":
         raise CoverageError("original reference Snapshot is incomplete")
     event_base = prior["result"]["snapshot_id"]
-    hashes = {op: _checkpoint_hash(store, op) for op in
-              {source_operation_id, source_operation_id + ".market", source_operation_id + ".calendar", prior_id}}
+    hashes = dict(source["source_binding"]["source_checkpoint_hashes"]) if chained else {}
+    hashes.update({op: _checkpoint_hash(store, op) for op in
+              {source_operation_id, reference_id + ".market", reference_id + ".calendar", prior_id}})
     if plan.membership_source:
-        listing_id = source_operation_id + ".listing.publish"
+        listing_id = reference_id + ".listing.publish"
         hashes[listing_id] = _checkpoint_hash(store, listing_id)
     chunks = _chunks(plan, calendar, market)
     boundary = source["next_event_chunk"]
-    if not 0 <= boundary < len(chunks):
+    if not 0 <= boundary <= len(chunks):
         raise CoverageError("source financial chunk is outside its frozen plan")
     expected_base = event_base
     reuse: dict[str, dict[str, str]] = {}
-    for index in range(boundary + 1):
+    for index in range(min(boundary + 1, len(chunks))):
         endpoint, _, specs, calendar_map = chunks[index]
         child_id = source_operation_id + f".e.c{index:06d}"
         child = store.read_operation(child_id)
@@ -143,7 +148,8 @@ def prepare_financial_continuation(store: LocalStore, *, plan: FullSourcePlan,
             "event_base_snapshot": event_base, "reused_raw_batch_ids": reuse,
             "total_event_chunks": len(chunks), "planned_event_requests": sum(len(c[2]) for c in chunks),
             "reused_initial_requests": sum(len(items) for items in reuse.values()),
-            "field_policy": "frozen_source_core_fields_v1"}
+            "field_policy": "frozen_source_core_fields_v1",
+            **({"reference_operation_id": reference_id} if chained else {})}
 
 
 def verify_continuation_binding(store: LocalStore, state: dict[str, Any], plan: FullSourcePlan) -> None:
@@ -156,6 +162,8 @@ def verify_continuation_binding(store: LocalStore, state: dict[str, Any], plan: 
             raise ConflictError("original operation changed after the continuation was bound")
     if state.get("source_operation_id") != binding["source_operation_id"]:
         raise ConflictError("continuation original operation reference differs")
+    if state.get("reference_operation_id") != binding.get("reference_operation_id"):
+        raise ConflictError("continuation reference operation differs from its source binding")
     expected = prepare_financial_continuation(store, plan=plan,
         source_operation_id=binding["source_operation_id"],
         source_checkpoint_sha256=binding["source_checkpoint_hashes"][binding["source_operation_id"]])
@@ -174,7 +182,7 @@ def verify_continuation_selectors(store: LocalStore, state: dict[str, Any],
     from .batch_fetch import _children, _expand_task
 
     verify_continuation_binding(store, state, plan)
-    source_id = state["source_operation_id"]
+    source_id = state.get("reference_operation_id", state["source_operation_id"])
     chunks = _chunks(plan, store.read_operation(source_id + ".calendar"),
                      store.read_operation(source_id + ".market"))
     if state["next_event_chunk"] != len(chunks) or state["total_event_chunks"] != len(chunks):
@@ -251,7 +259,8 @@ def verify_continuation_selectors(store: LocalStore, state: dict[str, Any],
     after = store.load_snapshot(state["result"]["snapshot_id"])
     if any(after["domains"].get(name) != domain for name, domain in before["domains"].items()):
         raise CoverageError("continuation changed an inherited reference/market domain")
-    return {"source_operation_id": source_id, "reused_event_requests": reused_count,
+    return {"source_operation_id": state["source_operation_id"], "reference_operation_id": source_id,
+            "reused_event_requests": reused_count,
             "new_supplier_attempts": attempts, "initial_event_selectors": sum(len(c[2]) for c in chunks)}
 
 
@@ -295,13 +304,16 @@ def continue_financial_bulk(store: LocalStore, *, plan: FullSourcePlan,
                  "total_event_chunks": binding["total_event_chunks"],
                  "planned_event_requests": binding["planned_event_requests"],
                  "status": "running", "phase": "events", "started_at": datetime.now(timezone.utc).isoformat()}
+        if "reference_operation_id" in binding:
+            state["reference_operation_id"] = binding["reference_operation_id"]
     verify_continuation_binding(store, state, plan)
     if state.get("status") == "success":
         return OperationResult(state["result"]["snapshot_id"], state["result"]["changed"], operation_id)
     context = operation_context(store, state, operation_id, options)
     source = state["source_binding"]
-    chunks = _chunks(plan, store.read_operation(source_operation_id + ".calendar"),
-                     store.read_operation(source_operation_id + ".market"))
+    reference_id = source.get("reference_operation_id", source_operation_id)
+    chunks = _chunks(plan, store.read_operation(reference_id + ".calendar"),
+                     store.read_operation(reference_id + ".market"))
     pacer = BatchRateLimiter(global_per_minute=global_calls_per_minute,
                             stock_per_minute=stock_basic_calls_per_minute, extra_gap=min_interval_seconds,
                             ticks=time.monotonic, sleep=time.sleep)
