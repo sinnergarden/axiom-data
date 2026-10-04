@@ -36,19 +36,20 @@ class Client:
         return self.rows
 
 
-def publish(store, rows, op='publish', base=None, observed=OBSERVED):
+def publish(store, rows, op='publish', base=None, observed=OBSERVED, calendar=CALENDAR):
     raw = collect_event_response(store, client=Client(rows), endpoint='dividend',
         params={'ann_date':'20150513'}, identity_map=IDENTITY, operation_id=op+'.fetch',
-        observed_at=observed, next_open_session_by_date=CALENDAR)
+        observed_at=observed, next_open_session_by_date=calendar)
     receipt = apply_saved_raw(store, base_snapshot=base, raw_batch_ids=[raw['batch_id']],
         operation_id=op, build_context={'test':'whole action'}, promote=False)
     return raw, receipt.snapshot_id
 
 
 def query(store, snapshot, *, day='2015-07-21', symbols=('sec-conflict',),
-          cutoff=OBSERVED.isoformat(), policy='operational_pit_v1', filters=None):
+          cutoff=OBSERVED.isoformat(), policy='operational_pit_v1', filters=None,
+          fields=('cash_dividend_before_tax_per_share','bonus_shares_per_share','source_issue')):
     return read_events(store, snapshot, EventQuery('corporate_actions',
-        ('cash_dividend_before_tax_per_share','bonus_shares_per_share','source_issue'),
+        fields,
         symbols, day, day, cutoff, policy, 'ex_date', filters=filters or {'process_status':'实施'}))
 
 
@@ -93,7 +94,7 @@ class DividendConflictTests(unittest.TestCase):
                 self.assertEqual(meta['status'],'source_missing')
                 self.assertEqual(meta['missing_reason'],'ambiguous_action_identity_or_revision')
                 self.assertEqual(result.context['unavailable_event_scope'][0]['candidate_dates'],
-                                 ['2015-07-21','2018-08-03'])
+                                 [day])
                 self.assertTrue(any('whole corporate actions' in text for text in result.context['limitations']))
             self.assertEqual(len(query(store,snapshot,day='2016-01-01').frame),0)
             normal=query(store,snapshot,symbols=('sec-other',))
@@ -136,8 +137,84 @@ class DividendConflictTests(unittest.TestCase):
             self.assertEqual(old.frame['bonus_shares_per_share'].iloc[0],0.22275)
             self.assertTrue(query(store,after).frame['bonus_shares_per_share'].isna().all())
             historic=query(store,after,policy='best_effort_vendor_v1',cutoff='2015-08-01T12:00:00Z')
-            self.assertEqual(historic.frame['bonus_shares_per_share'].iloc[0],0.22275)
-            self.assertNotIn('unavailable_event_scope',historic.context)
+            self.assertEqual(len(historic.frame),1)
+            self.assertTrue(historic.frame['bonus_shares_per_share'].isna().all())
+            self.assertEqual(historic.context['unavailable_event_scope'][0]['candidate_dates'],['2015-07-21'])
+
+    def test_best_effort_early_scope_exists_without_an_earlier_single_observation(self):
+        with tempfile.TemporaryDirectory() as root:
+            store=LocalStore(root)
+            _, snapshot=publish(store,ROWS)
+            for cutoff, expected in (('2015-07-17T01:29:59Z',0),
+                                     ('2015-07-17T01:30:00Z',1),
+                                     ('2015-08-01T12:00:00Z',1)):
+                result=query(store,snapshot,policy='best_effort_vendor_v1',cutoff=cutoff)
+                self.assertEqual(len(result.frame),expected)
+                if expected:
+                    self.assertTrue(result.frame['ex_date'].isna().all())
+                    self.assertTrue(result.frame['cash_dividend_before_tax_per_share'].isna().all())
+                    self.assertTrue(result.frame['bonus_shares_per_share'].isna().all())
+                    self.assertEqual(result.context['unavailable_event_scope'][0]['candidate_dates'],['2015-07-21'])
+                    meta=result.field_meta['bonus_shares_per_share']['by_key'][0]
+                    self.assertEqual(meta['status'],'source_missing')
+                    self.assertEqual(meta['availability_basis'],'declared_vendor_assumption')
+
+    def test_early_scope_does_not_leak_future_candidates_or_require_their_calendar(self):
+        fields=('bonus_shares_per_share','source_candidate_count','candidate_economic_dates')
+        early_calendar={day:session for day,session in CALENDAR.items() if day<'2016-01-01'}
+        with tempfile.TemporaryDirectory() as root:
+            store=LocalStore(root)
+            _, snapshot=publish(store,ROWS,calendar=early_calendar)
+            result=query(store,snapshot,policy='best_effort_vendor_v1',
+                         cutoff='2015-08-01T12:00:00Z',fields=fields)
+            self.assertEqual(len(result.frame),1)
+            for field in fields:
+                self.assertTrue(result.frame[field].isna().all())
+                self.assertEqual(result.field_meta[field]['by_key'][0]['status'],'source_missing')
+            self.assertEqual(result.context['unavailable_event_scope'][0]['candidate_dates'],['2015-07-21'])
+            self.assertNotIn('2018',json.dumps(result.context['unavailable_event_scope']))
+            future=query(store,snapshot,day='2018-08-03',policy='best_effort_vendor_v1',
+                         cutoff='2015-08-01T12:00:00Z',fields=fields)
+            self.assertEqual(len(future.frame),0)
+            self.assertNotIn('unavailable_event_scope',future.context)
+            # A future candidate with an unknown date also cannot expand the
+            # range that is visible before its implementation notice.
+            _, unknown=publish(store,[ROWS[0],{**ROWS[1],'ex_date':None}],op='future-unknown',
+                               calendar=early_calendar)
+            outside=query(store,unknown,day='2016-01-01',policy='best_effort_vendor_v1',
+                          cutoff='2015-08-01T12:00:00Z')
+            self.assertEqual(len(outside.frame),0)
+            self.assertNotIn('unavailable_event_scope',outside.context)
+
+    def test_late_best_effort_cutoff_reports_each_range_without_available_amounts(self):
+        fields=('cash_dividend_before_tax_per_share','source_candidate_count','candidate_economic_dates')
+        with tempfile.TemporaryDirectory() as root:
+            store=LocalStore(root)
+            _, snapshot=publish(store,ROWS)
+            for day in ('2015-07-21','2018-08-03'):
+                result=query(store,snapshot,day=day,policy='best_effort_vendor_v1',
+                             cutoff='2019-01-01T12:00:00Z',fields=fields)
+                self.assertEqual(len(result.frame),1)
+                self.assertTrue(result.frame['cash_dividend_before_tax_per_share'].isna().all())
+                self.assertEqual(result.context['unavailable_event_scope'][0]['candidate_dates'],[day])
+                self.assertEqual(result.frame['source_candidate_count'].iloc[0],2)
+                summary=json.loads(result.frame['candidate_economic_dates'].iloc[0])
+                self.assertEqual(summary['ex_date'],['20150721','20180803'])
+                expected=('2015-07-17T09:30:00+08:00' if day=='2015-07-21'
+                          else '2018-08-01T09:30:00+08:00')
+                self.assertEqual(result.field_meta['cash_dividend_before_tax_per_share']
+                                 ['by_key'][0]['usable_from'],expected)
+
+    def test_strict_policies_do_not_backfill_scope_before_actual_receipt(self):
+        with tempfile.TemporaryDirectory() as root:
+            store=LocalStore(root)
+            _, snapshot=publish(store,ROWS)
+            for policy in ('operational_pit_v1','market_pit_safe_v1'):
+                for cutoff in ('2015-08-01T12:00:00Z','2026-10-04T06:34:34.827526Z'):
+                    result=query(store,snapshot,policy=policy,cutoff=cutoff)
+                    self.assertEqual(len(result.frame),0)
+                    self.assertNotIn('unavailable_event_scope',result.context)
+                self.assertEqual(len(query(store,snapshot,policy=policy).frame),1)
 
     def test_independent_audit_rejects_unanimous_zero_as_an_available_action(self):
         with tempfile.TemporaryDirectory() as root:

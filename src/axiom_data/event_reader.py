@@ -18,7 +18,7 @@ from .protocols import DataBatch, EventQuery, QueryError
 from .reader import READER_VERSION, _date_value, _instant, _revision_order
 
 
-EVENT_READER_VERSION = "event_reader_v6"
+EVENT_READER_VERSION = "event_reader_v7"
 _POLICIES = {"operational_pit_v1", "market_pit_safe_v1", "best_effort_vendor_v1"}
 _PURPOSES = {"decision_facts", "historical_exploration", "research_label", "label_outcomes", "market_replay"}
 _STATUSES = {"value", "not_provided", "retracted", "source_missing", "parse_error"}
@@ -53,8 +53,9 @@ def _not_before_date_fields(profile: Mapping[str, Any]) -> tuple[str, ...]:
             if profile.get("endpoint") in {"dividend", "fund_div"} else ())
 
 
-def _best_effort_time(row: Mapping[str, Any], profile: Mapping[str, Any]) -> datetime:
-    """Use only a declared vendor rule; never turn a date into public evidence."""
+def _best_effort_time(row: Mapping[str, Any], profile: Mapping[str, Any], *,
+                      cutoff: datetime | None = None) -> datetime | None:
+    """Use a declared vendor rule; optionally skip provably post-cutoff dates."""
     availability = profile.get("availability")
     if not isinstance(availability, Mapping):
         raise QueryError("best_effort_vendor_v1 requires source_profile.availability")
@@ -75,6 +76,20 @@ def _best_effort_time(row: Mapping[str, Any], profile: Mapping[str, Any]) -> dat
     for lower_field in _not_before_date_fields(profile):
         if row.get(lower_field) is not None:
             vendor_date = max(vendor_date, _date_string(row[lower_field], lower_field))
+    try:
+        zone = ZoneInfo(tz_name)
+        local_clock = time.fromisoformat(clock)
+    except (ValueError, ZoneInfoNotFoundError) as exc:
+        raise QueryError("invalid vendor availability timezone or release time") from exc
+    if local_clock.tzinfo is not None:
+        raise QueryError("session_release_time must be local wall-clock time")
+    if cutoff is not None:
+        cutoff_day = cutoff.astimezone(zone).date().isoformat()
+        if rule in {"same_day_release", "next_open"} and (
+                vendor_date > cutoff_day or (rule == "next_open" and vendor_date == cutoff_day)):
+            # A future candidate cannot affect this cutoff. Do not require its
+            # future calendar mapping merely to bound a historical warning.
+            return None
     if rule == "same_day_release":
         usable_date = vendor_date
     elif rule == "next_open":
@@ -86,13 +101,6 @@ def _best_effort_time(row: Mapping[str, Any], profile: Mapping[str, Any]) -> dat
             raise QueryError("next_open session must follow vendor date")
     else:
         raise QueryError(f"unsupported vendor date_rule {rule!r}")
-    try:
-        zone = ZoneInfo(tz_name)
-        local_clock = time.fromisoformat(clock)
-    except (ValueError, ZoneInfoNotFoundError) as exc:
-        raise QueryError("invalid vendor availability timezone or release time") from exc
-    if local_clock.tzinfo is not None:
-        raise QueryError("session_release_time must be local wall-clock time")
     return datetime.combine(date.fromisoformat(usable_date), local_clock, zone)
 
 
@@ -156,13 +164,8 @@ def _cell_status(row: Mapping[str, Any], field: str, spec: Mapping[str, Any], de
     return status
 
 
-def _ambiguous_action_dates(store, row, time_field, start, end):
-    """Bound a missing action date using its complete retained source group.
-
-    Return evidence only, never choose one candidate date as the event's date.
-    Any absent candidate date leaves the requested range uncertain. Known dates
-    outside the range do not invalidate unrelated dates for this security.
-    """
+def _ambiguous_action_candidates(store, row):
+    """Read candidate dates from the retained native group without choosing an action."""
     from .sources import _rows
     raw = store.get_raw(row['raw_batch_id'])
     profile = raw['source_profile']
@@ -181,13 +184,14 @@ def _ambiguous_action_dates(store, row, time_field, start, end):
         if any(source_day(original.get(source)) != _date_string(row[field], field)
                for field, source in (('report_period', 'end_date'), ('announcement_date', 'ann_date'))):
             continue
-        value = original.get(fields[time_field])
-        candidate = None if value in (None, '') else source_day(value)
-        if candidate not in candidates:
-            candidates.append(candidate)
+        candidate = dict(row)
+        for field in ('implementation_announcement_date', 'record_date', 'ex_date'):
+            value = original.get(fields[field])
+            candidate[field] = None if value in (None, '') else source_day(value)
+        candidates.append(candidate)
     if not candidates:
         raise QueryError('ambiguous action lacks its complete referenced Raw group')
-    return any(day is None or start <= day <= end for day in candidates), candidates
+    return candidates
 
 
 def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
@@ -240,22 +244,30 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
             grouped.setdefault(key, []).append(row)
     selected: list[tuple[dict[str, Any], tuple[datetime, str]]] = []
     unavailable_actions = []
+    action_candidates = {}
+    hidden_action_summaries = set()
     fallback_count = 0
     for key, revisions in grouped.items():
         visible = []
         provenance: dict[int, tuple[datetime, str]] = {}
         for row in revisions:
-            timing_row = row
             if (query.pit_policy == 'best_effort_vendor_v1' and query.domain == 'corporate_actions' and
                     row.get('source_issue') == 'ambiguous_action_identity_or_revision'):
-                _, implementation_dates = _ambiguous_action_dates(
-                    store, row, 'implementation_announcement_date', '0001-01-01', '9999-12-31')
-                known_dates = [day for day in implementation_dates if day is not None]
-                if known_dates:
-                    # Lower-bound the whole group's visibility by every known
-                    # implementation notice; this does not select an action.
-                    timing_row = {**row, 'implementation_announcement_date': max(known_dates)}
-            usable, basis = _availability(timing_row, query.pit_policy, profile)
+                candidates = _ambiguous_action_candidates(store, row)
+                candidate_times = [(candidate, _best_effort_time(candidate, profile, cutoff=cutoff))
+                                   for candidate in candidates]
+                eligible = [(candidate, usable) for candidate, usable in candidate_times
+                            if usable is not None and usable <= cutoff]
+                if not eligible:
+                    continue
+                # Missing scope can be visible before the entire group. This
+                # never makes a candidate amount eligible or chooses a winner.
+                action_candidates[id(row)] = eligible
+                if len(eligible) < len(candidates):
+                    hidden_action_summaries.add(id(row))
+                usable, basis = min(usable for _, usable in eligible), 'declared_vendor_assumption'
+            else:
+                usable, basis = _availability(row, query.pit_policy, profile)
             if query.pit_policy == "market_pit_safe_v1" and basis == "first_observed_at":
                 fallback_count += 1
             if usable <= cutoff:
@@ -274,9 +286,23 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
             if not ambiguous_action:
                 # Ordinary absent dates do not fall back to an older revision.
                 continue
-            in_scope, candidates = _ambiguous_action_dates(store, chosen, query.time_field, start, end)
-            if not in_scope:
+            candidate_times = action_candidates.get(id(chosen))
+            eligible = ([candidate for candidate, _ in candidate_times] if candidate_times is not None
+                        else _ambiguous_action_candidates(store, chosen))
+            candidates = list(dict.fromkeys(
+                _date_string(candidate[query.time_field], query.time_field)
+                if candidate.get(query.time_field) is not None else None for candidate in eligible))
+            candidates = [day for day in candidates if day is None or start <= day <= end]
+            if not candidates:
                 continue
+            if candidate_times is not None:
+                # Report when this requested uncertain range becomes usable,
+                # rather than an unrelated earlier candidate's notice time.
+                provenance[id(chosen)] = min(
+                    usable for candidate, usable in candidate_times
+                    if candidate.get(query.time_field) is None or
+                    start <= _date_string(candidate[query.time_field], query.time_field) <= end
+                ), 'declared_vendor_assumption'
         else:
             event_date = _date_string(chosen.get(query.time_field), query.time_field)
             if not start <= event_date <= end:
@@ -306,6 +332,10 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
             record["group_completeness"] = row.get("group_completeness")
         for field in query.fields:
             status = _cell_status(row, field, declared[field], declared)
+            if id(row) in hidden_action_summaries and field in {'source_candidate_count', 'candidate_economic_dates'}:
+                # The retained full-group diagnostics include future candidates.
+                # Do not project their dates or number at an earlier cutoff.
+                status = 'source_missing'
             if query.domain == "top_holders_reports" and field in {"top10_ratio", "top10_ratio_pct"}:
                 completeness = row.get("group_completeness")
                 if completeness not in {"complete", "incomplete", "supplier_report_complete",
@@ -350,6 +380,8 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
             'Do not apply unanimous zero amounts or treat these markers as no company action.')
     if query.pit_policy == "best_effort_vendor_v1":
         limitations.append("vendor event availability is a declared assumption, not revision-bound historical public evidence")
+        if unavailable_actions:
+            limitations.append("unavailable action scope is retrospective uncertainty under retained terminal source content; only cutoff-visible candidate ranges are shown")
     if query.pit_policy == "market_pit_safe_v1" and fallback_count:
         limitations.append(f"{fallback_count} event revisions lacked revision-bound public evidence; first_observed_at was used")
     if profile.get("revision_order") == "terminal_observation_v1":
