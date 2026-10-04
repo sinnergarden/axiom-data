@@ -16,7 +16,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 from .batch_fetch import BatchRateLimiter, run_batch_chunk
 from .bulk_jobs import BulkJobPlan, plan_bulk_job, run_bulk_job, verify_bulk_job
-from .event_sources import _FIELDS
+from .event_sources import request_fields
 from .protocols import ConflictError, CoverageError, DataError, OperationResult
 from .storage import LocalStore
 from .updates import apply_saved_raw
@@ -219,7 +219,7 @@ def _next_open_map(plan: FullSourcePlan, sessions: Sequence[str]) -> dict[str, s
 
 
 def _spec(endpoint: str, params: Mapping[str, str], symbols: Sequence[str]) -> dict[str, Any]:
-    return {"endpoint": endpoint, "params": dict(params), "fields": list(_FIELDS[endpoint]),
+    return {"endpoint": endpoint, "params": dict(params), "fields": list(request_fields(endpoint)),
             "canonical_symbols": list(symbols)}
 
 
@@ -503,7 +503,7 @@ def full_source_status(store: LocalStore, *, plan: FullSourcePlan,
     state = store.read_operation(operation_id)
     if state is None:
         return {"status": "not_started", "phase": "market", "operation_id": operation_id}
-    if state.get("kind") != "full_source_job_v1" or state.get("plan_fingerprint") != plan.fingerprint():
+    if state.get("kind") not in {"full_source_job_v1", "full_source_financial_continuation_v1"} or state.get("plan_fingerprint") != plan.fingerprint():
         raise ConflictError("checkpoint does not match full source plan")
     started = state.get("started_at")
     elapsed = (((datetime.fromisoformat(state["completed_at"]) if state.get("completed_at")
@@ -513,14 +513,15 @@ def full_source_status(store: LocalStore, *, plan: FullSourcePlan,
             ("status", "phase", "candidate_snapshot", "next_event_chunk",
              "total_event_chunks", "completed_event_requests", "planned_event_requests",
              "event_raw_rows", "event_raw_attempts", "listing_raw_batches",
-             "membership_complete_states")} | {
+             "membership_complete_states", "reused_event_requests")} | {
              "operation_id": operation_id, "elapsed_seconds": elapsed}
     from .bulk_jobs import bulk_job_status
+    reference_operation = state.get("reference_operation_id", state.get("source_operation_id", operation_id))
     for phase, child_plan in (("market", plan.market), ("calendar", _calendar_job(plan))):
-        child = store.read_operation(f"{operation_id}.{phase}")
+        child = store.read_operation(f"{reference_operation}.{phase}")
         if child is not None:
             result[phase] = bulk_job_status(store, plan=child_plan,
-                                             operation_id=f"{operation_id}.{phase}")
+                                             operation_id=f"{reference_operation}.{phase}")
     from .sources import _rows
     active = state.get("current_event_chunk")
     if active is not None:
@@ -542,17 +543,23 @@ def full_source_status(store: LocalStore, *, plan: FullSourcePlan,
 def verify_full_sources(store: LocalStore, *, plan: FullSourcePlan,
                         operation_id: str) -> dict[str, Any]:
     state = store.read_operation(operation_id)
-    if not state or state.get("status") != "success" or state.get("plan_fingerprint") != plan.fingerprint():
+    continuation = state and state.get("kind") == "full_source_financial_continuation_v1"
+    if (not state or state.get("status") not in ({"success", "collected"} if continuation else {"success"}) or
+            state.get("plan_fingerprint") != plan.fingerprint()):
         raise CoverageError("full source job has no matching completed checkpoint")
-    market = verify_bulk_job(store, plan=plan.market, operation_id=f"{operation_id}.market")
-    calendar = verify_bulk_job(store, plan=_calendar_job(plan), operation_id=f"{operation_id}.calendar")
+    if continuation:
+        from .financial_continuation import verify_continuation_selectors
+        reuse_report = verify_continuation_selectors(store, state, plan, operation_id)
+    reference_operation = state.get("reference_operation_id", state.get("source_operation_id", operation_id)) if continuation else operation_id
+    market = verify_bulk_job(store, plan=plan.market, operation_id=f"{reference_operation}.market")
+    calendar = verify_bulk_job(store, plan=_calendar_job(plan), operation_id=f"{reference_operation}.calendar")
     snapshot = store.load_snapshot(state["result"]["snapshot_id"])
     selected = 0
     referenced_raw = {batch_id for domain in snapshot["domains"].values()
                       for batch_id in domain["raw_batch_ids"]}
     prior_operation = store.read_operation(
-        f"{operation_id}.membership.publish" if plan.membership_source else
-        f"{operation_id}.calendar")
+        f"{reference_operation}.membership.publish" if plan.membership_source else
+        f"{reference_operation}.calendar")
     if not prior_operation or prior_operation.get("status") != "success":
         raise CoverageError("full source event base is not published")
     expected_base = prior_operation["result"]["snapshot_id"]
@@ -561,7 +568,7 @@ def verify_full_sources(store: LocalStore, *, plan: FullSourcePlan,
                                      vendor_listing_source_chain)
         from .vendor_membership import (PROFILE as MEMBERSHIP_PROFILE, _selected_groups,
                                         vendor_membership_source_chain)
-        listing_op = store.read_operation(f"{operation_id}.listing.publish")
+        listing_op = store.read_operation(f"{reference_operation}.listing.publish")
         if (not listing_op or listing_op.get("status") != "success" or
                 listing_op.get("kind") != "full_source_vendor_listing_publish_v1" or
                 listing_op.get("plan_fingerprint") != plan.fingerprint() or
@@ -652,6 +659,7 @@ def verify_full_sources(store: LocalStore, *, plan: FullSourcePlan,
             "selected_event_raw_batches": selected,
             "unchanged_event_raw_batches": unchanged_raw,
             "event_raw_rows": state["event_raw_rows"],
+            **(reuse_report if continuation else {}),
             "coverage_basis": "selected Raw requests, published facts and verified unchanged receipts; supplier completeness unverified"}
 
 

@@ -42,6 +42,51 @@ class DeliveryProcessingTests(unittest.TestCase):
         with self.assertRaisesRegex(DataError, 'explicitly bound'):
             normalize_batch(self.batch(rows, selected=('600000.SH',)), {'batch_id': 'raw'})
 
+    def test_audit_keeps_same_day_exchange_calendars_with_null_security_ids(self):
+        identities = {'600000.SH': 'sh', '000001.SZ': 'sz'}
+        observed = '2026-09-28T01:00:00Z'
+
+        def batch(endpoint, rows, params):
+            contract = CONTRACTS[endpoint]
+            profile = profile_for(endpoint, identity_map=identities)
+            request = {'endpoint': endpoint, 'params': params,
+                       'request_strategy': 'trading_day_market_v2'}
+            if 'identity_map' in profile:
+                request['canonical_symbols'] = list(identities)
+            return IngestBatch(contract['contract_id'].split('.')[1],
+                json.dumps(rows).encode(), request, contract, profile, observed,
+                profile.get('normalizer', 'records_v1'))
+
+        batches = []
+        for exchange, code, opened in [('SSE', '600000.SH', ('1', '0')),
+                                        ('SZSE', '000001.SZ', ('0', '1'))]:
+            batches.append(batch('stock_basic', [dict(ts_code=code, exchange=exchange,
+                list_status='L', list_date='20000101', delist_date=None)],
+                {'exchange': exchange, 'list_status': 'L'}))
+            batches.append(batch('trade_cal', [dict(exchange=exchange, cal_date=day,
+                is_open=state) for day, state in zip(('20260102', '20260105'), opened)],
+                {'exchange': exchange, 'start_date': '20260102', 'end_date': '20260105'}))
+        batches.append(batch('suspend_d', [dict(ts_code='600000.SH',
+            trade_date='20260102', suspend_type='S', suspend_timing=None)],
+            {'trade_date': '20260102'}))
+        batches.append(batch('daily', [dict(ts_code='000001.SZ', trade_date='20260105',
+            open=10, high=11, low=9, close=10, pre_close=9, vol=1, amount=1)],
+            {'trade_date': '20260105'}))
+        with tempfile.TemporaryDirectory() as root:
+            data = Data(root)
+            result = data.update(base_snapshot=None,
+                request=UpdateRequest(tuple(batches), 'two-exchange-calendar', {}))
+            calendar = data.store.load_snapshot(result.snapshot_id)['domains']['trading_calendar']
+            rows = data.store.read_partition(calendar['partitions'][0]).to_pylist()
+            self.assertEqual(len(rows), 4)
+            self.assertTrue(all('security_id' in row and row['security_id'] is None for row in rows))
+            report = audit_snapshot(data.store, snapshot_id=result.snapshot_id)
+            self.assertEqual(report['missing_market_cells'], 1)
+            self.assertEqual(report['known_suspension_missing_cells'], 1)
+            self.assertEqual(report['missing_market_samples'], [dict(security_id='sh',
+                session='2026-01-02', reason='explicit_suspension')])
+            self.assertEqual(report['source_mapping_checks']['market_daily'], 1)
+
     def test_batch_stock_basic_is_exchange_scoped_even_for_unselected_codes(self):
         profile = profile_for('stock_basic', identity_map={'000001.SZ': 'one'})
         row = dict(ts_code='T600018.SH', exchange='SSE', list_status='D',list_date='20000719',delist_date='20061020')

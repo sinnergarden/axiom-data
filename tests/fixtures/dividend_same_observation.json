@@ -1,0 +1,5 @@
+[
+  {"ts_code":"000409.SZ","end_date":"20150513","ann_date":"20150513","imp_ann_date":"20150716","div_proc":"实施","cash_div_tax":0.0,"stk_bo_rate":0.22275,"stk_co_rate":null,"record_date":"20150717","ex_date":"20150721"},
+  {"ts_code":"000409.SZ","end_date":"20150513","ann_date":"20150513","imp_ann_date":"20180731","div_proc":"实施","cash_div_tax":0.0,"stk_bo_rate":0.0328041,"stk_co_rate":null,"record_date":"20150717","ex_date":"20180803"},
+  {"ts_code":"000409.SZ","end_date":"20150513","ann_date":"20150513","imp_ann_date":null,"div_proc":"未通过","cash_div_tax":0.0,"stk_bo_rate":null,"stk_co_rate":0.09,"record_date":null,"ex_date":null}
+]

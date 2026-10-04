@@ -183,10 +183,13 @@ class FullSourceTests(unittest.TestCase):
                    "roe_waa": None, "debt_to_assets": 91.9207}
         complete = {**partial, "roe_waa": 3.96}
         self.assertEqual(_financial_unique("fina_indicator", [partial, complete]), [complete])
-        with self.assertRaisesRegex(Exception, "conflicting or complementary"):
-            _financial_unique("fina_indicator", [
-                {**partial, "roe_waa": 3.96, "debt_to_assets": None},
-                {**partial, "roe_waa": None, "debt_to_assets": 91.9207}])
+        unresolved = _financial_unique("fina_indicator", [
+            {**partial, "roe_waa": 3.96, "debt_to_assets": None},
+            {**partial, "roe_waa": None, "debt_to_assets": 91.9207}])[0]
+        self.assertEqual(unresolved["roe"], partial["roe"])
+        self.assertIsNone(unresolved["roe_waa"])
+        self.assertIsNone(unresolved["debt_to_assets"])
+        self.assertEqual(unresolved["__status__roe_waa"], "source_missing")
 
     def test_plan_freezes_warmup_and_rejects_changed_calendar(self):
         market = plan_bulk_job(mode="bulk", symbols=["000001.SZ"],

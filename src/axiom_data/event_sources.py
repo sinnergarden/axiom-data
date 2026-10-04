@@ -62,6 +62,18 @@ _STATEMENTS = {"income", "income_vip", "balancesheet", "balancesheet_vip",
                "cashflow", "cashflow_vip"}
 _INDICATORS = {"fina_indicator", "fina_indicator_vip"}
 _FINANCIAL = _STATEMENTS | _INDICATORS
+_STATEMENT_CONTEXT = ("comp_type", "end_type", "update_flag")
+_DIVIDEND_KEY = ("ts_code", "end_date", "ann_date", "div_proc")
+_DIVIDEND_VALUES = tuple(field for field in _FIELDS["dividend"] if field not in _DIVIDEND_KEY)
+
+
+def request_fields(endpoint: str) -> tuple[str, ...]:
+    """Request statement context as evidence, without requiring it in older Raw.
+
+    update_flag has no documented public revision order and never selects a
+    winner. comp_type/end_type describe statement context, not chronology.
+    """
+    return _FIELDS[endpoint] + (_STATEMENT_CONTEXT if endpoint in _STATEMENTS else ())
 
 
 def _f(dtype: str, *, required: bool = False, unit: str | None = None,
@@ -156,6 +168,35 @@ CONTRACTS["fina_indicator"] = _contract(
     })
 CONTRACTS["fina_indicator_vip"] = CONTRACTS["fina_indicator"]
 
+# A changed financial contract requires explicit rebuilding, never migration
+# of old snapshots. The existing Reader statuses cover ambiguous source cells.
+for _endpoint in ("income", "balancesheet", "cashflow", "fina_indicator"):
+    _financial_contract = CONTRACTS[_endpoint]
+    _financial_contract["contract_id"] = _financial_contract["contract_id"].removesuffix("v1") + "v2"
+    _financial_fields = _financial_contract["fields"]
+    _financial_fields["announcement_date"]["nullable"] = True
+    _financial_fields["source_issue"] = _f("string")
+    if _endpoint != "fina_indicator":
+        _financial_fields.update({name: _f("string") for name in
+                                  ("company_type", "report_end_type", "update_flag")})
+    for _name, _spec in list(_financial_fields.items()):
+        if _spec.get("dtype") == "float64" or _name in {
+                "announcement_date", "company_type", "report_end_type", "update_flag"}:
+            _spec["status_field"] = f"{_name}__status"
+            _financial_fields[f"{_name}__status"] = _f("string")
+
+# Dividend ambiguity concerns the identity of the entire economic action.
+# Keep its native key; implementation/ex dates can themselves be corrected.
+_dividend_contract = CONTRACTS["dividend"]
+_dividend_contract["contract_id"] = "local.corporate_actions.tushare.v2"
+_dividend_contract["fields"].update(source_issue=_f("string"), source_candidate_count=_f("int64"),
+                                    candidate_economic_dates=_f("string"))
+for _name, _spec in list(_dividend_contract["fields"].items()):
+    if _name not in set(_dividend_contract["logical_key"]) | set(_META) | {
+            "source_issue", "source_candidate_count", "candidate_economic_dates"}:
+        _spec["status_field"] = f"{_name}__status"
+        _dividend_contract["fields"][f"{_name}__status"] = _f("string")
+
 
 def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
                          next_open_session_by_date: Mapping[str, str] | None = None) -> dict[str, Any]:
@@ -169,7 +210,7 @@ def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
         raise DataError("event source needs stable explicit identity_map")
     canonical_endpoint = endpoint.removesuffix("_vip")
     profile: dict[str, Any] = {
-        "id": f"tushare.local.{canonical_endpoint}.v1", "endpoint": canonical_endpoint,
+        "id": f"tushare.local.{canonical_endpoint}.{'v2' if endpoint in _FINANCIAL or endpoint == 'dividend' else 'v1'}", "endpoint": canonical_endpoint,
         "identity_map": dict(identity_map), "revision_order": (
             "announcement_day_then_terminal_v1" if canonical_endpoint in {
                 "income", "balancesheet", "cashflow", "fina_indicator", "top10_holders"}
@@ -275,6 +316,15 @@ def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
         profile["null_values"] = {"implementation_announcement_date": [""],
                                   "record_date": [""], "ex_date": [""]}
         profile["action_semantics"] = "process_status is native; only explicit 实施 means implemented"
+        fm.update(source_issue="__source_issue", source_candidate_count="__source_candidate_count",
+                  candidate_economic_dates="__candidate_economic_dates")
+        for name, spec in CONTRACTS[endpoint]["fields"].items():
+            if status_field := spec.get("status_field"):
+                fm[status_field] = f"__status__{fm[name]}"
+        profile["same_observation_policy"] = (
+            "distinct returned rows under one native action key make the entire action "
+            "unavailable; no stable supplier action ID or revision order was captured; "
+            "dates and amounts are source_missing, including unanimous zero amounts")
     elif endpoint == "top10_holders":
         fm.update(security_id="ts_code", report_period="end_date",
                   announcement_date="ann_date", actual_announcement_date="ann_date",
@@ -295,6 +345,17 @@ def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
         profile["source_units"] = {"up_limit": "CNY/share", "down_limit": "CNY/share"}
         date_fields["session"] = "YYYYMMDD"
         profile["execution_semantics"] = "price bounds only; not proof of executable liquidity"
+    if endpoint in _FINANCIAL:
+        fm["source_issue"] = "__source_issue"
+        if endpoint in _STATEMENTS:
+            fm.update(company_type="comp_type", report_end_type="end_type", update_flag="update_flag")
+        for name, spec in CONTRACTS[endpoint]["fields"].items():
+            if status_field := spec.get("status_field"):
+                fm[status_field] = f"__status__{fm[name]}"
+        profile["same_disclosure_policy"] = (
+            "returned dominating row, otherwise consensus cells only; differing cells are "
+            "source_missing/ambiguous_same_disclosure; differing company/period context "
+            "makes numeric cells unavailable; update_flag never orders revisions")
     return profile
 
 
@@ -357,29 +418,40 @@ def _source_rows(response: Any) -> tuple[bytes, list[dict[str, Any]] | None]:
 
 
 def _financial_unique(endpoint: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Select a returned same-disclosure row only when it dominates duplicates.
+    """Resolve one disclosure without imposing an order on its returned rows.
 
-    The selected row itself must exist in the supplier response. We neither
-    infer order within a response nor synthesize a hybrid of partial rows.
+    Keep a returned row covering all partial duplicates when one exists.
+    Otherwise retain only consensus cells, mark differing cells unavailable,
+    and leave all original rows in Raw. Complementary partial rows are never
+    combined into a complete invented report. No dates or flags order rows.
     """
-    by_key: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-    fields = _FIELDS[endpoint]
+    by_key: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+    fields = request_fields(endpoint)
     for row in rows:
         actual = row["f_ann_date"] if endpoint in _STATEMENTS else row["ann_date"]
         key = row["ts_code"], row.get("report_type", ""), row["end_date"], actual
-        current = by_key.get(key)
-        if current is None:
-            by_key[key] = dict(row)
+        by_key.setdefault(key, []).append(row)
+    resolved = []
+    numeric_fields = _FIELDS[endpoint][5:] if endpoint in _STATEMENTS else _FIELDS[endpoint][3:]
+    for group in by_key.values():
+        # The richest row is the only possible dominating candidate, up to
+        # equal duplicates. Checking the complete group avoids input-order bugs.
+        candidate = max(group, key=lambda item: sum(item.get(f) is not None for f in fields))
+        if all(item.get(f) is None or item.get(f) == candidate.get(f)
+               for item in group for f in fields):
+            resolved.append(dict(candidate))
             continue
-        current_covers_row = all(row[field] is None or current[field] == row[field]
-                                 for field in fields)
-        row_covers_current = all(current[field] is None or row[field] == current[field]
-                                 for field in fields)
-        if row_covers_current and not current_covers_row:
-            by_key[key] = dict(row)
-        elif not current_covers_row:
-            raise DataError("financial response has conflicting or complementary same-date rows")
-    return list(by_key.values())
+        row = {f: group[0].get(f) if all(item.get(f) == group[0].get(f) for item in group) else None
+               for f in fields}
+        ambiguous = {f for f in fields if any(item.get(f) != group[0].get(f) for item in group)}
+        if endpoint in _STATEMENTS and ambiguous & {"comp_type", "end_type"}:
+            ambiguous.update(numeric_fields)
+        for field in ambiguous:
+            row[field] = None
+            row[f"__status__{field}"] = "source_missing"
+        row["__source_issue"] = "ambiguous_same_disclosure"
+        resolved.append(row)
+    return resolved
 
 
 def _response_issue(endpoint: str, rows: list[dict[str, Any]] | None,
@@ -437,6 +509,49 @@ def _response_issue(endpoint: str, rows: list[dict[str, Any]] | None,
     return None
 
 
+def _dividend_unique(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Deduplicate exact source actions; never compose or order ambiguous ones.
+
+    A differing implementation date, ex date or amount does not establish a
+    different action or a later revision. Preserve the native key and Raw group,
+    but mark every economic date/amount unavailable for that observation.
+    """
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    for row in rows:
+        native = {field: row.get(field) for field in _FIELDS["dividend"]}
+        for field in ("imp_ann_date", "record_date", "ex_date"):
+            if native[field] == "":
+                native[field] = None
+        group = groups.setdefault(tuple(native[field] for field in _DIVIDEND_KEY), [])
+        if native not in group:
+            group.append(native)
+    result = []
+    for group in groups.values():
+        row = dict(group[0])
+        row["__source_candidate_count"] = len(group)
+        row["__source_issue"] = "ambiguous_action_identity_or_revision" if len(group) > 1 else None
+        row["__candidate_economic_dates"] = None
+        if len(group) > 1:
+            from .sources import _typed
+            for item in group:
+                for field in _DIVIDEND_VALUES:
+                    # Whole-action ambiguity does not erase conversion errors
+                    # that ordinary source normalization would reject.
+                    _typed(item[field], 'date' if field in {'imp_ann_date', 'record_date', 'ex_date'}
+                           else 'float64', field, 'YYYYMMDD')
+            # This summary is part of terminal content. A changed candidate
+            # date set must create a new observation even when all action
+            # values are unavailable and the candidate count stays the same.
+            dates = {field: sorted({item[field] for item in group}, key=lambda value: value or '')
+                     for field in ('imp_ann_date', 'record_date', 'ex_date')}
+            row["__candidate_economic_dates"] = json.dumps(dates, sort_keys=True, separators=(',', ':'))
+            for field in _DIVIDEND_VALUES:
+                row[field] = None
+                row[f"__status__{field}"] = "source_missing"
+        result.append(row)
+    return result
+
+
 def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
     """Validate full saved supplier rows and select the frozen canonical scope.
 
@@ -472,6 +587,8 @@ def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
         for row in unique:
             row["__endpoint"] = endpoint.removesuffix("_vip")
         return unique
+    if endpoint == "dividend":
+        return _dividend_unique(rows)
     if endpoint == "top10_holders":
         groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
         for row in rows:
@@ -532,7 +649,7 @@ def collect_event_response(store: LocalStore, *, client: Any, endpoint: str,
     profile = event_source_profile(endpoint, identity_map=identity_map,
                                    next_open_session_by_date=next_open_session_by_date)
     selected = _validate_params(endpoint, params, identity_map)
-    request = {"endpoint": endpoint, "params": selected, "fields": list(_FIELDS[endpoint]),
+    request = {"endpoint": endpoint, "params": selected, "fields": list(request_fields(endpoint)),
                "coverage_status": "observed_response_only",
                "canonical_symbols": [selected["ts_code"]] if "ts_code" in selected else sorted(identity_map)}
     previous = store.find_raw_by_operation(operation_id).get(batch_index)
@@ -546,7 +663,7 @@ def collect_event_response(store: LocalStore, *, client: Any, endpoint: str,
     if not callable(query):
         raise DataError("injected client requires query(endpoint, fields, **params)")
     try:
-        response = query(endpoint, fields=",".join(_FIELDS[endpoint]), **selected)
+        response = query(endpoint, fields=",".join(request_fields(endpoint)), **selected)
         payload, rows = _source_rows(response)
         issue = _response_issue(endpoint, rows, selected, profile)
         status = "cap" if rows is not None and _CAPS[endpoint] is not None and len(rows) >= _CAPS[endpoint] else (

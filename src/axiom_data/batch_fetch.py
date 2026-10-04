@@ -120,6 +120,7 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
                     min_interval_seconds: float = 0,
                     rate_limiter: BatchRateLimiter | None = None,
                     event_calendar_map: Mapping[str, str] | None = None,
+                    reused_raw_batch_ids: Mapping[int, str] | None = None,
                     clock: Callable[[], datetime] | None = None,
                     monotonic: Callable[[], float] | None = None,
                     sleeper: Callable[[float], None] | None = None) -> dict[str, Any]:
@@ -128,6 +129,9 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
     A worker returns serialized original bytes and its actual aware receipt
     time. The calling thread alone appends Raw. Successful selected IDs are
     returned in deterministic task order; capped parent Raw is never selected.
+    Explicit ``reused_raw_batch_ids`` binds initial event request indexes to
+    retained responses. Revalidation appends an alias with the original bytes
+    and receipt time; it makes no supplier call for those requests.
     """
     if not isinstance(store, LocalStore) or not 1 <= max_attempts <= 10:
         raise DataError("invalid batch store or retry limit")
@@ -150,6 +154,12 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
                            "plan_fingerprint": plan_fingerprint,
                            "identity_map": dict(identity_map), "max_attempts": max_attempts,
                            "max_total_requests_per_chunk": max_total_requests_per_chunk}
+    reused = dict(reused_raw_batch_ids or {})
+    if any(type(index) is not int or not 0 <= index < len(specs) or
+           not isinstance(raw_id, str) or not raw_id for index, raw_id in reused.items()):
+        raise DataError("reused Raw needs valid initial request indexes and batch IDs")
+    if reused:
+        fingerprint_payload["reused_raw_batch_ids"] = {str(index): raw_id for index, raw_id in reused.items()}
     if event_calendar_map is not None:
         fingerprint_payload["event_calendar_map"] = dict(event_calendar_map)
     fingerprint = _digest(fingerprint_payload)
@@ -169,7 +179,8 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
                 "completed_requests": state["completed_requests"],
                 "total_requests": len(state["tasks"]),
                 "last_observed_at": state.get("last_observed_at"),
-                "last_stock_observed_at": state.get("last_stock_observed_at")}
+                "last_stock_observed_at": state.get("last_stock_observed_at"),
+                "reused_requests": state.get("reused_requests", 0)}
     retrying_failed_run = state.get("status") == "failed"
     tasks = state["tasks"]
     symbol_sets = state["canonical_symbol_sets"]
@@ -274,9 +285,11 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
         actual_request = dict(raw.get("request", {}))
         revalidated_from = actual_request.pop("revalidated_from_batch_id", None)
         if revalidated_from is not None:
-            original = recovered.get(slot(index, attempt))
-            if (original is None or original["batch_id"] != revalidated_from or
-                    original["status"] != "failed" or
+            original = store.get_raw(revalidated_from)
+            external_reuse = reused.get(index) == revalidated_from
+            saved_original = recovered.get(slot(index, attempt))
+            if ((not external_reuse and (saved_original is None or
+                     saved_original["batch_id"] != revalidated_from or original["status"] != "failed")) or
                     raw["observed_at"] != original["observed_at"] or
                     raw["payload_sha256"] != original["payload_sha256"]):
                 raise ConflictError("revalidated Raw does not match its saved source response")
@@ -301,7 +314,8 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
                         for child in _children(_expand_task(item, symbol_sets))]
             if len(tasks) + len(children) > max_total_requests_per_chunk:
                 raise CoverageError("cap split exceeds fixed chunk request limit; use a narrower new plan")
-            item.update(status="split", child_indexes=list(range(len(tasks), len(tasks) + len(children))))
+            item.update(status="split", cap_raw_batch_id=raw["batch_id"],
+                        child_indexes=list(range(len(tasks), len(tasks) + len(children))))
             tasks.extend(children)
             state["completed_requests"] += 1
         elif raw["status"] == "failed":
@@ -314,6 +328,8 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
             state["raw_attempts"] += 1
         else:
             state["raw_reclassifications"] = state.get("raw_reclassifications", 0) + 1
+            if reused.get(index) == revalidated_from:
+                state["reused_requests"] = state.get("reused_requests", 0) + 1
         state["raw_rows"] += count or 0
         dirty += 1
         flush(force=item["status"] == "split")
@@ -385,6 +401,41 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
         recovered[alias_slot] = alias
         return alias, len(rows)
 
+    def reuse_response(index: int, attempt: int) -> tuple[dict[str, Any], int]:
+        item = tasks[index]
+        endpoint = item["endpoint"]
+        original = store.get_raw(reused[index])
+        expected = request(index, attempt)
+        if (not is_event(endpoint) or original.get("status") not in {"success", "empty", "failed"} or
+                original.get("domain") != EVENT_DOMAINS[endpoint] or
+                original.get("normalizer") != "event_records_v1" or any(
+                    original.get("request", {}).get(field) != expected.get(field)
+                    for field in ("endpoint", "params", "fields", "canonical_symbols"))):
+            raise ConflictError("reused Raw differs from its frozen event selector")
+        payload = store.read_raw_record(original)
+        rows = _rows(payload)
+        if EVENT_CAPS[endpoint] is not None and len(rows) >= EVENT_CAPS[endpoint]:
+            raise CoverageError("capped retained event response cannot be reclassified as complete")
+        chosen = set(expected.get("canonical_symbols") or ())
+        selected = [row for row in rows if row.get("ts_code") in chosen]
+        if any(any(field not in row for field in EVENT_FIELDS[endpoint]) for row in rows) or (
+                event_response_issue(endpoint, selected, item["params"], profile(endpoint))):
+            raise CoverageError("retained event response is not valid under the corrected adapter")
+        current_profile = profile(endpoint)
+        old_profile = original.get("source_profile") or {}
+        if (old_profile.get("identity_map") != current_profile["identity_map"] or
+                old_profile.get("source_units") != current_profile.get("source_units") or
+                old_profile.get("availability") != current_profile.get("availability")):
+            raise ConflictError("reused Raw has different identity, units or availability")
+        alias = store.write_raw(payload, domain=EVENT_DOMAINS[endpoint],
+                                request={**expected, "revalidated_from_batch_id": original["batch_id"]},
+                                source_profile=current_profile, contract=EVENT_CONTRACTS[endpoint],
+                                observed_at=original["observed_at"], normalizer="event_records_v1",
+                                status="success" if rows else "empty", operation_id=operation_id,
+                                batch_index=slot(index, attempt))
+        recovered[slot(index, attempt)] = alias
+        return alias, len(rows)
+
     if retrying_failed_run:
         # Responses from in-flight workers are saved before a failure is
         # surfaced. Admit any such successes before opening a new retry round.
@@ -426,6 +477,8 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
                     attempt = item["attempt"]
                     source_slot = slot(index, attempt)
                     raw = recovered.get(source_slot)
+                    if raw is None and index in reused:
+                        raw, _ = reuse_response(index, attempt)
                     if raw is not None:
                         count = (len(_rows(store.read_raw_record(raw)))
                                  if raw["status"] != "failed" else None)
@@ -463,7 +516,8 @@ def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
                 "completed_requests": state["completed_requests"],
                 "total_requests": len(tasks),
                 "last_observed_at": state.get("last_observed_at"),
-                "last_stock_observed_at": state.get("last_stock_observed_at")}
+                "last_stock_observed_at": state.get("last_stock_observed_at"),
+                "reused_requests": state.get("reused_requests", 0)}
     except BaseException as exc:
         # Futures already sent to the supplier may complete after one task
         # blocks. Preserve every returned response before surfacing failure.

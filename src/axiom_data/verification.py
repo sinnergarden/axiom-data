@@ -235,6 +235,19 @@ def _audit_holder_group(row: Mapping[str, Any], originals: list[Mapping[str, Any
 def _audit_event_raw(store: LocalStore, name: str, domain: Mapping[str, Any],
                      raw_id: str, canonical: list[dict[str, Any]]) -> int:
     raw = store.get_raw(raw_id)
+    original_id = raw.get('request', {}).get('revalidated_from_batch_id')
+    if original_id:
+        original = store.get_raw(original_id)
+        original_request = dict(raw['request'])
+        original_request.pop('revalidated_from_batch_id')
+        # Reinterpretation may change contract/profile/operation, never the
+        # original request, response bytes or receipt clock.
+        for field in ('endpoint', 'params', 'fields', 'canonical_symbols'):
+            if original_request.get(field) != original.get('request', {}).get(field):
+                raise DataError(f'{name} revalidation changed its original source selector')
+        if any(raw.get(field) != original.get(field) for field in
+               ('payload_sha256', 'payload_uri', 'observed_at', 'domain')):
+            raise DataError(f'{name} revalidation changed original bytes or receipt')
     endpoint = raw.get('request', {}).get('endpoint')
     if (raw_id not in domain['raw_batch_ids'] or raw.get('domain') != name or
             raw.get('status') not in {'success', 'empty'} or
@@ -280,16 +293,11 @@ def _audit_event_raw(store: LocalStore, name: str, domain: Mapping[str, Any],
     if len(inverse) != len(identities):
         raise DataError(f'{name} Raw identity map is not one-to-one')
     originals = _rows(store.read_raw_record(raw))
-    if name in {'financial_events', 'balance_sheet_events', 'cash_flow_events',
-                'financial_indicator_events'}:
-        from .event_sources import _financial_unique
-
-        # The adapter selects a single returned row that dominates same-day
-        # partial duplicates. Audit that exact row, rather than requiring the
-        # selected canonical values to equal every partial source row.
+    financial = name in {'financial_events', 'balance_sheet_events', 'cash_flow_events',
+                          'financial_indicator_events'}
+    if financial:
         chosen = set(raw.get('request', {}).get('canonical_symbols') or ())
-        originals = _financial_unique(endpoint, [item for item in originals
-                                                 if item.get('ts_code') in chosen])
+        originals = [item for item in originals if item.get('ts_code') in chosen]
     source_rows = defaultdict(list)
     for original in originals:
         source_rows[_event_key(name, original, source=True)].append(original)
@@ -303,6 +311,10 @@ def _audit_event_raw(store: LocalStore, name: str, domain: Mapping[str, Any],
         candidates = source_rows.get(key)
         if not candidates or any(item is None for item in key):
             raise DataError(f'{name} canonical economic key absent from referenced Raw')
+        if financial:
+            candidates = [_audit_financial_group(name, row, candidates, domain['contract'], source_map)]
+        elif name == 'corporate_actions':
+            candidates = [_audit_dividend_group(row, candidates, domain['contract'], source_map)]
         for original in candidates:
             for field, source in _EVENT_FIELDS[name].items():
                 if not _equal_event_value(field, row.get(field), original.get(source)):
@@ -319,6 +331,108 @@ def _audit_event_raw(store: LocalStore, name: str, domain: Mapping[str, Any],
             _audit_holder_group(row, candidates)
         checked += 1
     return checked
+
+
+def _audit_dividend_group(row: Mapping[str, Any], originals: list[dict[str, Any]],
+                          contract: Mapping[str, Any], source_map: Mapping[str, str]) -> dict[str, Any]:
+    """Check whole-action ambiguity independently of the normalization resolver."""
+    fields = _EVENT_FIELDS['corporate_actions']
+    unique = []
+    for original in originals:
+        candidate = {source: original.get(source) for source in fields.values()}
+        for source in ('imp_ann_date', 'record_date', 'ex_date'):
+            if candidate[source] == '':
+                candidate[source] = None
+        if candidate not in unique:
+            unique.append(candidate)
+    ambiguous = len(unique) > 1
+    if ambiguous:
+        from .sources import _typed
+        for original in unique:
+            for field, source in fields.items():
+                if field not in contract['logical_key']:
+                    _typed(original[source], 'date' if field in _EVENT_DATE_FIELDS else 'float64', source, 'YYYYMMDD')
+    modern = 'source_issue' in contract['fields']
+    if ambiguous and not modern:
+        raise DataError('corporate_actions ambiguous source group needs an explicit action rebuild')
+    expected = dict(unique[0])
+    if modern:
+        if (source_map.get('source_issue') != '__source_issue' or
+                source_map.get('source_candidate_count') != '__source_candidate_count' or
+                source_map.get('candidate_economic_dates') != '__candidate_economic_dates' or
+                row.get('source_candidate_count') != len(unique) or
+                row.get('source_issue') != ('ambiguous_action_identity_or_revision' if ambiguous else None)):
+            raise DataError('corporate_actions source group evidence differs from Raw')
+        dates = None
+        if ambiguous:
+            dates = json.dumps({source: sorted({item[source] for item in unique}, key=lambda value: value or '')
+                                for source in ('imp_ann_date', 'record_date', 'ex_date')},
+                               sort_keys=True, separators=(',', ':'))
+        if row.get('candidate_economic_dates') != dates:
+            raise DataError('corporate_actions candidate economic dates differ from its complete Raw group')
+        for field, source in fields.items():
+            if field in contract['logical_key']:
+                continue
+            status_field = contract['fields'][field].get('status_field')
+            if (status_field != f'{field}__status' or
+                    source_map.get(status_field) != f'__status__{source}' or
+                    row.get(status_field) != ('source_missing' if ambiguous else None)):
+                raise DataError(f'corporate_actions.{field} status differs from its whole source group')
+            if ambiguous:
+                expected[source] = None
+            if not _equal_event_value(field, row.get(field), expected.get(source)):
+                raise DataError(f'corporate_actions.{field} differs from its whole source group')
+    return expected
+
+
+def _audit_financial_group(name: str, row: Mapping[str, Any],
+                           originals: list[dict[str, Any]], contract: Mapping[str, Any],
+                           source_map: Mapping[str, str]) -> dict[str, Any]:
+    """Independently check a disclosure against every retained source row.
+
+    Audit does not call the normalizer's resolver: a supplied value must come
+    from a returned dominating report or be unanimous across the whole group.
+    """
+    fields = dict(_EVENT_FIELDS[name])
+    modern = 'source_issue' in contract['fields']
+    if modern and name != 'financial_indicator_events':
+        fields.update(company_type='comp_type', report_end_type='end_type', update_flag='update_flag')
+    if modern:
+        if source_map.get('source_issue') != '__source_issue' or any(
+                source_map.get(field) != source for field, source in fields.items()):
+            raise DataError(f'{name} financial context mapping differs from audit')
+    sources = set(fields.values())
+    dominating = next((item for item in originals if all(
+        other.get(source) is None or other.get(source) == item.get(source)
+        for other in originals for source in sources)), None)
+    ambiguous = set()
+    if dominating is not None:
+        expected = dominating
+    else:
+        ambiguous = {source for source in sources
+                     if any(item.get(source) != originals[0].get(source) for item in originals)}
+        if ambiguous & {'comp_type', 'end_type'}:
+            ambiguous.update(fields[field] for field in _EVENT_UNITS[name])
+        expected = {source: None if source in ambiguous else originals[0].get(source)
+                    for source in sources}
+        if not modern:
+            raise DataError(f'{name} ambiguous source group needs an explicit financial rebuild')
+    if modern:
+        issue = 'ambiguous_same_disclosure' if dominating is None else None
+        if row.get('source_issue') != issue:
+            raise DataError(f'{name}.source_issue differs from referenced Raw group')
+        for field, source in fields.items():
+            if not _equal_event_value(field, row.get(field), expected.get(source)):
+                raise DataError(f'{name}.{field} differs from referenced Raw')
+            spec = contract['fields'][field]
+            if status_field := spec.get('status_field'):
+                if (status_field != f'{field}__status' or
+                        source_map.get(status_field) != f'__status__{source}'):
+                    raise DataError(f'{name}.{field} status mapping differs from audit')
+                status = 'source_missing' if source in ambiguous else None
+                if row.get(status_field) != status:
+                    raise DataError(f'{name}.{field} status differs from referenced Raw group')
+    return expected
 
 
 def _audit_listing_raw(store: LocalStore, domain: Mapping[str, Any], raw_id: str,
@@ -384,7 +498,10 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
             rows = store.read_partition(part).to_pylist()
             report['row_counts'][name] = report['row_counts'].get(name, 0) + len(rows)
             for row in rows:
-                key = (name, row.get('security_id', row.get('exchange')), str(row.get('session', '')))
+                # Calendar rows have the common nullable security_id column;
+                # their identity is the exchange, even when that column exists.
+                identity = row['exchange'] if name == 'trading_calendar' else row['security_id']
+                key = (name, identity, str(row.get('session', '')))
                 previous = latest_reference.get(key)
                 if previous is None or str(row.get('first_observed_at', '')) >= str(previous.get('first_observed_at', '')):
                     latest_reference[key] = row
@@ -443,6 +560,9 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
         for part in domain['partitions']:
             rows = store.read_partition(part).to_pylist()
             report['row_counts'][name] += len(rows)
+            if name == 'corporate_actions':
+                report['unavailable_corporate_action_revisions'] = report.get('unavailable_corporate_action_revisions', 0) + sum(
+                    row.get('source_issue') == 'ambiguous_action_identity_or_revision' for row in rows)
             if event_domain:
                 if not supported_event:
                     continue
@@ -547,6 +667,12 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
                                                                 'reason': 'missing_month_partition'})
     if not calendar or not securities:
         report['issues'].append({'reason': 'calendar_or_identity_unavailable'})
+    if report.get('unavailable_corporate_action_revisions'):
+        report['issues'].append({'reason': 'ambiguous_action_identity_or_revision',
+                                 'count': report['unavailable_corporate_action_revisions']})
+        report['limitations'].append(
+            'Ambiguous supplier corporate-action groups are unavailable as whole economic events; '
+            'candidate identity/revision order is unknown, including any unanimous zero amounts.')
     if report['issues'] or report['missing_market_cells']:
         report['status'] = 'limited'
     report['elapsed_seconds'] = round(time.monotonic() - started, 3)
