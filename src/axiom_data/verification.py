@@ -498,7 +498,10 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
             rows = store.read_partition(part).to_pylist()
             report['row_counts'][name] = report['row_counts'].get(name, 0) + len(rows)
             for row in rows:
-                key = (name, row.get('security_id', row.get('exchange')), str(row.get('session', '')))
+                # Calendar rows have the common nullable security_id column;
+                # their identity is the exchange, even when that column exists.
+                identity = row['exchange'] if name == 'trading_calendar' else row['security_id']
+                key = (name, identity, str(row.get('session', '')))
                 previous = latest_reference.get(key)
                 if previous is None or str(row.get('first_observed_at', '')) >= str(previous.get('first_observed_at', '')):
                     latest_reference[key] = row
