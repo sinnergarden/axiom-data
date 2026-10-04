@@ -242,6 +242,22 @@ def _add_raw_objects(objects: dict[str, str], records: Mapping[str, Mapping[str,
         objects[uri] = digest
 
 
+def _raw_dependencies(store: LocalStore, wanted: set[str]) -> set[str]:
+    """Include original receipts referenced by explicit Raw reinterpretations."""
+    closure = set(wanted)
+    pending = set(wanted)
+    while pending:
+        records = store._raw_records(tuple(pending), shared_profiles=True)
+        parents = {record.get("request", {}).get("revalidated_from_batch_id")
+                   for record in records.values()}
+        parents.discard(None)
+        if any(not isinstance(parent, str) or not parent for parent in parents):
+            raise DataError("invalid revalidated Raw reference")
+        pending = parents - closure
+        closure.update(pending)
+    return closure
+
+
 def export_bundle(data_root: str | os.PathLike[str], destination: str | os.PathLike[str], *,
                   snapshot_id: str = "current", code_root: str | os.PathLike[str] | None = None,
                   raw_backup_cutoff: str | None = None) -> dict[str, Any]:
@@ -280,6 +296,7 @@ def export_bundle(data_root: str | os.PathLike[str], destination: str | os.PathL
             if raw_backup_cutoff is not None:
                 selection = store.select_raw(domains=None, receipt_cutoff=raw_backup_cutoff, statuses=None)
                 wanted.update(selection["raw_batch_ids"])
+            wanted = _raw_dependencies(store, wanted)
             raw_log, records = _raw_lines(store, wanted)
             _add_raw_objects(objects, records)
             _put(stage, "data/current.json", _encoded({"snapshot_id": selected}), files)
@@ -375,8 +392,11 @@ def verify_bundle(bundle: str | os.PathLike[str]) -> dict[str, Any]:
             wanted.update(selection["raw_batch_ids"])
         elif raw_scope.get("receipt_cutoff") is not None:
             raise DataError("snapshot closure cannot declare a full Raw cutoff")
+        wanted = _raw_dependencies(data, wanted)
         if raw_scope.get("raw_batch_count") != len(wanted):
             raise DataError("bundle Raw count differs from its declared scope")
+    else:
+        wanted = _raw_dependencies(data, wanted)
     log, records = _raw_lines(data, wanted)
     _add_raw_objects(objects, records)
     expected = {"data/current.json", *(f"data/snapshots/{s['snapshot_id']}.json" for s in chain),

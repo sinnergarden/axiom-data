@@ -18,7 +18,7 @@ from .protocols import DataBatch, EventQuery, QueryError
 from .reader import READER_VERSION, _date_value, _instant, _revision_order
 
 
-EVENT_READER_VERSION = "event_reader_v4"
+EVENT_READER_VERSION = "event_reader_v5"
 _POLICIES = {"operational_pit_v1", "market_pit_safe_v1", "best_effort_vendor_v1"}
 _PURPOSES = {"decision_facts", "historical_exploration", "research_label", "label_outcomes", "market_replay"}
 _STATUSES = {"value", "not_provided", "retracted", "source_missing", "parse_error"}
@@ -181,7 +181,7 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
     columns = list(dict.fromkeys((*keys, query.time_field, *query.filters, *query.fields, *order_fields,
                                   *_not_before_date_fields(profile),
                                   *status_columns, *[c for c in (date_field, instant_field) if c],
-                                  "group_completeness", "holders", *_VERSION)))
+                                  "group_completeness", "holders", "source_issue", *_VERSION)))
     from .public_evidence import apply_evidence, evidence_index
     evidence = evidence_index(store, snapshot, query.domain)
     grouped: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
@@ -253,8 +253,11 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
                     status = "source_missing"
             value = row.get(field) if status == "value" else None
             record[field] = value
+            missing_reason = None if status == "value" else status
+            if status == "source_missing" and row.get("source_issue"):
+                missing_reason = row["source_issue"]
             field_meta[field]["by_key"].append({
-                **native, "status": status, "missing_reason": None if status == "value" else status,
+                **native, "status": status, "missing_reason": missing_reason,
                 "revision_id": row.get("revision_id"), "revision_sequence": row.get("revision_sequence"),
                 "raw_batch_id": row.get("raw_batch_id"), "usable_from": usable.isoformat(),
                 "first_observed_at": (_instant(row["first_observed_at"], "first_observed_at").isoformat()

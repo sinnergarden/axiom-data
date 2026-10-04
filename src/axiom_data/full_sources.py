@@ -16,7 +16,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 from .batch_fetch import BatchRateLimiter, run_batch_chunk
 from .bulk_jobs import BulkJobPlan, plan_bulk_job, run_bulk_job, verify_bulk_job
-from .event_sources import _FIELDS
+from .event_sources import request_fields
 from .protocols import ConflictError, CoverageError, DataError, OperationResult
 from .storage import LocalStore
 from .updates import apply_saved_raw
@@ -219,7 +219,7 @@ def _next_open_map(plan: FullSourcePlan, sessions: Sequence[str]) -> dict[str, s
 
 
 def _spec(endpoint: str, params: Mapping[str, str], symbols: Sequence[str]) -> dict[str, Any]:
-    return {"endpoint": endpoint, "params": dict(params), "fields": list(_FIELDS[endpoint]),
+    return {"endpoint": endpoint, "params": dict(params), "fields": list(request_fields(endpoint)),
             "canonical_symbols": list(symbols)}
 
 
