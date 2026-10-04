@@ -270,7 +270,8 @@ def _join_source_profiles(first: Mapping[str, Any], second: Mapping[str, Any]) -
         left["availability"], right["availability"] = left_availability, right_availability
         calendar_a = left_availability.pop("next_open_session_by_date")
         calendar_b = right_availability.pop("next_open_session_by_date")
-    extensible_profile = str(left.get("id", "")).startswith("tushare.local.")
+    extensible_profile = (str(left.get("id", "")).startswith("tushare.local.") or
+                          left.get("id") == "issuer_fund_disclosure_supplement_v1")
     if not extensible_profile or left != right or (a is None) != (b is None):
         raise ConflictError("source profile changed; explicitly rebuild the domain")
     result = left
@@ -421,6 +422,9 @@ def _build_domain(store: LocalStore, name: str, old: Mapping[str, Any] | None,
                 merged, changed = _merge_terminal(existing, rows, contract)
             else:
                 merged, changed = _merge_rows(existing, rows, contract)
+            if name == "fund_share_conversions":
+                from .fund_share_conversions import validate_conversion_order
+                validate_conversion_order(merged)
             if changed or previous is None:
                 partitions[month] = store.write_partition(name, month, merged, contract)
                 facts_changed = True

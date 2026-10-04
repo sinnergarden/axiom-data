@@ -6,6 +6,7 @@ Imports stay lazy so CLI help and planning do not initialize data dependencies.
 from importlib import import_module
 
 _EXPORTS = {
+    "reviewed_fund_share_conversion_batch": ("fund_share_conversions", "reviewed_fund_share_conversion_batch"),
     "attach_public_evidence": ("public_evidence", "attach_public_evidence"),
     "listing_catalogue_evidence": ("universe_sources", "listing_catalogue_evidence"),
     "plan_reference_bootstrap": ("universe_sources", "plan_reference_bootstrap"),

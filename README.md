@@ -46,6 +46,8 @@ payload = batch.to_json()  # records + field_meta + context
 
 Raw 保存请求、原响应及实际接收时间。归一化失败后从相同计划恢复；全部必需阶段成功后才推进 current。新增证券只能追加稳定绑定；更改单位或来源解释时显式重建目标域，旧 Snapshot 不变。供应商凭据位于数据根和代码之外。
 
+显式、人工审阅的官方 ETF 拆分补充使用独立事实域和同一 update/events 管线，见 [份额折算输入](docs/fund-share-conversions.md)。它保留公告原件与真实 receipt，不改原分红、因子或状态域。
+
 ## 时间与来源
 
 - `operational_pit_v1` 使用实际首次观察时间。
