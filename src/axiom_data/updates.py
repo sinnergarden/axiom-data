@@ -270,7 +270,8 @@ def _join_source_profiles(first: Mapping[str, Any], second: Mapping[str, Any]) -
         left["availability"], right["availability"] = left_availability, right_availability
         calendar_a = left_availability.pop("next_open_session_by_date")
         calendar_b = right_availability.pop("next_open_session_by_date")
-    extensible_profile = str(left.get("id", "")).startswith("tushare.local.")
+    extensible_profile = (str(left.get("id", "")).startswith("tushare.local.") or
+                          left.get("id") == "issuer_fund_disclosure_supplement_v1")
     if not extensible_profile or left != right or (a is None) != (b is None):
         raise ConflictError("source profile changed; explicitly rebuild the domain")
     result = left

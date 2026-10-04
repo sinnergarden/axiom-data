@@ -301,7 +301,8 @@ def normalize_batch(batch: IngestBatch, raw_record: dict[str, Any]) -> list[dict
     revision-bound ``evidence_ref``; the profile release assumption is separate.
     """
     if batch.normalizer not in ("records_v1", "tushare_daily_v1", "tushare_index_weight_v1",
-                                "tushare_suspend_d_v1", "event_records_v1", "public_document_v1", "etf_records_v1"):
+                                "tushare_suspend_d_v1", "event_records_v1", "public_document_v1", "etf_records_v1",
+                                "reviewed_fund_share_conversions_v1"):
         raise DataError(f"unsupported normalizer: {batch.normalizer!r}")
     if (not isinstance(raw_record, dict) or not isinstance(raw_record.get("batch_id"), str)
             or not raw_record["batch_id"]):
@@ -323,7 +324,10 @@ def normalize_batch(batch: IngestBatch, raw_record: dict[str, Any]) -> list[dict
     field_map = batch.source_profile.get("field_map")
     if not isinstance(field_map, Mapping):
         raise DataError("source profile requires field_map")
-    if batch.normalizer == "public_document_v1":
+    if batch.normalizer == "reviewed_fund_share_conversions_v1":
+        from .fund_share_conversions import prepare_conversion_rows
+        raw_rows = prepare_conversion_rows(batch)
+    elif batch.normalizer == "public_document_v1":
         from .public_evidence import document_assertions
         raw_rows = document_assertions(batch.payload)
     elif batch.normalizer == "etf_records_v1":
