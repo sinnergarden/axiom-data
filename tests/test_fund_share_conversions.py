@@ -277,7 +277,10 @@ class FundShareConversionTests(unittest.TestCase):
         self.assertEqual(len(self.data.store.find_raw_by_operation("conflicting-extract")), 1)
 
     def test_frozen_mapping_and_announcement_clock_cannot_be_overridden(self):
-        base = self.update(None, "original", conversion_batch(), promote=True).snapshot_id
+        market = ordinary_batch("market_daily", ("security_id", "session"),
+            {"security_id": _f("string", False), "session": _f("date", False), "close": _f("float64")},
+            [{"security_id": SEC513, "session": "2022-01-14", "close": 1.015}])
+        base = self.update(None, "original", market, promote=True).snapshot_id
         original = conversion_batch()
         for kind in ("mapping", "clock"):
             profile = deepcopy(original.source_profile)
