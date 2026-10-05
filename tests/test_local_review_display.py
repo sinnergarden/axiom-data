@@ -55,6 +55,7 @@ class ReviewDisplayTest(unittest.TestCase):
             contract = {"contract_id": "synthetic." + batch.context["domain"],
                         "logical_key": ["security_id", "session"], "fields": fields}
             profile = {"id": "synthetic", "field_map": {f: f for f in fields},
+                       "source_units": {f: spec["unit"] for f, spec in fields.items() if spec.get("unit")},
                        "availability": {"timezone": "Asia/Shanghai", "session_release_time": "20:00:00"}}
             batches.append(IngestBatch(batch.context["domain"], json.dumps(batch.to_json()["records"]).encode(),
                                        {}, contract, profile, "2026-10-04T00:00:00Z"))
