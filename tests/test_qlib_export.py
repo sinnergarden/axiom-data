@@ -133,12 +133,15 @@ class QlibExportTests(unittest.TestCase):
         data,sid,q=fixture(self.root/'monthly-data',("2020-01-30","2020-01-31","2020-02-03"))
         factor=replace(q,domain='adjustment_factors',fields=('factor',))
         member=replace(q,domain='universe_membership',fields=('is_member',),universe_id='U')
+        calendar_uris={part['uri'] for part in data.store.load_snapshot(sid)['domains']['trading_calendar']['partitions']}
         with patch.object(data.store,'load_snapshot',wraps=data.store.load_snapshot) as load, \
                 patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar, \
+                patch.object(data.store,'read_partition',wraps=data.store.read_partition) as partitions, \
                 patch.object(data,'read',wraps=data.read) as read:
             result=data.export_qlib(snapshot=sid,queries=(q,factor),destination=self.view,universe_query=member)
             self.assertEqual(load.call_count,1)
             self.assertEqual(calendar.call_count,1)
+            self.assertEqual(sum(c.args[0]['uri'] in calendar_uris for c in partitions.call_args_list),2)
             self.assertEqual(read.call_count,6)  # Two monthly batches for each of the three queries.
             self.assertTrue(all(c.kwargs['snapshot']==sid for c in read.call_args_list))
             self.assertEqual(verify_qlib_export(self.view,data=data)['view_id'],result['view_id'])
@@ -146,6 +149,7 @@ class QlibExportTests(unittest.TestCase):
             data.export_qlib(snapshot=sid,queries=(q,factor),destination=self.root/'second',universe_query=member)
             self.assertEqual(load.call_count,2)  # A warm Data must still recheck every new export.
             self.assertEqual(calendar.call_count,2)  # Calendar validation is local to each export.
+            self.assertEqual(sum(c.args[0]['uri'] in calendar_uris for c in partitions.call_args_list),4)
         np.testing.assert_allclose(np.fromfile(self.view/'features/stock-a/factor.day.bin',dtype='<f4'),[0,1,1.25,1.5])
         self.assertEqual((self.view/'instruments/universe.txt').read_text(),
                          'STOCK-A\t2020-01-30\t2020-02-03\nSTOCK-MISSING\t2020-01-30\t2020-02-03\n')
