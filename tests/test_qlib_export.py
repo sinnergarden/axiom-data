@@ -1,5 +1,8 @@
 """Qlib export semantics and actual optional-runtime consumer equivalence."""
 from dataclasses import replace
+from contextlib import nullcontext
+from copy import deepcopy
+from datetime import datetime
 import importlib.util
 import json
 from pathlib import Path
@@ -7,6 +10,7 @@ import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -132,18 +136,23 @@ class QlibExportTests(unittest.TestCase):
         data,sid,q=fixture(self.root/'monthly-data',("2020-01-30","2020-01-31","2020-02-03"))
         factor=replace(q,domain='adjustment_factors',fields=('factor',))
         member=replace(q,domain='universe_membership',fields=('is_member',),universe_id='U')
+        calendar_uris={part['uri'] for part in data.store.load_snapshot(sid)['domains']['trading_calendar']['partitions']}
         with patch.object(data.store,'load_snapshot',wraps=data.store.load_snapshot) as load, \
                 patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar, \
+                patch.object(data.store,'read_partition',wraps=data.store.read_partition) as partitions, \
                 patch.object(data,'read',wraps=data.read) as read:
             result=data.export_qlib(snapshot=sid,queries=(q,factor),destination=self.view,universe_query=member)
             self.assertEqual(load.call_count,1)
-            self.assertEqual(calendar.call_count,3)
+            self.assertEqual(calendar.call_count,1)
+            self.assertEqual(sum(c.args[0]['uri'] in calendar_uris for c in partitions.call_args_list),2)
             self.assertEqual(read.call_count,6)  # Two monthly batches for each of the three queries.
             self.assertTrue(all(c.kwargs['snapshot']==sid for c in read.call_args_list))
             self.assertEqual(verify_qlib_export(self.view,data=data)['view_id'],result['view_id'])
             self.assertEqual(load.call_count,1)
             data.export_qlib(snapshot=sid,queries=(q,factor),destination=self.root/'second',universe_query=member)
             self.assertEqual(load.call_count,2)  # A warm Data must still recheck every new export.
+            self.assertEqual(calendar.call_count,2)  # Calendar validation is local to each export.
+            self.assertEqual(sum(c.args[0]['uri'] in calendar_uris for c in partitions.call_args_list),4)
         np.testing.assert_allclose(np.fromfile(self.view/'features/stock-a/factor.day.bin',dtype='<f4'),[0,1,1.25,1.5])
         self.assertEqual((self.view/'instruments/universe.txt').read_text(),
                          'STOCK-A\t2020-01-30\t2020-02-03\nSTOCK-MISSING\t2020-01-30\t2020-02-03\n')
@@ -204,6 +213,140 @@ class QlibExportTests(unittest.TestCase):
                 expected=[0,20,20,20] if sid==second else [0,10.125,np.nan,12.2]
                 np.testing.assert_allclose(np.fromfile(destination/'features/stock-a/close.day.bin',dtype='<f4'),
                                            expected,equal_nan=True,rtol=1e-6)
+
+    def calendar_snapshot(self, rows):
+        manifest=self.data.store.load_snapshot(self.sid)
+        domain=manifest['domains']['trading_calendar']
+        part=self.data.store.write_partition('trading_calendar','history',rows,domain['contract'])
+        domains=dict(manifest['domains'],trading_calendar=dict(domain,partitions=[part]))
+        return self.data.store.publish_snapshot(domains,parent_snapshot=self.sid,
+                                               build_context={'test':'calendar-revisions'})['snapshot_id']
+
+    def test_calendar_reuse_matches_uncached_export_and_native_provenance(self):
+        factor=replace(self.q,domain='adjustment_factors',fields=('factor',))
+        member=replace(self.q,domain='universe_membership',fields=('is_member',),universe_id='U')
+        read=self.data.read
+        observed=[]
+        def capture(**kwargs):
+            batch=read(**kwargs); observed.append(deepcopy(batch.to_json())); return batch
+        with patch.object(self.data,'read',side_effect=capture), \
+                patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar:
+            shared=self.data.export_qlib(snapshot=self.sid,queries=(self.q,factor),
+                                         destination=self.view,universe_query=member)
+            self.assertEqual(calendar.call_count,1)
+        shared_batches=observed[:]; observed.clear()
+        # Force validation for each query as the uncached reference, without
+        # duplicating its availability/revision algorithm or changing inputs.
+        with patch.object(self.data,'read',side_effect=capture), \
+                patch('axiom_data.qlib_export._calendar_signature',side_effect=lambda *args: object()), \
+                patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar:
+            uncached=self.data.export_qlib(snapshot=self.sid,queries=(self.q,factor),
+                destination=self.root/'uncached',universe_query=member)
+            self.assertEqual(calendar.call_count,3)
+        self.assertEqual(shared,uncached)
+        self.assertEqual(shared_batches,observed)  # Includes field_meta/context, not just numeric values.
+        for name in shared['files']:
+            self.assertEqual((self.view/name).read_bytes(),(self.root/'uncached'/name).read_bytes())
+
+    def test_calendar_cutoffs_select_distinct_visible_revisions(self):
+        rows=[{'session':d,'is_open':True,'revision_id':'early-'+d,
+               'revision_sequence':1,'first_observed_at':'2019-12-01T00:00:00Z'} for d in DAYS]
+        rows.append({'session':DAYS[0],'is_open':False,'revision_id':'late',
+                     'revision_sequence':2,'first_observed_at':'2020-01-02T10:00:00Z'})
+        sid=self.calendar_snapshot(rows)
+        early=replace(self.q,fields=('close',),pit_policy='operational_pit_v1',
+                      cutoff_by_session={d:d+'T00:01:00+08:00' for d in DAYS})
+        late=replace(early,fields=('volume_shares',),cutoff_by_session=self.q.cutoff_by_session)
+        with patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar:
+            with self.assertRaisesRegex(DataError,'every open session'):
+                self.data.export_qlib(snapshot=sid,queries=(early,late),destination=self.view)
+            self.assertEqual(calendar.call_count,2)
+        self.assertFalse(self.view.exists())
+
+    def test_calendar_named_timezone_fold_keeps_uncached_comparison(self):
+        data,sid,q=fixture(self.root/'dst-calendar',('2020-11-01',))
+        manifest=data.store.load_snapshot(sid)
+        domain=deepcopy(manifest['domains']['trading_calendar'])
+        domain['source_profile']['availability']={'timezone':'America/New_York',
+                                                 'session_release_time':'01:30:00'}
+        sid=data.store.publish_snapshot(dict(manifest['domains'],trading_calendar=domain),
+            parent_snapshot=sid,build_context={'test':'calendar-dst-fold'})['snapshot_id']
+        fixed='2020-11-01T01:15:00-05:00'
+        named=datetime(2020,11,1,1,15,tzinfo=ZoneInfo('America/New_York'),fold=1)
+        self.assertEqual(named.isoformat(),fixed)
+        price=replace(q,fields=('close',),cutoff_by_session={'2020-11-01':fixed})
+        volume=replace(q,fields=('volume_shares',),cutoff_by_session={'2020-11-01':named})
+        for force_uncached in (False,True):
+            destination=self.root/('dst-uncached' if force_uncached else 'dst-shared')
+            signature=patch('axiom_data.qlib_export._calendar_signature',
+                            side_effect=lambda *args: object()) if force_uncached else nullcontext()
+            with signature, patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar:
+                with self.assertRaisesRegex(DataError,'calendar is unknown.*2020-11-01'):
+                    data.export_qlib(snapshot=sid,queries=(price,volume),destination=destination)
+                self.assertEqual(calendar.call_count,2)
+            self.assertFalse(destination.exists())
+
+    def test_hybrid_calendar_keeps_every_session_policy(self):
+        first=replace(self.q,fields=('close',),pit_policy='bootstrap_hybrid_v1',
+                      policy_by_session={d:'best_effort_vendor_v1' for d in DAYS})
+        second=replace(first,fields=('volume_shares',),
+                       policy_by_session={d:('operational_pit_v1' if d==DAYS[0]
+                                             else 'best_effort_vendor_v1') for d in DAYS})
+        with patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar:
+            with self.assertRaisesRegex(DataError,'calendar is unknown'):
+                self.data.export_qlib(snapshot=self.sid,queries=(first,second),destination=self.view)
+            self.assertEqual(calendar.call_count,2)
+        self.assertFalse(self.view.exists())
+
+    def test_omitted_calendar_date_does_not_borrow_later_strict_cutoff(self):
+        rows=[{'session':d,'is_open':True,'revision_id':d,'revision_sequence':1,
+               'first_observed_at':'2019-12-01T00:00:00Z'} for d in DAYS]
+        rows.append({'session':'2020-01-04','is_open':False,'revision_id':'closed',
+                     'revision_sequence':1,'first_observed_at':'2020-01-04T00:00:00+08:00'})
+        sid=self.calendar_snapshot(rows)
+        vendor=replace(self.q,fields=('close',))
+        strict=replace(self.q,fields=('volume_shares',),pit_policy='operational_pit_v1')
+        with patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar:
+            with self.assertRaisesRegex(DataError,'calendar is unknown.*2020-01-04'):
+                self.data.export_qlib(snapshot=sid,queries=(vendor,strict),destination=self.view)
+            self.assertEqual(calendar.call_count,2)
+        self.assertFalse(self.view.exists())
+
+    def test_calendar_reuse_rechecks_changed_source_files(self):
+        manifest=self.data.store.load_snapshot(self.sid)
+        path=self.root/'data'/manifest['domains']['trading_calendar']['partitions'][0]['uri']
+        original=path.read_bytes()
+        def corrupt_after_validation(*args):
+            _calendar(*args); path.write_bytes(original+b'bad')
+        price=replace(self.q,fields=('close',)); volume=replace(self.q,fields=('volume_shares',))
+        try:
+            with patch('axiom_data.qlib_export._calendar',side_effect=corrupt_after_validation) as calendar:
+                with self.assertRaisesRegex(DataError,'SHA-256'):
+                    self.data.export_qlib(snapshot=self.sid,queries=(price,volume),destination=self.view)
+                self.assertEqual(calendar.call_count,1)
+            self.assertFalse(self.view.exists())
+        finally:
+            path.write_bytes(original)
+
+    def test_calendar_cross_month_open_hole_is_rejected(self):
+        data,sid,q=fixture(self.root/'month-hole',('2020-01-30','2020-01-31','2020-02-03'))
+        days=(q.sessions[0],q.sessions[-1])
+        incomplete=replace(q,sessions=days,cutoff_by_session={d:q.cutoff_by_session[d] for d in days})
+        with self.assertRaisesRegex(DataError,'every open session'):
+            data.export_qlib(snapshot=sid,queries=(incomplete,),destination=self.view)
+        self.assertFalse(self.view.exists())
+
+    def test_calendar_validation_does_not_cross_snapshot_revisions(self):
+        price=replace(self.q,fields=('close',)); volume=replace(self.q,fields=('volume_shares',))
+        with patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar:
+            self.data.export_qlib(snapshot=self.sid,queries=(price,volume),destination=self.view)
+            rows=[{'session':d,'is_open':d!=DAYS[0],'revision_id':'changed-'+d,
+                   'revision_sequence':2,'first_observed_at':'2019-12-01T00:00:00Z'} for d in DAYS]
+            changed=self.calendar_snapshot(rows)
+            with self.assertRaisesRegex(DataError,'every open session'):
+                self.data.export_qlib(snapshot=changed,queries=(price,volume),destination=self.root/'changed-calendar')
+            self.assertEqual(calendar.call_count,2)
+        self.assertFalse((self.root/'changed-calendar').exists())
 
     @unittest.skipUnless(importlib.util.find_spec('qlib'), 'install axiom-data[qlib] for actual Qlib acceptance')
     def test_actual_qlib_null_keys_relocation_and_provider_switch(self):
