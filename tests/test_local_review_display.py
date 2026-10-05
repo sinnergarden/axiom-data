@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from axiom_data import (Data, DataBatch, ConflictError, IngestBatch, QueryError, QuerySpec,
-                        UpdateRequest, project_review_display, save_review_display)
+                        UpdateRequest, load_review_display, project_review_display, save_review_display)
 
 
 SESSIONS = ("2022-01-12", "2022-01-14")
@@ -131,16 +131,26 @@ class ReviewDisplayTest(unittest.TestCase):
             manifest = save_review_display(prices, factors, anchor_session=SESSIONS[-1], destination=target)
             saved = (target / "ohlcv.json").read_bytes()
             self.assertEqual(sha256(saved).hexdigest(), manifest["files"]["ohlcv.json"]["sha256"])
+            loaded = load_review_display(target, manifest_sha256=manifest["manifest_file_ref"]["sha256"])
+            self.assertEqual(loaded["ohlcv"]["records"][0]["native_close"], 10.)
             with self.assertRaises(ConflictError):
                 save_review_display(prices, factors, anchor_session=SESSIONS[-1], destination=target)
             self.assertEqual((target / "ohlcv.json").read_bytes(), saved)
             self.assertEqual(json.loads((target / "manifest.json").read_text())["context"]["anchor_session"], SESSIONS[-1])
+            (target / "ohlcv.json").write_bytes(saved + b" ")
+            with self.assertRaisesRegex(QueryError, "file byte reference"):
+                load_review_display(target, manifest_sha256=manifest["manifest_file_ref"]["sha256"])
 
     def test_failed_write_does_not_publish_or_leave_temporary_result(self):
         prices, factors = inputs()
         with TemporaryDirectory() as tmp:
             target = Path(tmp) / "chart"
-            with patch.object(Path, "write_text", side_effect=OSError("disk failure")):
+            original_write = Path.write_bytes
+            def fail_manifest(path, payload):
+                if path.name == "manifest.json":
+                    raise OSError("disk failure")
+                return original_write(path, payload)
+            with patch.object(Path, "write_bytes", fail_manifest):
                 with self.assertRaisesRegex(OSError, "disk failure"):
                     save_review_display(prices, factors, anchor_session=SESSIONS[-1], destination=target)
             self.assertFalse(target.exists())

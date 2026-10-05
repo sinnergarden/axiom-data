@@ -192,12 +192,46 @@ def save_review_display(prices, factors, *, anchor_session, destination,
             payload = (json.dumps(wire, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n").encode()
             (temporary / name).write_bytes(payload)
             manifest["files"][name] = {"uri": name, "sha256": sha256(payload).hexdigest(), "bytes": len(payload)}
-        (temporary / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, allow_nan=False,
-                                                            indent=2) + "\n", encoding="utf-8")
+        manifest_payload = (json.dumps(manifest, ensure_ascii=False, allow_nan=False, indent=2) + "\n").encode()
+        (temporary / "manifest.json").write_bytes(manifest_payload)
         if destination.exists():
             raise ConflictError("review display destination already exists")
         temporary.rename(destination)
     finally:
         if temporary.exists():
             shutil.rmtree(temporary)
-    return manifest
+    return {**manifest, "manifest_file_ref": {"uri": "manifest.json",
+            "sha256": sha256(manifest_payload).hexdigest(), "bytes": len(manifest_payload)}}
+
+
+def load_review_display(directory, *, manifest_sha256: str) -> dict:
+    """Read saved display bytes bound to the consumer's explicit manifest ref.
+
+    Verifies the manifest and every selected file's byte references before
+    returning their saved records/metadata. No source root, current alias,
+    Reader query, projection, fill mapping or network is discovered/executed.
+    Unsupported versions or changed bytes fail; nothing repairs or overwrites
+    an artifact. The caller records this ref beside its own fixed run identity.
+    """
+    directory = Path(directory)
+    manifest_payload = (directory / "manifest.json").read_bytes()
+    if sha256(manifest_payload).hexdigest() != manifest_sha256:
+        raise QueryError("review display manifest byte reference differs")
+    manifest = json.loads(manifest_payload)
+    if manifest.get("contract_version") != SCHEMA or manifest.get("exporter_version") != EXPORTER_VERSION:
+        raise QueryError("unsupported review display version")
+    files = manifest.get("files") or {}
+    if "ohlcv.json" not in files or set(files) - {"ohlcv.json", "events.json", "securities.json"}:
+        raise QueryError("review display has an unsupported file set")
+    result = {"manifest": manifest}
+    for name, reference in files.items():
+        if reference.get("uri") != name:
+            raise QueryError("review display file must retain its declared local name")
+        payload = (directory / name).read_bytes()
+        if len(payload) != reference.get("bytes") or sha256(payload).hexdigest() != reference.get("sha256"):
+            raise QueryError(f"review display file byte reference differs: {name}")
+        result[name.removesuffix(".json")] = json.loads(payload)
+    if (result["ohlcv"].get("contract_version") != SCHEMA or
+            result["ohlcv"].get("context") != manifest.get("context")):
+        raise QueryError("review display saved context differs from manifest")
+    return result
