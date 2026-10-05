@@ -63,8 +63,7 @@ def _matrix(batch, symbols, sessions, field):
         len(symbols), len(sessions))
 
 
-def _calendar(data, snapshot, query):
-    domain = data.store.load_snapshot(snapshot)["domains"].get("trading_calendar")
+def _calendar(data, domain, query):
     if not domain:
         raise DataError("Qlib export requires a fixed trading_calendar")
     sessions = query.sessions
@@ -160,7 +159,9 @@ def export_qlib(data, *, snapshot: str, queries, destination,
         raise DataError("instrument_map must bind each stable identity to a unique safe Qlib code")
     mapping = {s: mapping[s].upper() for s in symbols}
     aliases = dict(field_aliases or {})
-    manifest = data.store.load_snapshot(snapshot)
+    # Each export rechecks the source manifest, including a warm Data instance.
+    # Subsequent data.read/members calls reuse this freshly verified Reader.
+    manifest = data._reader(snapshot, refresh=True).snapshot
     exports = {}
     for q in queries:
         domain = manifest["domains"].get(q.domain) or {}
@@ -196,7 +197,7 @@ def export_qlib(data, *, snapshot: str, queries, destination,
             raise DataError("Qlib destination belongs to a different immutable query")
         return existing
     for q in queries + ((universe_query,) if universe_query is not None else ()):
-        _calendar(data, snapshot, q)
+        _calendar(data, manifest["domains"].get("trading_calendar"), q)
     destination.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".qlib-", dir=destination.parent))
     try:
