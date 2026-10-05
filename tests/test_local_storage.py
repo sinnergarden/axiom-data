@@ -54,6 +54,27 @@ class LocalStorageTest(unittest.TestCase):
             with self.assertRaisesRegex(DataError, "digest mismatch"):
                 store.load_snapshot(first["snapshot_id"])
 
+    def test_deep_legacy_snapshot_load_preserves_identity_and_rejects_damage(self):
+        nested = 0
+        for _ in range(995):
+            nested = {"x": nested}
+        with tempfile.TemporaryDirectory() as temp:
+            store = LocalStore(temp)
+            # Flush at least one chunk before reaching the iterator's depth
+            # boundary; the legacy fallback must hash the complete body anew.
+            snapshot = store.publish_snapshot({}, parent_snapshot=None, promote=False,
+                                              build_context={"a_prefix": "公告😀" * 24000,
+                                                             "z_nested": nested})
+            snapshot_id = snapshot["snapshot_id"]
+            body = {k: v for k, v in snapshot.items() if k != "snapshot_id"}
+            self.assertEqual(snapshot_id, "s_" + sha256(_json_bytes(body)).hexdigest())
+            self.assertEqual(store.load_snapshot(snapshot_id)["snapshot_id"], snapshot_id)
+            snapshot["build_context"]["a_prefix"] = "changed"
+            path = Path(temp) / "snapshots" / (snapshot_id + ".json")
+            path.write_bytes(_json_bytes(snapshot))
+            with self.assertRaisesRegex(DataError, "digest mismatch"):
+                store.load_snapshot(snapshot_id)
+
     def test_raw_is_content_addressed_and_every_observation_is_logged(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "new-root"

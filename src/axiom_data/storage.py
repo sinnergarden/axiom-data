@@ -57,19 +57,24 @@ def _json_bytes(value: Any) -> bytes:
 
 
 def _json_digest(value: Any) -> str:
-    """Hash the existing canonical encoding without materializing all its bytes."""
+    """Hash canonical chunks, retaining the legacy encoder's depth tolerance."""
     encoder = json.JSONEncoder(sort_keys=True, separators=(",", ":"), ensure_ascii=False,
                                allow_nan=False, default=_json_default)
     digest = sha256()
     chunks = []
     characters = 0
-    for chunk in encoder.iterencode(value):
-        chunks.append(chunk)
-        characters += len(chunk)
-        if characters >= 65536:
-            digest.update("".join(chunks).encode("utf-8"))
-            chunks.clear()
-            characters = 0
+    try:
+        for chunk in encoder.iterencode(value):
+            chunks.append(chunk)
+            characters += len(chunk)
+            if characters >= 65536:
+                digest.update("".join(chunks).encode("utf-8"))
+                chunks.clear()
+                characters = 0
+    except RecursionError:
+        # The Python iterator has less depth headroom than json.dumps' C
+        # encoder. Preserve old valid snapshots at that uncommon boundary.
+        return sha256(_json_bytes(value)).hexdigest()
     if chunks:
         digest.update("".join(chunks).encode("utf-8"))
     return digest.hexdigest()
