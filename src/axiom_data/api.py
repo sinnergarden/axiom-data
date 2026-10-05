@@ -37,9 +37,11 @@ class Data:
         """Resolve an alias once; no downstream read follows mutable pointers."""
         return self.store.resolve(reference)
 
-    def _reader(self, snapshot: str):
+    def _reader(self, snapshot: str, *, refresh: bool = False):
         if snapshot in {"current", "latest"}:
             raise QueryError("resolve current once before calling read")
+        if refresh:
+            self._readers.pop(snapshot, None)
         reader = self._readers.pop(snapshot, None)
         if reader is None:
             from .reader import SnapshotQueryReader

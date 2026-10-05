@@ -934,7 +934,8 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
             _only_keys(universe, _QUERY_KEYS, "Qlib membership query")
             spec["universe_query"] = QuerySpec(**universe)
         data = Data(_root(args))
-        manifest = data.export_qlib(snapshot=data.resolve(args.snapshot),
+        snapshot = data.resolve(args.snapshot) if args.snapshot in {"current", "latest"} else args.snapshot
+        manifest = data.export_qlib(snapshot=snapshot,
                     queries=[QuerySpec(**q) for q in values], destination=args.destination, **spec)
         return {"view": str(args.destination), "view_id": manifest["view_id"],
                 "snapshot_id": manifest["snapshot_id"], "fields": list(manifest["fields"]),
