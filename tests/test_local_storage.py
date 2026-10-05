@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from hashlib import sha256
 import json
 from pathlib import Path
 import shutil
@@ -10,7 +11,7 @@ import tempfile
 import unittest
 
 from axiom_data.protocols import DataBatch, DataError, QuerySpec
-from axiom_data.storage import LocalStore
+from axiom_data.storage import LocalStore, _json_bytes, _json_digest
 
 
 CONTRACT = {
@@ -24,6 +25,56 @@ CONTRACT = {
 
 
 class LocalStorageTest(unittest.TestCase):
+    def test_chunked_digest_preserves_legacy_canonical_bytes(self):
+        values = [
+            {"中文": "😀\n\t\\\"\u0000", "z": [], "a": {"null": None, "bool": True}},
+            {"numbers": [9007199254740993, 1.0, -0.0, 1e-300, 1e300],
+             "date": datetime(2024, 1, 1, tzinfo=timezone.utc), "path": Path("目录/file")},
+            {"records": [{"id": i, "label": "公告😀", "value": i / 3} for i in range(3000)]},
+        ]
+        for value in values:
+            with self.subTest(kind=list(value)):
+                self.assertEqual(_json_digest(value), sha256(_json_bytes(value)).hexdigest())
+        with self.assertRaises(ValueError):
+            _json_digest({"nonfinite": float("nan")})
+
+    def test_snapshot_identity_is_legacy_and_fresh_load_rejects_damage(self):
+        with tempfile.TemporaryDirectory() as temp:
+            store = LocalStore(temp)
+            first = store.publish_snapshot({}, parent_snapshot=None,
+                                           build_context={"description": "公告😀", "number": -0.0})
+            body = {k: v for k, v in first.items() if k != "snapshot_id"}
+            self.assertEqual(first["snapshot_id"], "s_" + sha256(_json_bytes(body)).hexdigest())
+            path = Path(temp) / "snapshots" / (first["snapshot_id"] + ".json")
+            # Stored whitespace/key order may differ; canonical identity cannot.
+            path.write_text(json.dumps(first, ensure_ascii=True, indent=2))
+            self.assertEqual(store.load_snapshot(first["snapshot_id"]), first)
+            first["build_context"]["description"] = "changed"
+            path.write_text(json.dumps(first))
+            with self.assertRaisesRegex(DataError, "digest mismatch"):
+                store.load_snapshot(first["snapshot_id"])
+
+    def test_deep_legacy_snapshot_load_preserves_identity_and_rejects_damage(self):
+        nested = 0
+        for _ in range(995):
+            nested = {"x": nested}
+        with tempfile.TemporaryDirectory() as temp:
+            store = LocalStore(temp)
+            # Flush at least one chunk before reaching the iterator's depth
+            # boundary; the legacy fallback must hash the complete body anew.
+            snapshot = store.publish_snapshot({}, parent_snapshot=None, promote=False,
+                                              build_context={"a_prefix": "公告😀" * 24000,
+                                                             "z_nested": nested})
+            snapshot_id = snapshot["snapshot_id"]
+            body = {k: v for k, v in snapshot.items() if k != "snapshot_id"}
+            self.assertEqual(snapshot_id, "s_" + sha256(_json_bytes(body)).hexdigest())
+            self.assertEqual(store.load_snapshot(snapshot_id)["snapshot_id"], snapshot_id)
+            snapshot["build_context"]["a_prefix"] = "changed"
+            path = Path(temp) / "snapshots" / (snapshot_id + ".json")
+            path.write_bytes(_json_bytes(snapshot))
+            with self.assertRaisesRegex(DataError, "digest mismatch"):
+                store.load_snapshot(snapshot_id)
+
     def test_raw_is_content_addressed_and_every_observation_is_logged(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "new-root"
