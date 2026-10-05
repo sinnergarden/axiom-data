@@ -38,6 +38,8 @@ _EXPORTS = {
     'TushareHttpClient': ('live_client', 'TushareHttpClient'),
     'UpdateRequest': ('protocols', 'UpdateRequest'),
     'adjust_prices': ('derived', 'adjust_prices'),
+    'project_review_display': ('review_display', 'project_review_display'),
+    'save_review_display': ('review_display', 'save_review_display'),
     'audit_snapshot': ('verification', 'audit_snapshot'),
     'apply_saved_raw': ('updates', 'apply_saved_raw'),
     'bounded_weight_observations': ('universe_sources', 'bounded_weight_observations'),

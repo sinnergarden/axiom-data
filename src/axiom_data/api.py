@@ -116,6 +116,36 @@ class Data:
         return export_qlib(self, snapshot=snapshot, queries=queries,
                            destination=destination, **options)
 
+    def export_review_display(self, *, snapshot: str, price_query: QuerySpec,
+                              factor_query: QuerySpec, anchor_session: str,
+                              destination, security_query: EventQuery | None = None,
+                              event_queries=()):
+        """Explicitly save retrospective OHLCV and optional labels/events.
+
+        Public queries fix the Snapshot, one historical_exploration cutoff,
+        scope and native units. Only OHLC is adjusted; source facts/receipts,
+        model inputs, current and accounts are unchanged. The complete price
+        span ends at anchor_session. Existing destinations are refused; failed
+        exports leave no final artifact. Nothing contacts a supplier. Events
+        and names are requested explicitly and retain their Reader provenance.
+        No ordinary read requires this export or an on-disk result cache.
+        """
+        from .protocols import ConflictError
+        from .review_display import save_review_display
+        target = Path(destination).resolve()
+        if target.exists():
+            raise ConflictError("review display destination already exists")
+        if any(target.is_relative_to(self.store.root.resolve() / name)
+               for name in ("raw", "canonical", "snapshots", "operations")):
+            raise QueryError("review display destination must be outside fact storage")
+        self._reader(snapshot, refresh=True)
+        prices = self.read(snapshot=snapshot, query=price_query)
+        factors = self.read(snapshot=snapshot, query=factor_query)
+        names = self.events(snapshot=snapshot, query=security_query) if security_query is not None else None
+        events = tuple(self.events(snapshot=snapshot, query=q) for q in event_queries)
+        return save_review_display(prices, factors, anchor_session=anchor_session,
+                                   destination=target, security_master=names, events=events)
+
     def update(self, *, base_snapshot: str | None, request: UpdateRequest):
         """Persist supplied source observations and atomically publish changes.
 
