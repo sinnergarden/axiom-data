@@ -101,6 +101,13 @@ def _calendar(data, domain, query):
         raise DataError("Qlib sessions must cover every open session in the requested range; include lookback")
 
 
+def _calendar_signature(snapshot, query):
+    return (snapshot, query.sessions, query.pit_policy,
+            tuple((day, _instant(query.cutoff_by_session[day], "calendar cutoff").isoformat())
+                  for day in query.sessions),
+            None if query.policy_by_session is None else tuple(sorted(query.policy_by_session.items())))
+
+
 def _membership_lines(data, snapshot, query, mapping):
     """Convert only known PIT member flags to inclusive, gap-preserving intervals."""
     flags = np.empty((len(query.symbols), len(query.sessions)), dtype=bool)
@@ -196,8 +203,18 @@ def export_qlib(data, *, snapshot: str, queries, destination,
         if existing["spec_id"] != spec_id:
             raise DataError("Qlib destination belongs to a different immutable query")
         return existing
+    calendar_domain = manifest["domains"].get("trading_calendar")
+    calendar_checks = set()
     for q in queries + ((universe_query,) if universe_query is not None else ()):
-        _calendar(data, manifest["domains"].get("trading_calendar"), q)
+        signature = _calendar_signature(snapshot, q)
+        if signature in calendar_checks:
+            # A reused validation still checks referenced files. Unchanged
+            # objects need only their existing Store fingerprint check.
+            for part in calendar_domain["partitions"]:
+                data.store.verify_partition(part)
+        else:
+            _calendar(data, calendar_domain, q)
+            calendar_checks.add(signature)
     destination.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".qlib-", dir=destination.parent))
     try:
