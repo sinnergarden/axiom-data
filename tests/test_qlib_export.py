@@ -1,6 +1,8 @@
 """Qlib export semantics and actual optional-runtime consumer equivalence."""
 from dataclasses import replace
+from contextlib import nullcontext
 from copy import deepcopy
+from datetime import datetime
 import importlib.util
 import json
 from pathlib import Path
@@ -8,6 +10,7 @@ import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -259,6 +262,29 @@ class QlibExportTests(unittest.TestCase):
                 self.data.export_qlib(snapshot=sid,queries=(early,late),destination=self.view)
             self.assertEqual(calendar.call_count,2)
         self.assertFalse(self.view.exists())
+
+    def test_calendar_named_timezone_fold_keeps_uncached_comparison(self):
+        data,sid,q=fixture(self.root/'dst-calendar',('2020-11-01',))
+        manifest=data.store.load_snapshot(sid)
+        domain=deepcopy(manifest['domains']['trading_calendar'])
+        domain['source_profile']['availability']={'timezone':'America/New_York',
+                                                 'session_release_time':'01:30:00'}
+        sid=data.store.publish_snapshot(dict(manifest['domains'],trading_calendar=domain),
+            parent_snapshot=sid,build_context={'test':'calendar-dst-fold'})['snapshot_id']
+        fixed='2020-11-01T01:15:00-05:00'
+        named=datetime(2020,11,1,1,15,tzinfo=ZoneInfo('America/New_York'),fold=1)
+        self.assertEqual(named.isoformat(),fixed)
+        price=replace(q,fields=('close',),cutoff_by_session={'2020-11-01':fixed})
+        volume=replace(q,fields=('volume_shares',),cutoff_by_session={'2020-11-01':named})
+        for force_uncached in (False,True):
+            destination=self.root/('dst-uncached' if force_uncached else 'dst-shared')
+            signature=patch('axiom_data.qlib_export._calendar_signature',
+                            side_effect=lambda *args: object()) if force_uncached else nullcontext()
+            with signature, patch('axiom_data.qlib_export._calendar',wraps=_calendar) as calendar:
+                with self.assertRaisesRegex(DataError,'calendar is unknown.*2020-11-01'):
+                    data.export_qlib(snapshot=sid,queries=(price,volume),destination=destination)
+                self.assertEqual(calendar.call_count,2)
+            self.assertFalse(destination.exists())
 
     def test_hybrid_calendar_keeps_every_session_policy(self):
         first=replace(self.q,fields=('close',),pit_policy='bootstrap_hybrid_v1',

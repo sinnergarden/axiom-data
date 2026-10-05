@@ -7,6 +7,7 @@ is implicit. Rich per-key provenance remains in the referenced source Snapshot.
 from __future__ import annotations
 
 from dataclasses import fields, replace
+from datetime import datetime, timezone
 from hashlib import sha256
 from itertools import groupby
 import json
@@ -102,9 +103,18 @@ def _calendar(data, domain, query):
 
 
 def _calendar_signature(snapshot, query):
+    cutoffs = []
+    for day in query.sessions:
+        cutoff = _instant(query.cutoff_by_session[day], "calendar cutoff")
+        # Named/custom timezones and datetime subclasses can compare differently
+        # from the same ISO fixed-offset timestamp (notably at a DST fold).
+        # Preserve the existing comparison rules by validating those queries
+        # independently instead of sharing a simplified clock identity.
+        if type(cutoff) is not datetime or type(cutoff.tzinfo) is not timezone:
+            return object()
+        cutoffs.append((day, cutoff.isoformat()))
     return (snapshot, query.sessions, query.pit_policy,
-            tuple((day, _instant(query.cutoff_by_session[day], "calendar cutoff").isoformat())
-                  for day in query.sessions),
+            tuple(cutoffs),
             None if query.policy_by_session is None else tuple(sorted(query.policy_by_session.items())))
 
 
