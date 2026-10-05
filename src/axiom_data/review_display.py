@@ -69,7 +69,9 @@ def project_review_display(prices: DataBatch, factors: DataBatch, *, anchor_sess
         if any(item.get("usable_from") is not None and
                _instant(item["usable_from"], "native usable_from") > cutoff for item in metadata.values()):
             raise QueryError("review display native provenance is later than cutoff")
-    factor_rows = {(r["security_id"], r["session"]): r for r in factors.to_json()["records"]}
+    # Classify nonfinite factors before strict JSON converts them into nulls.
+    factor_rows = {(r["security_id"], r["session"]): r
+                   for r in factors.frame.to_dict(orient="records")}
     provenance = {(r["security_id"], r["session"]): r
                   for r in factors.field_meta["factor"]["by_key"]}
     records, scale_meta = [], []

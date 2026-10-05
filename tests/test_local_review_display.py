@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from axiom_data import (Data, DataBatch, ConflictError, IngestBatch, QueryError, QuerySpec,
+from axiom_data import (Data, DataBatch, ConflictError, EventQuery, IngestBatch, QueryError, QuerySpec,
                         UpdateRequest, load_review_display, project_review_display, save_review_display)
 
 
@@ -59,6 +59,31 @@ class ReviewDisplayTest(unittest.TestCase):
                        "availability": {"timezone": "Asia/Shanghai", "session_release_time": "20:00:00"}}
             batches.append(IngestBatch(batch.context["domain"], json.dumps(batch.to_json()["records"]).encode(),
                                        {}, contract, profile, "2026-10-04T00:00:00Z"))
+        auxiliary_queries = []
+        for domain, key, time_field, extra_fields, row in (
+            ("security_master", "listing_date", "listing_date",
+             {"name": {"dtype": "string"}, "source_code": {"dtype": "string"}},
+             {"listing_date": "2013-05-15", "name": "测试ETF", "source_code": "513100.SH"}),
+            ("corporate_actions", "event_id", "effective_date",
+             {"effective_date": {"dtype": "date"}, "cash": {"dtype": "float64", "unit": "CNY/fund unit"}},
+             {"event_id": "cash-1", "effective_date": "2022-01-12", "cash": None}),
+            ("fund_share_conversions", "event_id", "effective_date",
+             {"effective_date": {"dtype": "date"}, "ratio_numerator": {"dtype": "int64", "unit": "dimensionless"},
+              "ratio_denominator": {"dtype": "int64", "unit": "dimensionless"}},
+             {"event_id": "split-1", "effective_date": "2022-01-13", "ratio_numerator": 5, "ratio_denominator": 1}),
+        ):
+            fields = {"security_id": {"dtype": "string"},
+                      key: {"dtype": "date" if key == "listing_date" else "string"}, **extra_fields}
+            contract = {"contract_id": "synthetic." + domain,
+                        "logical_key": ["security_id", key], "fields": fields}
+            profile = {"id": "synthetic", "field_map": {f: f for f in fields},
+                       "source_units": {f: spec["unit"] for f, spec in fields.items() if spec.get("unit")},
+                       "availability": {"timezone": "Asia/Shanghai", "session_release_time": "20:00:00"}}
+            batches.append(IngestBatch(domain, json.dumps([{ "security_id": "ETF", **row}]).encode(),
+                                       {}, contract, profile, "2026-10-04T00:00:00Z"))
+            auxiliary_queries.append(EventQuery(domain, tuple(extra_fields), ("ETF",), "1900-01-01",
+                                               SESSIONS[-1], CUTOFF, "operational_pit_v1", time_field,
+                                               purpose="historical_exploration"))
         with TemporaryDirectory() as tmp:
             data = Data(Path(tmp) / "data")
             snapshot = data.update(base_snapshot=None, request=UpdateRequest(tuple(batches), "fixture", {})).snapshot_id
@@ -66,12 +91,29 @@ class ReviewDisplayTest(unittest.TestCase):
             queries = [QuerySpec(batch.context["domain"], tuple(batch.field_meta), ("ETF",), SESSIONS,
                                  "operational_pit_v1", {s: CUTOFF for s in SESSIONS},
                                  purpose="historical_exploration") for batch in (prices, factors)]
+            expected_auxiliary = [data.events(snapshot=snapshot, query=q).to_json() for q in auxiliary_queries]
             result = data.export_review_display(snapshot=snapshot, price_query=queries[0], factor_query=queries[1],
-                                                anchor_session=SESSIONS[-1], destination=Path(tmp) / "review")
+                                                anchor_session=SESSIONS[-1], destination=Path(tmp) / "review",
+                                                security_query=auxiliary_queries[0], event_queries=auxiliary_queries[1:])
             self.assertEqual(result["context"]["snapshot_id"], snapshot)
             self.assertEqual((data.store.root / "current.json").read_bytes(), before)
             saved = json.loads((Path(tmp) / "review/ohlcv.json").read_text())
             self.assertEqual([r["close"] for r in saved["records"]], [2., 2.])
+            self.assertEqual(saved["field_meta"]["close"]["unit"], "CNY/fund unit")
+            self.assertEqual(saved["field_meta"]["volume_units"]["unit"], "fund units")
+            with patch.object(Data, "read", side_effect=AssertionError("loader queried prices")), \
+                 patch.object(Data, "events", side_effect=AssertionError("loader queried events")), \
+                 patch("axiom_data.review_display.project_review_display", side_effect=AssertionError("loader projected")), \
+                 patch("axiom_data.review_display.adjust_prices", side_effect=AssertionError("loader adjusted")):
+                loaded = load_review_display(Path(tmp) / "review", manifest_sha256=result["manifest_file_ref"]["sha256"])
+            self.assertEqual(loaded["securities"]["batch"], expected_auxiliary[0])
+            self.assertEqual(loaded["securities"]["name_validity"], "unknown")
+            self.assertEqual(loaded["manifest"]["missing_name_security_ids"], [])
+            for batch in expected_auxiliary[1:]:
+                self.assertEqual(loaded["events"][batch["context"]["domain"]], batch)
+            cash_meta = loaded["events"]["corporate_actions"]["field_meta"]["cash"]["by_key"][0]
+            self.assertEqual(cash_meta["missing_reason"], "not_provided")
+            self.assertTrue(cash_meta["revision_id"])
             with self.assertRaisesRegex(QueryError, "outside fact storage"):
                 data.export_review_display(snapshot=snapshot, price_query=queries[0], factor_query=queries[1],
                                            anchor_session=SESSIONS[-1], destination=data.store.root / "canonical/review")
@@ -98,6 +140,38 @@ class ReviewDisplayTest(unittest.TestCase):
         self.assertTrue(all(r["close"] is None and r["display_scale"] is None for r in result["records"]))
         self.assertEqual(result["records"][0]["native_close"], 10.)
         self.assertEqual(result["field_meta"]["display_scale"]["by_key"][0]["missing_reason"], "missing_anchor_factor")
+
+    def test_missing_and_invalid_factors_keep_scale_and_price_reasons_consistent(self):
+        for position in (0, 1):
+            for value, state in ((None, "missing"), (float("nan"), "missing"),
+                                 (0., "invalid"), (-1., "invalid"), (float("inf"), "invalid"),
+                                 (float("-inf"), "invalid")):
+                with self.subTest(position=position, value=value):
+                    prices, factors = inputs()
+                    factors.frame.loc[position, "factor"] = value
+                    result = project_review_display(prices, factors, anchor_session=SESSIONS[-1])
+                    reason = state + ("_anchor_factor" if position else "_factor")
+                    affected = (0, 1) if position else (0,)
+                    for i in affected:
+                        self.assertIsNone(result["records"][i]["display_scale"])
+                        self.assertIsNone(result["records"][i]["close"])
+                        self.assertEqual(result["field_meta"]["display_scale"]["by_key"][i]["missing_reason"], reason)
+                        self.assertEqual(result["field_meta"]["close"]["by_key"][i]["missing_reason"], reason)
+                    self.assertEqual([r["volume_units"] for r in result["records"]], [1000, 9000])
+                    self.assertEqual([r["native_close"] for r in result["records"]], [10., 2.])
+
+    def test_stock_units_keep_native_volume_and_amount(self):
+        prices, factors = inputs()
+        prices.frame.rename(columns={"volume_units": "volume_shares"}, inplace=True)
+        prices.field_meta["volume_shares"] = prices.field_meta.pop("volume_units")
+        prices.field_meta["volume_shares"]["unit"] = "shares"
+        prices.context["query"]["fields"] = list(prices.field_meta)
+        for field in ("open", "high", "low", "close"):
+            prices.field_meta[field]["unit"] = "CNY/share"
+        result = project_review_display(prices, factors, anchor_session=SESSIONS[-1])
+        self.assertEqual([r["volume_shares"] for r in result["records"]], [1000, 9000])
+        self.assertEqual(result["field_meta"]["volume_shares"]["unit"], "shares")
+        self.assertEqual(result["field_meta"]["amount_cny"]["unit"], "CNY")
 
     def test_missing_price_preserves_reason_and_does_not_invent_volume(self):
         prices, factors = inputs()
