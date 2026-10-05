@@ -292,7 +292,8 @@ def plan_research_scope(store: Any, snapshot_id: str, *, universe_id: str,
         raise QueryError(f"unsupported PIT policy {pit_policy!r}")
     elif policy_by_session is not None:
         raise QueryError("policy_by_session is only valid with bootstrap_hybrid_v1")
-    manifest = store.load_snapshot(snapshot_id)
+    reader = SnapshotQueryReader(store, snapshot_id)
+    manifest = reader.snapshot
     if "universe_membership" not in manifest["domains"]:
         raise QueryError("universe_membership is absent from Snapshot")
     calendar_domain = manifest["domains"].get("trading_calendar")
@@ -350,7 +351,7 @@ def plan_research_scope(store: Any, snapshot_id: str, *, universe_id: str,
     member_query = QuerySpec("universe_membership", ("is_member",), tuple(sorted(candidates)),
                              selected_sessions, pit_policy, cutoffs, universe_id=universe_id,
                              policy_by_session=segmented)
-    membership = SnapshotQueryReader(store, snapshot_id).read(member_query)
+    membership = reader.read(member_query)
     by_day: dict[str, list[str]] = {day: [] for day in selected_sessions}
     for row in membership.frame.itertuples(index=False):
         if row.is_member is True or (pd.notna(row.is_member) and bool(row.is_member)):

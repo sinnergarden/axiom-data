@@ -5,6 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import tempfile
 import unittest
+from unittest.mock import patch
+
+from axiom_data import Data, DataError
 
 from axiom_data.local_states import plan_research_scope, read_states
 from axiom_data.protocols import QuerySpec
@@ -123,6 +126,42 @@ class CompletionStatesTests(unittest.TestCase):
                              .frame.loc[0, "market_state"], "normal_trading")
             self.assertEqual(read_states(store, snapshot, query("2024-01-05T00:00:00Z"))
                              .frame.loc[0, "market_state"], "suspended")
+
+    def test_public_scope_loads_once_per_call_and_does_not_mix_snapshots(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalStore(tmp)
+            calendar = add_domain(store, "trading_calendar", [
+                row(exchange="SSE", session=day, is_open=True)
+                for day in ("2024-01-05", "2024-01-08")], CAL)
+            snapshots = []
+            for symbol in ("A", "B"):
+                membership = add_domain(store, "universe_membership", [
+                    row(security_id=symbol, universe_id="IDX", membership_id=symbol,
+                        effective_from="2024-01-02", effective_to=None)], MEMBER,
+                    coverage={"complete_states": [{"universe_id": "IDX", "complete": True,
+                        "effective_from": "2024-01-02", "effective_to": None,
+                        "members": [symbol], "first_observed_at": OBSERVED}]})
+                snapshots.append(store.publish_snapshot(
+                    {"trading_calendar": calendar, "universe_membership": membership},
+                    parent_snapshot=snapshots[-1] if snapshots else None,
+                    build_context={"case": symbol})["snapshot_id"])
+            data = Data(tmp)
+            options = dict(universe_id="IDX", output_sessions=("2024-01-08",),
+                           cutoff_by_session={"2024-01-08": CUTOFF},
+                           pit_policy="operational_pit_v1", lookback_sessions=1, exchange="SSE")
+            with patch.object(data.store, "load_snapshot", wraps=data.store.load_snapshot) as loads:
+                for snapshot, symbol in zip(snapshots, ("A", "B")):
+                    before = loads.call_count
+                    scope = data.plan_scope(snapshot=snapshot, **options)
+                    self.assertEqual(loads.call_count - before, 1)
+                    self.assertEqual(scope["snapshot_id"], snapshot)
+                    self.assertEqual(scope["decision_membership_by_session"], {"2024-01-08": [symbol]})
+                    self.assertEqual(scope["warmup_sessions"], ["2024-01-05"])
+                    self.assertEqual(scope["missing_reasons"], [])
+                path = store.root / "snapshots" / (snapshots[0] + ".json")
+                path.write_bytes(path.read_bytes().replace(b'"case":"A"', b'"case":"forged"'))
+                with self.assertRaisesRegex(DataError, "digest mismatch"):
+                    data.plan_scope(snapshot=snapshots[0], **options)
 
     def test_historical_union_reentry_holiday_lookback_and_outside_holdings(self):
         with tempfile.TemporaryDirectory() as tmp:

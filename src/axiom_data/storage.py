@@ -56,6 +56,25 @@ def _json_bytes(value: Any) -> bytes:
     ).encode("utf-8")
 
 
+def _json_digest(value: Any) -> str:
+    """Hash the existing canonical encoding without materializing all its bytes."""
+    encoder = json.JSONEncoder(sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                               allow_nan=False, default=_json_default)
+    digest = sha256()
+    chunks = []
+    characters = 0
+    for chunk in encoder.iterencode(value):
+        chunks.append(chunk)
+        characters += len(chunk)
+        if characters >= 65536:
+            digest.update("".join(chunks).encode("utf-8"))
+            chunks.clear()
+            characters = 0
+    if chunks:
+        digest.update("".join(chunks).encode("utf-8"))
+    return digest.hexdigest()
+
+
 def _stamp(value: datetime | str) -> str:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00")) if isinstance(value, str) else value
@@ -544,7 +563,7 @@ class LocalStore:
             raise DataError(f"invalid snapshot manifest: {snapshot_id}")
         body = {key: value for key, value in manifest.items() if key != "snapshot_id"}
         try:
-            actual_id = "s_" + sha256(_json_bytes(body)).hexdigest()
+            actual_id = "s_" + _json_digest(body)
         except (TypeError, ValueError) as exc:
             raise DataError(f"invalid snapshot manifest: {snapshot_id}") from exc
         if actual_id != snapshot_id:
