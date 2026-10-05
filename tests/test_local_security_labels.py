@@ -68,6 +68,17 @@ class SecurityLabelsTest(unittest.TestCase):
             self.assertIsNone(loaded['securities']['batch']['records'][0]['name'])
             self.assertEqual(loaded['securities']['batch']['field_meta']['name']['by_key'][0]['missing_reason'], 'not_provided')
 
+    def test_opaque_references_cannot_be_coerced_or_lose_colliding_keys(self):
+        for value in ({1: 'numeric-key-run', '1': 'string-key-run'}, {'nested': {7: 'run'}},
+                      {'tuple': ('run', 1)}, {'invalid': float('nan')}, {'invalid': float('inf')}):
+            with self.subTest(value=value), TemporaryDirectory() as tmp:
+                root = Path(tmp); display = self.display(root)
+                with self.assertRaisesRegex(QueryError, 'strict JSON'):
+                    save_review_security_labels(labels(), destination=root / 'labels',
+                         display_manifest=root / 'prices/manifest.json',
+                         display_manifest_sha256=display['manifest_file_ref']['sha256'], run_ref=value)
+                self.assertFalse((root / 'labels').exists())
+
     def test_rejects_scope_identity_and_observation_clock_without_publication(self):
         for kind in ('query_scope', 'record_scope', 'duplicate', 'observation', 'provenance'):
             with self.subTest(kind=kind), TemporaryDirectory() as tmp:

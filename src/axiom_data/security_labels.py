@@ -15,6 +15,16 @@ from .review_display import SCHEMA as DISPLAY_SCHEMA
 SCHEMA = 'review_security_labels_v1'
 
 
+def _json_value(value):
+    if type(value) in (str, int, float, bool, type(None)):
+        return True
+    if type(value) is list:
+        return all(_json_value(item) for item in value)
+    if type(value) is dict:
+        return all(type(key) is str and _json_value(item) for key, item in value.items())
+    return False
+
+
 def _observed_labels(batch, symbols):
     context = batch.context
     query = context.get('query') or {}
@@ -87,9 +97,12 @@ def save_review_security_labels(labels: DataBatch, *, destination, display_manif
     if run_ref is None:
         raise QueryError('security labels require an opaque run reference')
     try:
-        run_ref = json.loads(json.dumps(run_ref, ensure_ascii=False, allow_nan=False))
+        json.dumps(run_ref, ensure_ascii=False, allow_nan=False)
     except (TypeError, ValueError) as exc:
         raise QueryError('opaque run reference must be strict JSON') from exc
+    if not _json_value(run_ref):
+        raise QueryError('opaque run reference must be strict JSON with string object keys')
+    run_ref = deepcopy(run_ref)
     wire = _observed_labels(labels, symbols)
     query = wire['context']['query']
     named = {r['security_id'] for r in wire['records'] if r.get('name') and r.get('source_code')}
