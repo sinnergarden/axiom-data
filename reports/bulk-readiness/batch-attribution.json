@@ -1,0 +1,11 @@
+{
+  "status": "REPRODUCED",
+  "injected_failure": "first member during shared preparation",
+  "recorded_failure": {
+    "last": {
+      "error_type": "ArtifactError"
+    }
+  },
+  "published_views": {},
+  "limitation": "Isolated operation-control probe, not a real source failure."
+}

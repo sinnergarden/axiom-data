@@ -1,0 +1,21 @@
+{
+  "audit_wall_seconds_through_validation": 867.5,
+  "blocked": 15,
+  "checkpoint_sha256": "903611fac674da71f39f0cbf95eba437af0c60a4052db9a01f191d8217bd5d11",
+  "checkpoint_status": "FAILED",
+  "disk_free_bytes": 620522782720,
+  "executed_implementation_digest": "sha256:3f2fcc4d94ce87e852e0276be6d62c312653c8cc8a72e217bfd2751a43276ffe",
+  "frozen_plan_sha256": "e910beafee563d112beaab7b76008b20cc51d9ea151c881ed28493d5d996550e",
+  "full_readiness": "NOT_ACHIEVED",
+  "gate_b": "NOT_RUN",
+  "inodes_free": 62240057,
+  "input_implementation_digest": "sha256:decdcff3e9bbc649f8b771e95198a1e73c689509bf80f749f632604ba1623a41",
+  "installed_code_matches_execution": true,
+  "labels": 17895,
+  "product_files_changed": false,
+  "request_equality": true,
+  "retained_publications": 2002,
+  "source_disagreements": 17,
+  "status": "PASS",
+  "unknown": 17880
+}

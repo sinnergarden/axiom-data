@@ -1,0 +1,406 @@
+[
+  {
+    "anchor": "2020-08-27",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2020-08-27",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600069.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2020-08-28",
+      "exchange": "SSE",
+      "list_session": "1997-04-30",
+      "status": "source-current-D",
+      "symbol": "600069.SH"
+    },
+    "symbol": "600069.SH"
+  },
+  {
+    "anchor": "2020-06-02",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2020-06-02",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600074.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2020-06-03",
+      "exchange": "SSE",
+      "list_session": "1997-06-23",
+      "status": "source-current-D",
+      "symbol": "600074.SH"
+    },
+    "symbol": "600074.SH"
+  },
+  {
+    "anchor": "2021-03-17",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2021-03-17",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600086.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2021-03-18",
+      "exchange": "SSE",
+      "list_session": "1997-06-06",
+      "status": "source-current-D",
+      "symbol": "600086.SH"
+    },
+    "symbol": "600086.SH"
+  },
+  {
+    "anchor": "2020-08-14",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2020-08-14",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600175.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2020-08-17",
+      "exchange": "SSE",
+      "list_session": "1999-04-08",
+      "status": "source-current-D",
+      "symbol": "600175.SH"
+    },
+    "symbol": "600175.SH"
+  },
+  {
+    "anchor": "2025-07-25",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2025-07-25",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600190.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2025-07-28",
+      "exchange": "SSE",
+      "list_session": "1999-06-09",
+      "status": "source-current-D",
+      "symbol": "600190.SH"
+    },
+    "symbol": "600190.SH"
+  },
+  {
+    "anchor": "2020-02-05",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2020-02-05",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600240.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2020-02-06",
+      "exchange": "SSE",
+      "list_session": "2000-06-28",
+      "status": "source-current-D",
+      "symbol": "600240.SH"
+    },
+    "symbol": "600240.SH"
+  },
+  {
+    "anchor": "2022-07-13",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2022-07-13",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600555.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2022-07-14",
+      "exchange": "SSE",
+      "list_session": "2001-03-28",
+      "status": "source-current-D",
+      "symbol": "600555.SH"
+    },
+    "symbol": "600555.SH"
+  },
+  {
+    "anchor": "2021-07-21",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2021-07-21",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600614.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2021-07-22",
+      "exchange": "SSE",
+      "list_session": "1992-08-28",
+      "status": "source-current-D",
+      "symbol": "600614.SH"
+    },
+    "symbol": "600614.SH"
+  },
+  {
+    "anchor": "2021-07-21",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2021-07-21",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600634.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2021-07-22",
+      "exchange": "SSE",
+      "list_session": "1993-03-04",
+      "status": "source-current-D",
+      "symbol": "600634.SH"
+    },
+    "symbol": "600634.SH"
+  },
+  {
+    "anchor": "2021-03-03",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2021-03-03",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600687.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2021-03-04",
+      "exchange": "SSE",
+      "list_session": "1993-11-08",
+      "status": "source-current-D",
+      "symbol": "600687.SH"
+    },
+    "symbol": "600687.SH"
+  },
+  {
+    "anchor": "2022-06-14",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2022-06-14",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600695.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2022-06-15",
+      "exchange": "SSE",
+      "list_session": "1993-11-22",
+      "status": "source-current-D",
+      "symbol": "600695.SH"
+    },
+    "symbol": "600695.SH"
+  },
+  {
+    "anchor": "2021-04-30",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2021-04-30",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600701.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2021-05-06",
+      "exchange": "SSE",
+      "list_session": "1996-05-28",
+      "status": "source-current-D",
+      "symbol": "600701.SH"
+    },
+    "symbol": "600701.SH"
+  },
+  {
+    "anchor": "2019-12-12",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2019-12-12",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "600747.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2019-12-13",
+      "exchange": "SSE",
+      "list_session": "1996-09-16",
+      "status": "source-current-D",
+      "symbol": "600747.SH"
+    },
+    "symbol": "600747.SH"
+  },
+  {
+    "anchor": "2015-05-20",
+    "anchor_context": {
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2015-05-20",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "601268.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2015-05-21",
+      "exchange": "SSE",
+      "list_session": "2010-02-02",
+      "status": "source-current-D",
+      "symbol": "601268.SH"
+    },
+    "symbol": "601268.SH"
+  },
+  {
+    "anchor": "2020-07-02",
+    "anchor_context": {
+      "market_daily": [],
+      "security_status": [
+        {
+          "availability_basis": "terminal_history_observed",
+          "first_observed_at": "2026-09-17T16:41:55.795542+00:00",
+          "pit_qualification": "best_effort",
+          "reason": "source_gap",
+          "session": "2020-07-02",
+          "source_available_at": null,
+          "source_ref": "scope-37d22af7ea2e1da703d8b77b16bdf54fe79fc85ee73245e2c67700a77ebeb33b",
+          "status": "unknown_source_gap",
+          "symbol": "601558.SH"
+        }
+      ]
+    },
+    "identity": {
+      "delist_session": "2020-07-03",
+      "exchange": "SSE",
+      "list_session": "2011-01-13",
+      "status": "source-current-D",
+      "symbol": "601558.SH"
+    },
+    "symbol": "601558.SH"
+  }
+]

@@ -1,0 +1,857 @@
+[
+  {
+    "contract": "adjustment_factors.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": false,
+      "type": "date",
+      "unit": "Asia/Shanghai exchange session"
+    }
+  },
+  {
+    "contract": "adjustment_factors.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "adjustment_factors.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "benchmark_daily.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": false,
+      "type": "date",
+      "unit": "Asia/Shanghai exchange session"
+    }
+  },
+  {
+    "contract": "benchmark_daily.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "benchmark_daily.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "corporate_actions.v1.json",
+    "field": {
+      "name": "announcement_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v1.json",
+    "field": {
+      "name": "record_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v1.json",
+    "field": {
+      "name": "ex_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v1.json",
+    "field": {
+      "name": "effective_date",
+      "nullable": false,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v1.json",
+    "field": {
+      "name": "payment_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v1.json",
+    "field": {
+      "name": "share_available_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "corporate_actions.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "corporate_actions.v2.json",
+    "field": {
+      "name": "announcement_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v2.json",
+    "field": {
+      "name": "record_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v2.json",
+    "field": {
+      "name": "ex_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v2.json",
+    "field": {
+      "name": "effective_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v2.json",
+    "field": {
+      "name": "payment_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v2.json",
+    "field": {
+      "name": "share_available_date",
+      "nullable": true,
+      "type": "date",
+      "unit": "calendar date"
+    }
+  },
+  {
+    "contract": "corporate_actions.v2.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "corporate_actions.v2.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "financial_events.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "financial_events.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "financial_events.v1.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "financial_events.v2.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "financial_events.v2.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "financial_events.v2.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "financial_events.v3.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "financial_events.v3.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "financial_events.v3.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "financial_events.v4.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "financial_events.v4.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "financial_events.v4.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "forecast_observations.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "forecast_observations.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "forecast_observations.v1.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "forecast_observations.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "forecast_observations.v2.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "forecast_observations.v2.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "forecast_observations.v2.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "forecast_observations.v2.json",
+    "field": {
+      "name": "session",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "holder_count_events.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "holder_count_events.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "holder_count_events.v1.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "holder_count_events.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "industry_membership.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "industry_membership.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "industry_membership.v1.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "industry_membership.v1.json",
+    "field": {
+      "name": "effective_from",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "industry_membership.v1.json",
+    "field": {
+      "name": "effective_to",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "industry_membership.v2.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "industry_membership.v2.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "industry_membership.v2.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "industry_membership.v2.json",
+    "field": {
+      "name": "effective_from",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "industry_membership.v2.json",
+    "field": {
+      "name": "effective_to",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "industry_membership.v3.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "industry_membership.v3.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "industry_membership.v3.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "margin_daily.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "margin_daily.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "margin_daily.v1.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "margin_daily.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "market_daily.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": false,
+      "type": "date",
+      "unit": "Asia/Shanghai exchange calendar date"
+    }
+  },
+  {
+    "contract": "moneyflow_daily.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "moneyflow_daily.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "moneyflow_daily.v1.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "moneyflow_daily.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "price_limits.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": false,
+      "type": "date",
+      "unit": "Asia/Shanghai exchange session"
+    }
+  },
+  {
+    "contract": "price_limits.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "price_limits.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "security_capital.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": false,
+      "type": "date",
+      "unit": "Asia/Shanghai exchange session"
+    }
+  },
+  {
+    "contract": "security_capital.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "security_capital.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "security_capital.v2.json",
+    "field": {
+      "name": "session",
+      "nullable": false,
+      "type": "date",
+      "unit": "Asia/Shanghai exchange session"
+    }
+  },
+  {
+    "contract": "security_capital.v2.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "security_capital.v2.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "security_master.v1.json",
+    "field": {
+      "name": "list_session",
+      "nullable": true,
+      "type": "date",
+      "unit": "Asia/Shanghai calendar date, inclusive"
+    }
+  },
+  {
+    "contract": "security_master.v1.json",
+    "field": {
+      "name": "delist_session",
+      "nullable": true,
+      "type": "date",
+      "unit": "Asia/Shanghai calendar date, exclusive delisting-effective boundary"
+    }
+  },
+  {
+    "contract": "security_status.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": false,
+      "type": "date",
+      "unit": "Asia/Shanghai calendar date"
+    }
+  },
+  {
+    "contract": "security_status.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "security_status.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false,
+      "type": "datetime",
+      "unit": "timezone-aware"
+    }
+  },
+  {
+    "contract": "top_holders_reports.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "top_holders_reports.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "top_holders_reports.v1.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "top_holders_reports.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "trading_calendar.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": false,
+      "type": "date",
+      "unit": "Asia/Shanghai exchange calendar date"
+    }
+  },
+  {
+    "contract": "trading_calendar.v1.json",
+    "field": {
+      "name": "previous_open_session",
+      "nullable": true,
+      "type": "date",
+      "unit": "Asia/Shanghai exchange calendar date"
+    }
+  },
+  {
+    "contract": "universe_membership.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "universe_membership.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "universe_membership.v1.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "universe_membership.v1.json",
+    "field": {
+      "name": "effective_from",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "universe_membership.v1.json",
+    "field": {
+      "name": "effective_to",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "universe_membership.v2.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "universe_membership.v2.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "universe_membership.v2.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "universe_membership.v2.json",
+    "field": {
+      "name": "effective_from",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "universe_membership.v2.json",
+    "field": {
+      "name": "effective_to",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "universe_membership.v3.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "universe_membership.v3.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "universe_membership.v3.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "universe_membership.v3.json",
+    "field": {
+      "name": "effective_from",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "universe_membership.v3.json",
+    "field": {
+      "name": "effective_to",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "valuation_daily.v1.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "valuation_daily.v1.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "valuation_daily.v1.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "valuation_daily.v1.json",
+    "field": {
+      "name": "session",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "valuation_daily.v2.json",
+    "field": {
+      "name": "source_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "valuation_daily.v2.json",
+    "field": {
+      "name": "first_observed_at",
+      "nullable": false
+    }
+  },
+  {
+    "contract": "valuation_daily.v2.json",
+    "field": {
+      "name": "vendor_available_at",
+      "nullable": true
+    }
+  },
+  {
+    "contract": "valuation_daily.v2.json",
+    "field": {
+      "name": "session",
+      "nullable": false
+    }
+  }
+]
