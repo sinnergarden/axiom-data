@@ -656,6 +656,30 @@ class LocalStore:
         """Publish a complete manifest, then atomically replace current."""
         with self.writer():
             parent = self.load_snapshot(parent_snapshot) if parent_snapshot is not None else None
+            return self._publish_snapshot_from_parent(
+                domains, parent_snapshot=parent_snapshot, parent=parent,
+                build_context=build_context, promote=promote)
+
+    def _publish_snapshot_from_parent(
+        self, domains: Mapping[str, Any], *, parent_snapshot: str | None,
+        parent: Mapping[str, Any] | None, build_context: Mapping[str, Any], promote: bool,
+    ) -> dict[str, Any]:
+        """Internal publication using this writer's already validated parent.
+
+        The caller must have loaded the fixed parent under the same writer
+        lock and kept every nested parent container unchanged. Update builders
+        replace modified domains; no caller-supplied validation flag or parent
+        is accepted by the public publication method. Object/Raw checks and
+        atomic publication use the same path for public and internal callers.
+        """
+        # Acquire the mutex before inspecting writer depth: another thread
+        # cannot borrow a writer owned by the thread currently holding it.
+        with self._mutex:
+            if not self._writer_depth:
+                raise DataError("parent reuse requires the active writer lock")
+            if ((parent is None) != (parent_snapshot is None) or
+                    (parent is not None and parent.get("snapshot_id") != parent_snapshot)):
+                raise DataError("reused parent does not match the fixed Snapshot ID")
             body = {
                 "schema_version": "local_data_v1", "parent_snapshot": parent_snapshot,
                 "domains": dict(domains), "build_context": dict(build_context),

@@ -463,7 +463,9 @@ def _publish(store: LocalStore, base_snapshot: str | None, base: dict[str, Any] 
              build_context: Mapping[str, Any], promote: bool, operation_id: str,
              state: dict[str, Any], *, replace: bool,
              replacement_domains: Mapping[str, Mapping[str, Any]] | None = None) -> OperationResult:
-    domains = deepcopy(base["domains"]) if base else {}
+    # Domain builders copy nested metadata/rows before modifying them. Borrow
+    # untouched domains and replace changed domains with their new objects.
+    domains = dict(base["domains"]) if base else {}
     changed = False
     for name, entries in grouped.items():
         old = domains.get(name)
@@ -491,8 +493,9 @@ def _publish(store: LocalStore, base_snapshot: str | None, base: dict[str, Any] 
         if base_snapshot is None:
             raise DataError("an empty initial update cannot produce a Snapshot")
         return _finish(store, operation_id, state, base_snapshot, False)
-    manifest = store.publish_snapshot(domains, parent_snapshot=base_snapshot,
-                                      build_context=build_context, promote=promote)
+    manifest = store._publish_snapshot_from_parent(
+        domains, parent_snapshot=base_snapshot, parent=base,
+        build_context=build_context, promote=promote)
     return _finish(store, operation_id, state, manifest["snapshot_id"], True)
 
 
