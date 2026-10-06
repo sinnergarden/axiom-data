@@ -110,6 +110,67 @@ class BatchRateLimiter:
             self._sleep(due - now)
 
 
+def verify_batch_selectors(store: LocalStore, *, operation_id: str,
+                           specs: Sequence[Mapping[str, Any]],
+                           plan_fingerprint: str, identity_map: Mapping[str, str]) -> list[str]:
+    """Read-only check of frozen initial selectors and their complete split tree.
+
+    Each capped parent must have every deterministic child, including date and
+    symbol splits. A leaf binds its own Raw selector, rather than requiring the
+    full job universe in every child. Empty successful leaves count as observed
+    responses, never as proof that source facts exist.
+    """
+    state = store.read_operation(operation_id)
+    if not state or state.get("kind") != "batch_fetch_v2" or state.get("status") != "success":
+        raise DataError("batch selector checkpoint is incomplete")
+    tasks = state["tasks"]
+    symbol_sets = state["canonical_symbol_sets"]
+    if any(_digest(symbols) != ref for ref, symbols in symbol_sets.items()):
+        raise DataError("batch canonical symbol binding differs from its digest")
+    visited = set()
+
+    def visit(index, expected):
+        if type(index) is not int or not 0 <= index < len(tasks) or index in visited:
+            raise DataError("batch selector tree has missing or repeated children")
+        visited.add(index)
+        task = _expand_task(tasks[index], symbol_sets)
+        fields = ("endpoint", "params", "fields", "canonical_symbols")
+        if any(task.get(field) != expected.get(field) for field in fields):
+            raise DataError("batch child selector differs from the frozen plan")
+        split = task.get("status") == "split"
+        if not split and task.get("status") != "done":
+            raise DataError("batch selector has no completed response")
+        raw_id = task.get("cap_raw_batch_id" if split else "selected_raw_batch_id")
+        raw = store.get_raw(raw_id)
+        request = raw.get("request", {})
+        if (raw.get("status") not in ({"cap"} if split else {"success", "empty"}) or
+                request.get("plan_fingerprint") != plan_fingerprint or
+                request.get("plan_request_index") != index or
+                any(request.get(field) != task.get(field) for field in fields)):
+            raise DataError("batch Raw selector differs from its completed child")
+        frozen_identity = raw.get("source_profile", {}).get("identity_map")
+        if frozen_identity is not None and frozen_identity != dict(identity_map):
+            raise DataError("batch Raw identity differs from the frozen plan")
+        store.read_raw_record(raw)
+        if split:
+            children = _children(task)
+            indexes = task.get("child_indexes", [])
+            if len(indexes) != len(children):
+                raise DataError("batch split does not cover its complete parent scope")
+            for child_index, child in zip(indexes, children):
+                visit(child_index, child)
+
+    for index, spec in enumerate(specs):
+        visit(index, spec)
+    if visited != set(range(len(tasks))):
+        raise DataError("batch has selectors outside the frozen plan")
+    # Selected receipts are saved in task order, independent of completion order.
+    selected = [task["selected_raw_batch_id"] for task in tasks if task["status"] == "done"]
+    if selected != state.get("selected_raw_batch_ids") or len(set(selected)) != len(selected):
+        raise DataError("batch selected Raw differs from its completed leaves")
+    return selected
+
+
 def run_batch_chunk(store: LocalStore, *, specs: Sequence[Mapping[str, Any]],
                     client: Any, operation_id: str, plan_fingerprint: str,
                     identity_map: Mapping[str, str], raw_log_offset: int,

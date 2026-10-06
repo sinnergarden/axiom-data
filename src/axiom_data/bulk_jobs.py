@@ -16,7 +16,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 from .protocols import ConflictError, DataError, OperationResult
 from .provider_local import CONTRACTS, FIELDS
-from .batch_fetch import BatchRateLimiter, run_batch_chunk
+from .batch_fetch import BatchRateLimiter, run_batch_chunk, verify_batch_selectors
 from .sources import _rows
 from .storage import LocalStore
 from .updates import apply_saved_raw
@@ -552,6 +552,21 @@ def verify_bulk_job(store: LocalStore, *, plan: BulkJobPlan, operation_id: str) 
         raise DataError("bulk job request accounting is incomplete")
     raw_count = 0
     selected_rows = 0
+    reference_specs = _v2_reference_specs(plan)
+    expected_chunks = [reference_specs[i:i + plan.max_requests_per_chunk]
+                       for i in range(0, len(reference_specs), plan.max_requests_per_chunk)]
+    reference_ids = [raw_id for index in range(len(expected_chunks))
+                     for raw_id in (store.read_operation(f"{operation_id}.v2.c{index:06d}") or {}).get(
+                         "selected_raw_batch_ids", [])]
+    sessions = _v2_calendar_sessions(store, reference_ids, plan) if "trade_cal" in plan.endpoints else []
+    if sessions != state.get("trading_sessions"):
+        raise DataError("bulk open sessions differ from the frozen source calendar")
+    for first, last in _months(_day(plan.start_session), _day(plan.end_session)):
+        specs = _v2_month_specs(plan, sessions, first, last)
+        expected_chunks.extend(specs[i:i + plan.max_requests_per_chunk]
+                               for i in range(0, len(specs), plan.max_requests_per_chunk))
+    if len(expected_chunks) != total:
+        raise DataError("bulk chunks do not cover the frozen plan")
     for index in range(total):
         chunk_op = f"{operation_id}.v2.c{index:06d}"
         chunk = store.read_operation(chunk_op)
@@ -560,7 +575,9 @@ def verify_bulk_job(store: LocalStore, *, plan: BulkJobPlan, operation_id: str) 
         if any(
                 task["status"] not in {"done", "split"} for task in chunk["tasks"]):
             raise DataError(f"bulk job chunk {index} has unresolved requests")
-        ids = chunk["selected_raw_batch_ids"]
+        ids = verify_batch_selectors(store, operation_id=chunk_op,
+                                     specs=expected_chunks[index], plan_fingerprint=plan.fingerprint(),
+                                     identity_map=dict(plan.identity_map))
         records = store.get_raw_many(ids)
         for batch_id in ids:
             raw = records[batch_id]

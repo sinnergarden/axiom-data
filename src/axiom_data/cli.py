@@ -231,6 +231,8 @@ def _load_plan(path: Path):
                 "max_attempts", "min_interval_seconds", "plan_sha256"}
     if envelope.get("schema_version") in {_PLAN_SCHEMA_V2, _FULL_SCHEMA, _ETF_SCHEMA}:
         required |= {"max_workers", "global_calls_per_minute", "stock_basic_calls_per_minute"}
+    if "source_scope" in envelope or "source_scope_sha256" in envelope:
+        required |= {"source_scope", "source_scope_sha256"}
     if set(envelope) != required or envelope["schema_version"] not in {_PLAN_SCHEMA, _PLAN_SCHEMA_V2, _FULL_SCHEMA, _ETF_SCHEMA}:
         raise ValueError("unsupported or incomplete CLI plan")
     body = {key: value for key, value in envelope.items() if key != "plan_sha256"}
@@ -244,6 +246,21 @@ def _load_plan(path: Path):
         job = EtfJobPlan.from_dict(envelope["job"])
     else:
         job = BulkJobPlan.from_dict(envelope["job"])
+    if "source_scope" in envelope:
+        from .bulk_jobs import plan_bulk_job
+        scope = envelope["source_scope"]
+        if not isinstance(scope, dict) or envelope["schema_version"] == _ETF_SCHEMA:
+            raise ValueError("invalid stock source scope binding")
+        _only_keys(scope, _SCOPE_KEYS, "source scope")
+        if _digest(scope) != envelope["source_scope_sha256"]:
+            raise ValueError("source scope digest mismatch")
+        market_scope = {key: value for key, value in scope.items() if key != "membership_source"}
+        market = job.market if envelope["schema_version"] == _FULL_SCHEMA else job
+        if plan_bulk_job(**market_scope).to_dict() != market.to_dict():
+            raise ValueError("job differs from its frozen source scope")
+        if (envelope["schema_version"] == _FULL_SCHEMA and
+                scope.get("membership_source") != job.membership_source):
+            raise ValueError("job membership differs from its frozen source scope")
     if not isinstance(envelope["operation_id"], str) or not _ID.fullmatch(envelope["operation_id"]):
         raise ValueError("invalid plan operation ID")
     if envelope["base_snapshot"] is not None and not isinstance(envelope["base_snapshot"], str):
@@ -665,6 +682,7 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
             return _plan_etf(args, scope)
         _only_keys(scope, _SCOPE_KEYS, "scope")
         from .bulk_jobs import estimate_bulk_job, plan_bulk_job
+        source_scope = dict(scope)
         membership_source = scope.pop("membership_source", None)
         job = plan_bulk_job(**scope)
         include_events = not args.market_only
@@ -706,6 +724,8 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
         body = {"schema_version": (_FULL_SCHEMA if include_events else
                                    _PLAN_SCHEMA_V2 if strategy == "trading_day_market_v2" else _PLAN_SCHEMA),
                 "job": job.to_dict(),
+                "source_scope": source_scope,
+                "source_scope_sha256": _digest(source_scope),
                 "operation_id": args.operation_id,
                 "base_snapshot": _base_for_plan(_root(args), args.base_snapshot),
                 "promote": not args.no_promote, "max_attempts": args.max_attempts,
@@ -721,6 +741,7 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
         with args.output.open("x", encoding="utf-8") as stream:
             stream.write(encoded)
         return {"plan": str(args.output), "operation_id": args.operation_id,
+                "source_scope_sha256": body["source_scope_sha256"],
                 "base_snapshot": body["base_snapshot"], "estimate": estimate}
     if command == "continue-financial":
         from .builder import freeze_builder
@@ -863,9 +884,12 @@ def _execute(args: argparse.Namespace, *, client: Any = None) -> dict[str, Any]:
                 from .etf_jobs import audit_etf_snapshot
                 report = audit_etf_snapshot(data.store, snapshot_id=snapshot, plan=job)
             else:
+                market = job.market if envelope["schema_version"] == _FULL_SCHEMA else job
                 report = audit_snapshot(data.store, snapshot_id=snapshot,
-                                        plan=job.market if envelope["schema_version"] == _FULL_SCHEMA else job,
-                                        base_snapshot=state.get("base_snapshot"))
+                                        plan=market, base_snapshot=state.get("base_snapshot"),
+                                        preserve_base=market.mode == "daily" and state.get("base_snapshot") is not None)
+                report["source_scope_sha256"] = envelope.get("source_scope_sha256")
+                report["scope_binding"] = "recorded" if "source_scope" in envelope else "not_recorded"
         except DataError as exc:
             report = {"status": "failed", "snapshot": args.snapshot,
                       "plan_operation_id": operation_id,
