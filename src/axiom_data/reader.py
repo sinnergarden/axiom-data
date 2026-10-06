@@ -364,7 +364,7 @@ class SnapshotQueryReader:
         return index
 
     def _read_rows(self, domain: Mapping[str, Any], query: QuerySpec,
-                   parts: list[Mapping[str, Any]] | None = None) -> list[dict[str, Any]]:
+                   parts: list[Mapping[str, Any]] | None = None, *, enrich: bool = True) -> list[dict[str, Any]]:
         """Original session-filter path, also used for inadmissible index candidates."""
         membership = query.domain == "universe_membership"
         columns = self._columns(domain, query)
@@ -380,24 +380,34 @@ class SnapshotQueryReader:
                 if not membership and isinstance(row.get("session"), date):
                     row["session"] = row["session"].isoformat()
                 rows.append(row)
+        if not enrich:
+            return rows
         from .public_evidence import apply_evidence
         return apply_evidence(rows, index=self._evidence(query),
                               key_fields=(domain.get("contract") or {}).get("logical_key") or ())
 
-    def _group_key(self, row: Mapping[str, Any], domain: Mapping[str, Any], query: QuerySpec):
+    def _group_key(self, row: Mapping[str, Any], domain: Mapping[str, Any], query: QuerySpec,
+                   *, unselected: bool = False):
         if query.domain != "universe_membership":
             return row.get("security_id"), row.get("session")
-        if row.get("universe_id") != query.universe_id:
+        universe = row.get("universe_id")
+        if not unselected and universe != query.universe_id:
             return None
         event_id = row.get("membership_id") or row.get("logical_event_key")
         if event_id is None:
             key_fields = (domain.get("contract") or {}).get("logical_key") or ()
             if not key_fields or any(row.get(name) is None for name in key_fields):
+                if unselected:
+                    # Do not introduce an event-key failure before the original
+                    # all-universe evidence join has had a chance to fail.
+                    return row["security_id"], universe, None
                 raise QueryError("membership intervals require stable logical_key or membership_id")
             event_id = tuple(row[name] for name in key_fields)
+        if unselected:
+            return row["security_id"], universe, str(event_id)
         return row["security_id"], str(event_id)
 
-    def _group_rows(self, rows, domain, query) -> dict:
+    def _group_rows(self, rows, domain, query, *, unselected: bool = False) -> dict:
         groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
         symbols, sessions = set(query.symbols), set(query.sessions)
         for row in rows:
@@ -405,7 +415,7 @@ class SnapshotQueryReader:
                 continue
             if query.domain != "universe_membership" and row.get("session") not in sessions:
                 continue
-            key = self._group_key(row, domain, query)
+            key = self._group_key(row, domain, query, unselected=unselected)
             if key is not None:
                 groups.setdefault(key, []).append(row)
         return groups
@@ -418,23 +428,27 @@ class SnapshotQueryReader:
         (including object-counting's temporary identity set), and five times a
         conservative chunk conversion bound. The extra factors cover both the
         converted chunk and growth/counting before its actual size is known.
-        This bounds optional index construction; required Parquet decoding and
-        the requested output still have the original query's transient costs.
+        The identity set is also charged explicitly at its current allocation.
+        This bounds optional index construction; required Parquet decoding,
+        copied query groups and the evidence join remain query working memory,
+        outside cache residency. It does not bound total process RSS.
         """
         table = self.store.read_partition(part, columns=columns, symbols=query.symbols, sessions=None)
         self.partition_reads += 1
         arrow_bytes = table.get_total_buffer_size() + sys.getsizeof(table)
         groups: dict = {}
-        size = _object_size(groups)
+        size = dict_bytes = sys.getsizeof(groups)
         if not table.num_rows:
             return groups
+        seen: set[int] = set()
         symbols = set(query.symbols)
         for offset in range(0, table.num_rows, _INDEX_CHUNK_ROWS):
             chunk = table.slice(offset, _INDEX_CHUNK_ROWS)
             # Supported scalar projections: 32x logical Arrow bytes also covers
             # strings/containers, while per-cell slack covers small scalars.
             chunk_bound = 32 * chunk.nbytes + chunk.num_rows * (1024 + 256 * len(columns)) + 4096
-            peak = arrow_bytes + 4 * size + 5 * chunk_bound + _ENTRY_BYTES
+            seen_bytes = sys.getsizeof(seen) + len(seen) * sys.getsizeof((1 << 64) - 1)
+            peak = arrow_bytes + max(4 * size, size + seen_bytes) + 5 * chunk_bound + _ENTRY_BYTES
             if not self._make_room(peak):
                 return None
             self.index_build_peak_bytes = max(self.index_build_peak_bytes, self._cached_bytes + peak)
@@ -446,10 +460,20 @@ class SnapshotQueryReader:
                         return None  # Preserve the original session-column/filter validation.
                     if isinstance(row["session"], date):
                         row["session"] = row["session"].isoformat()
-                key = self._group_key(row, domain, query)
+                key = self._group_key(row, domain, query, unselected=True)
                 if key is not None:
-                    groups.setdefault(key, []).append(row)
-            size = _object_size(groups)
+                    if key not in groups:
+                        groups[key] = []
+                        size += _object_size(key, seen) + sys.getsizeof(groups[key])
+                    # Count each retained row/key once. Container growth is
+                    # charged separately, without rescanning earlier chunks.
+                    size += _object_size(row, seen)
+                    previous_list_bytes = sys.getsizeof(groups[key])
+                    groups[key].append(row)
+                    size += sys.getsizeof(groups[key]) - previous_list_bytes
+            new_dict_bytes = sys.getsizeof(groups)
+            size += new_dict_bytes - dict_bytes
+            dict_bytes = new_dict_bytes
         return groups
 
     def _read_groups(self, domain: Mapping[str, Any], query: QuerySpec) -> dict:
@@ -459,7 +483,7 @@ class SnapshotQueryReader:
         from .public_evidence import apply_evidence
         columns = self._columns(domain, query)
         groups: dict = {}
-        evidence = None
+        membership = query.domain == "universe_membership"
         for part in self._parts_for_query(domain, query):
             identity = (self.snapshot_id, query.domain, domain.get("contract"), part,
                         sorted(columns), sorted(query.symbols), query.universe_id,
@@ -481,23 +505,41 @@ class SnapshotQueryReader:
                     # add a failure to the original narrow query.
                     raw = None
             if raw is None:
-                selected = self._group_rows(self._read_rows(domain, query, [part]), domain, query)
+                selected = self._group_rows(self._read_rows(domain, query, [part], enrich=False),
+                                           domain, query, unselected=membership)
             else:
-                if evidence is None:
-                    evidence = self._evidence(query)
                 selected = {}
-                wanted_keys = (raw if query.domain == "universe_membership" else
+                wanted_keys = (raw if membership else
                                ((symbol, session) for session in query.sessions for symbol in query.symbols))
                 for group_key in wanted_keys:
                     revisions = raw.get(group_key)
                     if revisions is None:
                         continue
-                    # Evidence mutates its input. Copies prevent one request's
-                    # enrichment or returned metadata from changing raw rows.
-                    selected[group_key] = apply_evidence([dict(row) for row in revisions], index=evidence,
-                        key_fields=(domain.get("contract") or {}).get("logical_key") or ())
+                    selected[group_key] = [dict(row) for row in revisions]
             for group_key, revisions in selected.items():
                 groups.setdefault(group_key, []).extend(revisions)
+            # A membership wanted_keys mapping otherwise keeps the entire
+            # previous index alive while the next one is built, even after LRU
+            # eviction. Only the copied query working set survives this part.
+            wanted_keys = ()
+            raw = selected = revisions = None
+        # Preserve the original order: read/verify every fact partition, then
+        # join evidence on its full queried scope, then validate/filter event
+        # keys. Membership's original scope includes all queried universes for
+        # the selected securities, not just query.universe_id.
+        evidence = self._evidence(query)
+        for revisions in groups.values():
+            apply_evidence(revisions, index=evidence,
+                           key_fields=(domain.get("contract") or {}).get("logical_key") or ())
+        if membership:
+            selected = {}
+            for (symbol, universe, event_id), revisions in groups.items():
+                if universe != query.universe_id:
+                    continue
+                if event_id is None:
+                    self._group_key(revisions[0], domain, query)  # Original deferred validation error.
+                selected[(symbol, event_id)] = revisions
+            return selected
         return groups
 
     def _put_cache(self, key: str, batch: DataBatch) -> DataBatch:
