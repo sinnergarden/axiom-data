@@ -544,8 +544,8 @@ def _matches_daily_source(row, original, fields):
         if expected is None:
             if actual is not None:
                 return False
-        elif actual is None or not math.isclose(float(actual), float(expected),
-                                               rel_tol=1e-12, abs_tol=1e-8):
+        elif actual is None or (Decimal(str(actual)) != expected if field == 'volume_shares' else
+                               not math.isclose(float(actual), float(expected), rel_tol=1e-12, abs_tol=1e-8)):
             return False
     return True
 

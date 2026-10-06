@@ -11,7 +11,7 @@ from axiom_data.batch_fetch import run_batch_chunk, verify_batch_selectors
 from axiom_data.bulk_jobs import plan_bulk_job
 from axiom_data.event_sources import CONTRACTS as EVENT_CONTRACTS, event_source_profile
 from axiom_data.protocols import DataError
-from axiom_data.provider_local import CONTRACTS, FIELDS, profile_for
+from axiom_data.provider_local import CAPS, CONTRACTS, FIELDS, profile_for
 from axiom_data.updates import rebuild_from_raw
 from axiom_data.verification import audit_snapshot
 from test_batch_jobs_v2 import WholeMarket, IDS
@@ -45,7 +45,7 @@ def facts(endpoint, codes, day, close=10):
     return [dict(row, up_limit=11., down_limit=9.) for row in common]
 
 
-def initialize(data):
+def initialize(data, missing=None):
     batches = []
     for exchange, codes in [('SZSE', ['000001.SZ', '000002.SZ']), ('SSE', ['600000.SH'])]:
         batches.append(source_batch('stock_basic', [dict(ts_code=code, exchange=exchange,
@@ -56,7 +56,8 @@ def initialize(data):
             {'exchange': exchange, 'start_date': '20260102', 'end_date': '20260105'}))
     for day in DAYS:
         for endpoint in ('daily', 'adj_factor', 'stk_limit'):
-            batches.append(source_batch(endpoint, facts(endpoint, IDENTITIES, day),
+            codes = [code for code in IDENTITIES if code not in (missing or {}).get((endpoint, day), ())]
+            batches.append(source_batch(endpoint, facts(endpoint, codes, day),
                                         {'trade_date': day.replace('-', '')}))
     return data.update(base_snapshot=None, request=UpdateRequest(tuple(batches), 'initial', {})).snapshot_id
 
@@ -149,13 +150,12 @@ class DailyAcceptanceTests(unittest.TestCase):
     def test_field_gaps_use_latest_revision_and_remain_explicit(self):
         with tempfile.TemporaryDirectory() as root:
             data = Data(root)
-            snapshot = initialize(data)
-            batches = []
-            for endpoint, field in [('daily', 'open'), ('adj_factor', 'adj_factor'), ('stk_limit', 'up_limit')]:
-                rows = facts(endpoint, ['000001.SZ'], DAYS[1])
-                rows[0][field] = None
-                batches.append(source_batch(endpoint, rows, {'trade_date': '20260105'},
-                    selected=['000001.SZ'], observed='2026-09-29T01:00:00Z'))
+            snapshot = initialize(data, missing={('adj_factor', DAYS[1]): ['000001.SZ'],
+                                                 ('stk_limit', DAYS[1]): ['000001.SZ']})
+            rows = facts('daily', ['000001.SZ'], DAYS[1])
+            rows[0]['open'] = None
+            batches = [source_batch('daily', rows, {'trade_date': '20260105'},
+                selected=['000001.SZ'], observed='2026-09-29T01:00:00Z')]
             current = data.update(base_snapshot=snapshot,
                 request=UpdateRequest(tuple(batches), 'nullable-fields', {})).snapshot_id
             report = audit_snapshot(data.store, snapshot_id=current, plan=plan(),
@@ -229,7 +229,7 @@ class DailyAcceptanceTests(unittest.TestCase):
             def query(self, endpoint, **params):
                 first, last = params['start_date'], params['end_date']
                 if first == '20200102' and last == '20200103':
-                    return [{}] * 1000
+                    return [{}] * CAPS['trade_cal']
                 return [dict(exchange='SSE', cal_date=first, is_open='1')]
         with tempfile.TemporaryDirectory() as root:
             store = Data(root).store
