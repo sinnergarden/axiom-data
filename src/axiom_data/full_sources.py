@@ -14,7 +14,7 @@ import json
 import time
 from typing import Any, Callable, Mapping, Sequence
 
-from .batch_fetch import BatchRateLimiter, run_batch_chunk
+from .batch_fetch import BatchRateLimiter, run_batch_chunk, verify_batch_selectors
 from .bulk_jobs import BulkJobPlan, plan_bulk_job, run_bulk_job, verify_bulk_job
 from .event_sources import request_fields
 from .protocols import ConflictError, CoverageError, DataError, OperationResult
@@ -614,11 +614,19 @@ def verify_full_sources(store: LocalStore, *, plan: FullSourcePlan,
         for batch_id in set(planned_ids) | set(planned_listed_ids):
             store.read_raw_record(store.get_raw(batch_id))
     unchanged_raw = 0
+    calendar_state = store.read_operation(f"{reference_operation}.calendar")
+    market_state = store.read_operation(f"{reference_operation}.market")
+    event_chunks = list(_event_chunks(plan, _next_open_map(plan, calendar_state["trading_sessions"]),
+                                     market_state["trading_sessions"]))
+    if len(event_chunks) != state["total_event_chunks"]:
+        raise CoverageError("event chunks do not cover the frozen plan")
     for index in range(state["total_event_chunks"]):
         chunk_op = f"{operation_id}.e.c{index:06d}"
         child = store.read_operation(chunk_op)
         if not child or child.get("status") != "success":
             raise CoverageError(f"event chunk {index} is incomplete")
+        verify_batch_selectors(store, operation_id=chunk_op, specs=event_chunks[index][2],
+                               plan_fingerprint=plan.fingerprint(), identity_map=dict(plan.market.identity_map))
         published = store.read_operation(f"{chunk_op}.publish")
         if (not published or published.get("status") != "success" or
                 published.get("base_snapshot") != expected_base or

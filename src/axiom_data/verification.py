@@ -528,8 +528,105 @@ def _audit_conversion_raw(store, domain, raw_id, canonical):
     return len(canonical)
 
 
+_DAILY_FIELDS = {
+    'market_daily': {'open': ('open', 1), 'high': ('high', 1), 'low': ('low', 1),
+                     'close': ('close', 1), 'pre_close': ('pre_close', 1),
+                     'volume_shares': ('vol', 100), 'amount_cny': ('amount', 1000)},
+    'adjustment_factors': {'factor': ('adj_factor', 1)},
+    'price_limits': {'up_limit': ('up_limit', 1), 'down_limit': ('down_limit', 1)},
+}
+
+
+def _matches_daily_source(row, original, fields):
+    for field, (source, multiplier) in fields.items():
+        value, actual = original.get(source), row.get(field)
+        expected = None if value is None else Decimal(str(value)) * multiplier
+        if expected is None:
+            if actual is not None:
+                return False
+        elif actual is None or not math.isclose(float(actual), float(expected),
+                                               rel_tol=1e-12, abs_tol=1e-8):
+            return False
+    return True
+
+
+def _audit_incremental_retention(store, domains, prior_domains):
+    """Every prior revision, value and receipt survives an ordinary update.
+
+    Explicit selected-Raw rebuilds do not call this check. Identical partition
+    descriptors need no second read; changed partitions are compared by logical
+    key plus revision ID, including original observation and Raw reference.
+    """
+    checked = 0
+    for name, prior in prior_domains.items():
+        current = domains.get(name)
+        if current is None:
+            raise DataError(f'{name} disappeared during an incremental update')
+        parts = {part['partition']: part for part in current['partitions']}
+        for old_part in prior['partitions']:
+            new_part = parts.get(old_part['partition'])
+            if new_part == old_part:
+                checked += old_part['rows']
+                continue
+            if new_part is None:
+                raise DataError(f'{name} lost an old partition during an incremental update')
+            key_fields = [*prior['contract']['logical_key'], 'revision_id']
+            def key(row):
+                return tuple(row.get(field) for field in key_fields)
+            rows = {key(row): row for row in store.read_partition(new_part).to_pylist()}
+            for old in store.read_partition(old_part).to_pylist():
+                new = rows.get(key(old))
+                if new is None or any(new.get(field) != value for field, value in old.items()):
+                    raise DataError(f'{name} lost or changed an old revision/value/receipt during an incremental update')
+                checked += 1
+    return checked
+
+
+def _audit_daily_raw_presence(store, name, domain, rows, raw_records, month, plan):
+    """Independently require each retained, selected Raw fact in canonical data.
+
+    Match whole value vectors across retained revisions, so repeated equal
+    observations may legitimately retain their earliest Raw reference. Selection
+    uses each receipt's frozen canonical symbols and the domain's bound identity
+    map (including an explicit rebuild mapping correction). Plan bounds
+    narrow this check; monthly partitions bound canonical memory.
+    """
+    canonical = defaultdict(list)
+    for row in rows:
+        canonical[(row['security_id'], str(row['session']))].append(row)
+    checked = 0
+    for raw in raw_records:
+        params = raw.get('request', {}).get('params', {})
+        first = params.get('trade_date') or params.get('start_date', '')
+        last = params.get('trade_date') or params.get('end_date', '99991231')
+        month_start = month.replace('-', '') + '01'
+        month_end = month.replace('-', '') + '31'
+        if first > month_end or last < month_start:
+            continue
+        if plan and (first > plan.end_session.replace('-', '') or
+                     last < plan.start_session.replace('-', '')):
+            continue
+        identity = domain['source_profile'].get('identity_map', {})
+        chosen = set(raw.get('request', {}).get('canonical_symbols', identity))
+        if plan:
+            chosen &= set(plan.symbols)
+        for original in _rows(store.read_raw_record(raw)):
+            code, source_day = original.get('ts_code'), original.get('trade_date')
+            if code not in chosen:
+                continue
+            day = _source_date(source_day)
+            if not day or not day.startswith(month) or (plan and not plan.start_session <= day <= plan.end_session):
+                continue
+            security = identity.get(code)
+            if security is None or not any(_matches_daily_source(row, original, _DAILY_FIELDS[name])
+                                          for row in canonical[(security, day)]):
+                raise DataError(f'{name} selected Raw fact absent from canonical data: {code} {day}')
+            checked += 1
+    return checked
+
+
 def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
-                   base_snapshot: str | None = None) -> dict:
+                   base_snapshot: str | None = None, preserve_base: bool = False) -> dict:
     """Audit all referenced partitions; memory is bounded by one partition.
 
     A supplied frozen job plan additionally binds the exact securities/date
@@ -537,6 +634,8 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
     market cells remain missing relative to the saved source calendar and
     listing dates; the report lists known suspension evidence separately.
     Neither status certifies supplier historical truth or strict public PIT.
+    ``preserve_base=True`` additionally checks ordinary incremental retention;
+    leave it false for an explicit full-domain selected-Raw rebuild.
     """
     started = time.monotonic()
     snapshot = store.load_snapshot(snapshot_id)
@@ -545,8 +644,13 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
     report = {'snapshot_id': snapshot_id, 'status': 'passed', 'row_counts': {},
               'source_mapping_checks': {}, 'issues': [], 'missing_market_cells': 0,
               'missing_market_samples': [], 'known_suspension_missing_cells': 0,
+              'raw_presence_checks': {}, 'daily_field_coverage': {},
               'limitations': ['Checks are relative to retained supplier responses, not independent historical completeness.',
                               'Terminal observations do not prove historical public vintages.']}
+    if preserve_base:
+        if base_snapshot is None:
+            raise DataError('incremental retention requires an explicit base Snapshot')
+        report['preserved_base_rows'] = _audit_incremental_retention(store, domains, prior_domains)
     calendar = defaultdict(set)
     securities = {}
     suspended = set()
@@ -597,6 +701,36 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
         'adjustment_factors': {'factor': ('adj_factor', 1)},
         'benchmark_daily': {'close': ('close', 1)},
     }
+    coverage_domains = set(_DAILY_FIELDS) & set(domains)
+    if plan:
+        for endpoint, name in [('daily', 'market_daily'), ('adj_factor', 'adjustment_factors')]:
+            if endpoint in plan.endpoints:
+                coverage_domains.add(name)
+    def count_daily_gaps(name, month, rows):
+        latest = {}
+        for row in rows:
+            key = (row['security_id'], str(row['session']))
+            prior = latest.get(key)
+            if prior is None or row['first_observed_at'] >= prior['first_observed_at']:
+                latest[key] = row
+        coverage = report['daily_field_coverage'].setdefault(name, {
+            'expected_keys': 0, 'missing_by_field': dict.fromkeys(_DAILY_FIELDS[name], 0),
+            'missing_samples': []})
+        for security in wanted:
+            if security not in securities:
+                continue
+            exchange, first, end = securities[security]
+            for day in calendar[exchange]:
+                if (not day.startswith(month) or day < first or (end and day >= end) or
+                        (plan and not plan.start_session <= day <= plan.end_session)):
+                    continue
+                coverage['expected_keys'] += 1
+                row = latest.get((security, day), {})
+                missing = [field for field in _DAILY_FIELDS[name] if row.get(field) is None]
+                for field in missing:
+                    coverage['missing_by_field'][field] += 1
+                if missing and len(coverage['missing_samples']) < 30:
+                    coverage['missing_samples'].append({'security_id': security, 'session': day, 'fields': missing})
     for name, domain in domains.items():
         if name in ('trading_calendar', 'security_master', 'security_status'):
             continue
@@ -609,6 +743,27 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
         if name == 'fund_share_conversions':
             supported_event = profile_id == 'issuer_fund_disclosure_supplement_v1'
         audited_raw_ids = set()
+        daily_raw = []
+        if name in _DAILY_FIELDS:
+            records = store.get_raw_many(domain['raw_batch_ids'])
+            daily_raw = [raw for raw in records.values() if
+                         raw.get('source_profile', {}).get('id', '').startswith('tushare.local.') and
+                         raw.get('request', {}).get('endpoint') in {'daily', 'adj_factor', 'stk_limit'}]
+            months = {part['partition'] for part in domain['partitions']}
+            for raw in daily_raw:
+                params = raw.get('request', {}).get('params', {})
+                first = params.get('trade_date') or params.get('start_date')
+                last = params.get('trade_date') or params.get('end_date')
+                if first and last:
+                    first_day, last_day = _source_date(first), _source_date(last)
+                    if plan:
+                        first_day, last_day = max(first_day, plan.start_session), min(last_day, plan.end_session)
+                    if first_day <= last_day:
+                        from .bulk_jobs import _months
+                        months.update(f'{start[:4]}-{start[4:6]}' for start, _ in
+                                      _months(date.fromisoformat(first_day), date.fromisoformat(last_day)))
+            for month in sorted(months - {part['partition'] for part in domain['partitions']}):
+                _audit_daily_raw_presence(store, name, domain, [], daily_raw, month, plan)
         if event_domain:
             report['source_mapping_checks'][name] = 0
             if not supported_event:
@@ -623,6 +778,11 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
         for part in domain['partitions']:
             rows = store.read_partition(part).to_pylist()
             report['row_counts'][name] += len(rows)
+            if name in coverage_domains:
+                count_daily_gaps(name, part['partition'], rows)
+            if daily_raw:
+                count = _audit_daily_raw_presence(store, name, domain, rows, daily_raw, part['partition'], plan)
+                report['raw_presence_checks'][name] = report['raw_presence_checks'].get(name, 0) + count
             if name == 'corporate_actions':
                 report['unavailable_corporate_action_revisions'] = report.get('unavailable_corporate_action_revisions', 0) + sum(
                     row.get('source_issue') == 'ambiguous_action_identity_or_revision' for row in rows)
@@ -722,6 +882,12 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
                                      'sample': missing_identity[:10]})
         # An absent entire month must not disappear from the gap report.
         market_months = {p['partition'] for p in domains.get('market_daily', {}).get('partitions', [])}
+        requested_months = {day[:7] for days in calendar.values() for day in days
+                            if plan.start_session <= day <= plan.end_session}
+        for name in coverage_domains:
+            present_months = {part['partition'] for part in domains.get(name, {}).get('partitions', [])}
+            for month in requested_months - present_months:
+                count_daily_gaps(name, month, [])
         for security in wanted:
             if security not in securities:
                 continue
@@ -741,7 +907,8 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
         report['limitations'].append(
             'Ambiguous supplier corporate-action groups are unavailable as whole economic events; '
             'candidate identity/revision order is unknown, including any unanimous zero amounts.')
-    if report['issues'] or report['missing_market_cells']:
+    if report['issues'] or report['missing_market_cells'] or any(
+            any(coverage['missing_by_field'].values()) for coverage in report['daily_field_coverage'].values()):
         report['status'] = 'limited'
     report['elapsed_seconds'] = round(time.monotonic() - started, 3)
     return report

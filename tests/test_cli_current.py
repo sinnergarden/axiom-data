@@ -21,6 +21,7 @@ from axiom_data.storage import LocalStore
 
 class FakeJob:
     request_strategy = "trading_day_market_v2"
+    mode = "bulk"
 
     def to_dict(self):
         return {"schema_version": "fake_test_job_v1", "requests": ["daily"]}
