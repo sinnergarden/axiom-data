@@ -389,7 +389,7 @@ class SnapshotQueryReader:
             for item in coverage.get("verification_checkpoints", [])
         ] if verified_through is not None else []
         dependency_lists: dict[tuple[int, ...], list[str]] = {}
-        vendor_interval_cache: dict[tuple[str, str, str], tuple[Any, bool]] = {}
+        vendor_interval_cache: dict[tuple[str, str, str, datetime, date], tuple[Any, bool]] = {}
 
         def dependencies(source, complete, coverage_proof):
             # Thousands of rows often share the same source state. Keep one
@@ -493,10 +493,13 @@ class SnapshotQueryReader:
                     complete = (state, usable, basis, members)
                 evaluation_date = session_date
             for symbol in query.symbols:
-                cache_key = ((symbol, complete[0]["revision_id"], policy)
-                             if vendor_carry and complete else None)
-                if cache_key is not None and cache_key in vendor_interval_cache:
-                    selected, invisible_intervals = vendor_interval_cache[cache_key]
+                # Interval selection depends on this session's knowledge time
+                # and economic evaluation date, even under one complete state.
+                interval_key = ((symbol, complete[0]["revision_id"], policy,
+                                 cutoffs[session], evaluation_date)
+                                if vendor_carry and complete else None)
+                if interval_key is not None and interval_key in vendor_interval_cache:
+                    selected, invisible_intervals = vendor_interval_cache[interval_key]
                 else:
                     selected_intervals: list[tuple[dict[str, Any], datetime, str]] = []
                     invisible_intervals = False
@@ -525,8 +528,8 @@ class SnapshotQueryReader:
                     if len(selected_intervals) > 1:
                         raise QueryError(f"overlapping visible membership intervals for {query.universe_id}/{symbol}/{session}")
                     selected = selected_intervals[0] if selected_intervals else None
-                    if cache_key is not None:
-                        vendor_interval_cache[cache_key] = (selected, invisible_intervals)
+                    if interval_key is not None:
+                        vendor_interval_cache[interval_key] = (selected, invisible_intervals)
                 if verified_through is not None and (coverage_proof is None or complete is None):
                     selected = None
                     complete = None
