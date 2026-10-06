@@ -56,27 +56,33 @@ def _json_bytes(value: Any) -> bytes:
     ).encode("utf-8")
 
 
-def _json_digest(value: Any) -> str:
-    """Hash canonical chunks, retaining the legacy encoder's depth tolerance."""
+def _json_chunks(value: Any) -> Iterator[bytes]:
+    """Yield the legacy canonical encoding in bounded character groups."""
     encoder = json.JSONEncoder(sort_keys=True, separators=(",", ":"), ensure_ascii=False,
                                allow_nan=False, default=_json_default)
-    digest = sha256()
     chunks = []
     characters = 0
+    for chunk in encoder.iterencode(value):
+        chunks.append(chunk)
+        characters += len(chunk)
+        if characters >= 65536:
+            yield "".join(chunks).encode("utf-8")
+            chunks.clear()
+            characters = 0
+    if chunks:
+        yield "".join(chunks).encode("utf-8")
+
+
+def _json_digest(value: Any) -> str:
+    """Hash canonical chunks, retaining the legacy encoder's depth tolerance."""
+    digest = sha256()
     try:
-        for chunk in encoder.iterencode(value):
-            chunks.append(chunk)
-            characters += len(chunk)
-            if characters >= 65536:
-                digest.update("".join(chunks).encode("utf-8"))
-                chunks.clear()
-                characters = 0
+        for chunk in _json_chunks(value):
+            digest.update(chunk)
     except RecursionError:
         # The Python iterator has less depth headroom than json.dumps' C
         # encoder. Preserve old valid snapshots at that uncommon boundary.
         return sha256(_json_bytes(value)).hexdigest()
-    if chunks:
-        digest.update("".join(chunks).encode("utf-8"))
     return digest.hexdigest()
 
 
@@ -297,6 +303,66 @@ class LocalStore:
             if immutable and path.exists():
                 if path.read_bytes() != payload:
                     raise ConflictError(f"immutable object differs: {path}")
+            else:
+                os.replace(temp_name, path)
+                temp_name = ""
+                dir_fd = os.open(path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+        finally:
+            if temp_name:
+                os.unlink(temp_name)
+
+    def _atomic_json(self, path: Path, value: Any, *, immutable: bool = False) -> None:
+        """Write canonical JSON chunks with the existing atomic object semantics.
+
+        Encoding or write failures remove the temporary file. Immutable
+        objects are compared byte-for-byte with bounded reads; a conflict
+        leaves the existing object intact. No newline or format change is
+        introduced. Rare deep legacy values retain the C encoder fallback.
+        """
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if immutable and path.exists():
+            with path.open("rb") as existing:
+                different = False
+                try:
+                    for chunk in _json_chunks(value):
+                        different |= existing.read(len(chunk)) != chunk
+                    different |= bool(existing.read(1))
+                except RecursionError:
+                    payload = _json_bytes(value)
+                    existing.seek(0)
+                    different = False
+                    for offset in range(0, len(payload), 65536):
+                        chunk = payload[offset:offset + 65536]
+                        different |= existing.read(len(chunk)) != chunk
+                    different |= bool(existing.read(1))
+            if different:
+                raise ConflictError(f"immutable object differs: {path}")
+            return
+        fd, temp_name = tempfile.mkstemp(prefix=".tmp-", dir=path.parent)
+        try:
+            with os.fdopen(fd, "wb") as out:
+                try:
+                    for chunk in _json_chunks(value):
+                        out.write(chunk)
+                except RecursionError:
+                    # iterencode has less depth headroom than the legacy C
+                    # encoder. Discard every partially flushed chunk first.
+                    out.seek(0)
+                    out.truncate()
+                    out.write(_json_bytes(value))
+                out.flush()
+                os.fsync(out.fileno())
+            if immutable and path.exists():
+                with open(temp_name, "rb") as candidate, path.open("rb") as existing:
+                    while chunk := candidate.read(65536):
+                        if existing.read(len(chunk)) != chunk:
+                            raise ConflictError(f"immutable object differs: {path}")
+                    if existing.read(1):
+                        raise ConflictError(f"immutable object differs: {path}")
             else:
                 os.replace(temp_name, path)
                 temp_name = ""
@@ -703,9 +769,9 @@ class LocalStore:
             # quadratically; newly attached observations are verified here.
             for raw in self._raw_records(sorted(changed_raw_ids), shared_profiles=True).values():
                 self._verified(raw["payload_uri"], raw["payload_sha256"])
-            snapshot_id = "s_" + sha256(_json_bytes(body)).hexdigest()
+            snapshot_id = "s_" + _json_digest(body)
             manifest = {"snapshot_id": snapshot_id, **body}
-            self._atomic(self._path(f"snapshots/{snapshot_id}.json"), _json_bytes(manifest), immutable=True)
+            self._atomic_json(self._path(f"snapshots/{snapshot_id}.json"), manifest, immutable=True)
             if promote:
                 self._atomic(self.root / "current.json", _json_bytes({"snapshot_id": snapshot_id}))
             return manifest
