@@ -28,6 +28,8 @@ def source_batch(endpoint, rows, params, *, selected=None, observed='2026-09-28T
     request = {'endpoint': endpoint, 'params': params,
                'canonical_symbols': sorted(IDENTITIES if selected is None else selected),
                'request_strategy': 'event_bulk_v1' if event else 'trading_day_market_v2'}
+    if endpoint == 'trade_cal':
+        request.pop('canonical_symbols')
     return IngestBatch(contract['contract_id'].split('.')[1], json.dumps(rows).encode(),
                        request, contract, profile, observed,
                        'event_records_v1' if event else profile.get('normalizer', 'records_v1'))
@@ -129,6 +131,21 @@ class DailyAcceptanceTests(unittest.TestCase):
                 audit_snapshot(data.store, snapshot_id=altered, plan=plan(['000001.SZ']),
                                base_snapshot=snapshot, preserve_base=True)
 
+    def test_incremental_guard_binds_original_receipt_and_revision_metadata(self):
+        for field, wrong in [('raw_batch_id', 'wrong-receipt'),
+                             ('first_observed_at', '2026-09-29T01:00:00Z'),
+                             ('revision_id', 'wrong-revision')]:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as root:
+                data = Data(root)
+                snapshot = initialize(data)
+                def corrupt(rows):
+                    rows[0][field] = wrong
+                    return rows
+                altered = altered_snapshot(data, snapshot, 'market_daily', corrupt)
+                with self.assertRaisesRegex(DataError, 'old revision/value/receipt'):
+                    audit_snapshot(data.store, snapshot_id=altered, plan=plan(['000001.SZ']),
+                                   base_snapshot=snapshot, preserve_base=True)
+
     def test_field_gaps_use_latest_revision_and_remain_explicit(self):
         with tempfile.TemporaryDirectory() as root:
             data = Data(root)
@@ -206,6 +223,24 @@ class DailyAcceptanceTests(unittest.TestCase):
             store.write_operation('split', state)
             with self.assertRaisesRegex(DataError, 'complete parent scope'):
                 verify()
+
+    def test_date_split_leaves_cover_parent_without_full_scope_per_leaf(self):
+        class CappedCalendar:
+            def query(self, endpoint, **params):
+                first, last = params['start_date'], params['end_date']
+                if first == '20200102' and last == '20200103':
+                    return [{}] * 1000
+                return [dict(exchange='SSE', cal_date=first, is_open='1')]
+        with tempfile.TemporaryDirectory() as root:
+            store = Data(root).store
+            specs = [{'endpoint': 'trade_cal', 'params': {'exchange': 'SSE',
+                      'start_date': '20200102', 'end_date': '20200103'},
+                      'fields': list(FIELDS['trade_cal'])}]
+            run_batch_chunk(store, specs=specs, client=CappedCalendar(), operation_id='dates',
+                plan_fingerprint='frozen', identity_map=IDS, raw_log_offset=0,
+                global_calls_per_minute=0, stock_basic_calls_per_minute=0)
+            self.assertEqual(len(verify_batch_selectors(store, operation_id='dates', specs=specs,
+                plan_fingerprint='frozen', identity_map=IDS)), 2)
 
 
 if __name__ == '__main__':
