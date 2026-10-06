@@ -12,6 +12,7 @@ from datetime import date, datetime, time
 from hashlib import sha256
 import json
 import re
+import sys
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Any, Mapping
 
@@ -31,6 +32,9 @@ _VERSION_COLUMNS = (
     "source_available_at", "evidence_ref",
 )
 _MONTH = re.compile(r"^\d{4}-\d{2}$")
+# Charge cache keys, entry tuples and LRU nodes conservatively per entry.
+_ENTRY_BYTES = 1024
+_INDEX_CHUNK_ROWS = 64
 
 
 def _instant(value: Any, name: str) -> datetime:
@@ -169,19 +173,44 @@ def _policy_limitations(query: QuerySpec, profile, fallback_count=0):
     return limitations
 
 
+def _object_size(value: Any, seen: set[int] | None = None) -> int:
+    """Count Python containers/scalars once per entry, including shared rows.
+
+    Cross-entry sharing is deliberately charged again. This is an object-size
+    bound, not a promise about process RSS or the allocator's retained arenas.
+    """
+    if seen is None:
+        seen = set()
+    identity = id(value)
+    if identity in seen:
+        return 0
+    seen.add(identity)
+    size = sys.getsizeof(value)
+    if isinstance(value, dict):
+        size += sum(_object_size(k, seen) + _object_size(v, seen) for k, v in value.items())
+    elif isinstance(value, (list, tuple, set, frozenset)):
+        size += sum(_object_size(item, seen) for item in value)
+    return size
+
+
 def _cache_size(batch: DataBatch, *, limit: int | None = None) -> int:
     frame_size = int(batch.frame.memory_usage(deep=True).sum())
     if limit is not None and frame_size > limit:
         return frame_size
-    meta_size = len(json.dumps(batch.field_meta, sort_keys=True, default=str))
-    if limit is not None and frame_size + meta_size > limit:
-        return frame_size + meta_size
-    context_size = len(json.dumps(batch.context, sort_keys=True, default=str))
-    return frame_size + meta_size + context_size
+    # Conservatively charge pandas managers, array wrappers and index caches
+    # in addition to its reported deep cell storage; metadata uses real objects.
+    return (frame_size + 4096 + 1024 * len(batch.frame.columns)
+            + sys.getsizeof(batch) + sys.getsizeof(batch.frame.columns)
+            + _object_size((batch.field_meta, batch.context)))
 
 
 class SnapshotQueryReader:
-    """Query one immutable Snapshot with a bounded, in-process result cache."""
+    """Query a fixed Snapshot; results and unselected indexes share one LRU budget.
+
+    Indexes bind partition bytes, projections and evidence, never a cutoff's
+    selected answer. Each request selects revisions and membership states anew.
+    File verification remains mandatory on hits; no cache files are written.
+    """
 
     def __init__(self, store: Any, snapshot_id: str, *, cache_bytes: int = 67_108_864):
         if not isinstance(cache_bytes, int) or cache_bytes < 0:
@@ -194,10 +223,12 @@ class SnapshotQueryReader:
         if self.snapshot.get("snapshot_id") != snapshot_id:
             raise QueryError("loaded Snapshot ID does not match requested ID")
         self.cache_bytes = cache_bytes
-        self._cache: OrderedDict[str, tuple[DataBatch, int]] = OrderedDict()
+        self._cache: OrderedDict[str, tuple[Any, int]] = OrderedDict()
         self._cached_bytes = 0
         self.partition_reads = 0
         self.cache_hits = 0
+        self.index_cache_hits = 0
+        self.index_build_peak_bytes = 0
 
     def _validate(self, query: QuerySpec) -> tuple[dict[str, Any], dict[str, Mapping[str, Any]], dict[str, datetime]]:
         if not isinstance(query, QuerySpec):
@@ -275,16 +306,71 @@ class SnapshotQueryReader:
             or part["partition"] in wanted_months
         ]
 
-    def _read_rows(self, domain: Mapping[str, Any], query: QuerySpec) -> list[dict[str, Any]]:
+    def _columns(self, domain: Mapping[str, Any], query: QuerySpec) -> list[str]:
         membership = query.domain == "universe_membership"
         logical_key = tuple((domain.get("contract") or {}).get("logical_key") or ())
-        columns = list(dict.fromkeys((
+        return list(dict.fromkeys((
             "security_id", "universe_id", "effective_from", "effective_to",
             "membership_id", "logical_event_key", "dependency_raw_batch_ids",
             *logical_key, *_VERSION_COLUMNS,
         ) if membership else ("security_id", "session", *query.fields, *_VERSION_COLUMNS)))
+
+    def _evidence_parts(self, query: QuerySpec) -> list[Mapping[str, Any]]:
+        if query.domain == "public_evidence":
+            return []
+        return (self.snapshot.get("domains", {}).get("public_evidence") or {}).get("partitions") or []
+
+    def _make_room(self, size: int) -> bool:
+        """Reserve charged cache/construction space by evicting least-used entries."""
+        if size > self.cache_bytes:
+            return False
+        while self._cache and self._cached_bytes + size > self.cache_bytes:
+            _, (_, evicted_size) = self._cache.popitem(last=False)
+            self._cached_bytes -= evicted_size
+        return True
+
+    def _put_entry(self, key: str, value: Any, size: int) -> bool:
+        size += _ENTRY_BYTES
+        if not self.cache_bytes or size > self.cache_bytes:
+            return False
+        previous = self._cache.pop(key, None)
+        if previous is not None:
+            self._cached_bytes -= previous[1]
+        self._make_room(size)
+        self._cache[key] = (value, size)
+        self._cached_bytes += size
+        return True
+
+    def _evidence(self, query: QuerySpec) -> dict:
+        """Reuse the original evidence join index; verify its files on every hit."""
+        from .public_evidence import evidence_index
+        parts = self._evidence_parts(query)
+        if not parts or not self.cache_bytes:
+            return evidence_index(self.store, self.snapshot, query.domain)
+        key = "evidence:" + sha256(json.dumps(
+            (self.snapshot_id, query.domain, parts), sort_keys=True).encode()).hexdigest()
+        if key in self._cache:
+            for part in parts:
+                self.store.verify_partition(part)
+            self._cache.move_to_end(key)
+            return self._cache[key][0]
+        index = evidence_index(self.store, self.snapshot, query.domain)
+        # The miss is the original, required query join, not an additional
+        # preload. Only retain it if its real Python objects fit the shared LRU.
+        try:
+            self._put_entry(key, index, _object_size(index))
+        except (MemoryError, RecursionError):
+            pass
+        return index
+
+    def _read_rows(self, domain: Mapping[str, Any], query: QuerySpec,
+                   parts: list[Mapping[str, Any]] | None = None, *, enrich: bool = True) -> list[dict[str, Any]]:
+        """Original session-filter path, also used for inadmissible index candidates."""
+        membership = query.domain == "universe_membership"
+        columns = self._columns(domain, query)
         rows: list[dict[str, Any]] = []
-        for part in self._parts_for_query(domain, query):
+        selected_parts = self._parts_for_query(domain, query) if parts is None else parts
+        for part in selected_parts:
             table = self.store.read_partition(
                 part, columns=columns, symbols=query.symbols,
                 sessions=None if membership else query.sessions,
@@ -294,21 +380,177 @@ class SnapshotQueryReader:
                 if not membership and isinstance(row.get("session"), date):
                     row["session"] = row["session"].isoformat()
                 rows.append(row)
-        from .public_evidence import apply_evidence, evidence_index
-        return apply_evidence(rows, index=evidence_index(self.store, self.snapshot, query.domain),
-                              key_fields=logical_key)
+        if not enrich:
+            return rows
+        from .public_evidence import apply_evidence
+        return apply_evidence(rows, index=self._evidence(query),
+                              key_fields=(domain.get("contract") or {}).get("logical_key") or ())
+
+    def _group_key(self, row: Mapping[str, Any], domain: Mapping[str, Any], query: QuerySpec,
+                   *, unselected: bool = False):
+        if query.domain != "universe_membership":
+            return row.get("security_id"), row.get("session")
+        universe = row.get("universe_id")
+        if not unselected and universe != query.universe_id:
+            return None
+        event_id = row.get("membership_id") or row.get("logical_event_key")
+        if event_id is None:
+            key_fields = (domain.get("contract") or {}).get("logical_key") or ()
+            if not key_fields or any(row.get(name) is None for name in key_fields):
+                if unselected:
+                    # Do not introduce an event-key failure before the original
+                    # all-universe evidence join has had a chance to fail.
+                    return row["security_id"], universe, None
+                raise QueryError("membership intervals require stable logical_key or membership_id")
+            event_id = tuple(row[name] for name in key_fields)
+        if unselected:
+            return row["security_id"], universe, str(event_id)
+        return row["security_id"], str(event_id)
+
+    def _group_rows(self, rows, domain, query, *, unselected: bool = False) -> dict:
+        groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        symbols, sessions = set(query.symbols), set(query.sessions)
+        for row in rows:
+            if row.get("security_id") not in symbols:
+                continue
+            if query.domain != "universe_membership" and row.get("session") not in sessions:
+                continue
+            key = self._group_key(row, domain, query, unselected=unselected)
+            if key is not None:
+                groups.setdefault(key, []).append(row)
+        return groups
+
+    def _build_index(self, part, domain, query, columns) -> dict | None:
+        """Build unselected groups in small chunks, or discard and fall back.
+
+        No Arrow buffers are retained in an admitted index. During construction
+        charge all decoded buffers plus four times the current Python graph
+        (including object-counting's temporary identity set), and five times a
+        conservative chunk conversion bound. The extra factors cover both the
+        converted chunk and growth/counting before its actual size is known.
+        The identity set is also charged explicitly at its current allocation.
+        This bounds optional index construction; required Parquet decoding,
+        copied query groups and the evidence join remain query working memory,
+        outside cache residency. It does not bound total process RSS.
+        """
+        table = self.store.read_partition(part, columns=columns, symbols=query.symbols, sessions=None)
+        self.partition_reads += 1
+        arrow_bytes = table.get_total_buffer_size() + sys.getsizeof(table)
+        groups: dict = {}
+        size = dict_bytes = sys.getsizeof(groups)
+        if not table.num_rows:
+            return groups
+        seen: set[int] = set()
+        symbols = set(query.symbols)
+        for offset in range(0, table.num_rows, _INDEX_CHUNK_ROWS):
+            chunk = table.slice(offset, _INDEX_CHUNK_ROWS)
+            # Supported scalar projections: 32x logical Arrow bytes also covers
+            # strings/containers, while per-cell slack covers small scalars.
+            chunk_bound = 32 * chunk.nbytes + chunk.num_rows * (1024 + 256 * len(columns)) + 4096
+            seen_bytes = sys.getsizeof(seen) + len(seen) * sys.getsizeof((1 << 64) - 1)
+            peak = arrow_bytes + max(4 * size, size + seen_bytes) + 5 * chunk_bound + _ENTRY_BYTES
+            if not self._make_room(peak):
+                return None
+            self.index_build_peak_bytes = max(self.index_build_peak_bytes, self._cached_bytes + peak)
+            for row in chunk.to_pylist():
+                if row.get("security_id") not in symbols:
+                    continue
+                if query.domain != "universe_membership":
+                    if row.get("session") is None:
+                        return None  # Preserve the original session-column/filter validation.
+                    if isinstance(row["session"], date):
+                        row["session"] = row["session"].isoformat()
+                key = self._group_key(row, domain, query, unselected=True)
+                if key is not None:
+                    if key not in groups:
+                        groups[key] = []
+                        size += _object_size(key, seen) + sys.getsizeof(groups[key])
+                    # Count each retained row/key once. Container growth is
+                    # charged separately, without rescanning earlier chunks.
+                    size += _object_size(row, seen)
+                    previous_list_bytes = sys.getsizeof(groups[key])
+                    groups[key].append(row)
+                    size += sys.getsizeof(groups[key]) - previous_list_bytes
+            new_dict_bytes = sys.getsizeof(groups)
+            size += new_dict_bytes - dict_bytes
+            dict_bytes = new_dict_bytes
+        return groups
+
+    def _read_groups(self, domain: Mapping[str, Any], query: QuerySpec) -> dict:
+        """Reuse unselected per-partition revisions, then join evidence on query rows only."""
+        if self.cache_bytes < 4096:
+            return self._group_rows(self._read_rows(domain, query), domain, query)
+        from .public_evidence import apply_evidence
+        columns = self._columns(domain, query)
+        groups: dict = {}
+        membership = query.domain == "universe_membership"
+        for part in self._parts_for_query(domain, query):
+            identity = (self.snapshot_id, query.domain, domain.get("contract"), part,
+                        sorted(columns), sorted(query.symbols), query.universe_id,
+                        self._evidence_parts(query))
+            key = "rows:" + sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+            raw = None
+            if key in self._cache:
+                self.store.verify_partition(part)
+                self._cache.move_to_end(key)
+                raw = self._cache[key][0]
+                if raw is not None:
+                    self.index_cache_hits += 1
+            elif query.domain == "universe_membership" or _MONTH.fullmatch(str(part.get("partition", ""))):
+                try:
+                    raw = self._build_index(part, domain, query, columns)
+                    self._put_entry(key, raw, _object_size(raw))
+                except (MemoryError, RecursionError, TypeError, ValueError, QueryError):
+                    # A preload error (including an irrelevant row) must not
+                    # add a failure to the original narrow query.
+                    raw = None
+            if raw is None:
+                selected = self._group_rows(self._read_rows(domain, query, [part], enrich=False),
+                                           domain, query, unselected=membership)
+            else:
+                selected = {}
+                wanted_keys = (raw if membership else
+                               ((symbol, session) for session in query.sessions for symbol in query.symbols))
+                for group_key in wanted_keys:
+                    revisions = raw.get(group_key)
+                    if revisions is None:
+                        continue
+                    selected[group_key] = [dict(row) for row in revisions]
+            for group_key, revisions in selected.items():
+                groups.setdefault(group_key, []).extend(revisions)
+            # A membership wanted_keys mapping otherwise keeps the entire
+            # previous index alive while the next one is built, even after LRU
+            # eviction. Only the copied query working set survives this part.
+            wanted_keys = ()
+            raw = selected = revisions = None
+        # Preserve the original order: read/verify every fact partition, then
+        # join evidence on its full queried scope, then validate/filter event
+        # keys. Membership's original scope includes all queried universes for
+        # the selected securities, not just query.universe_id.
+        evidence = self._evidence(query)
+        for revisions in groups.values():
+            apply_evidence(revisions, index=evidence,
+                           key_fields=(domain.get("contract") or {}).get("logical_key") or ())
+        if membership:
+            selected = {}
+            for (symbol, universe, event_id), revisions in groups.items():
+                if universe != query.universe_id:
+                    continue
+                if event_id is None:
+                    self._group_key(revisions[0], domain, query)  # Original deferred validation error.
+                selected[(symbol, event_id)] = revisions
+            return selected
+        return groups
 
     def _put_cache(self, key: str, batch: DataBatch) -> DataBatch:
         if not self.cache_bytes:
             return batch
-        size = _cache_size(batch, limit=self.cache_bytes)
-        if size > self.cache_bytes:
+        try:
+            size = _cache_size(batch, limit=self.cache_bytes)
+        except (MemoryError, RecursionError):
             return batch
-        while self._cache and self._cached_bytes + size > self.cache_bytes:
-            _, (_, evicted_size) = self._cache.popitem(last=False)
-            self._cached_bytes -= evicted_size
-        self._cache[key] = (batch, size)
-        self._cached_bytes += size
+        if not self._put_entry(key, batch, size):
+            return batch
         return DataBatch(batch.frame.copy(deep=True), deepcopy(batch.field_meta), deepcopy(batch.context))
 
     def _read_membership(
@@ -322,19 +564,10 @@ class SnapshotQueryReader:
         """
         profile = domain.get("source_profile") or {}
         contract = domain.get("contract") or {}
-        key_fields = contract.get("logical_key") or []
-        rows = self._read_rows(domain, query)
-        selected_symbols = set(query.symbols)
+        grouped = self._read_groups(domain, query)
         events: dict[str, dict[str, list[dict[str, Any]]]] = {}
-        for row in rows:
-            if row.get("security_id") not in selected_symbols or row.get("universe_id") != query.universe_id:
-                continue
-            event_id = row.get("membership_id") or row.get("logical_event_key")
-            if event_id is None:
-                if not key_fields or any(row.get(name) is None for name in key_fields):
-                    raise QueryError("membership intervals require stable logical_key or membership_id")
-                event_id = tuple(row[name] for name in key_fields)
-            events.setdefault(row["security_id"], {}).setdefault(str(event_id), []).append(row)
+        for (symbol, event_id), revisions in grouped.items():
+            events.setdefault(symbol, {})[event_id] = revisions
 
         complete_states = (domain.get("coverage") or {}).get("complete_states") or []
         if not isinstance(complete_states, list):
@@ -368,9 +601,8 @@ class SnapshotQueryReader:
             identity = state.get("state_id") or f"anonymous:{ordinal}"
             state_groups.setdefault(identity, []).append(item)
         fallback_count = sum(
-            1 for row in rows
-            if row.get("universe_id") == query.universe_id
-            and not (row.get("source_available_at") is not None and row.get("evidence_ref"))
+            1 for revisions in grouped.values() for row in revisions
+            if not (row.get("source_available_at") is not None and row.get("evidence_ref"))
         ) + sum(
             1 for state in complete_states if isinstance(state, Mapping)
             and state.get("universe_id") == query.universe_id
@@ -602,7 +834,7 @@ class SnapshotQueryReader:
         domain, declared_fields, cutoffs = self._validate(query)
         key = self._cache_key(query, cutoffs)
         if key in self._cache:
-            for part in self._parts_for_query(domain, query):
+            for part in [*self._parts_for_query(domain, query), *self._evidence_parts(query)]:
                 self.store.verify_partition(part)
             self.cache_hits += 1
             cached, _ = self._cache[key]
@@ -613,17 +845,10 @@ class SnapshotQueryReader:
             return self._read_membership(domain, declared_fields, cutoffs, query, key)
 
         profile = domain.get("source_profile") or {}
-        fallback_count = 0
-        grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
-        selected_symbols = set(query.symbols)
-        selected_sessions = set(query.sessions)
-        for row in self._read_rows(domain, query):
-            symbol, session = row.get("security_id"), row.get("session")
-            if symbol not in selected_symbols or session not in selected_sessions:
-                continue
-            if query.pit_policy == "market_pit_safe_v1" and not (row.get("source_available_at") is not None and row.get("evidence_ref")):
-                fallback_count += 1
-            grouped.setdefault((symbol, session), []).append(row)
+        grouped = self._read_groups(domain, query)
+        fallback_count = sum(1 for revisions in grouped.values() for row in revisions
+            if not (row.get("source_available_at") is not None and row.get("evidence_ref"))
+        ) if query.pit_policy == "market_pit_safe_v1" else 0
 
         records: list[dict[str, Any]] = []
         field_meta: dict[str, Any] = {

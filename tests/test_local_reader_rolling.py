@@ -3,11 +3,26 @@
 from __future__ import annotations
 
 import unittest
+from copy import deepcopy
+from dataclasses import replace
+from datetime import date, datetime, timedelta, timezone
+import gc
+import json
+from pathlib import Path
+import sys
+import tempfile
+import tracemalloc
+import weakref
+from unittest.mock import patch
 
-from axiom_data.protocols import QuerySpec
-from axiom_data.reader import SnapshotQueryReader
+from axiom_data.derived import adjust_prices
+from axiom_data.protocols import ConflictError, DataError, QuerySpec
+from axiom_data.public_evidence import CONTRACT as EVIDENCE_CONTRACT, PROFILE as EVIDENCE_PROFILE
+from axiom_data.reader import SnapshotQueryReader, _ENTRY_BYTES, _object_size
+from axiom_data.storage import LocalStore
 from test_local_reader import (
-    MemoryStore, membership_manifest, membership_query, membership_row, utc,
+    MemoryStore, daily_manifest, daily_row, membership_manifest, membership_query, membership_row,
+    query, utc,
 )
 
 
@@ -67,6 +82,431 @@ class MembershipRollingTests(unittest.TestCase):
                                     "polluted")
                 self.assertEqual((reader.partition_reads, reader.cache_hits), (1, 1))
                 self.assertIn(reader._cache_key(spec, {s: utc(4) for s in spec.sessions}), reader._cache)
+
+    def test_history_unknown_and_dependencies_survive_reuse_and_output_mutation(self):
+        rows = [membership_row("first", "2024-01-01", "2024-01-03", utc(2)),
+                membership_row("again", "2024-01-05", None, utc(5))]
+        rows[0]["dependency_raw_batch_ids"] = ["source-proof"]
+        cached = SnapshotQueryReader(MemoryStore(membership_manifest(), {"history": rows}), "s1")
+        reference = SnapshotQueryReader(MemoryStore(membership_manifest(), {"history": rows}), "s1",
+                                        cache_bytes=0)
+        sessions = ("2024-01-02", "2024-01-03", "2024-01-05")
+        for cutoff in (utc(6), utc(1), utc(3)):
+            spec = membership_query(cutoff=cutoff, sessions=sessions)
+            actual = cached.read(spec)
+            self.assertEqual(actual.to_json(), reference.read(spec).to_json())
+            if cutoff == utc(6):
+                self.assertEqual(actual.frame["is_member"].iloc[:5].tolist(),
+                                 [True, False, False, False, True])
+                self.assertTrue(actual.frame["is_member"].isna().iloc[-1])
+                actual.field_meta["is_member"]["by_key"][0]["dependency_raw_batch_ids"].append("bad")
+                actual.context["coverage"]["complete_states"][0]["members"].clear()
+            if cutoff == utc(1):
+                self.assertTrue(actual.frame["is_member"].isna().all())
+        self.assertEqual(cached.partition_reads, 1)
+        self.assertEqual(cached.index_cache_hits, 2)
+
+
+def evidence_row(target, public_at):
+    return {"target_domain": "market_daily",
+            "target_key": json.dumps({"security_id": target["security_id"], "session": target["session"]},
+                                     sort_keys=True, separators=(",", ":")),
+            "target_revision": target["revision_id"], "public_at": public_at,
+            "document_sha256": "a" * 64, "source_url": "https://example.invalid/synthetic",
+            "locator": "synthetic assertion", "asserted_values": "{}",
+            "revision_id": "e-" + target["revision_id"], "revision_sequence": 1,
+            "first_observed_at": utc(5), "raw_batch_id": "synthetic-evidence"}
+
+
+def parquet_snapshot(store, rows, *, evidence=(), factors=()):
+    """Write only tiny temporary synthetic roots, with native partition verification."""
+    domain = deepcopy(daily_manifest()["domains"]["market_daily"])
+    domain.update(raw_batch_ids=[], build_context={})
+    domain["contract"]["fields"]["session"] = {"dtype": "date", "nullable": False}
+    by_month = {}
+    for row in rows:
+        by_month.setdefault(str(row["session"])[:7], []).append(row)
+    domain["partitions"] = [store.write_partition("market_daily", month, values, domain["contract"])
+                            for month, values in by_month.items()]
+    domains = {"market_daily": domain}
+    if factors:
+        factor_domain = deepcopy(domain)
+        factor_domain["contract"] = {"contract_id": "synthetic_factors_v1",
+            "logical_key": ["security_id", "session"],
+            "fields": {"session": {"dtype": "date"}, "adj_factor": {"dtype": "float64"}}}
+        factor_domain["partitions"] = [store.write_partition(
+            "cumulative_factors", "2024-01", factors, factor_domain["contract"])]
+        domains["cumulative_factors"] = factor_domain
+    if evidence:
+        domains["public_evidence"] = {"contract": EVIDENCE_CONTRACT,
+            "source_profile": EVIDENCE_PROFILE, "partitions": [store.write_partition(
+                "public_evidence", "history", evidence, EVIDENCE_CONTRACT)], "coverage": {},
+                "raw_batch_ids": [], "build_context": {}}
+    snapshot = store.publish_snapshot(domains, parent_snapshot=None, build_context={}, promote=False)
+    return snapshot["snapshot_id"], domains
+
+
+class RollingIndexTests(unittest.TestCase):
+    def assert_budget(self, reader):
+        self.assertEqual(reader._cached_bytes, sum(size for _, size in reader._cache.values()))
+        self.assertLessEqual(reader._cached_bytes, reader.cache_bytes)
+        self.assertLessEqual(reader.index_build_peak_bytes, reader.cache_bytes)
+        for key, (value, charged) in reader._cache.items():
+            if key.startswith(("rows:", "evidence:")):
+                self.assertGreaterEqual(charged, _object_size(value) + _ENTRY_BYTES)
+
+    def test_two_overlapping_21_day_windows_reuse_month_decode_and_grouping(self):
+        days = [(date(2024, 1, 1) + timedelta(days=i)).isoformat() for i in range(45)]
+        rows = [daily_row(session=day, symbol=symbol, revision=f"{symbol}/{day}", observed=utc(1),
+                          close=float(i + 1)) for i, day in enumerate(days) for symbol in ("A", "B")]
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalStore(tmp)
+            snapshot, _ = parquet_snapshot(store, rows)
+            cached = SnapshotQueryReader(store, snapshot)
+            reference = SnapshotQueryReader(store, snapshot, cache_bytes=0)
+            specs = [query(sessions=tuple(days[9:30]), symbols=("A", "B"), cutoff=utc(31)),
+                     query(sessions=tuple(days[16:37]), symbols=("A", "B"),
+                           cutoff=datetime(2024, 2, 7, tzinfo=timezone.utc))]
+            self.assertEqual(cached.read(specs[0]).to_json(), reference.read(specs[0]).to_json())
+            with patch.object(cached, "_group_key", wraps=cached._group_key) as grouping:
+                self.assertEqual(cached.read(specs[1]).to_json(), reference.read(specs[1]).to_json())
+            # January's 62 native rows are never decoded or regrouped for the
+            # second window; only the 28 February rows enter a new index.
+            self.assertEqual(grouping.call_count, 28)
+            self.assertEqual((cached.partition_reads, reference.partition_reads), (2, 3))
+            self.assertEqual(cached.index_cache_hits, 1)
+            self.assert_budget(cached)
+
+    def test_late_early_policy_evidence_and_projection_identity_are_exact(self):
+        old = daily_row(revision="r1", observed=utc(3), close=10)
+        new = daily_row(revision="r2", sequence=2, observed=utc(4), close=20)
+        rows = [old, new, daily_row(symbol="B", revision="B", observed=utc(3)),
+                daily_row(session="2024-01-03", revision="next", observed=utc(3))]
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalStore(tmp)
+            snapshot, _ = parquet_snapshot(store, rows, evidence=[evidence_row(old, utc(1))])
+            cached = SnapshotQueryReader(store, snapshot)
+            reference = SnapshotQueryReader(store, snapshot, cache_bytes=0)
+            specs = [query(cutoff=utc(5)), query(cutoff=utc(2)),
+                     query(cutoff=utc(2), policy="market_pit_safe_v1"),
+                     query(cutoff=utc(2, 12), policy="best_effort_vendor_v1"),
+                     query(cutoff=utc(5), fields=("volume", "close"), symbols=("A", "B")),
+                     query(cutoff=utc(2), fields=("close", "volume"), symbols=("B", "A")),
+                     query(cutoff=utc(2), sessions=("2024-01-02", "2024-01-03"),
+                           policy="bootstrap_hybrid_v1", policy_by_session={
+                               "2024-01-02": "market_pit_safe_v1", "2024-01-03": "operational_pit_v1"})]
+            for spec in specs:
+                with self.subTest(spec=spec):
+                    self.assertEqual(cached.read(spec).to_json(), reference.read(spec).to_json())
+                    self.assert_budget(cached)
+            self.assertTrue(cached.read(specs[1]).frame["close"].isna().all())
+            self.assertEqual(cached.read(specs[2]).frame["close"].tolist(), [10])
+            self.assertEqual(cached.read(specs[3]).frame["close"].tolist(), [20])
+            # Same field/symbol set in a different output order reuses the
+            # projection; a different set still gets its own source index.
+            self.assertEqual(cached.partition_reads, 2)
+            self.assertGreaterEqual(cached.index_cache_hits, 4)
+
+    def test_snapshot_evidence_binding_does_not_reuse_another_snapshots_answer(self):
+        row = daily_row(observed=utc(3))
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalStore(tmp)
+            absent, _ = parquet_snapshot(store, [row])
+            present, _ = parquet_snapshot(store, [row], evidence=[evidence_row(row, utc(1))])
+            spec = query(cutoff=utc(2), policy="market_pit_safe_v1")
+            enriched = SnapshotQueryReader(store, present)
+            self.assertEqual(enriched.read(spec).frame["close"].tolist(), [10])
+            plain = SnapshotQueryReader(store, absent)
+            self.assertTrue(plain.read(spec).frame["close"].isna().all())
+            self.assertEqual(enriched.read(spec).frame["close"].tolist(), [10])
+            self.assertEqual((plain.partition_reads, enriched.partition_reads), (1, 1))
+
+    def test_unrequested_evidence_conflict_is_checked_only_after_query_selection(self):
+        good = daily_row(observed=utc(1))
+        conflict = daily_row(session="2024-01-20", revision="bad", observed=utc(1),
+                             source_available=utc(2), evidence="inline")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalStore(tmp)
+            snapshot, _ = parquet_snapshot(store, [good, conflict],
+                                           evidence=[evidence_row(conflict, utc(3))])
+            cached = SnapshotQueryReader(store, snapshot)
+            reference = SnapshotQueryReader(store, snapshot, cache_bytes=0)
+            for cutoff in (utc(4), utc(5)):
+                spec = query(cutoff=cutoff)
+                self.assertEqual(cached.read(spec).to_json(), reference.read(spec).to_json())
+            self.assertEqual((cached.partition_reads, cached.index_cache_hits), (1, 1))
+            bad = query(sessions=("2024-01-20",), cutoff=utc(5))
+            for reader in (cached, reference):
+                with self.assertRaisesRegex(ConflictError, "public time conflicts"):
+                    reader.read(bad)
+
+    def test_factor_revisions_and_each_requests_anchor_are_selected_afresh(self):
+        prices = [daily_row(close=10, observed=utc(1)),
+                  daily_row(session="2024-01-03", close=5, observed=utc(1))]
+        factors = [{**daily_row(observed=utc(1)), "adj_factor": 1},
+                   {**daily_row(revision="f2", sequence=2, observed=utc(4)), "adj_factor": 3},
+                   {**daily_row(session="2024-01-03", observed=utc(1)), "adj_factor": 2}]
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalStore(tmp)
+            snapshot, _ = parquet_snapshot(store, prices, factors=factors)
+            cached = SnapshotQueryReader(store, snapshot)
+            reference = SnapshotQueryReader(store, snapshot, cache_bytes=0)
+            sessions = ("2024-01-02", "2024-01-03")
+            for cutoff, anchor, expected in ((utc(5), sessions[1], [15, 5]),
+                                             (utc(3), sessions[1], [5, 5]),
+                                             (utc(3), sessions[0], [10, 10])):
+                price_spec = query(sessions=sessions, cutoff=cutoff)
+                factor_spec = replace(price_spec, domain="cumulative_factors", fields=("adj_factor",))
+                def adjusted(reader):
+                    return adjust_prices(reader.read(price_spec), reader.read(factor_spec),
+                                         fields=("close",), anchor_session=anchor)
+                result = adjusted(cached)
+                self.assertEqual(result.to_json(), adjusted(reference).to_json())
+                self.assertEqual(result.frame["close"].tolist(), expected)
+                self.assertEqual(result.context["query"]["adjustment_anchor"], anchor)
+            self.assertEqual(cached.partition_reads, 2)
+
+    def test_small_disabled_and_oversize_budgets_return_original_query(self):
+        manifest = daily_manifest()
+        partitions = {"2024-01": [daily_row()]}
+        for budget in (0, 1, 8192):
+            with self.subTest(budget=budget):
+                reader = SnapshotQueryReader(MemoryStore(manifest, partitions), "s1", cache_bytes=budget)
+                reference = SnapshotQueryReader(MemoryStore(manifest, partitions), "s1", cache_bytes=0)
+                for spec in (query(), query(cutoff=utc(3))):
+                    self.assertEqual(reader.read(spec).to_json(), reference.read(spec).to_json())
+                self.assertFalse(any(key.startswith("rows:") and value is not None
+                                     for key, (value, _) in reader._cache.items()))
+                self.assert_budget(reader)
+                reads = [call for call in reader.store.calls if call[0] != "verify"]
+                self.assertEqual(reads[-1][3], query().sessions)
+
+        # Large strings make the pre-conversion chunk bound inadmissible.
+        manifest["domains"]["market_daily"]["contract"]["fields"]["note"] = {"dtype": "string"}
+        partitions = {"2024-01": [{**daily_row(), "note": "x" * 200_000}]}
+        reader = SnapshotQueryReader(MemoryStore(manifest, partitions), "s1", cache_bytes=100_000)
+        spec = query(fields=("note",))
+        self.assertEqual(reader.read(spec).to_json(), SnapshotQueryReader(
+            MemoryStore(manifest, partitions), "s1", cache_bytes=0).read(spec).to_json())
+        self.assertEqual(reader.index_build_peak_bytes, 0)
+        self.assertEqual(reader.partition_reads, 2)  # Discard candidate, then original filtered read.
+        self.assert_budget(reader)
+
+    def test_candidate_construction_error_completely_falls_back(self):
+        partitions = {"2024-01": [daily_row(), daily_row(session="2024-01-20")]}
+        reader = SnapshotQueryReader(MemoryStore(daily_manifest(), partitions), "s1")
+        original_key = reader._group_key
+        def fail_on_unrequested(row, domain, spec, **kwargs):
+            if row["session"] == "2024-01-20":
+                raise MemoryError("synthetic candidate conversion failure")
+            return original_key(row, domain, spec, **kwargs)
+        with patch.object(reader, "_group_key", side_effect=fail_on_unrequested):
+            actual = reader.read(query())
+        reference = SnapshotQueryReader(MemoryStore(daily_manifest(), partitions), "s1", cache_bytes=0)
+        self.assertEqual(actual.to_json(), reference.read(query()).to_json())
+        self.assertEqual(reader.partition_reads, 2)
+        self.assertFalse(any(key.startswith("rows:") and value is not None
+                             for key, (value, _) in reader._cache.items()))
+        self.assert_budget(reader)
+
+    def test_continuous_month_eviction_and_shared_object_accounting(self):
+        manifest = daily_manifest()
+        partitions = {}
+        for month_number in range(60):
+            year, month = 2020 + month_number // 12, month_number % 12 + 1
+            day = f"{year:04d}-{month:02d}-02"
+            partitions[day[:7]] = [daily_row(session=day)]
+        manifest["domains"]["market_daily"]["partitions"] = [{"partition": m} for m in partitions]
+        reader = SnapshotQueryReader(MemoryStore(manifest, partitions), "s1", cache_bytes=256_000)
+        reference = SnapshotQueryReader(MemoryStore(manifest, partitions), "s1", cache_bytes=0)
+        cutoff = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        specs = [query(sessions=(m + "-02",), cutoff=cutoff) for m in partitions]
+        for spec in specs:
+            self.assertEqual(reader.read(spec).to_json(), reference.read(spec).to_json())
+            self.assert_budget(reader)
+        self.assertEqual(reader.partition_reads, 60)
+        reads = reader.partition_reads
+        self.assertEqual(reader.read(specs[0]).to_json(), reference.read(specs[0]).to_json())
+        self.assertEqual(reader.partition_reads, reads + 1)
+        self.assert_budget(reader)
+
+        shared = {"dependencies": ["proof"] * 100}
+        duplicates = [shared] * 100
+        self.assertEqual(_object_size(duplicates), sys.getsizeof(duplicates) + _object_size(shared))
+
+    def test_candidate_upper_bound_covers_measured_python_construction_peak(self):
+        symbols = tuple(f"synthetic-{i}" for i in range(250))
+        store = MemoryStore(daily_manifest(), {"2024-01": [daily_row(symbol=s) for s in symbols]})
+        reader = SnapshotQueryReader(store, "s1", cache_bytes=8_000_000)
+        spec = query(symbols=symbols)
+        domain = reader.snapshot["domains"]["market_daily"]
+        columns = reader._columns(domain, spec)
+        # Build the mandatory Arrow projection before tracing the optional
+        # Python index construction. Its full buffers are charged by Reader.
+        table = store.read_partition({"partition": "2024-01"}, columns=columns,
+                                     symbols=symbols, sessions=None)
+        with patch.object(store, "read_partition", return_value=table):
+            tracemalloc.start()
+            try:
+                groups = reader._build_index({"partition": "2024-01"}, domain, spec, columns)
+                _, python_peak = tracemalloc.get_traced_memory()
+            finally:
+                tracemalloc.stop()
+        self.assertIsNotNone(groups)
+        self.assertEqual(len(groups), 250)
+        self.assertLessEqual(python_peak, reader.index_build_peak_bytes)
+        self.assert_budget(reader)
+
+    def test_candidate_accounting_visits_each_retained_row_once(self):
+        symbols = tuple(f"synthetic-{i}" for i in range(250))
+        store = MemoryStore(daily_manifest(), {"2024-01": [daily_row(symbol=s) for s in symbols]})
+        reader = SnapshotQueryReader(store, "s1", cache_bytes=8_000_000)
+        spec = query(symbols=symbols)
+        domain = reader.snapshot["domains"]["market_daily"]
+        visits = []
+        original_size = _object_size
+        def counted_size(value, seen=None):
+            if isinstance(value, dict) and "revision_id" in value:
+                visits.append(id(value))
+            return original_size(value, seen)
+        with patch("axiom_data.reader._object_size", side_effect=counted_size):
+            groups = reader._build_index({"partition": "2024-01"}, domain, spec,
+                                         reader._columns(domain, spec))
+        self.assertIsNotNone(groups)
+        self.assertEqual(len(visits), 250)
+        self.assertEqual(len(set(visits)), 250)
+        self.assert_budget(reader)
+
+    def test_evicted_membership_index_and_rows_die_before_next_index_is_built(self):
+        class WeakIndex(dict):
+            __slots__ = ("__weakref__",)
+        class WeakRow(dict):
+            __slots__ = ("__weakref__",)
+
+        manifest = membership_manifest()
+        domain = manifest["domains"]["universe_membership"]
+        domain["partitions"] = [{"partition": "part-A"}, {"partition": "part-B"}]
+        rows = {"part-A": [membership_row("event-A", "2024-01-01", None, utc(1))],
+                "part-B": [{**membership_row("event-B", "2024-01-01", None, utc(1)),
+                            "security_id": "B"}]}
+        spec = membership_query(cutoff=utc(3))
+        probe = SnapshotQueryReader(MemoryStore(manifest, rows), "s1", cache_bytes=1_000_000)
+        probe._build_index(domain["partitions"][0], domain, spec, probe._columns(domain, spec))
+        # One candidate's reservation fits, but adding any resident index to
+        # that reservation forces LRU eviction while building the next part.
+        reader = SnapshotQueryReader(MemoryStore(manifest, rows), "s1",
+                                     cache_bytes=probe.index_build_peak_bytes)
+        original_build = reader._build_index
+        old_index = []
+        old_rows = []
+        def tracked_build(part, *args):
+            built = original_build(part, *args)
+            self.assertIsNotNone(built)
+            if part["partition"] == "part-B":
+                gc.collect()
+                self.assertIsNone(old_index[0]())
+                self.assertTrue(all(ref() is None for ref in old_rows))
+            tracked = WeakIndex({key: [WeakRow(row) for row in revisions]
+                                 for key, revisions in built.items()})
+            if part["partition"] == "part-A":
+                old_index.append(weakref.ref(tracked))
+                old_rows.extend(weakref.ref(row) for revisions in tracked.values() for row in revisions)
+            return tracked
+        with patch.object(reader, "_build_index", side_effect=tracked_build):
+            requested = reader._read_groups(domain, spec)
+        self.assertEqual(set(requested), {("A", "event-A"), ("B", "event-B")})
+        self.assertTrue(all(type(row) is dict for revisions in requested.values() for row in revisions))
+        self.assertEqual(reader.partition_reads, 2)
+        self.assert_budget(reader)
+
+    def test_membership_foreign_universe_evidence_preserves_error_scope_and_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalStore(tmp)
+            domain = deepcopy(membership_manifest()["domains"]["universe_membership"])
+            domain.update(raw_batch_ids=[], build_context={})
+            domain["contract"]["fields"]["membership_id"] = {"dtype": "string", "nullable": False}
+            good = membership_row("good", "2024-01-01", None, utc(1))
+            foreign = {**membership_row("bad", "2024-01-01", None, utc(1)),
+                       "universe_id": "OTHER", "source_available_at": utc(2), "evidence_ref": "inline"}
+            domain["partitions"] = [store.write_partition("universe_membership", "first", [good], domain["contract"]),
+                                    store.write_partition("universe_membership", "second", [foreign], domain["contract"])]
+            attestation = {**evidence_row(daily_row(revision="bad"), utc(3)),
+                           "target_domain": "universe_membership", "target_key": '{"membership_id":"bad"}'}
+            evidence_domain = {"contract": EVIDENCE_CONTRACT, "source_profile": EVIDENCE_PROFILE,
+                "partitions": [store.write_partition("public_evidence", "history", [attestation], EVIDENCE_CONTRACT)],
+                "coverage": {}, "raw_batch_ids": [], "build_context": {}}
+            snapshot = store.publish_snapshot({"universe_membership": domain, "public_evidence": evidence_domain},
+                                              parent_snapshot=None, build_context={}, promote=False)["snapshot_id"]
+            for budget in (0, 8192, 1_000_000):
+                reader = SnapshotQueryReader(store, snapshot, cache_bytes=budget)
+                for _ in range(2):
+                    with self.assertRaisesRegex(ConflictError, "public time conflicts"):
+                        reader.read(membership_query(cutoff=utc(4), symbols=("A",)))
+                self.assert_budget(reader)
+
+    def test_membership_evidence_join_precedes_event_key_validation_across_parts(self):
+        # A malformed logical key is a reader-boundary fixture, not a valid
+        # LocalStore write. Evidence on another universe still fails first,
+        # exactly as the original full-scope evidence join did.
+        manifest = membership_manifest()
+        manifest["domains"]["universe_membership"]["partitions"] = [
+            {"partition": "first"}, {"partition": "second"}]
+        invalid = {**membership_row("good", "2024-01-01", None, utc(1)), "membership_id": None}
+        foreign = {**membership_row("bad", "2024-01-01", None, utc(1)),
+                   "universe_id": "OTHER", "source_available_at": utc(2), "evidence_ref": "inline"}
+        attestation = {**evidence_row(daily_row(revision="bad"), utc(3)),
+                       "target_domain": "universe_membership", "target_key": '{"membership_id":"bad"}'}
+        for budget in (0, 8192, 1_000_000):
+            reader = SnapshotQueryReader(MemoryStore(manifest, {"first": [invalid], "second": [foreign]}),
+                                         "s1", cache_bytes=budget)
+            with patch("axiom_data.public_evidence.evidence_index",
+                       return_value={(attestation["target_key"], "bad"): attestation}):
+                with self.assertRaisesRegex(ConflictError, "public time conflicts"):
+                    reader.read(membership_query(cutoff=utc(4), symbols=("A",)))
+            self.assert_budget(reader)
+
+    def test_raw_index_results_are_isolated_even_when_final_result_is_not_cached(self):
+        row = daily_row(observed=utc(3))
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalStore(tmp)
+            snapshot, _ = parquet_snapshot(store, [row], evidence=[evidence_row(row, utc(1))])
+            reader = SnapshotQueryReader(store, snapshot)
+            reference = SnapshotQueryReader(store, snapshot, cache_bytes=0)
+            spec = query(cutoff=utc(2), policy="market_pit_safe_v1")
+            with patch("axiom_data.reader._cache_size", return_value=reader.cache_bytes + 1):
+                first = reader.read(spec)
+                first.frame.loc[0, "close"] = 999
+                first.field_meta["close"]["by_key"][0]["evidence_ref"] = "bad"
+                first.context["query"]["cutoff_by_session"].clear()
+                with patch.object(store, "read_partition", wraps=store.read_partition) as decoding:
+                    second = reader.read(spec)
+                self.assertEqual(decoding.call_count, 0)  # Both facts and evidence reuse verified memory.
+                self.assertEqual(second.to_json(), reference.read(spec).to_json())
+                self.assertEqual(reader.partition_reads, 1)
+                self.assertEqual(reader.cache_hits, 0)
+                raw = next(value for key, (value, _) in reader._cache.items() if key.startswith("rows:"))
+                self.assertIsNone(raw[("A", "2024-01-02")][0]["evidence_ref"])
+                strict = replace(spec, pit_policy="operational_pit_v1")
+                self.assertTrue(reader.read(strict).frame["close"].isna().all())
+            self.assert_budget(reader)
+
+    def test_fact_and_evidence_mutations_are_rejected_on_both_hit_paths(self):
+        row = daily_row(observed=utc(3))
+        for changed_domain in ("market_daily", "public_evidence"):
+            for result_hit in (False, True):
+                with self.subTest(domain=changed_domain, result_hit=result_hit), tempfile.TemporaryDirectory() as tmp:
+                    store = LocalStore(tmp)
+                    snapshot, domains = parquet_snapshot(store, [row], evidence=[evidence_row(row, utc(1))])
+                    reader = SnapshotQueryReader(store, snapshot)
+                    spec = query(cutoff=utc(2), policy="market_pit_safe_v1")
+                    self.assertEqual(reader.read(spec).frame["close"].tolist(), [10])
+                    part = domains[changed_domain]["partitions"][0]
+                    path = Path(tmp) / part["uri"]
+                    content = path.read_bytes()
+                    path.write_bytes(content[:-1] + bytes([content[-1] ^ 1]))
+                    next_spec = spec if result_hit else replace(spec, cutoff_by_session={"2024-01-02": utc(4)})
+                    with self.assertRaisesRegex(DataError, "SHA-256 validation"):
+                        reader.read(next_spec)
 
 
 if __name__ == "__main__":
