@@ -537,17 +537,21 @@ _DAILY_FIELDS = {
 }
 
 
-def _matches_daily_source(row, original, fields):
+def _daily_source_values(original, fields):
+    """Independently apply the declared source units and persisted numeric types."""
+    values = []
     for field, (source, multiplier) in fields.items():
-        value, actual = original.get(source), row.get(field)
+        value = original.get(source)
         expected = None if value is None else Decimal(str(value)) * multiplier
         if expected is None:
-            if actual is not None:
-                return False
-        elif actual is None or (Decimal(str(actual)) != expected if field == 'volume_shares' else
-                               not math.isclose(float(actual), float(expected), rel_tol=1e-12, abs_tol=1e-8)):
-            return False
-    return True
+            values.append(None)
+        elif field == 'volume_shares':
+            if expected != expected.to_integral_value():
+                raise DataError('daily Raw volume does not convert to integral shares')
+            values.append(int(expected))
+        else:
+            values.append(float(expected))
+    return tuple(values)
 
 
 def _audit_incremental_retention(store, domains, prior_domains):
@@ -583,17 +587,21 @@ def _audit_incremental_retention(store, domains, prior_domains):
 
 
 def _audit_daily_raw_presence(store, name, domain, rows, raw_records, month, plan):
-    """Independently require each retained, selected Raw fact in canonical data.
+    """Independently require the retained Raw occurrence sequence in canonical data.
 
-    Match whole value vectors across retained revisions, so repeated equal
-    observations may legitimately retain their earliest Raw reference. Selection
-    uses each receipt's frozen canonical symbols and the domain's bound identity
-    map (including an explicit rebuild mapping correction). Plan bounds
-    narrow this check; monthly partitions bound canonical memory.
+    Order by actual receipts and coalesce only consecutive equal observations.
+    A return to an older value needs its own occurrence; an old equal revision
+    cannot stand in for it. The effective domain canonical selection overrides
+    original Raw selections, including explicit offline expansion or narrowing.
+    Identity uses the bound domain map; plan bounds narrow the check. Original
+    receipts and Raw references remain valid across equal reobservations.
     """
     canonical = defaultdict(list)
     for row in rows:
         canonical[(row['security_id'], str(row['session']))].append(row)
+    source = defaultdict(dict)
+    raw_by_id = {raw['batch_id']: raw for raw in raw_records}
+    selection = domain.get('build_context', {}).get('canonical_selection', {}).get(name)
     checked = 0
     for raw in raw_records:
         params = raw.get('request', {}).get('params', {})
@@ -607,9 +615,17 @@ def _audit_daily_raw_presence(store, name, domain, rows, raw_records, month, pla
                      last < plan.start_session.replace('-', '')):
             continue
         identity = domain['source_profile'].get('identity_map', {})
-        chosen = set(raw.get('request', {}).get('canonical_symbols', identity))
+        chosen = set(selection if selection is not None else
+                     raw.get('request', {}).get('canonical_symbols', identity))
         if plan:
             chosen &= set(plan.symbols)
+        try:
+            observed = datetime.fromisoformat(raw['observed_at'].replace('Z', '+00:00'))
+            if observed.tzinfo is None or observed.utcoffset() is None:
+                raise ValueError('receipt timezone is absent')
+            observed = observed.astimezone(timezone.utc)
+        except (KeyError, AttributeError, ValueError) as exc:
+            raise DataError('daily Raw receipt timestamp is invalid') from exc
         for original in _rows(store.read_raw_record(raw)):
             code, source_day = original.get('ts_code'), original.get('trade_date')
             if code not in chosen:
@@ -618,10 +634,29 @@ def _audit_daily_raw_presence(store, name, domain, rows, raw_records, month, pla
             if not day or not day.startswith(month) or (plan and not plan.start_session <= day <= plan.end_session):
                 continue
             security = identity.get(code)
-            if security is None or not any(_matches_daily_source(row, original, _DAILY_FIELDS[name])
-                                          for row in canonical[(security, day)]):
-                raise DataError(f'{name} selected Raw fact absent from canonical data: {code} {day}')
+            if security is None:
+                raise DataError(f'{name} selected Raw security lacks its bound domain identity: {code}')
+            values = _daily_source_values(original, _DAILY_FIELDS[name])
+            observations = source[(security, day)]
+            if observed in observations and observations[observed] != values:
+                raise DataError(f'{name} has conflicting Raw values at the same receipt: {code} {day}')
+            observations[observed] = values
             checked += 1
+    for (security, day), observations in source.items():
+        expected = []
+        for observed, values in sorted(observations.items()):
+            if not expected or expected[-1][1] != values:
+                expected.append((observed, values))
+        actual = sorted(canonical[(security, day)], key=lambda row: row['first_observed_at'])
+        occurrences = [(row['first_observed_at'].astimezone(timezone.utc),
+                        tuple(row[field] for field in _DAILY_FIELDS[name])) for row in actual]
+        if occurrences != expected:
+            raise DataError(f'{name} selected Raw fact absent from canonical occurrence sequence: {security} {day}')
+        for row in actual:
+            raw = raw_by_id.get(row['raw_batch_id'])
+            if raw is None:
+                raise DataError(f'{name} canonical occurrence references Raw outside its domain closure')
+            _audit_raw_observation(row, raw)
     return checked
 
 

@@ -45,7 +45,7 @@ def facts(endpoint, codes, day, close=10):
     return [dict(row, up_limit=11., down_limit=9.) for row in common]
 
 
-def initialize(data, missing=None):
+def initialize(data, missing=None, selections=None):
     batches = []
     for exchange, codes in [('SZSE', ['000001.SZ', '000002.SZ']), ('SSE', ['600000.SH'])]:
         batches.append(source_batch('stock_basic', [dict(ts_code=code, exchange=exchange,
@@ -58,7 +58,8 @@ def initialize(data, missing=None):
         for endpoint in ('daily', 'adj_factor', 'stk_limit'):
             codes = [code for code in IDENTITIES if code not in (missing or {}).get((endpoint, day), ())]
             batches.append(source_batch(endpoint, facts(endpoint, codes, day),
-                                        {'trade_date': day.replace('-', '')}))
+                                        {'trade_date': day.replace('-', '')},
+                                        selected=(selections or {}).get(endpoint)))
     return data.update(base_snapshot=None, request=UpdateRequest(tuple(batches), 'initial', {})).snapshot_id
 
 
@@ -79,6 +80,119 @@ def altered_snapshot(data, snapshot, domain_name, transform):
 
 
 class DailyAcceptanceTests(unittest.TestCase):
+    def test_terminal_return_needs_its_last_occurrence_even_when_old_values_survive(self):
+        for endpoint, name, field, changed in [('daily', 'market_daily', 'close', 12.),
+                ('adj_factor', 'adjustment_factors', 'adj_factor', 2.),
+                ('stk_limit', 'price_limits', 'up_limit', 12.)]:
+            with self.subTest(domain=name), tempfile.TemporaryDirectory() as root:
+                data = Data(root)
+                initial = initialize(data)
+                previous = initial
+                for index, is_return in enumerate((False, True)):
+                    rows = facts(endpoint, ['000001.SZ'], DAYS[1])
+                    if not is_return:
+                        rows[0][field] = changed
+                    batch = source_batch(endpoint, rows, {'trade_date': '20260105'},
+                        selected=['000001.SZ'], observed=f'2026-09-{29 + index}T01:00:00Z')
+                    current = data.update(base_snapshot=previous,
+                        request=UpdateRequest((batch,), f'occurrence-{index}', {})).snapshot_id
+                    if not is_return:
+                        before_return = current
+                    previous = current
+                # Receipt order, rather than Raw-list order, defines A -> B -> A.
+                manifest = data.store.load_snapshot(current)
+                manifest['domains'][name]['raw_batch_ids'].reverse()
+                current = data.store.publish_snapshot(manifest['domains'], parent_snapshot=current,
+                    build_context={'test': 'reversed receipt list'}, promote=False)['snapshot_id']
+                audit_snapshot(data.store, snapshot_id=current, plan=plan(),
+                               base_snapshot=before_return, preserve_base=True)
+                altered = altered_snapshot(data, current, name, lambda rows: [row for row in rows
+                    if not (row['security_id'] == 'one' and str(row['session']) == DAYS[1] and
+                            row['first_observed_at'].date().isoformat() == '2026-09-30')])
+                def stored(snapshot):
+                    domain = data.store.load_snapshot(snapshot)['domains'][name]
+                    return [row for part in domain['partitions'] for row in data.store.read_partition(part).to_pylist()]
+                # Retention alone passes: every old A/B row, value and receipt remains.
+                self.assertTrue(all(row in stored(altered) for row in stored(before_return)))
+                with self.assertRaisesRegex(DataError, 'canonical occurrence sequence'):
+                    audit_snapshot(data.store, snapshot_id=altered, plan=plan(),
+                                   base_snapshot=before_return, preserve_base=True)
+
+    def test_continuous_equal_receipts_keep_original_reference_without_extra_revision(self):
+        for endpoint, name, field, changed in [('daily', 'market_daily', 'close', 12.),
+                ('adj_factor', 'adjustment_factors', 'adj_factor', 2.),
+                ('stk_limit', 'price_limits', 'up_limit', 12.)]:
+            with self.subTest(domain=name), tempfile.TemporaryDirectory() as root:
+                data = Data(root)
+                original = initialize(data)
+                domain = data.store.load_snapshot(original)['domains'][name]
+                original_row = next(row for part in domain['partitions']
+                    for row in data.store.read_partition(part).to_pylist()
+                    if row['security_id'] == 'one' and str(row['session']) == DAYS[1])
+                previous = original
+                for index, changed_codes in enumerate((['000002.SZ'], ['000002.SZ', '600000.SH'])):
+                    rows = facts(endpoint, IDENTITIES, DAYS[1])
+                    for row in rows:
+                        if row['ts_code'] in changed_codes:
+                            row[field] = changed
+                    batch = source_batch(endpoint, rows, {'trade_date': '20260105'},
+                        observed=f'2026-09-{29 + index}T01:00:00Z')
+                    operation = f'reobserved-{index}'
+                    current = data.update(base_snapshot=previous,
+                        request=UpdateRequest((batch,), operation, {})).snapshot_id
+                    domain = data.store.load_snapshot(current)['domains'][name]
+                    self.assertIn(data.store.read_operation(operation)['raw_batch_ids'][0], domain['raw_batch_ids'])
+                    repeated = [row for part in domain['partitions']
+                        for row in data.store.read_partition(part).to_pylist()
+                        if row['security_id'] == 'one' and str(row['session']) == DAYS[1]]
+                    self.assertEqual(repeated, [original_row])
+                    audit_snapshot(data.store, snapshot_id=current, plan=plan(),
+                                   base_snapshot=previous, preserve_base=True)
+                    previous = current
+
+    def test_domain_selection_expansion_checks_facts_outside_original_raw_selection(self):
+        with tempfile.TemporaryDirectory() as root:
+            data = Data(root)
+            original = initialize(data, selections={endpoint: ['000001.SZ']
+                for endpoint in ('daily', 'adj_factor', 'stk_limit')})
+            names = ('market_daily', 'adjustment_factors', 'price_limits')
+            domains = data.store.load_snapshot(original)['domains']
+            raw_ids = [raw for name in names for raw in domains[name]['raw_batch_ids']]
+            rebuilt = rebuild_from_raw(data.store, base_snapshot=original, raw_batch_ids=raw_ids,
+                domains=names, operation_id='expanded-selection', build_context={}, promote=False,
+                domain_overrides={name: {'canonical_symbols': list(IDENTITIES)} for name in names}).snapshot_id
+            audit_snapshot(data.store, snapshot_id=rebuilt, plan=plan())
+            for name in names:
+                domain = data.store.load_snapshot(rebuilt)['domains'][name]
+                self.assertEqual(domain['build_context']['canonical_selection'][name], list(IDENTITIES))
+                self.assertTrue(all(data.store.get_raw(raw)['request']['canonical_symbols'] == ['000001.SZ']
+                                    for raw in domain['raw_batch_ids']))
+                with self.subTest(domain=name):
+                    altered = altered_snapshot(data, rebuilt, name, lambda rows: [row for row in rows
+                        if not (row['security_id'] == 'two' and str(row['session']) == DAYS[1])])
+                    with self.assertRaisesRegex(DataError, 'selected Raw fact absent'):
+                        audit_snapshot(data.store, snapshot_id=altered, plan=plan())
+
+    def test_domain_selection_narrowing_does_not_require_unselected_raw_facts(self):
+        with tempfile.TemporaryDirectory() as root:
+            data = Data(root)
+            original = initialize(data)
+            names = ('market_daily', 'adjustment_factors', 'price_limits')
+            domains = data.store.load_snapshot(original)['domains']
+            raw_ids = [raw for name in names for raw in domains[name]['raw_batch_ids']]
+            rebuilt = rebuild_from_raw(data.store, base_snapshot=original, raw_batch_ids=raw_ids,
+                domains=names, operation_id='narrowed-selection', build_context={}, promote=False,
+                domain_overrides={name: {'canonical_symbols': ['000001.SZ']} for name in names}).snapshot_id
+            report = audit_snapshot(data.store, snapshot_id=rebuilt, plan=plan(['000001.SZ']))
+            self.assertEqual(report['status'], 'passed')
+            for name in names:
+                domain = data.store.load_snapshot(rebuilt)['domains'][name]
+                self.assertTrue(all(set(data.store.get_raw(raw)['request']['canonical_symbols']) == set(IDENTITIES)
+                                    for raw in domain['raw_batch_ids']))
+                self.assertEqual(report['raw_presence_checks'][name], 1)
+            # A request for the full pool still exposes the intentionally omitted coverage.
+            self.assertEqual(audit_snapshot(data.store, snapshot_id=rebuilt, plan=plan())['status'], 'limited')
+
     def test_partial_repeat_real_revision_empty_and_other_date_preserve_base(self):
         with tempfile.TemporaryDirectory() as root:
             data = Data(root)
