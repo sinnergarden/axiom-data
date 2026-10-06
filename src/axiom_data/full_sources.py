@@ -616,8 +616,14 @@ def verify_full_sources(store: LocalStore, *, plan: FullSourcePlan,
     unchanged_raw = 0
     calendar_state = store.read_operation(f"{reference_operation}.calendar")
     market_state = store.read_operation(f"{reference_operation}.market")
-    event_chunks = list(_event_chunks(plan, _next_open_map(plan, calendar_state["trading_sessions"]),
-                                     market_state["trading_sessions"]))
+    if continuation:
+        from .financial_continuation import _chunks
+        # Explicit continuation retains the original core request fields;
+        # current optional context must not reinterpret old observations.
+        event_chunks = _chunks(plan, calendar_state, market_state)
+    else:
+        event_chunks = list(_event_chunks(plan, _next_open_map(plan, calendar_state["trading_sessions"]),
+                                         market_state["trading_sessions"]))
     if len(event_chunks) != state["total_event_chunks"]:
         raise CoverageError("event chunks do not cover the frozen plan")
     for index in range(state["total_event_chunks"]):
