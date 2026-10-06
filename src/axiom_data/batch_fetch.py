@@ -147,7 +147,7 @@ def verify_batch_selectors(store: LocalStore, *, operation_id: str,
                 request.get("plan_fingerprint") != plan_fingerprint or
                 request.get("plan_request_index") != index or
                 any(request.get(field) != task.get(field) for field in fields)):
-                raise DataError("batch Raw selector differs from its completed child")
+            raise DataError("batch Raw selector differs from its completed child")
         frozen_identity = raw.get("source_profile", {}).get("identity_map")
         if frozen_identity is not None and frozen_identity != dict(identity_map):
             raise DataError("batch Raw identity differs from the frozen plan")
@@ -159,6 +159,7 @@ def verify_batch_selectors(store: LocalStore, *, operation_id: str,
                 raise DataError("batch split does not cover its complete parent scope")
             for child_index, child in zip(indexes, children):
                 visit(child_index, child)
+
     for index, spec in enumerate(specs):
         visit(index, spec)
     if visited != set(range(len(tasks))):

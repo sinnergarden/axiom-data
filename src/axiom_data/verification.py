@@ -716,11 +716,11 @@ def audit_snapshot(store: LocalStore, *, snapshot_id: str, plan=None,
         coverage = report['daily_field_coverage'].setdefault(name, {
             'expected_keys': 0, 'missing_by_field': dict.fromkeys(_DAILY_FIELDS[name], 0),
             'missing_samples': []})
-        for security in wanted:
+        for security in sorted(wanted):
             if security not in securities:
                 continue
             exchange, first, end = securities[security]
-            for day in calendar[exchange]:
+            for day in sorted(calendar[exchange]):
                 if (not day.startswith(month) or day < first or (end and day >= end) or
                         (plan and not plan.start_session <= day <= plan.end_session)):
                     continue
