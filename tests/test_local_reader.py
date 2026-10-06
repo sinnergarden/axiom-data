@@ -137,8 +137,10 @@ class LocalReaderTests(unittest.TestCase):
         assert before.frame.loc[0, "close"] == 10
         assert after.frame.loc[0, "close"] == 20
         assert after.field_meta["close"]["by_key"][0]["revision_id"] == "new"
-        assert [call[0] for call in store.calls] == ["2024-01", "2024-01"]
-        assert all("volume" not in call[1] for call in store.calls)
+        reads = [call for call in store.calls if call[0] != "verify"]
+        assert [call[0] for call in reads] == ["2024-01"]
+        assert all("volume" not in call[1] for call in reads)
+        assert reader.index_cache_hits == 1
 
     def test_market_safe_requires_revision_bound_evidence_and_preserves_missing_keys(self):
         rows = [
@@ -270,7 +272,7 @@ class LocalReaderTests(unittest.TestCase):
         assert current.frame["is_member"].iloc[:5].tolist() == [True, False, False, False, True]
         assert current.frame["is_member"].isna().iloc[-1]
         assert current.field_meta["is_member"]["by_key"][-1]["missing_reason"] == "source_missing"
-        assert all(call[3] is None for call in store.calls)
+        assert all(call[3] is None for call in store.calls if call[0] != "verify")
 
     def test_membership_requires_explicit_universe_and_visible_complete_state(self):
         store = MemoryStore(membership_manifest(), {"history": []})
