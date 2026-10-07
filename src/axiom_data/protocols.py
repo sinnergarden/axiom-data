@@ -83,6 +83,10 @@ def _json_safe(value: Any) -> Any:
     """Convert common DataFrame scalars to strict JSON values."""
     if value is None:
         return None
+    if type(value) in (str, int, bool):
+        return value
+    if type(value) is float:
+        return value if isfinite(value) else None
     if type(value).__module__.startswith(("pandas", "numpy")) and str(value) in ("NaT", "nan", "<NA>"):
         return None
     if isinstance(value, Mapping):

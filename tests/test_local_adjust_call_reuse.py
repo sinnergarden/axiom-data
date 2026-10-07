@@ -1,11 +1,14 @@
 """Small correctness and call-count checks for invocation-local adjustment reuse."""
 
-from collections import Counter
+from collections import Counter, UserDict
 from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
+import json
 import unittest
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 
 from axiom_data import derived
@@ -180,6 +183,85 @@ class AdjustmentCallReuseTests(unittest.TestCase):
         self.assertEqual((prices.to_json(), factors.to_json()), before)
         self.assertEqual(list(result.context), list(prices.context)+["derivation"])
 
+    def test_plain_scalar_lineage_avoids_deepcopy_and_keeps_each_branch_detached(self):
+        prices, factors = multi_inputs()
+        provenance = []
+        for value in (prices, factors):
+            for definition in value.field_meta.values():
+                for item in definition["by_key"]:
+                    del item["unknown_attributes"]
+                    provenance.append(item)
+        source_ids = {id(item) for item in provenance}
+        before = prices.to_json(), factors.to_json()
+        with patch.object(derived, "deepcopy", wraps=deepcopy) as copies:
+            result = adjusted(prices, factors)
+        self.assertEqual(sum(id(c.args[0]) in source_ids for c in copies.call_args_list), 0)
+        item = result.field_meta["close"]["by_key"][0]
+        item["anchor_factor_provenance"]["revision_id"] = "mutated"
+        item["price_provenance"]["raw_batch_id"] = "mutated"
+        for field, index in (("open", 0), ("close", 2)):
+            self.assertNotEqual(result.field_meta[field]["by_key"][index]["anchor_factor_provenance"]["revision_id"],
+                                "mutated")
+        self.assertEqual((prices.to_json(), factors.to_json()), before)
+
+    def test_nested_lineage_keeps_deepcopy_for_every_output_branch(self):
+        prices, factors = multi_inputs()
+        with patch.object(derived, "deepcopy", wraps=deepcopy) as copies:
+            result = adjusted(prices, factors)
+        source_ids = {id(item) for value in (prices, factors)
+                      for definition in value.field_meta.values() for item in definition["by_key"]}
+        self.assertEqual(sum(id(c.args[0]) in source_ids for c in copies.call_args_list), 36)
+        result.field_meta["close"]["by_key"][0]["factor_provenance"]["unknown_attributes"]["keep"].append("bad")
+        self.assertEqual(result.field_meta["open"]["by_key"][0]["factor_provenance"]["unknown_attributes"]["keep"],
+                         [None, -0.0, "original"])
+
+    def test_nonplain_mapping_and_mutable_unknown_keys_remain_detached(self):
+        class Key:
+            def __init__(self): self.notes = ["original"]
+            def __str__(self): return "unknown_key"
+        class Provenance(dict):
+            pass
+        prices, factors = multi_inputs()
+        item = factors.field_meta["adj_factor"]["by_key"][0]
+        del item["unknown_attributes"]
+        key = Key()
+        item[key] = "scalar"
+        original = prices.field_meta["close"]["by_key"][0]
+        prices.field_meta["close"]["by_key"][0] = Provenance(original)
+        result = adjusted(prices, factors)
+        selected = next(p for p in result.field_meta["close"]["by_key"]
+                        if p["security_id"] == item["security_id"] and p["session"] == item["session"])
+        copied_key = next(k for k in selected["factor_provenance"] if isinstance(k, Key))
+        self.assertIsNot(copied_key, key)
+        copied_key.notes.append("bad")
+        self.assertEqual(key.notes, ["original"])
+        selected_price = next(p for p in result.field_meta["close"]["by_key"]
+                              if p["security_id"] == original["security_id"] and p["session"] == original["session"])
+        self.assertIsInstance(selected_price["price_provenance"], Provenance)
+        selected_price["price_provenance"]["unknown_attributes"]["keep"].append("bad")
+        self.assertEqual(original["unknown_attributes"]["keep"], [None, -0.0, "original"])
+
+    def test_scalar_subclass_attributes_are_deepcopied_in_lineage(self):
+        class TaggedInt(int):
+            def __new__(cls, value):
+                result = super().__new__(cls, value)
+                result.notes = ["original"]
+                return result
+        prices, factors = multi_inputs()
+        for definition in factors.field_meta.values():
+            for item in definition["by_key"]:
+                item.pop("unknown_attributes")
+                item["tag"] = TaggedInt(3)
+        before = prices.to_json(), factors.to_json()
+        result = adjusted(prices, factors)
+        tag = result.field_meta["close"]["by_key"][0]["anchor_factor_provenance"]["tag"]
+        self.assertIsInstance(tag, TaggedInt)
+        tag.notes.append("bad")
+        self.assertEqual(result.field_meta["open"]["by_key"][0]["anchor_factor_provenance"]["tag"].notes,
+                         ["original"])
+        self.assertTrue(all(item["tag"].notes == ["original"] for item in factors.field_meta["adj_factor"]["by_key"]))
+        self.assertEqual((prices.to_json(), factors.to_json()), before)
+
     def test_reader_cutoffs_choose_old_and_new_price_and_anchor_revisions(self):
         manifest = daily_manifest()
         market = manifest["domains"]["market_daily"]
@@ -215,6 +297,54 @@ class AdjustmentCallReuseTests(unittest.TestCase):
             self.assertEqual(result.frame.close.tolist(), values)
             meta = result.field_meta["close"]["by_key"][0]
             self.assertEqual((meta["price_provenance"]["revision_id"], meta["anchor_factor_provenance"]["revision_id"]), revisions)
+
+
+class ScalarSerializationTests(unittest.TestCase):
+    def test_exact_scalars_keep_types_negative_zero_and_nonfinite_nulls(self):
+        from axiom_data.protocols import _json_safe
+        values = [None, True, False, 2**80, "text", 1.25, -0.0, float("nan"), float("inf"), -float("inf")]
+        result = _json_safe(values)
+        self.assertEqual(result, [None, True, False, 2**80, "text", 1.25, -0.0, None, None, None])
+        self.assertEqual([type(v) for v in result[:7]], [type(v) for v in values[:7]])
+        self.assertEqual(result[6].hex(), "-0x0.0p+0")
+        self.assertEqual(_json_safe(["nan", "NaT", "<NA>"]), ["nan", "NaT", "<NA>"])
+        json.dumps(result, allow_nan=False)
+
+    def test_numpy_pandas_decimal_date_and_mapping_keep_original_semantics(self):
+        from axiom_data.protocols import _json_safe
+        finite64 = np.float64(1.25)
+        values = UserDict({1: (np.int64(4), np.bool_(True), finite64, np.float32(2.5),
+                              np.float64(np.nan), pd.NA, pd.NaT, Decimal("3.25"), Decimal("NaN"),
+                              date(2024, 1, 2), datetime(2024, 1, 2, tzinfo=timezone.utc))})
+        result = _json_safe(values)
+        self.assertEqual(result, {"1": [4, True, 1.25, 2.5, None, None, None, 3.25, None,
+                                       "2024-01-02", "2024-01-02T00:00:00+00:00"]})
+        self.assertIs(result["1"][2], finite64)
+        json.dumps(result, allow_nan=False)
+
+    def test_scalar_subclasses_and_unknown_objects_are_not_retyped(self):
+        from axiom_data.protocols import _json_safe
+        class Int(int): pass
+        class Text(str): pass
+        class Float(float): pass
+        class Unknown: pass
+        values = [Int(4), Text("text"), Float(1.5), Unknown()]
+        result = _json_safe(values)
+        self.assertTrue(all(a is b for a, b in zip(values, result)))
+        with self.assertRaises(TypeError):
+            json.dumps(result, allow_nan=False)
+        with self.assertRaises(ValueError):
+            _json_safe(np.array([1, 2]))
+
+    def test_public_batch_conversion_detaches_nested_output_containers(self):
+        original = DataBatch(pd.DataFrame({"value": [1]}),
+                             {"attributes": {"values": [True, np.int64(9), None, -0.0]}},
+                             {"unknown": {"nested": [Decimal("2.5")]}})
+        result = original.to_json()
+        result["field_meta"]["attributes"]["values"].append("bad")
+        result["context"]["unknown"]["nested"].append("bad")
+        self.assertEqual(original.field_meta["attributes"]["values"], [True, np.int64(9), None, -0.0])
+        self.assertEqual(original.context["unknown"]["nested"], [Decimal("2.5")])
 
 
 if __name__ == "__main__":

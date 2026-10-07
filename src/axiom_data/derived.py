@@ -116,6 +116,15 @@ def _number(value: Any) -> tuple[float | None, str | None]:
     return (number, None) if isfinite(number) else (None, "invalid")
 
 
+def _copy_provenance(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Detach each leaf; only plain dictionaries of exact JSON scalars are shallow-safe."""
+    scalar_types = (type(None), bool, int, float, str)
+    if type(value) is dict and all(type(key) in scalar_types and type(item) in scalar_types
+                                  for key, item in value.items()):
+        return value.copy()
+    return deepcopy(value)
+
+
 def adjust_prices(
     prices: DataBatch,
     factors: DataBatch,
@@ -236,9 +245,9 @@ def adjust_prices(
                 output_meta[field]["by_key"].append({
                     "security_id": symbol, "session": session,
                     "missing_reason": reason,
-                    "price_provenance": deepcopy(price_definitions[field][1][key]),
-                    "factor_provenance": deepcopy(factor_meta[key]),
-                    "anchor_factor_provenance": deepcopy(factor_meta[anchor_key]),
+                    "price_provenance": _copy_provenance(price_definitions[field][1][key]),
+                    "factor_provenance": _copy_provenance(factor_meta[key]),
+                    "anchor_factor_provenance": _copy_provenance(factor_meta[anchor_key]),
                 })
             records.append(record)
 
