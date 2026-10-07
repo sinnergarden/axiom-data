@@ -144,8 +144,9 @@ def adjust_prices(
     factors, and nonpositive/nonfinite factors, yield nulls with per-key reasons.
     No I/O, Raw replay, revision selection, or timestamp inference occurs here.
     Source vintage limitations in either input remain limitations of the result.
-    Within one call, at most 128 distinct timestamp strings and one parsed
-    anchor number per security are reused. Every provenance/cutoff check runs.
+    Within one call, at most 128 distinct timestamp strings and each security's
+    immutable native anchor number are reused. Other numeric types keep their
+    original parsing path, and every provenance/cutoff check runs.
     Nothing is retained between calls, and output lineage remains detached.
     """
     parsed_instants: dict[str, datetime] = {}
@@ -220,9 +221,13 @@ def adjust_prices(
         for symbol in price_symbols:
             key, anchor_key = (symbol, session), (symbol, anchor)
             factor, factor_state = _number(factor_rows[key][factor_field])
-            if symbol not in anchor_numbers:
-                anchor_numbers[symbol] = _number(factor_rows[anchor_key][factor_field])
-            anchor_factor, anchor_state = anchor_numbers[symbol]
+            anchor_value = factor_rows[anchor_key][factor_field]
+            if type(anchor_value) in (type(None), bool, int, float, Decimal):
+                if symbol not in anchor_numbers:
+                    anchor_numbers[symbol] = _number(anchor_value)
+                anchor_factor, anchor_state = anchor_numbers[symbol]
+            else:
+                anchor_factor, anchor_state = _number(anchor_value)
             record: dict[str, Any] = {"security_id": symbol, "session": session}
             for field in fields:
                 price, price_state = _number(price_rows[key][field])

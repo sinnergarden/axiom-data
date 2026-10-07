@@ -77,6 +77,26 @@ class AdjustmentCallReuseTests(unittest.TestCase):
         self.assertEqual(values.loc[("B", SESSIONS[0]), "close"], 110.0/11.0)
         self.assertEqual(values.loc[("A", SESSIONS[-1]), "close"], 102.0)
 
+    def test_stateful_decimal_subclass_retains_original_anchor_parsing(self):
+        class ChangingDecimal(Decimal):
+            def __new__(cls, value):
+                result = super().__new__(cls, value)
+                result.calls = 0
+                return result
+            def __float__(self):
+                self.calls += 1
+                return super().__float__()+self.calls
+        prices, factors = multi_inputs()
+        factors.frame["adj_factor"] = factors.frame["adj_factor"].astype(object)
+        number = ChangingDecimal("7")
+        factors.frame.loc[(factors.frame.security_id == "A") &
+                          (factors.frame.session == SESSIONS[-1]), "adj_factor"] = number
+        result = adjusted(prices, factors)
+        # e321 observes anchor conversions 1/2, then daily factor 3 and anchor 4.
+        self.assertEqual(result.frame[result.frame.security_id == "A"].close.tolist(),
+                         [100.0/8.0, 101.0*2.0/9.0, 102.0*10.0/11.0])
+        self.assertEqual(number.calls, 4)
+
     def test_equal_timestamp_strings_are_parsed_once_in_one_call(self):
         prices, factors = multi_inputs()
         with patch.object(derived, "_instant", wraps=derived._instant) as instants:
