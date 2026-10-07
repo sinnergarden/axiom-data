@@ -43,7 +43,7 @@ def _instant(value: Any, label: str) -> datetime:
     return value.astimezone(timezone.utc)
 
 
-def _query(batch: DataBatch, label: str) -> tuple[Mapping[str, Any], tuple[str, ...], tuple[str, ...], datetime]:
+def _query(batch: DataBatch, label: str, *, instant_parser=None) -> tuple[Mapping[str, Any], tuple[str, ...], tuple[str, ...], datetime]:
     if not isinstance(batch, DataBatch) or not isinstance(batch.context, Mapping):
         raise QueryError(f"{label} must be a reader DataBatch")
     if batch.context.get("contract_version") != "data_batch_v1" or not batch.context.get("reader_version"):
@@ -62,7 +62,8 @@ def _query(batch: DataBatch, label: str) -> tuple[Mapping[str, Any], tuple[str, 
     cutoffs = query.get("cutoff_by_session")
     if not isinstance(cutoffs, Mapping) or set(cutoffs) != set(sessions):
         raise QueryError(f"{label} cutoff must cover exactly its sessions")
-    instants = {_instant(cutoffs[session], f"{label} cutoff") for session in sessions}
+    parse = _instant if instant_parser is None else instant_parser
+    instants = {parse(cutoffs[session], f"{label} cutoff") for session in sessions}
     if len(instants) != 1:
         raise QueryError("common-anchor adjustment requires a single decision cutoff across the whole window and anchor")
     if query.get("price_basis") != "unadjusted" or query.get("adjustment_anchor") is not None:
@@ -134,9 +135,22 @@ def adjust_prices(
     factors, and nonpositive/nonfinite factors, yield nulls with per-key reasons.
     No I/O, Raw replay, revision selection, or timestamp inference occurs here.
     Source vintage limitations in either input remain limitations of the result.
+    Within one call, at most 128 distinct timestamp strings and one parsed
+    anchor number per security are reused. Every provenance/cutoff check runs.
+    Nothing is retained between calls, and output lineage remains detached.
     """
-    price_query, price_symbols, price_sessions, price_cutoff = _query(prices, "prices")
-    factor_query, factor_symbols, factor_sessions, factor_cutoff = _query(factors, "factors")
+    parsed_instants: dict[str, datetime] = {}
+
+    def parse_instant(value: Any, label: str) -> datetime:
+        if type(value) is str and value in parsed_instants:
+            return parsed_instants[value]
+        result = _instant(value, label)
+        if type(value) is str and len(parsed_instants) < 128:
+            parsed_instants[value] = result
+        return result
+
+    price_query, price_symbols, price_sessions, price_cutoff = _query(prices, "prices", instant_parser=parse_instant)
+    factor_query, factor_symbols, factor_sessions, factor_cutoff = _query(factors, "factors", instant_parser=parse_instant)
     if not prices.context.get("snapshot_id") or prices.context["snapshot_id"] != factors.context.get("snapshot_id"):
         raise QueryError("price and factor Snapshot IDs must match")
     if price_query.get("pit_policy") != factor_query.get("pit_policy"):
@@ -183,7 +197,7 @@ def adjust_prices(
     for label, definitions in (("factors", (factor_meta,)), ("prices", tuple(value[1] for value in price_definitions.values()))):
         for indexed in definitions:
             for item in indexed.values():
-                if item.get("usable_from") is not None and _instant(item["usable_from"], f"{label} usable_from") > price_cutoff:
+                if item.get("usable_from") is not None and parse_instant(item["usable_from"], f"{label} usable_from") > price_cutoff:
                     raise QueryError(f"{label} provenance is later than the decision cutoff")
 
     records: list[dict[str, Any]] = []
@@ -192,11 +206,14 @@ def adjust_prices(
                 "recipe_version": PRICE_ADJUSTMENT_VERSION, "by_key": []}
         for field in fields
     }
+    anchor_numbers: dict[str, tuple[float | None, str | None]] = {}
     for session in price_sessions:
         for symbol in price_symbols:
             key, anchor_key = (symbol, session), (symbol, anchor)
             factor, factor_state = _number(factor_rows[key][factor_field])
-            anchor_factor, anchor_state = _number(factor_rows[anchor_key][factor_field])
+            if symbol not in anchor_numbers:
+                anchor_numbers[symbol] = _number(factor_rows[anchor_key][factor_field])
+            anchor_factor, anchor_state = anchor_numbers[symbol]
             record: dict[str, Any] = {"security_id": symbol, "session": session}
             for field in fields:
                 price, price_state = _number(price_rows[key][field])
@@ -225,7 +242,10 @@ def adjust_prices(
                 })
             records.append(record)
 
-    context = deepcopy(dict(prices.context))
+    # Preserve query's position and detach it independently below, without
+    # first copying the query graph that would immediately be overwritten.
+    context = deepcopy({key: None if key == "query" else value
+                        for key, value in prices.context.items()})
     context["query"] = deepcopy(dict(price_query))
     context["query"].update({"fields": list(fields), "price_basis": "common_anchor_adjusted_v1", "adjustment_anchor": anchor})
     context["derivation"] = {
