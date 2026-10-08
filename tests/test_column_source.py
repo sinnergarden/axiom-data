@@ -29,6 +29,29 @@ class ColumnSourceTests(unittest.TestCase):
     def data(self,modify=None,**kw):
         self.count+=1
         return prepared(self.root/str(self.count),modify=modify,**kw)
+    def monthly_data(self,months=110):
+        days=tuple((f'{2014+i//12}-{i%12+1:02d}-02',f'{2014+i//12}-{i%12+1:02d}-03') for i in range(months))
+        def modify(domains,rows):
+            for name in ('market_daily','adjustment_factors'):
+                domain=domains[name];template=rows[domain['partitions'][0]['uri']][0]
+                domain['partitions']=[]
+                for i,pair in enumerate(days):
+                    month=pair[0][:7];uri=f'{name}/{month}.parquet';values=[]
+                    for day in pair:
+                        for symbol in ('A','B'):
+                            base=dict(template,security_id=symbol,session=day,revision_id='old',revision_sequence=1,
+                                first_observed_at='2010-01-01T00:00:00+00:00')
+                            base.update({'open':float(i+1),'close':float(2*i+2)} if name=='market_daily' else {'factor':float(i+1)})
+                            if symbol=='B':base.update({n:None for n in ('open','close') if n in base})
+                            new=dict(base,revision_id='new',revision_sequence=2,first_observed_at='2030-01-01T00:00:00+00:00')
+                            if symbol=='A':new.update({'open':float(i+4),'close':float(2*i+5)} if name=='market_daily' else {'factor':float(2*i+2)})
+                            values.extend((base,new))
+                    rows[uri]=values;domain['partitions'].append(dict(partition=month,uri=uri,rows=len(values),file_sha256='0'*64))
+            evidence=rows['public_evidence/history.parquet'][0]
+            evidence.update(target_key='{"security_id":"A","session":"2014-01-02"}',target_revision='new',
+                public_at='2014-01-02T10:00:00+00:00')
+        d,s=self.data(modify)
+        return d,s,days
     def source(self,d,s,limits=LIMITS):
         owner=d.open_column_source(snapshot=s,limits=limits);self.addCleanup(owner.close);return owner
     def assert_columns(self,selection,batch):
@@ -278,6 +301,89 @@ class ColumnSourceTests(unittest.TestCase):
         self.assertEqual(owner._temporary,0);a.close();gc.collect()
         b=owner.select(query=q);self.assertEqual(b.columns['close'].values[0,0],10.)
         self.assertLessEqual(owner.statistics['peak_source_bytes'],charge)
+    def test_working_reservation_reclaims_unborrowed_cache_before_rejecting(self):
+        d,s,days=self.monthly_data(4);owner=self.source(d,s)
+        make_room=owner._make_room
+        def admission(size):
+            self.assertEqual(owner._temporary,0,'block admission must release aliased decode fees')
+            return make_room(size)
+        with patch.object(owner,'_make_room',side_effect=admission):
+            for pair in days:
+                selected=owner.select(query=query(sessions=pair,symbols=('A',),cutoff='2031-01-01T00:00:00+00:00'))
+                selected.close()
+        before=owner._usage();self.assertGreater(before,0)
+        extra=owner._limits['max_working_bytes']-owner._working()+1
+        with owner._reserve(extra):
+            self.assertLess(owner._usage(),before)
+            self.assertLessEqual(owner._working(),owner._limits['max_working_bytes'])
+        self.assertEqual(owner._temporary,0)
+        self.assertGreater(owner.statistics['cache_reclaimed_bytes'],0)
+        self.assertLessEqual(owner.statistics['peak_working_bytes'],owner._limits['max_working_bytes'])
+    def test_working_reclaim_keeps_adjusted_borrows_charged_and_recovers_after_close(self):
+        d,s,days=self.monthly_data(2);owner=self.source(d,s)
+        p=query(sessions=days[0],symbols=('A',),cutoff='2031-01-01T00:00:00+00:00')
+        prices=owner.select(query=p);factors=owner.select(query=replace(p,domain='adjustment_factors',fields=('factor',)))
+        adjusted=owner.adjust(prices,factors,fields=p.fields,anchor_session=p.sessions[-1])
+        borrowed=adjusted.columns['close'].values;want=borrowed.to_numpy();charged=owner._usage()
+        extra=owner._limits['max_working_bytes']-(owner._snapshot_bytes+sum(owner._charges.values()))+1
+        with self.assertRaisesRegex(QueryError,'working budget exceeded.*snapshot=.*extra=.*limit='):
+            with owner._reserve(extra):self.fail('pinned work must remain charged')
+        self.assertFalse(owner._reader._cache);self.assertEqual(owner._usage(),charged)
+        self.assertEqual(owner._temporary,0)
+        np.testing.assert_array_equal(borrowed.to_numpy(),want)
+        prices.close();factors.close();self.assertEqual(owner._usage(),charged)
+        adjusted.close();self.assertEqual(owner._usage(),0);self.assertEqual(owner._charges['selection'],0)
+        with self.assertRaises(QueryError):borrowed.to_numpy()
+        recovered=owner.select(query=replace(p,sessions=days[1],cutoff_by_session={day:'2031-01-01T00:00:00+00:00' for day in days[1]}))
+        self.assertEqual(recovered.columns['close'].values[0,0],7.)
+    def test_255_fold_small_rolling_reclaims_across_years_and_preserves_cutoffs(self):
+        # Allow the required 25-month window, old/new role selections and all
+        # fixed file-identity metadata; historical LRU still exceeds this cap.
+        d,s,days=self.monthly_data();limits=dict(cache_bytes=4*1048576,max_working_bytes=4*1048576)
+        owner=self.source(d,s,limits);previous={};peak_live=0;prior_peak=0
+        for fold in range(255):
+            self.rolling_folds_started=fold+1
+            end=25+fold//3;cutoff='2029-01-01T00:00:00+00:00' if fold%3==1 else '2031-01-01T00:00:00+00:00'
+            for role,sessions in (('training',tuple(day for pair in days[end-25:end] for day in pair)),('evaluation',days[end-1])):
+                old=previous.get(role,{})
+                p=query(sessions=sessions,symbols=('A','B','MISSING'),cutoff=cutoff)
+                prices=owner.select(query=p,previous=old.get('prices'))
+                factors=owner.select(query=replace(p,domain='adjustment_factors',fields=('factor',)),previous=old.get('factors'))
+                adjusted=owner.adjust(prices,factors,fields=p.fields,anchor_session=sessions[-1],previous=old.get('adjusted'))
+                previous[role]=dict(prices=prices,factors=factors,adjusted=adjusted)
+                for selected in old.values():selected.close()
+                self.assertEqual(adjusted.derivation['anchor_session'],sessions[-1])
+                self.assertEqual(set(adjusted.query_binding['cutoff_by_session'].values()),{cutoff})
+                self.assertEqual(prices.provenance['revision_id'][0,0],'old' if fold%3==1 else 'new')
+                self.assertEqual(adjusted.columns['close'].missing_reason[0,1],'not_provided')
+                self.assertEqual(adjusted.columns['close'].missing_reason[0,2],'source_missing')
+                if fold in (0,127,254) and role=='training':
+                    plain=Data(d.store.root,cache_bytes=0)
+                    expected=adjust_prices(plain.read(snapshot=s,query=p),
+                        plain.read(snapshot=s,query=replace(p,domain='adjustment_factors',fields=('factor',))),
+                        fields=p.fields,anchor_session=sessions[-1],factor_field='factor')
+                    self.assert_columns(adjusted,expected)
+                self.assertEqual(owner._temporary,0);self.assertEqual(owner._charges['group'],0)
+                self.assertEqual(owner._charges['selection'],sum(v._charge for current in previous.values() for v in current.values()))
+                peak_live=max(peak_live,owner._working())
+                peak=owner.statistics['peak_working_bytes'];self.assertGreaterEqual(peak,prior_peak);prior_peak=peak
+                self.assertLessEqual(peak,limits['max_working_bytes'])
+            self.rolling_folds_completed=fold+1
+        self.assertGreater(owner.statistics['cache_evictions'],0)
+        self.assertGreater(owner.statistics['cache_reclaimed_bytes'],0)
+        self.assertLessEqual(peak_live,limits['max_working_bytes'])
+        self.rolling_evidence=dict(folds=255,months_visited=end,window_months=25,limits=limits,
+            peak_live_bytes=peak_live,statistics=dict(owner.statistics),final_charges=dict(owner._charges))
+        for current in previous.values():
+            for selected in current.values():selected.close()
+        self.assertEqual(owner._charges['selection'],0)
+        with self.assertRaisesRegex(QueryError,'working budget exceeded'):
+            with owner._reserve(limits['max_working_bytes']-owner._snapshot_bytes+1):self.fail('Snapshot is required work')
+        self.assertEqual(owner._usage(),0);self.assertEqual(owner._temporary,0)
+        evidence=d.store.root/'public_evidence/history.parquet'
+        evidence.write_bytes(evidence.read_bytes()+b' ')
+        with self.assertRaisesRegex(QueryError,'Snapshot or partition changed'):owner.statistics
+        self.assertTrue(owner._closed)
     def test_batch_revision_selection_avoids_long_scalar_expansion(self):
         def modify(domains,rows):
             domains.pop('public_evidence');base=rows['market_daily/2024-01.parquet'][0]

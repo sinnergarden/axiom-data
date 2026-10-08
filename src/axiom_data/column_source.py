@@ -542,6 +542,8 @@ class ColumnSource:
     limits is exactly {cache_bytes, max_working_bytes}; values are positive ints.
     cache_bytes covers the shared LRU plus still-borrowed evicted source blocks.
     max_working_bytes includes Snapshot, selections and construction/copy fees.
+    Reservations reclaim the shared LRU first; evicted blocks still borrowed by
+    a selection/group remain charged until their last reference is released.
     Ordinary detached DataBatch/NumPy outputs belong to their callers. Source
     marks are verified on every select and public borrow access. close/refresh,
     a changed Snapshot/partition, or another process revokes all old borrows.
@@ -607,9 +609,14 @@ class ColumnSource:
         self._charges[kind]+=size
         value._release_token=weakref.finalize(value,_release_charge,weakref.ref(self),kind,size)
     def _check_budget(self,extra=0):
+        self._reclaim_cache(working_extra=extra)
         source=self._usage();working=self._working()+extra
         _require(source<=self._limits['cache_bytes'],'column source cache/borrow budget exceeded')
-        _require(working<=self._limits['max_working_bytes'],'column source working budget exceeded')
+        if working>self._limits['max_working_bytes']:
+            raise QueryError('column source working budget exceeded '
+                f'(snapshot={self._snapshot_bytes}, metadata={self._metadata_fee}, '
+                f'charges={self._charges}, temporary={self._temporary}, extra={extra}, '
+                f'working={working}, limit={self._limits["max_working_bytes"]})')
         self._statistics['peak_source_bytes']=max(self._statistics['peak_source_bytes'],source)
         self._statistics['peak_working_bytes']=max(self._statistics['peak_working_bytes'],working)
     @contextmanager
@@ -624,10 +631,24 @@ class ColumnSource:
         self._refresh_metadata()
     def _make_room(self,size):
         if size>self._limits['cache_bytes']: return False
-        def fits(): return self._usage()+size<=self._limits['cache_bytes'] and self._working()+size<=self._limits['max_working_bytes']
+        return self._reclaim_cache(source_extra=size,working_extra=size)
+    def _reclaim_cache(self,*,source_extra=0,working_extra=0):
+        """Reclaim LRU ownership before admission, retaining every live borrow fee.
+
+        Balances, not historical peaks, drive admission. Dropping an LRU entry
+        releases a source fee only when no selection/group/evidence still pins
+        it. Metadata is measured again only on an actual eviction lifecycle.
+        """
+        def fits():
+            return (self._usage()+source_extra<=self._limits['cache_bytes'] and
+                self._working()+working_extra<=self._limits['max_working_bytes'])
         while self._reader._cache and not fits():
+            before=self._usage()
             _,entry=self._reader._cache.popitem(last=False)
             self._reader._cached_bytes-=entry[1];self._cache_removed(*entry);del entry
+            self._statistics['cache_evictions']=self._statistics.get('cache_evictions',0)+1
+            self._statistics['cache_reclaimed_bytes']=self._statistics.get('cache_reclaimed_bytes',0)+before-self._usage()
+            self._refresh_metadata()
         return fits()
     def _physical_supported(self,query):
         """Column API limits never narrow ordinary Reader's physical schema."""
@@ -694,6 +715,9 @@ class ColumnSource:
                 with self._reserve(4*table.get_total_buffer_size()+256*table.num_rows+8192):
                     block=_Block(self,key,part,table,domain)
                 _require(_mark(path)==before,'column source partition changed during decoding')
+                # The block now owns the same Arrow buffers. Release batch
+                # wrappers/fees before charging the complete block once.
+                pending.clear();table=None;self._temporary-=retained;retained=0
                 _require(self._make_room(block.charge+_ENTRY_BYTES),'column source cache/borrow budget exceeded')
                 self._check_budget(block.charge+_ENTRY_BYTES)
                 _require(self._reader._put_entry(key,block,block.charge),'column source cache admission failed')
