@@ -41,13 +41,13 @@ class ParquetBatchTests(unittest.TestCase):
         d=Data(store.root,cache_bytes=1048576);d.store=store
         return d
 
-    def long_values(self,value,count=1000):
+    def long_values(self,value,count=1000,*,row_group_size=1000):
         manifest,rows=source();domain=manifest['domains']['market_daily']
         manifest['domains']={'market_daily':domain}
         domain['contract']['fields']['message']={'dtype':'string','unit':None}
         template=rows['market_daily/2024-01'][0]
         rows={'market_daily/2024-01':[dict(template,message=value,revision_id=f'r{i}',revision_sequence=i) for i in range(count)]}
-        return self.prepared(manifest,rows)
+        return self.prepared(manifest,rows,row_group_size=row_group_size)
 
     def query(self):
         return QuerySpec('market_daily',('message',),('A',),('2024-01-02',),'operational_pit_v1',
@@ -129,7 +129,9 @@ class ParquetBatchTests(unittest.TestCase):
             destination=self.root/f'view-{size}'
             result=d.export_native_view(snapshot='s1',reads=requests,destination=destination,limits=limits(),source_symbol_block=size)
             with open_native_view(destination,manifest_sha256=result['content_digest'],limits=limits()) as view:
-                actual=[json.loads(b''.join(_replay(view.root,b,view.statistics,view._marks))) for b in view.manifest['batches']]
+                wire_bytes=[b''.join(_replay(view.root,b,view.statistics,view._marks)) for b in view.manifest['batches']]
+                self.assertEqual(wire_bytes,[_json_bytes(wire) for wire in want])
+                actual=[json.loads(wire) for wire in wire_bytes]
                 self.assertEqual(actual,want)
                 for batch,wire in zip(view.manifest['batches'],want):
                     ordinals=[];records=[]
@@ -144,7 +146,7 @@ class ParquetBatchTests(unittest.TestCase):
         self.assertGreater(results[1]['statistics']['parquet_projection_hits'],0)
 
     def test_actual_dictionary_buffers_cached_once_and_warm_has_no_decode(self):
-        d=self.long_values('x'*8000);reader=d._reader('s1');writer=_Writer(self.root,limits(),reader)
+        d=self.long_values('x'*8000,row_group_size=128);reader=d._reader('s1');writer=_Writer(self.root,limits(),reader)
         proxy=_ProjectionStore(d.store,reader,writer);part=reader.snapshot['domains']['market_daily']['partitions'][0]
         with patch.object(d.store,'_native_partition_batches',wraps=d.store._native_partition_batches) as decode:
             for _ in range(2):
@@ -156,8 +158,11 @@ class ParquetBatchTests(unittest.TestCase):
         self.assertEqual(writer.statistics['parquet_projection_hits'],1)
         table=next(iter(reader._cache.values()))[0]
         self.assertTrue(pa.types.is_dictionary(table.column(0).type))
-        self.assertLess(table.get_total_buffer_size(),200000)
-        self.assertLess(reader._cached_bytes,250000)
+        self.assertGreater(table.column(0).num_chunks,1)
+        dictionaries={chunk.dictionary.buffers()[2].address for chunk in table.column(0).chunks}
+        self.assertEqual(len(dictionaries),1)
+        self.assertLess(table.get_total_buffer_size(),20000)
+        self.assertLess(reader._cached_bytes,30000)
 
     def test_native_nested_rejection_does_not_narrow_ordinary_reader(self):
         d=self.long_values('ok',count=1);part=d.store.manifest['domains']['market_daily']['partitions'][0]
