@@ -650,13 +650,16 @@ class LocalStore:
         except (pa.ArrowException, OSError) as exc:
             raise DataError(f"cannot read partition {part['uri']}: {exc}") from exc
 
-    def _native_partition_batches(self,part,*,columns=None,batch_size=4096,_observe=None):
-        """Native-export-only flat batches; decoder allocations are not capped.
+    def _native_partition_batches(self,part,*,columns=None,batch_size=4096,_observe=None,
+                                  _membership_dependencies=False):
+        """Native-export scalar and membership-provenance batches.
 
         Preserve BYTE_ARRAY dictionaries and physical offsets, without prefetch
         or parallel columns. The caller admits actual buffers before retaining
         or converting a batch. Row count is bounded; a page, dictionary or one
         variable-width value can still allocate beyond a caller's byte budget.
+        The Snapshot-bound membership caller may retain its existing single
+        list<string> dependency_raw_batch_ids column; other nesting is refused.
         Ordinary read_partition retains its existing schema/type support.
         """
         import pyarrow as pa
@@ -677,7 +680,9 @@ class LocalStore:
                     pa.types.is_date(dtype) or pa.types.is_timestamp(dtype) or
                     pa.types.is_string(dtype) or pa.types.is_large_string(dtype) or
                     pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype) or
-                    pa.types.is_fixed_size_binary(dtype))
+                    pa.types.is_fixed_size_binary(dtype) or
+                    (_membership_dependencies and name=='dependency_raw_batch_ids' and
+                     pa.types.is_list(dtype) and pa.types.is_string(dtype.value_type)))
                 if not supported:
                     raise QueryError(f'native export requires flat scalar fact columns: {name} has {dtype}')
             metadata=source.metadata
@@ -696,7 +701,7 @@ class LocalStore:
                 if _observe is not None:
                     _observe('encoded_pages',sum(metadata.row_group(group).column(j).total_uncompressed_size
                         for j in range(metadata.num_columns)
-                        if metadata.row_group(group).column(j).path_in_schema in present))
+                        if metadata.row_group(group).column(j).path_in_schema.split('.')[0] in present))
                 for batch in source.iter_batches(batch_size=batch_size,row_groups=[group],
                         columns=present,use_threads=False,use_pandas_metadata=False):
                     table=pa.Table.from_batches([batch])

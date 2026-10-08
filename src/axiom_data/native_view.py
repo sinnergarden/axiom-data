@@ -157,7 +157,11 @@ class _ProjectionStore:
             self.event_keys.add(key)
         self.statistics['parquet_decodes']+=1
         if isinstance(self.base,LocalStore):
-            batches=self.base._native_partition_batches(part,columns=names,_observe=self._observe_decoder)
+            membership=self.reader.snapshot.get('domains',{}).get('universe_membership',{})
+            dependencies=any(p['uri']==part['uri'] and p['file_sha256']==part['file_sha256']
+                for p in membership.get('partitions',()))
+            batches=self.base._native_partition_batches(part,columns=names,_observe=self._observe_decoder,
+                _membership_dependencies=dependencies)
         else:
             # Small in-memory test Stores already expose their source values.
             # This is not a proof about an opaque third-party decoder.
@@ -253,18 +257,34 @@ class _ProjectionStore:
         """Bound supported Python row objects from decoded logical value sizes.
 
         Dictionary payload is counted once for EACH referenced output value.
+        Membership dependency lists count the sliced child payload, each child
+        object/pointer and each parent list container before row expansion.
         Fixed per-cell/dict overhead and UTF-8-to-Unicode expansion are explicit;
         this reservation is independent of Parquet decoder estimates.
         """
         import pyarrow as pa
         import pyarrow.compute as pc
-        logical=0
-        for column in table.columns:
+        logical=0;list_elements=0;list_containers=0
+        for field,column in zip(table.schema,table.columns):
             for array in column.chunks:
                 dictionary=pa.types.is_dictionary(array.type)
                 values=array.dictionary if dictionary else array
                 dtype=values.type
-                if pa.types.is_string(dtype) or pa.types.is_large_string(dtype) or pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype):
+                if pa.types.is_list(dtype):
+                    _require(field.name=='dependency_raw_batch_ids' and pa.types.is_string(dtype.value_type),
+                        'native Python conversion requires the membership list<string> dependency column')
+                    # values spans the parent buffer, even on an offset slice.
+                    # Count just this slice's child span, conservatively also
+                    # including children hidden by a nullable parent bitmap.
+                    begin=array.offsets[0].as_py();end=array.offsets[-1].as_py()
+                    children=array.values.slice(begin,end-begin)
+                    list_elements+=len(children);list_containers+=len(array)
+                    with self.writer.scope('conversion-lengths',4096+16*len(children)):
+                        lengths=pc.binary_length(children)
+                        logical+=pc.sum(lengths).as_py() or 0
+                        del lengths
+                    del children
+                elif pa.types.is_string(dtype) or pa.types.is_large_string(dtype) or pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype):
                     workspace=4096+16*(len(values)+len(array))
                     with self.writer.scope('conversion-lengths',workspace):
                         lengths=pc.binary_length(values)
@@ -274,7 +294,9 @@ class _ProjectionStore:
                 elif pa.types.is_fixed_size_binary(dtype): logical+=dtype.byte_width*len(array)
                 elif not pa.types.is_null(dtype): logical+=(dtype.bit_width*len(array)+7)//8
         self.statistics['peak_python_logical_value_bytes']=max(self.statistics.get('peak_python_logical_value_bytes',0),logical)
-        return (4*logical+128*table.num_rows*table.num_columns+512*table.num_rows+
+        self.statistics['peak_python_list_elements']=max(self.statistics.get('peak_python_list_elements',0),list_elements)
+        self.statistics['peak_python_list_containers']=max(self.statistics.get('peak_python_list_containers',0),list_containers)
+        return (4*logical+128*(list_elements+list_containers)+128*table.num_rows*table.num_columns+512*table.num_rows+
             sum(4*len(name)+128 for name in table.column_names)+4096)
 
     def read_partition(self,part,*,columns=None,symbols=None,sessions=None):
