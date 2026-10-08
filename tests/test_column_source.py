@@ -121,6 +121,7 @@ class ColumnSourceTests(unittest.TestCase):
         with self.assertRaises(TypeError): borrow[0,0]=3
         with self.assertRaisesRegex(QueryError,'advanced indexing'): borrow[[0,1]]
         with self.assertRaises(TypeError): a.query_binding['purpose']='changed'
+        with self.assertRaises(AttributeError): a.contract_version='changed'
         with self.assertRaises(TypeError): a.columns['close'].metadata['unit']='changed'
         with self.assertRaises(QueryError): borrow.__array__(copy=False)
         frame=a.to_batch();frame.frame.loc[0,'close']=900;frame.field_meta['close']['by_key'][0]['revision_id']='changed'
@@ -303,6 +304,15 @@ class ColumnSourceTests(unittest.TestCase):
         hf=replace(f,pit_policy='bootstrap_hybrid_v1',policy_by_session={s:'best_effort_vendor_v1' for s in f.sessions})
         with self.assertRaisesRegex(QueryError,'per-session PIT policies'):
             owner.adjust(owner.select(query=hp),owner.select(query=hf),fields=('close',),anchor_session=anchor)
+    def test_decision_cutoff_need_not_fit_available_array_range(self):
+        d,s=self.data();owner=self.source(d,s)
+        for cutoff in ('1000-01-01T00:00:00+00:00','9999-01-01T00:00:00+00:00'):
+            p=query(cutoff=cutoff,sessions=('2024-01-02','2024-01-03'),symbols=('A',))
+            f=query('adjustment_factors',cutoff=cutoff,sessions=p.sessions,symbols=p.symbols)
+            prices=owner.select(query=p);factors=owner.select(query=f)
+            adjusted=owner.adjust(prices,factors,fields=p.fields,anchor_session='2024-01-03')
+            old=adjust_prices(prices.to_batch(),factors.to_batch(),fields=p.fields,anchor_session='2024-01-03',factor_field='factor')
+            self.assert_columns(adjusted,old)
     def test_adjust_validation_anchor_revision_clock_and_missing_precedence(self):
         d,s=self.data();owner=self.source(d,s);p,f,anchor=adjustment_requests()[0]
         prices=owner.select(query=p);factors=owner.select(query=f)

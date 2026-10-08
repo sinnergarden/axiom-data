@@ -63,10 +63,10 @@ def _mark(path):
     return s.st_dev,s.st_ino,s.st_size,s.st_mtime_ns,s.st_ctime_ns
 
 
-def _ns(value):
+def _ns(value,*,bounded=True):
     delta=value.astimezone(timezone.utc)-_EPOCH
     result=((delta.days*86400+delta.seconds)*1000000+delta.microseconds)*1000+getattr(value,'nanosecond',0)
-    _require(_NAT<result<=np.iinfo(np.int64).max,'available_at is outside datetime64[ns] range')
+    if bounded: _require(_NAT<result<=np.iinfo(np.int64).max,'available_at is outside datetime64[ns] range')
     return result
 
 
@@ -368,7 +368,8 @@ class ColumnSelection:
     batch boundaries. selection_ref additionally binds typed array bytes and
     the complete QuerySpec. previous is only a diff hint; selection always runs.
     """
-    contract_version=VERSION
+    @property
+    def contract_version(self): return VERSION
     def __init__(self,owner,query,binding,headers,blocks,evidence,arrays,fallback):
         self._owner,self._query=owner,query
         self._binding=_freeze(binding);self._headers=_freeze(headers)
@@ -524,7 +525,8 @@ class ColumnSource:
         return sum(b.charge+_ENTRY_BYTES for b in blocks.values())+sum(e.charge+_ENTRY_BYTES for e in indexes.values())+other
     def _working(self):
         store_graph=4*_object_size((self._store._hash_cache,self._store._profile_cache,self._store._raw_offsets,
-            self._marks,self._domain_refs,self._limits,self._statistics))
+            self._marks,self._domain_refs,self._limits,self._statistics,
+            vars(self._blocks),vars(self._evidences),vars(self._selections),vars(self._groups_live)))
         groups=sum(4*_object_size((vars(g.query),g.names,g.logical_key))+4096 for g in self._groups_live)
         return self._snapshot_bytes+self._usage()+sum(s._charge for s in self._selections)+self._temporary+store_graph+groups+65536
     def _check_budget(self,extra=0):
@@ -700,9 +702,13 @@ class ColumnSource:
             price_columns=prices._axes['fields'],factor_columns=factors._axes['fields'],
             fields=fields,anchor_session=anchor_session,factor_field=factor_field,decision_session=decision_session)
         _require(set(fields).issubset(_FIELDS['market_daily']) and factor_field=='factor','adjust supports open/close and factor only')
-        cutoff_ns=_ns(price_input[3])
+        cutoff_ns=_ns(price_input[3],bounded=False)
         for value,label in ((prices,'prices'),(factors,'factors')):
-            _require(not np.any(value._arrays['available'].view('<i8')>cutoff_ns),f'{label} provenance is later than the decision cutoff')
+            clocks=value._arrays['available'].view('<i8')
+            if cutoff_ns<=_NAT: later=np.any(clocks!=_NAT)
+            elif cutoff_ns>=np.iinfo(np.int64).max: later=False
+            else: later=np.any((clocks!=_NAT)&(clocks>cutoff_ns))
+            _require(not later,f'{label} provenance is later than the decision cutoff')
         query=replace(prices._query,fields=tuple(fields),price_basis='common_anchor_adjusted_v1',adjustment_anchor=anchor)
         binding=_plain(prices._binding);binding.update(fields=list(fields),price_basis=query.price_basis,adjustment_anchor=anchor)
         headers={n:{'dtype':'float64','unit':prices._headers[n]['unit'],
