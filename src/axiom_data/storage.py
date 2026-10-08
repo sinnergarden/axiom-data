@@ -408,7 +408,10 @@ class LocalStore:
             raise DataError(f"referenced object is missing: {uri}") from exc
         identity = (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
         if self._hash_cache.get(uri) != (identity, expected_hash):
-            actual = sha256(path.read_bytes()).hexdigest()
+            digest=sha256()
+            with path.open('rb') as stream:
+                while chunk:=stream.read(65536): digest.update(chunk)
+            actual=digest.hexdigest()
             if actual != expected_hash:
                 raise DataError(f"referenced object failed SHA-256 validation: {uri}")
             self._hash_cache[uri] = (identity, expected_hash)
@@ -646,6 +649,68 @@ class LocalStore:
             return table.select(needed)
         except (pa.ArrowException, OSError) as exc:
             raise DataError(f"cannot read partition {part['uri']}: {exc}") from exc
+
+    def _native_partition_batches(self,part,*,columns=None,batch_size=4096,_observe=None):
+        """Native-export-only flat batches; decoder allocations are not capped.
+
+        Preserve BYTE_ARRAY dictionaries and physical offsets, without prefetch
+        or parallel columns. The caller admits actual buffers before retaining
+        or converting a batch. Row count is bounded; a page, dictionary or one
+        variable-width value can still allocate beyond a caller's byte budget.
+        Ordinary read_partition retains its existing schema/type support.
+        """
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        from .protocols import QueryError
+
+        path=self._verified(part['uri'],part['file_sha256'])
+        source=pq.ParquetFile(path,pre_buffer=False,buffer_size=0)
+        try:
+            schema=source.schema_arrow
+            needed=list(schema.names if columns is None else columns)
+            present=[name for name in needed if name in schema.names]
+            for name in present:
+                dtype=schema.field(name).type
+                dtype=dtype.value_type if pa.types.is_dictionary(dtype) else dtype
+                supported=(pa.types.is_null(dtype) or pa.types.is_boolean(dtype) or
+                    pa.types.is_integer(dtype) or pa.types.is_floating(dtype) or
+                    pa.types.is_date(dtype) or pa.types.is_timestamp(dtype) or
+                    pa.types.is_string(dtype) or pa.types.is_large_string(dtype) or
+                    pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype) or
+                    pa.types.is_fixed_size_binary(dtype))
+                if not supported:
+                    raise QueryError(f'native export requires flat scalar fact columns: {name} has {dtype}')
+            metadata=source.metadata
+            dictionaries=[]
+            for name in present:
+                dtype=schema.field(name).type
+                dtype=dtype.value_type if pa.types.is_dictionary(dtype) else dtype
+                if (pa.types.is_string(dtype) or pa.types.is_binary(dtype) or
+                        pa.types.is_large_string(dtype) or pa.types.is_large_binary(dtype)):
+                    dictionaries.append(name)
+            source.close()
+            source=pq.ParquetFile(path,metadata=metadata,read_dictionary=dictionaries,
+                pre_buffer=False,buffer_size=0)
+            offset=0
+            for group in range(source.num_row_groups):
+                if _observe is not None:
+                    _observe('encoded_pages',sum(metadata.row_group(group).column(j).total_uncompressed_size
+                        for j in range(metadata.num_columns)
+                        if metadata.row_group(group).column(j).path_in_schema in present))
+                for batch in source.iter_batches(batch_size=batch_size,row_groups=[group],
+                        columns=present,use_threads=False,use_pandas_metadata=False):
+                    table=pa.Table.from_batches([batch])
+                    for name in needed:
+                        if name not in table.column_names: table=table.append_column(name,pa.nulls(table.num_rows))
+                    yield offset,table.select(needed)
+                    offset+=batch.num_rows
+                    del batch,table
+            if metadata.num_rows==0:
+                yield 0,pa.Table.from_arrays([pa.array([],type=schema.field(name).type)
+                    if name in schema.names else pa.nulls(0) for name in needed],names=needed)
+        except (pa.ArrowException,OSError) as exc:
+            raise DataError(f"cannot stream native partition {part['uri']}: {exc}") from exc
+        finally: source.close()
 
     def verify_partition(self, part: Mapping[str, Any]) -> None:
         """Recheck a referenced object; unchanged files need only a stat call."""

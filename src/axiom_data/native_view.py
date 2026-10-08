@@ -3,7 +3,9 @@
 Native identity is the existing sorted-key, compact, UTF-8 canonical JSON
 algorithm used by Engine stock_evidence.native_ref and Research saved artifacts.
 Physical file hashes are distinct. Snapshot loading remains the normal loader.
-Working charges are conservative reservations, not process RSS measurements.
+Working charges cover admitted retention and Python conversion reservations.
+Parquet decoder pages, dictionaries and a single value can allocate beyond this
+budget before batch admission; external process RSS guards remain necessary.
 """
 from contextlib import closing, contextmanager
 from copy import deepcopy
@@ -103,7 +105,7 @@ class _ProjectionStore:
         self.base,self.reader,self.writer=store,reader,writer
         self.statistics=writer.statistics
         self.seen={};self.track_positions=False;self.last_positions=();self.event_keys=set()
-        self._active_arrow=None;self.evidence={}
+        self.evidence={}
 
     def __getattr__(self,name):
         return getattr(self.base,name)
@@ -117,96 +119,210 @@ class _ProjectionStore:
             sum(4*len(field.name) for field in schema)+
             sum(4*(len(k)+len(v))+256 for values in metadata for k,v in values.items()))
 
-    def read_partition(self,part,*,columns=None,symbols=None,sessions=None):
+    def _observe_decoder(self,kind,size):
+        key=('peak_parquet_encoded_row_group_bytes' if kind=='encoded_pages'
+             else 'peak_decoded_arrow_batch_buffer_bytes')
+        self.statistics[key]=max(self.statistics.get(key,0),size)
+
+    def _projection_batches(self,part,names):
+        """Admit decoded batches, then optionally retain a bounded projection.
+
+        The decoder's page/dictionary/single-value allocation precedes admission
+        and is not subject to max_working_bytes. No page-size estimate is used
+        as an expanded Arrow bound. A complete dictionary-chunked projection
+        can share the existing LRU; insufficient cache is a single-pass path.
+        """
         import pyarrow as pa
-        import pyarrow.compute as pc
-        names=None if columns is None else list(dict.fromkeys([*columns,
-            *(['security_id'] if symbols is not None else []),*(['session'] if sessions is not None else [])]))
-        key='native-arrow:'+sha256(_json_bytes([self.reader.snapshot_id,part,names])).hexdigest()
-        owner=self._active_arrow or self.writer.token('direct-arrow')
+        key='native-arrow-batches:'+sha256(_json_bytes([self.reader.snapshot_id,part,names])).hexdigest()
+        self.verify_partition(part)
         entry=self.reader._cache.get(key)
-        if entry is None:
-            _require(not self.track_positions or key not in self.event_keys,
-                'native event projections exceed Reader cache; increase cache_bytes or source_symbol_block')
-            self.writer.reserve(owner,self._partition_bound(part,names))
-            self.verify_partition(part)
-            table=self.base.read_partition(part,columns=names)
-            self.statistics['parquet_decodes']+=1
-            self.reader._put_entry(key,table,self._arrow_charge(table))
-        else:
-            self.writer.reserve(owner,4*entry[1]+64*entry[0].num_rows)
-            self.verify_partition(part)
-            table=entry[0];self.reader._cache.move_to_end(key)
+        if entry is not None:
+            self.reader._cache.move_to_end(key)
             self.statistics['parquet_projection_hits']+=1
-        self.writer.reserve(owner,4*self._arrow_charge(table)+64*table.num_rows)
+            with self.writer.scope('arrow-borrow',entry[1]):
+                table=entry[0];offset=0
+                if table.num_rows==0: yield 0,table
+                else:
+                    with table.to_reader(max_chunksize=4096) as batches:
+                        for batch in batches:
+                            current=pa.Table.from_batches([batch])
+                            yield offset,current
+                            offset+=batch.num_rows
+                            del batch,current
+            return
+        _require(not self.track_positions or key not in self.event_keys,
+            'native event projections exceed Reader cache; increase cache_bytes or source_symbol_block')
         if self.track_positions:
             if key not in self.event_keys: self.writer.add('projection-descriptors',4*_object_size(key)+1024)
             self.event_keys.add(key)
+        self.statistics['parquet_decodes']+=1
+        if isinstance(self.base,LocalStore):
+            batches=self.base._native_partition_batches(part,columns=names,_observe=self._observe_decoder)
+        else:
+            # Small in-memory test Stores already expose their source values.
+            # This is not a proof about an opaque third-party decoder.
+            rows=getattr(self.base,'rows',{}).get(part['uri'])
+            _require(rows is not None,'native Store requires a partition batch iterator')
+            logical=sum(_encoding_bound(row.get(n)) for row in rows for n in (row if names is None else names))
+            self.writer.check(4*logical+4096+512*len(rows))
+            whole=self.base.read_partition(part,columns=names)
+            batches=((offset,whole.slice(offset,64)) for offset in range(0,max(1,whole.num_rows),64))
+        pending=[];buffers=set();dictionaries={};charge=4096;caching=bool(self.reader.cache_bytes)
+        with self.writer.scope('projection-build'):
+            try:
+                for offset,table in batches:
+                    self._observe_decoder('arrow',table.get_total_buffer_size())
+                    self.statistics['parquet_record_batches_decoded']=self.statistics.get('parquet_record_batches_decoded',0)+1
+                    actual=self._arrow_charge(table)
+                    # The batch already exists. Reject before retaining it,
+                    # publishing it to LRU or expanding it into Python rows.
+                    _require(actual<=self.writer.remaining(),'native decoded Arrow batch exceeds working budget before retention')
+                    with self.writer.scope('decoded-arrow-batch',actual):
+                        if caching:
+                            # Arrow can emit identical dictionary values in
+                            # separate buffers for successive batches. Share
+                            # only equal dictionaries; their index order stays
+                            # unchanged and the pending projection owns them.
+                            for number,column in enumerate(table.columns):
+                                if pa.types.is_dictionary(column.type):
+                                    array=column.chunk(0);previous=dictionaries.get(number)
+                                    if previous is not None and array.dictionary.equals(previous):
+                                        shared=pa.DictionaryArray.from_arrays(array.indices,previous,ordered=array.type.ordered)
+                                        table=table.set_column(number,table.schema.field(number),shared)
+                            fresh=set()
+                            for column in table.columns:
+                                for array in column.chunks:
+                                    arrays=[array.dictionary,array.indices] if pa.types.is_dictionary(array.type) else [array]
+                                    for value in arrays:
+                                        fresh.update((buf.address,buf.size) for buf in value.buffers() if buf is not None)
+                            fresh-=buffers
+                            addition=sum(size for _,size in fresh)+512*(table.num_columns+1)
+                            if not pending: addition+=actual-table.get_total_buffer_size()
+                            candidate=charge+addition
+                            increment=candidate-self.writer.retained.get('projection-build',0)
+                            if candidate>self.reader.cache_bytes or increment>self.writer.remaining():
+                                pending=[];buffers=set();dictionaries={};self.writer.reserve('projection-build',0);caching=False
+                            else:
+                                self.writer.reserve('projection-build',candidate)
+                                buffers.update(fresh);pending.append(table);charge=candidate
+                                dictionaries={number:column.chunk(0).dictionary for number,column in enumerate(table.columns)
+                                    if pa.types.is_dictionary(column.type)}
+                            column=array=previous=shared=arrays=value=None;fresh=set()
+                        yield offset,table
+                    del table
+                if caching and pending:
+                    publication=4096+256*len(pending)*pending[0].num_columns
+                    if publication<=self.writer.remaining():
+                        with self.writer.scope('projection-publication',publication):
+                            table=pa.concat_tables(pending)
+                            actual=self._arrow_charge(table)
+                            # Source buffers remain charged by projection-build
+                            # until this transfer to the existing LRU finishes.
+                            if actual<=self.reader.cache_bytes and actual<=self.writer.remaining():
+                                self.reader._put_entry(key,table,actual)
+                            del table
+                pending=[];buffers=set();dictionaries={}
+            finally:
+                close=getattr(batches,'close',None)
+                if close is not None: close()
+
+    def _filtered_batch(self,table,offset,*,symbols=None,sessions=None):
+        import pyarrow as pa
+        import pyarrow.compute as pc
+        mask=None
         if symbols is not None:
             _require('security_id' in table.column_names,'partition lacks security_id')
-            mask=pc.is_in(table['security_id'],value_set=pa.array(list(symbols),type=table.schema.field('security_id').type))
-            if self.track_positions: self.last_positions=pc.indices_nonzero(mask)
-            table=table.filter(mask) if symbols else table.slice(0,0)
-        elif self.track_positions: self.last_positions=range(table.num_rows)
+            dtype=table.schema.field('security_id').type
+            dtype=dtype.value_type if pa.types.is_dictionary(dtype) else dtype
+            mask=pc.is_in(table['security_id'],value_set=pa.array(list(symbols),type=dtype))
         if sessions is not None:
             _require('session' in table.column_names,'partition lacks session')
             dtype=table.schema.field('session').type
-            values=[_coerce(s,dtype) for s in sessions]
-            table=table.filter(pc.is_in(table['session'],value_set=pa.array(values,type=dtype))) if sessions else table.slice(0,0)
-        return table if columns is None else table.select(columns)
+            dtype=dtype.value_type if pa.types.is_dictionary(dtype) else dtype
+            current=pc.is_in(table['session'],value_set=pa.array([_coerce(s,dtype) for s in sessions],type=dtype))
+            mask=current if mask is None else pc.and_(mask,current)
+        physical=range(offset,offset+table.num_rows) if mask is None else pc.indices_nonzero(mask)
+        return (table if mask is None else table.filter(mask)),physical
 
-    def _partition_bound(self,part,names):
-        """Reserve verified file/Arrow allocation before decoding its projection."""
-        if isinstance(self.base,LocalStore):
-            import pyarrow.parquet as pq
-            path=self.base._path(part['uri']);size=path.stat().st_size
-            # The footer itself can have a large schema/row-group graph.
-            with path.open('rb') as stream:
-                stream.seek(-8,2);tail=stream.read(8)
-            footer=int.from_bytes(tail[:4],'little')
-            with self.writer.scope('parquet-footer',2*size+32*footer+8192):
-                source=pq.ParquetFile(path)
-                try:
-                    wanted=set(source.schema_arrow.names if names is None else names)
-                    metadata=source.metadata
-                    uncompressed=sum(metadata.row_group(i).column(j).total_uncompressed_size
-                        for i in range(metadata.num_row_groups) for j in range(metadata.num_columns)
-                        if metadata.row_group(i).column(j).path_in_schema.split('.')[0] in wanted)
-                    return 2*size+32*footer+4*uncompressed+metadata.num_rows*(256+64*len(wanted))+8192
-                finally: source.close()
-        # Synthetic in-memory stores expose their already-owned source rows;
-        # inspect only the requested projection, without making a row copy.
-        rows=getattr(self.base,'rows',{}).get(part['uri'])
-        _require(rows is not None,'native Store requires allocation metadata')
-        seen=set();size=0
-        for row in rows:
-            fields=row if names is None else names
-            for name in fields:
-                size+=_object_size(row.get(name),seen)+128
-        return 4*size+4096+part.get('rows',0)*512
+    def _filter_charge(self,table,symbols,sessions):
+        values=sum(4*_encoding_bound(value)+128 for selected in (symbols,sessions)
+            if selected is not None for value in selected)
+        return 2*self._arrow_charge(table)+4096+16*table.num_rows+values
+
+    def _python_bound(self,table):
+        """Bound supported Python row objects from decoded logical value sizes.
+
+        Dictionary payload is counted once for EACH referenced output value.
+        Fixed per-cell/dict overhead and UTF-8-to-Unicode expansion are explicit;
+        this reservation is independent of Parquet decoder estimates.
+        """
+        import pyarrow as pa
+        import pyarrow.compute as pc
+        logical=0
+        for column in table.columns:
+            for array in column.chunks:
+                dictionary=pa.types.is_dictionary(array.type)
+                values=array.dictionary if dictionary else array
+                dtype=values.type
+                if pa.types.is_string(dtype) or pa.types.is_large_string(dtype) or pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype):
+                    workspace=4096+16*(len(values)+len(array))
+                    with self.writer.scope('conversion-lengths',workspace):
+                        lengths=pc.binary_length(values)
+                        selected=pc.take(lengths,array.indices) if dictionary else lengths
+                        logical+=pc.sum(selected).as_py() or 0
+                        del lengths,selected
+                elif pa.types.is_fixed_size_binary(dtype): logical+=dtype.byte_width*len(array)
+                elif not pa.types.is_null(dtype): logical+=(dtype.bit_width*len(array)+7)//8
+        self.statistics['peak_python_logical_value_bytes']=max(self.statistics.get('peak_python_logical_value_bytes',0),logical)
+        return (4*logical+128*table.num_rows*table.num_columns+512*table.num_rows+
+            sum(4*len(name)+128 for name in table.column_names)+4096)
+
+    def read_partition(self,part,*,columns=None,symbols=None,sessions=None):
+        """Preserve the private Store protocol; producer uses batch iteration."""
+        import pyarrow as pa
+        names=None if columns is None else list(dict.fromkeys([*columns,
+            *(['security_id'] if symbols is not None else []),*(['session'] if sessions is not None else [])]))
+        owner=self.writer.token('direct-arrow');tables=[]
+        with closing(self._projection_batches(part,names)) as batches:
+            for offset,table in batches:
+                with self.writer.scope('arrow-filter',self._filter_charge(table,symbols,sessions)):
+                    selected,_=self._filtered_batch(table,offset,symbols=symbols,sessions=sessions)
+                    self.writer.add(owner,self._arrow_charge(selected));tables.append(selected)
+        return pa.concat_tables(tables).select(columns) if columns is not None else pa.concat_tables(tables)
 
     def _native_chunks(self,part,*,owner,columns=None,symbols=None,sessions=None,positions=False,retain=True):
-        """Convert at most 64 rows; charge retained rows once per new chunk."""
-        arrow_owner=self.writer.token('arrow')
-        with self.writer.scope(arrow_owner):
-            previous=self._active_arrow;self._active_arrow=arrow_owner
-            try:
-                table=self.read_partition(part,columns=columns,symbols=symbols,sessions=sessions)
-                physical=self.last_positions if positions else None
-                for offset in range(0,table.num_rows,64):
-                    chunk=table.slice(offset,64)
-                    bound=32*chunk.nbytes+chunk.num_rows*(1024+256*table.num_columns)+4096
-                    with self.writer.scope('row-conversion',2*bound):
-                        rows=chunk.to_pylist()
-                        ordinals=(list(physical[offset:offset+len(rows)]) if isinstance(physical,range)
-                            else physical.slice(offset,len(rows)).to_pylist()) if positions else None
-                        if retain: self.writer.add(owner,4*_object_size(rows)+512*len(rows))
-                        yield rows,ordinals
-                        del rows,ordinals
+        """Convert at most 64 rows after reserving their expanded Python graph."""
+        names=None if columns is None else list(dict.fromkeys([*columns,
+            *(['security_id'] if symbols is not None else []),*(['session'] if sessions is not None else [])]))
+        with closing(self._projection_batches(part,names)) as batches:
+            for offset,table in batches:
+                with self.writer.scope('arrow-filter',self._filter_charge(table,symbols,sessions)):
+                    table,physical=self._filtered_batch(table,offset,symbols=symbols,sessions=sessions)
+                    if columns is not None: table=table.select(columns)
+                    if not table.num_rows:
+                        del table,physical
+                        continue
+                    for start in range(0,table.num_rows,64):
+                        chunk=table.slice(start,64)
+                        bound=self._python_bound(chunk)
+                        precharge=4*bound+512*chunk.num_rows
+                        self.statistics['peak_python_conversion_reservation_bytes']=max(
+                            self.statistics.get('peak_python_conversion_reservation_bytes',0),precharge)
+                        _require(precharge<=self.writer.remaining(),'native Python conversion exceeds working budget before row expansion')
+                        with self.writer.scope('row-conversion',precharge):
+                            rows=chunk.to_pylist()
+                            self.statistics['python_batches_converted']=self.statistics.get('python_batches_converted',0)+1
+                            ordinals=(list(physical[start:start+len(rows)]) if isinstance(physical,range)
+                                else [offset+i for i in physical.slice(start,len(rows)).to_pylist()]) if positions else None
+                            if retain:
+                                actual=4*_object_size(rows)+512*len(rows)
+                                _require(actual<=precharge,'native Python rows exceeded flat-schema conversion reservation')
+                                self.writer.retained['row-conversion']=precharge-actual
+                                self.writer.add(owner,actual)
+                            yield rows,ordinals
+                            del rows,ordinals
+                        del chunk
                 del table,physical
-            finally:
-                self._active_arrow=previous
-                if positions: self.last_positions=()
 
     def _native_evidence_index(self,domain_name):
         from .protocols import ConflictError
@@ -275,7 +391,7 @@ class _ProjectionStore:
         if part['uri'] not in self.seen:
             self.writer.add('store-cache',4096+4*_object_size(part['uri']))
         if isinstance(self.base,LocalStore):
-            with self.writer.scope('file-validation',2*self.base._path(part['uri']).stat().st_size+4096):
+            with self.writer.scope('file-validation',131072+4096):
                 self.base.verify_partition(part)
         else: self.base.verify_partition(part)
         self.seen[part['uri']]=part
@@ -366,7 +482,8 @@ class _Writer:
         self.stage,self.limits,self.reader=stage,limits,reader
         self.files={};self.statistics={'parquet_decodes':0,'parquet_projection_hits':0,
             'producer_blocks':0,'event_source_groups':0,'logical_replays':0,'snapshot_graph_bytes':_object_size(reader.snapshot),
-            'peak_working_charge_bytes':0}
+            'peak_working_charge_bytes':0,'peak_accepted_working_charge_bytes':0,
+            'parquet_decoder_limits':'row count is bounded; page, dictionary and single-value allocations are not bounded by max_working_bytes; external RSS guard required'}
         self.total=0
         self.coverage_memo={}
         self.retained={}
@@ -389,6 +506,7 @@ class _Writer:
             families[family]=families.get(family,0)+size
         for family,size in families.items(): peaks[family]=max(peaks.get(family,0),size)
         _require(charge<=self.limits['max_working_bytes'],'native export working budget exceeded')
+        self.statistics['peak_accepted_working_charge_bytes']=max(self.statistics['peak_accepted_working_charge_bytes'],charge)
 
     def reserve_source(self,extra):
         self.reserve('source',extra)
@@ -601,26 +719,21 @@ def export_native_view(data,*,snapshot,reads,destination,limits,source_symbol_bl
         _require(method in ('read','read_market','members','states','events') and
             isinstance(q,EventQuery if method=='events' else QuerySpec),'unsupported native view method/query')
     reader=None;original_store=None;stage=None
+    cold_snapshot=snapshot not in data._readers
+    snapshot_admitted=False
     try:
-        # A cold Snapshot must pass its normal loader. Reserve its possible
-        # decoding allocation before invoking that loader, as well as live peers.
-        if isinstance(data.store,LocalStore) and snapshot not in data._readers:
-            from .storage import _clean_name
-            _clean_name(snapshot,'snapshot ID')
-            path=data.store._path(f'snapshots/{snapshot}.json')
-            peers=list(data._readers.values())
-            baseline=sum(_object_size(r.snapshot)+r._cached_bytes for r in peers)
-            stores={id(store):store for store in [data.store,*[r.store for r in peers]]}
-            baseline+=4*_object_size(tuple(getattr(store,n,{}) for store in stores.values() for n in
-                ('_hash_cache','_raw_offsets','_profile_cache')))
-            inputs=4*_object_size([vars(r['query']) for r in reads])+1024*len(reads)
-            _require(baseline+48*path.stat().st_size+inputs+65536<=limits['max_working_bytes'],
-                'native Snapshot load exceeds working budget')
-            del peers,stores
+        # The unchanged normal loader owns transient JSON decoding and full
+        # identity validation. File size is metadata, not an allocation bound;
+        # an external RSS guard must cover this phase. Check the resulting
+        # graph before admitting it to native processing.
         reader=data._reader(snapshot);original_store=reader.store
         destination.parent.mkdir(parents=True,exist_ok=True)
         stage=Path(tempfile.mkdtemp(prefix='.native-',dir=destination.parent))
         writer=_Writer(stage,limits,reader,data=data,reads=reads)
+        writer.statistics['snapshot_loaded_during_export']=cold_snapshot
+        writer.statistics['snapshot_manifest_file_bytes']=(reader._snapshot_mark[2] if reader._snapshot_mark is not None else None)
+        writer.statistics['snapshot_loader_limits']='normal JSON load and full identity validation have unbounded transient allocations; external RSS guard required'
+        writer.check();snapshot_admitted=True
         snapshot_path,snapshot_mark=reader._snapshot_path,reader._snapshot_mark
         if snapshot_mark is not None:
             _require(_mark(snapshot_path)==snapshot_mark,'Snapshot changed after Reader load')
@@ -728,6 +841,8 @@ def export_native_view(data,*,snapshot,reads,destination,limits,source_symbol_bl
             'statistics':deepcopy(writer.statistics)}
     finally:
         if reader is not None and original_store is not None: reader.store=original_store
+        if cold_snapshot and not snapshot_admitted and reader is not None and data._readers.get(snapshot) is reader:
+            data._readers.pop(snapshot,None)
         if stage is not None and stage.exists(): shutil.rmtree(stage)
 
 
