@@ -124,6 +124,29 @@ class ColumnSourceTests(unittest.TestCase):
         self.assertEqual(len(safe.changed_keys.updated),0)
         self.assertNotEqual(observed.selection_ref,safe.selection_ref)
         self.assertEqual(safe.provenance['availability_basis'][1,1],'first_observed_at')
+    def test_nullable_integer_nan_keeps_source_reason_and_adjustment_precedence(self):
+        def modify(domains,rows):
+            domains.pop('public_evidence')
+            domains['market_daily']['contract']['fields']['close']['dtype']='int64'
+            for row in rows['market_daily/2024-01.parquet']:
+                row['close']=float('nan') if row['security_id']=='A' else None
+        d,s=self.data(modify)
+        p=query(fields=('close',),sessions=('2024-01-02',),symbols=('A','B','C'))
+        f=query('adjustment_factors',sessions=p.sessions,symbols=p.symbols)
+        original_prices=d.read(snapshot=s,query=p);original_factors=d.read(snapshot=s,query=f)
+        owner=self.source(d,s);prices=owner.select(query=p);factors=owner.select(query=f)
+        self.assert_columns(prices,original_prices)
+        self.assertEqual(prices.columns['close'].values.dtype,np.dtype('int64'))
+        np.testing.assert_array_equal(prices.columns['close'].validity.to_numpy(),[[False,False,False]])
+        self.assertEqual(prices.columns['close'].missing_reason[0,0],None)
+        self.assertEqual(prices.columns['close'].missing_reason[0,1],'not_provided')
+        self.assertEqual(prices.columns['close'].missing_reason[0,2],'source_missing')
+        adjusted=owner.adjust(prices,factors,fields=p.fields,anchor_session=p.sessions[0])
+        original_adjusted=adjust_prices(original_prices,original_factors,fields=p.fields,anchor_session=p.sessions[0],factor_field='factor')
+        self.assert_columns(adjusted,original_adjusted)
+        self.assertEqual(adjusted.columns['close'].missing_reason[0,0],'price_missing')
+        self.assertEqual(adjusted.columns['close'].missing_reason[0,1],'not_provided')
+        self.assertEqual(adjusted.columns['close'].missing_reason[0,2],'source_missing')
     def test_readonly_borrows_and_owned_copies_detach(self):
         d,s=self.data();owner=self.source(d,s);a=owner.select(query=query());borrow=a.columns['close'].values
         owned=borrow.to_numpy();self.assertFalse(owned.flags.writeable)

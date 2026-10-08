@@ -829,12 +829,15 @@ class ColumnSource:
                     dest=destinations[index[destinations,0]==slot]
                     if not len(dest): continue
                     rows=index[dest,1];raw,present=block.values[name];gathered=raw[rows];present=present[rows]
+                    # Source null defines the reason; nullable conversion may
+                    # independently make a present NaN invalid.
+                    reason[dest]=np.where(present,0,3)
                     target=dtypes[name]
                     if (target.kind in 'iu' and (gathered.dtype.kind not in 'iu' or gathered.dtype.itemsize>target.itemsize or gathered.dtype.kind!=target.kind)) or (target.kind=='b' and gathered.dtype.kind!='b'):
                         import pandas as pd
                         dtype=('UInt' if target.kind=='u' else 'Int')+str(target.itemsize*8) if target.kind!='b' else 'boolean'
                         converted=pd.array(gathered,dtype=dtype);present&=~np.asarray(converted.isna());gathered=converted.to_numpy(dtype=target,na_value=0)
-                    values[dest]=gathered;valid[dest]=present;reason[dest]=np.where(present,0,3)
+                    values[dest]=gathered;valid[dest]=present
         finally: self._temporary-=plan_fee
         return int(fallbacks[~sparse].sum())+scalar_fallback
     def adjust(self,prices,factors,*,fields,anchor_session,factor_field='factor',decision_session=None,previous=None):
