@@ -67,6 +67,10 @@ class Data:
         shares the ordinary Reader PIT/revision algorithm. Only explicit legacy
         materialization builds records/by_key. close, Reader refresh, changed
         source bytes or a process boundary revoke outstanding selections.
+        The column API requires flat numeric physical values; ordinary read
+        retains its schema support and uses its original path for other types.
+        changed_keys tracks actual fact dependencies; pure cutoff moves still
+        change full query_binding/selection_ref without marking all keys updated.
         Parquet/normal Snapshot decoder transients still need an external RSS
         guard. Opening replaces cached Reader graphs, never adds a second one.
         """

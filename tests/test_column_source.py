@@ -12,6 +12,7 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+from decimal import Decimal
 
 from axiom_data import ColumnSelection,ConflictError,Data,QueryError
 from axiom_data.column_source import _array_ref
@@ -111,9 +112,18 @@ class ColumnSourceTests(unittest.TestCase):
         np.testing.assert_array_equal(b.changed_keys.removed.to_numpy(),[[0,0]])
         a.close();self.assertEqual(b.changed_keys.previous_axes['sessions'],('2024-01-02','2024-01-03'))
         c=owner.select(query=replace(b._query,cutoff_by_session={s:'2024-01-07T00:00:00+00:00' for s in b.axes['sessions']}),previous=b)
-        self.assertEqual(len(c.changed_keys.updated),4)
+        self.assertEqual(len(c.changed_keys.updated),0)
+        self.assertNotEqual(c.selection_ref,b.selection_ref)
         same=owner.select(query=c._query,previous=c);self.assertEqual(len(same.changed_keys.updated),0)
         self.assertEqual(same.selection_ref,c.selection_ref)
+    def test_policy_label_without_fact_effect_does_not_update_keys(self):
+        def modify(domains,rows): domains.pop('public_evidence')
+        d,s=self.data(modify);owner=self.source(d,s);q=query()
+        observed=owner.select(query=q)
+        safe=owner.select(query=replace(q,pit_policy='market_pit_safe_v1'),previous=observed)
+        self.assertEqual(len(safe.changed_keys.updated),0)
+        self.assertNotEqual(observed.selection_ref,safe.selection_ref)
+        self.assertEqual(safe.provenance['availability_basis'][1,1],'first_observed_at')
     def test_readonly_borrows_and_owned_copies_detach(self):
         d,s=self.data();owner=self.source(d,s);a=owner.select(query=query());borrow=a.columns['close'].values
         owned=borrow.to_numpy();self.assertFalse(owned.flags.writeable)
@@ -245,16 +255,114 @@ class ColumnSourceTests(unittest.TestCase):
         self.assertEqual(owner._temporary,0);a.close();gc.collect()
         b=owner.select(query=q);self.assertEqual(b.columns['close'].values[0,0],10.)
         self.assertLessEqual(owner.statistics['peak_source_bytes'],charge)
-    def test_requested_revision_scratch_rejected_before_row_expansion(self):
+    def test_batch_revision_selection_avoids_long_scalar_expansion(self):
         def modify(domains,rows):
             domains.pop('public_evidence');base=rows['market_daily/2024-01.parquet'][0]
             rows['market_daily/2024-01.parquet']=[dict(base,revision_id='x'*8000,revision_sequence=i) for i in range(100)]
         d,s=self.data(modify);owner=self.source(d,s,dict(cache_bytes=1048576,max_working_bytes=1048576))
         from axiom_data.column_source import _RowView
         with patch('axiom_data.column_source._RowView',wraps=_RowView) as row:
-            with self.assertRaisesRegex(QueryError,'working budget'): owner.select(query=query(symbols=('A',),sessions=('2024-01-02',)))
+            selected=owner.select(query=query(symbols=('A',),sessions=('2024-01-02',)))
+        self.assertEqual(selected.columns['close'].values[0,0],10.)
         self.assertEqual(row.call_count,0);self.assertEqual(owner._temporary,0)
         self.assertLessEqual(owner.statistics['peak_working_bytes'],1048576)
+    def test_sparse_equal_rank_scratch_is_still_reserved_before_expansion(self):
+        def modify(domains,rows):
+            domains.pop('public_evidence');base=rows['market_daily/2024-01.parquet'][0]
+            rows['market_daily/2024-01.parquet']=[dict(base,revision_id='x'*8000,revision_sequence=1) for _ in range(100)]
+        d,s=self.data(modify);owner=self.source(d,s,dict(cache_bytes=1048576,max_working_bytes=1048576))
+        from axiom_data.column_source import _RowView
+        with patch('axiom_data.column_source._RowView',wraps=_RowView) as row:
+            with self.assertRaisesRegex(QueryError,'working budget'): owner.select(query=query(symbols=('A',),sessions=('2024-01-02',)))
+        self.assertEqual(row.call_count,0);self.assertEqual(owner._temporary,0)
+    def test_decimal_physical_schema_keeps_ordinary_reader_compatible(self):
+        def modify(domains,rows):
+            domains.pop('public_evidence')
+            for row in rows['market_daily/2024-01.parquet']: row['close']=Decimal('1.25')
+        d,s=self.data(modify);q=query(fields=('close',),symbols=('A',))
+        want=d.read(snapshot=s,query=q).to_json();owner=self.source(d,s)
+        self.assertEqual(d.read(snapshot=s,query=q).to_json(),want)
+        with self.assertRaisesRegex(QueryError,'flat scalar numeric'): owner.select(query=q)
+        self.assertEqual(owner._temporary,0)
+    def test_closed_selection_releases_query_and_balance(self):
+        d,s=self.data();owner=self.source(d,s);a=owner.select(query=query())
+        before=owner._charges['selection'];self.assertGreater(before,0);a.close()
+        self.assertEqual(owner._charges['selection'],0)
+        for name in ('_query','_binding','_headers','_axes','_previous_axes','_derived','_selection_ref'):
+            self.assertIsNone(getattr(a,name))
+        with self.assertRaises(QueryError): a.query_binding
+    def test_cross_partition_revision_order_and_rare_checks(self):
+        def modify(domains,rows):
+            domains.pop('public_evidence');domain=domains['market_daily'];base=rows[domain['partitions'][0]['uri']][0]
+            domain['partitions']=[]
+            for i in (1,2):
+                uri=f'market_daily/history-{i}.parquet';value=dict(base,revision_id=f'r{i}',revision_sequence=i,close=float(i),
+                    first_observed_at=f'2024-01-0{i}T00:00:00+00:00')
+                rows[uri]=[value];domain['partitions'].append(dict(partition=f'history-{i}',uri=uri,rows=1,file_sha256='0'*64))
+        for order in ('source_sequence','terminal_observation_v1'):
+            def configured(domains,rows): modify(domains,rows);domains['market_daily']['source_profile']['revision_order']=order
+            d,s=self.data(configured);owner=self.source(d,s);q=query(fields=('close',),symbols=('A',),sessions=('2024-01-02',))
+            a=owner.select(query=q);self.assertEqual(a.columns['close'].values[0,0],2.)
+            early=owner.select(query=replace(q,cutoff_by_session={'2024-01-02':'2024-01-01T12:00:00+00:00'}),previous=a)
+            self.assertEqual(early.columns['close'].values[0,0],1.)
+            plain=Data(d.store.root,cache_bytes=0);self.assert_columns(a,plain.read(snapshot=s,query=q))
+        def invalid(domains,rows):
+            modify(domains,rows);rows['market_daily/history-1.parquet'][0]['revision_sequence']=None
+        d,s=self.data(invalid);owner=self.source(d,s)
+        with self.assertRaisesRegex(QueryError,'integer revision_sequence'): owner.select(query=q)
+    def test_terminal_equal_clock_conflict_and_vendor_bad_observed_scope(self):
+        def modify(domains,rows):
+            domains.pop('public_evidence');domain=domains['market_daily'];domain['source_profile']['revision_order']='terminal_observation_v1'
+            value=deepcopy(rows[domain['partitions'][0]['uri']][0]);rows[domain['partitions'][0]['uri']]=[value,dict(value,revision_id='different')]
+        d,s=self.data(modify);owner=self.source(d,s);q=query(symbols=('A',),sessions=('2024-01-02',))
+        with self.assertRaisesRegex(QueryError,'ambiguous terminal'): owner.select(query=q)
+        def bad(domains,rows):
+            domains.pop('public_evidence');values=rows['market_daily/2024-01.parquet'];values[:]=[values[0]];values[0]['first_observed_at']='invalid'
+        d,s=self.data(bad);owner=self.source(d,s)
+        vendor=owner.select(query=replace(q,pit_policy='best_effort_vendor_v1'))
+        self.assertEqual(vendor.columns['close'].values[0,0],10.)
+        with self.assertRaisesRegex(QueryError,'first_observed_at'): owner.select(query=q)
+    def test_explicit_big_endian_copy_normalizes_before_conversion(self):
+        d,s=self.data();owner=self.source(d,s);a=owner.select(query=query())
+        borrow=a.columns['close'].values;expected=borrow.to_numpy();out=borrow.to_numpy(dtype='>f4')
+        self.assertEqual(out.dtype,np.dtype('<f4'));self.assertFalse(out.flags.writeable)
+        np.testing.assert_array_equal(out,expected.astype('<f4'));self.assertEqual(owner._temporary,0)
+    def test_terminal_many_months_has_no_scalar_groups_or_per_cell_accounting(self):
+        def modify(domains,rows):
+            domains.pop('public_evidence')
+            for name in ('market_daily','adjustment_factors'):
+                domain=domains[name];template=rows[domain['partitions'][0]['uri']][0]
+                domain['source_profile']['revision_order']='terminal_observation_v1';domain['partitions']=[]
+                for month in range(1,5):
+                    uri=f'{name}/2024-{month:02d}.parquet';values=[]
+                    for day in (2,3):
+                        for symbol in range(6):
+                            base=dict(template,security_id=f'S{symbol}',session=f'2024-{month:02d}-{day:02d}',revision_id='old',revision_sequence=None,
+                                first_observed_at='2024-01-01T00:00:00+00:00')
+                            base.update({'open':float(month+symbol),'close':float(2*month+symbol)} if name=='market_daily' else {'factor':1.})
+                            values.extend((base,dict(base,revision_id='new',first_observed_at='2024-06-01T00:00:00+00:00')))
+                    rows[uri]=values;domain['partitions'].append(dict(partition=f'2024-{month:02d}',uri=uri,rows=len(values),file_sha256='0'*64))
+        d,s=self.data(modify);owner=self.source(d,s)
+        days=tuple(f'2024-{m:02d}-{day:02d}' for m in range(4,0,-1) for day in (3,2));symbols=tuple(f'S{i}' for i in range(5,-1,-1))
+        p=query(sessions=days,symbols=symbols,cutoff='2024-06-02T00:00:00+00:00');f=query('adjustment_factors',sessions=days,symbols=symbols,cutoff='2024-06-02T00:00:00+00:00')
+        prices=owner.select(query=p);factors=owner.select(query=f)
+        from axiom_data.column_source import _Groups,_Block,_object_size
+        before=owner.statistics['batch_block_probes']
+        with (patch.object(_Groups,'get',side_effect=AssertionError('per-cell group')),
+                patch.object(_Block,'matching',side_effect=AssertionError('per-cell block')),
+                patch('axiom_data.column_source._object_size',wraps=_object_size) as sized):
+            again=owner.select(query=p,previous=prices);adjusted=owner.adjust(again,factors,fields=p.fields,anchor_session=max(days))
+            moved=owner.select(query=replace(p,cutoff_by_session={day:'2024-07-01T00:00:00+00:00' for day in days}),previous=again)
+            moved_factor=owner.select(query=replace(f,cutoff_by_session={day:'2024-07-01T00:00:00+00:00' for day in days}),previous=factors)
+            adjusted2=owner.adjust(moved,moved_factor,fields=p.fields,anchor_session=max(days),previous=adjusted)
+        self.assertEqual(owner.statistics['batch_block_probes']-before,12)
+        self.assertLess(sized.call_count,30);self.assertEqual(owner.statistics.get('scalar_groups',0),0)
+        self.assertEqual(len(moved.changed_keys.updated),0);self.assertNotEqual(moved.selection_ref,again.selection_ref)
+        self.assertEqual(len(adjusted2.changed_keys.updated),0);self.assertNotEqual(adjusted2.selection_ref,adjusted.selection_ref)
+        plain=Data(d.store.root,cache_bytes=0);old=plain.read(snapshot=s,query=p)
+        self.assert_columns(again,old)
+        expected=adjust_prices(old,plain.read(snapshot=s,query=f),fields=p.fields,anchor_session=max(days),factor_field='factor')
+        self.assert_columns(adjusted,expected)
     def test_conflicting_evidence_index_retains_original_domain_scope(self):
         def modify(domains,rows):
             values=rows['public_evidence/history.parquet'];values.append(dict(values[0],public_at='2024-01-03T00:00:00+00:00'))

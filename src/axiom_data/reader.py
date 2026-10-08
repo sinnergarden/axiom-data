@@ -175,6 +175,43 @@ def _select_daily_revision(rows, *, policy, profile, session, cutoff, key,
     return selected,usable,basis,fallback
 
 
+def _select_daily_ordinals(*, cells, policies, cutoffs, releases, observed, observed_bad,
+                           source, source_bad, source_bound, sequence, sequence_bad,
+                           count, revision_order, sparse):
+    """Batch the ordinary visibility/order rules; exceptional groups use the scalar selector.
+
+    Policy codes and basis codes are vendor=1, evidence-safe=2, observed=3.
+    Every non-vendor revision still requires a valid observed clock, even when
+    evidence supplies its usable clock. Invalid clocks/sequences, equal winning
+    ranks and special announcement ordering are returned for scoped scalar
+    checks, preserving projection-sensitive conflicts and original errors.
+    """
+    import numpy as np
+    basis=np.where(policies==1,1,np.where((policies==2)&source_bound,2,3)).astype('u1')
+    usable=np.where(basis==1,releases,np.where(basis==2,source,observed))
+    bad=((policies!=1)&observed_bad)|((basis==2)&source_bad)
+    sparse=sparse.copy();sparse[cells[bad]]=True
+    visible=usable<=cutoffs
+    populations=np.bincount(cells[visible],minlength=count)
+    if revision_order=='terminal_observation_v1':
+        sparse[cells[visible&observed_bad&(populations[cells]>1)]]=True
+        rank=observed
+    elif revision_order=='announcement_day_then_terminal_v1':
+        sparse|=populations>1;rank=sequence
+    else:
+        sparse[cells[visible&sequence_bad&(populations[cells]>1)]]=True
+        rank=sequence
+    maximum=np.full(count,np.iinfo(np.int64).min,dtype='<i8')
+    np.maximum.at(maximum,cells[visible],rank[visible])
+    winners=visible&((populations[cells]==1)|(rank==maximum[cells]))
+    ties=np.bincount(cells[winners],minlength=count)>1
+    sparse|=ties
+    selected=np.full(count,-1,dtype='<i8')
+    positions=np.flatnonzero(winners&~sparse[cells])
+    selected[cells[positions]]=positions
+    return selected,usable,basis,sparse
+
+
 def _policy_for(query: QuerySpec, session: str) -> str:
     return query.policy_by_session[session] if query.pit_policy == "bootstrap_hybrid_v1" else query.pit_policy
 
@@ -366,12 +403,15 @@ class SnapshotQueryReader:
         if not self.cache_bytes or size > self.cache_bytes:
             return False
         previous = self._cache.pop(key, None)
+        owner=self._column_owner() if self._column_owner is not None else None
         if previous is not None:
             self._cached_bytes -= previous[1]
+            if owner is not None and not owner._closed: owner._cache_removed(*previous)
         if not self._make_room(size):
             return False
         self._cache[key] = (value, size)
         self._cached_bytes += size
+        if owner is not None and not owner._closed: owner._cache_added(value,size)
         return True
 
     def _evidence(self, query: QuerySpec) -> dict:
@@ -518,7 +558,7 @@ class SnapshotQueryReader:
         if native is not None:
             return native(domain,query)
         owner=self._column_owner() if self._column_owner is not None else None
-        if owner is not None and not owner._closed and owner._supports(query):
+        if owner is not None and not owner._closed and owner._supports(query) and owner._physical_supported(query):
             return owner._groups(query)
         if self.cache_bytes < 4096:
             return self._group_rows(self._read_rows(domain, query), domain, query)

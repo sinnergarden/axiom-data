@@ -20,8 +20,8 @@ import pyarrow as pa
 import pyarrow.compute as pc
 
 from .protocols import ConflictError, QueryError, QuerySpec
-from .reader import (_ENTRY_BYTES, _object_size,
-                     _policy_for, _select_daily_revision)
+from .reader import (_ENTRY_BYTES, _object_size, _instant, _release_time,
+                     _policy_for, _select_daily_revision, _select_daily_ordinals)
 from .storage import LocalStore, _json_digest
 
 VERSION='data_column_selection_v1'
@@ -102,19 +102,27 @@ def _table_charge(table):
     return _ProjectionStore._arrow_charge(table)
 
 
-def _typed_value(value,dtype):
-    """Keep the Reader's nullable integer/bool cast checks on unusual scalars."""
-    if dtype.kind in 'iu':
-        bounds=np.iinfo(dtype)
-        if type(value) is int and bounds.min<=value<=bounds.max: return value,True
-        import pandas as pd
-        value=pd.array([value],dtype=('UInt' if dtype.kind=='u' else 'Int')+str(dtype.itemsize*8))[0]
-        return (0,False) if pd.isna(value) else (int(value),True)
-    if dtype.kind=='b' and type(value) is not bool:
-        import pandas as pd
-        value=pd.array([value],dtype='boolean')[0]
-        return (False,False) if pd.isna(value) else (bool(value),True)
-    return value,True
+def _release_charge(owner_ref,kind,size):
+    owner=owner_ref()
+    if owner is not None: owner._charges[kind]-=size
+
+
+def _clock_column(column):
+    """Parse each distinct scalar once; errors are flags, checked in query scope."""
+    if not len(column) or pa.types.is_null(column.type):
+        return np.zeros(len(column),dtype='<i8'),np.ones(len(column),dtype='?')
+    encoded=pc.dictionary_encode(column).unify_dictionaries().combine_chunks()
+    values=encoded.dictionary.to_pylist();numbers=np.zeros(len(values)+1,dtype='<i8')
+    bad=np.ones(len(values)+1,dtype='?')
+    for i,value in enumerate(values):
+        try:
+            number=_ns(_instant(value,'clock'),bounded=False)
+            if _NAT<number<=np.iinfo(np.int64).max: numbers[i]=number;bad[i]=False
+        except (QueryError,ValueError,OverflowError,TypeError): pass
+    indices=pc.fill_null(encoded.indices,-1).to_numpy(zero_copy_only=False)
+    return numbers[indices],bad[indices]
+
+
 class _Rows(list):
     """Requested group scratch stays charged for its complete selector lifetime."""
     def __init__(self,owner,charge):
@@ -130,6 +138,7 @@ class ReadOnlyArray:
 
     Borrow indexing checks owner, process and source marks. Copies are explicit
     ownership transfers and remain ordinary caller-owned arrays after close.
+    Requested primitive dtypes are normalized to little-endian before copying.
     copy=False is refused; no writable view or raw mutable buffer escapes.
     """
     __slots__=('_selection','_name','_slices')
@@ -158,7 +167,7 @@ class ReadOnlyArray:
         return value.item() if value.dtype.kind!='M' else value
     def to_numpy(self,*,dtype=None):
         value=self._get()
-        target=np.dtype(dtype) if dtype is not None else value.dtype
+        target=(np.dtype(dtype) if dtype is not None else value.dtype).newbyteorder('<')
         _require(not target.hasobject,'column copies require a primitive dtype')
         with self._selection._owner._reserve(2*value.size*target.itemsize+4096):
             return _readonly(np.asarray(value,dtype=target))
@@ -227,6 +236,9 @@ class ChangedKeys:
 
     Added/updated coordinates index this selection's axes. Removed coordinates
     index previous_axes, detached from the previous selection's lifetime.
+    Updated keys describe actual version/source/value/validity/clock/basis or
+    anchor dependencies. A cutoff or policy label with identical selected facts
+    changes query_binding/selection_ref, without invalidating all numeric keys.
     """
     __slots__=('_selection',)
     def __init__(self,selection): self._selection=selection
@@ -276,7 +288,8 @@ class _Block:
         self.ref=_ref({'snapshot':owner._snapshot_id,'domain':domain,'partition':part,
             'fields':table.column_names,'contract_ref':owner._domain_refs[domain]})
         self.charge=_table_charge(table)+4*_object_size(self.ref)
-        self.security={};self.keys=None;self.order=None;self.lengths={}
+        self.security={};self.keys=None;self.order=None;self.lengths={};self.sessions=frozenset()
+        self.values={};self.clocks={}
         # Numeric byte lengths are admitted once with the block. Group scratch
         # fees then need only array gathers, without warm Arrow kernels or text
         # expansion across the whole partition.
@@ -303,7 +316,9 @@ class _Block:
             dates=pc.dictionary_encode(table['session']).unify_dictionaries().combine_chunks()
             days=[]
             for value in dates.dictionary.to_pylist():
-                try: days.append((date.fromisoformat(value) if isinstance(value,str) else value).toordinal())
+                try:
+                    parsed=date.fromisoformat(value) if isinstance(value,str) else value
+                    days.append(parsed.toordinal() if not isinstance(parsed,datetime) and (not isinstance(value,str) or parsed.isoformat()==value) else -1)
                 except (ValueError,AttributeError,TypeError): days.append(-1)
             indices=pc.fill_null(dates.indices,-1).to_numpy(zero_copy_only=False)
             days=np.asarray([*days,-1],dtype='<i8')[indices]
@@ -311,13 +326,59 @@ class _Block:
             keys['security']=codes;keys['session']=days
             self.order=np.argsort(keys,order=('security','session'),kind='stable')
             self.keys=keys[self.order]
+            self.sessions=frozenset(days[days>0])
             self.charge+=self.keys.nbytes+self.order.nbytes+4*_object_size(self.security)+1024
+        if domain!='public_evidence':
+            for name in ('first_observed_at','source_available_at'):
+                self.clocks[name]=_clock_column(table[name])
+                self.charge+=sum(a.nbytes+256 for a in self.clocks[name])
+            seq=table['revision_sequence'];kind=seq.type
+            if pa.types.is_integer(kind):
+                raw=pc.fill_null(seq,0).to_numpy(zero_copy_only=False)
+                valid=np.asarray(seq.is_valid());self.sequence=raw.astype('<i8')
+                self.sequence_bad=~valid
+                if pa.types.is_unsigned_integer(kind): self.sequence_bad|=raw>np.iinfo(np.int64).max
+            else:
+                self.sequence=np.zeros(table.num_rows,dtype='<i8');self.sequence_bad=np.ones(table.num_rows,dtype='?')
+            refs=table['evidence_ref']
+            # Null/empty references are false under the scalar Reader rule.
+            if pa.types.is_null(refs.type): self.source_bound=np.zeros(table.num_rows,dtype='?')
+            elif 'evidence_ref' in self.lengths: self.source_bound=self.lengths['evidence_ref']>0
+            elif pa.types.is_boolean(refs.type) or pa.types.is_integer(refs.type) or pa.types.is_floating(refs.type):
+                self.source_bound=np.asarray(pc.fill_null(pc.cast(refs,pa.bool_()),False))
+            else: self.source_bound=np.asarray(refs.is_valid())
+            self.source_bound&=np.asarray(table['source_available_at'].is_valid())
+            for name in _FIELDS[domain]:
+                if name not in self.columns: continue
+                col=table[name];valid=np.asarray(col.is_valid())
+                raw=np.zeros(table.num_rows) if pa.types.is_null(col.type) else pc.fill_null(col,0).to_numpy(zero_copy_only=False)
+                self.values[name]=(raw,valid)
+                self.charge+=raw.nbytes+valid.nbytes+512
+            self.charge+=self.sequence.nbytes+self.sequence_bad.nbytes+self.source_bound.nbytes+4*_object_size(self.sessions)+1024
     def matching(self,symbol,session):
         code=self.security.get(symbol)
         if code is None or self.keys is None: return ()
         key=np.array((code,date.fromisoformat(session).toordinal()),dtype=_KEY_DTYPE)
         start=np.searchsorted(self.keys,key,side='left');end=np.searchsorted(self.keys,key,side='right')
         return self.order[start:end]
+    def candidates(self,days,symbols):
+        """One vector range lookup per block, restricted to its actual sessions."""
+        active=np.flatnonzero(np.isin(days,np.fromiter(self.sessions,dtype='<i8')))
+        if self.keys is None or not len(active): return np.empty(0,dtype='<i8'),np.empty(0,dtype='<i8'),0
+        codes=np.fromiter((self.security.get(s,-1) for s in symbols),dtype='<i4')
+        keys=np.empty((len(active),len(symbols)),dtype=_KEY_DTYPE)
+        keys['security']=codes;keys['session']=days[active,None]
+        starts=np.searchsorted(self.keys,keys.ravel(),side='left');ends=np.searchsorted(self.keys,keys.ravel(),side='right')
+        sizes=ends-starts;sizes[np.tile(codes<0,len(active))]=0
+        total=int(sizes.sum());offsets=np.cumsum(sizes)-sizes
+        fee=192*total+4096
+        owner=self.owner();owner._check_budget(fee);owner._temporary+=fee
+        try:
+            positions=np.arange(total,dtype='<i8')+np.repeat(starts-offsets,sizes)
+            cells=np.repeat((active[:,None]*len(symbols)+np.arange(len(symbols))).ravel(),sizes)
+            return cells,self.order[positions],fee
+        except Exception:
+            owner._temporary-=fee;raise
 
 
 class _Evidence(dict):
@@ -333,6 +394,13 @@ class _Evidence(dict):
                 if key not in self: self.charge+=4*_object_size(key)+512
                 self[key]=row
         self.charge+=sys.getsizeof(self)
+        self.target_cells=set()
+        import json
+        for target,_ in self:
+            try:
+                key=json.loads(target);self.target_cells.add((key['security_id'],key['session']))
+            except (ValueError,TypeError,KeyError): pass
+        self.charge+=4*_object_size(self.target_cells)
 
 
 class _Groups:
@@ -340,9 +408,11 @@ class _Groups:
         self.owner,self.query,self.blocks,self.evidence=owner,query,tuple(blocks),evidence
         domain=owner._reader.snapshot['domains'][query.domain]
         self.names=tuple(owner._reader._columns(domain,query));self.logical_key=tuple(domain['contract']['logical_key'])
+        self.days=np.fromiter((date.fromisoformat(s).toordinal() for s in query.sessions),dtype='<i8')
+        self.by_session={s:tuple(b for b in self.blocks if day in b.sessions) for s,day in zip(query.sessions,self.days)}
     def get(self,key,default=None):
         symbol,session=key
-        matches=[(block,block.matching(symbol,session)) for block in self.blocks]
+        matches=[(block,block.matching(symbol,session)) for block in self.by_session[session]]
         count=sum(len(indices) for _,indices in matches);logical=0
         for block,indices in matches:
             if not len(indices): continue
@@ -458,7 +528,11 @@ class ColumnSelection:
         return cells*(4096*len(query.fields)+20*metadata+1024)+8*_object_size((domain.get('coverage'),vars(query)))+16384
     def close(self):
         if self._closed: return
-        self._closed=True;self._arrays={};self._blocks=();self._evidence=None;self._lineage={};self._charge=0
+        self._closed=True
+        token=getattr(self,'_release_token',None)
+        if token is not None: token()
+        self._arrays={};self._blocks=();self._evidence=None;self._lineage={};self._charge=0
+        self._query=self._binding=self._headers=self._axes=self._previous_axes=self._derived=self._selection_ref=None
     def __reduce__(self): raise QueryError('column selections cannot cross a process boundary')
 
 
@@ -484,6 +558,7 @@ class ColumnSource:
         _require(active is None or active._closed,'Data already owns an open column source')
         self._data=data;self._snapshot_id=snapshot;self._limits=dict(limits);self._pid=os.getpid()
         self._closed=False;self._reader=None;self._temporary=0;self._marks={}
+        self._charges={'source':0,'selection':0,'group':0,'other':0};self._metadata_fee=0;self._schemas={}
         self._blocks=weakref.WeakValueDictionary();self._selections=weakref.WeakSet();self._groups_live=weakref.WeakSet()
         self._evidences=weakref.WeakValueDictionary()
         self._statistics={'partition_decodes':0,'record_batches':0,'source_cache_hits':0,
@@ -504,6 +579,7 @@ class ColumnSource:
                 'profile':domain.get('source_profile'),'evidence':self._reader.snapshot['domains'].get('public_evidence',{}).get('partitions',())})
                 for name,domain in self._reader.snapshot['domains'].items() if name in (*_FIELDS,'public_evidence')}
             self._store=self._reader.store
+            self._refresh_metadata()
             self._check_budget()
             data._column_source=weakref.ref(self);self._reader._column_owner=weakref.ref(self)
         except Exception:
@@ -516,19 +592,20 @@ class ColumnSource:
         declared=self._reader.snapshot.get('domains',{}).get(query.domain,{}).get('contract',{}).get('fields',{})
         return all(str(declared.get(n,{}).get('dtype')).lower() in _DTYPES for n in query.fields)
     def _usage(self):
-        blocks={id(b):b for b in self._blocks.values()}
-        indexes={id(e):e for e in self._evidences.values()};other=0
-        for value,size in self._reader._cache.values():
-            if isinstance(value,_Block) and value.owner() is self: blocks[id(value)]=value
-            elif isinstance(value,_Evidence): indexes[id(value)]=value
-            else: other+=size
-        return sum(b.charge+_ENTRY_BYTES for b in blocks.values())+sum(e.charge+_ENTRY_BYTES for e in indexes.values())+other
+        return self._charges['source']+self._charges['other']
     def _working(self):
-        store_graph=4*_object_size((self._store._hash_cache,self._store._profile_cache,self._store._raw_offsets,
-            self._marks,self._domain_refs,self._limits,self._statistics,
-            vars(self._blocks),vars(self._evidences),vars(self._selections),vars(self._groups_live)))
-        groups=sum(4*_object_size((vars(g.query),g.names,g.logical_key))+4096 for g in self._groups_live)
-        return self._snapshot_bytes+self._usage()+sum(s._charge for s in self._selections)+self._temporary+store_graph+groups+65536
+        return self._snapshot_bytes+self._metadata_fee+sum(self._charges.values())+self._temporary
+    def _refresh_metadata(self):
+        # Graph sizing happens at ownership/cache lifecycle events, never in a
+        # per-cell reservation or borrow. Reservations only check balances.
+        if self._closed: return
+        self._statistics['metadata_accounting_events']=self._statistics.get('metadata_accounting_events',0)+1
+        self._metadata_fee=4*_object_size((self._store._hash_cache,self._store._profile_cache,
+            self._store._raw_offsets,self._marks,self._domain_refs,self._limits,self._statistics,self._schemas,
+            vars(self._blocks),vars(self._evidences),vars(self._selections),vars(self._groups_live)))+65536
+    def _track(self,value,kind,size):
+        self._charges[kind]+=size
+        value._release_token=weakref.finalize(value,_release_charge,weakref.ref(self),kind,size)
     def _check_budget(self,extra=0):
         source=self._usage();working=self._working()+extra
         _require(source<=self._limits['cache_bytes'],'column source cache/borrow budget exceeded')
@@ -540,12 +617,40 @@ class ColumnSource:
         self._check_budget(size);self._temporary+=size
         try: yield
         finally: self._temporary-=size
+    def _cache_removed(self,value,size):
+        if not isinstance(value,(_Block,_Evidence)): self._charges['other']-=size
+    def _cache_added(self,value,size):
+        if not isinstance(value,(_Block,_Evidence)): self._charges['other']+=size
+        self._refresh_metadata()
     def _make_room(self,size):
         if size>self._limits['cache_bytes']: return False
-        while self._reader._cache and self._usage()+size>self._limits['cache_bytes']:
+        def fits(): return self._usage()+size<=self._limits['cache_bytes'] and self._working()+size<=self._limits['max_working_bytes']
+        while self._reader._cache and not fits():
             _,entry=self._reader._cache.popitem(last=False)
-            self._reader._cached_bytes-=entry[1];del entry
-        return self._usage()+size<=self._limits['cache_bytes']
+            self._reader._cached_bytes-=entry[1];self._cache_removed(*entry);del entry
+        return fits()
+    def _physical_supported(self,query):
+        """Column API limits never narrow ordinary Reader's physical schema."""
+        import pyarrow.parquet as pq
+        domain=self._reader.snapshot['domains'][query.domain]
+        names=self._reader._columns(domain,query)
+        for part in self._reader._parts_for_query(domain,query):
+            self._store.verify_partition(part)
+            key=(part['uri'],part['file_sha256'],tuple(names))
+            supported=self._schemas.get(key)
+            if supported is None:
+                with pq.ParquetFile(self._store._path(part['uri']),pre_buffer=False,buffer_size=0) as source:
+                    schema=source.schema_arrow;supported=True
+                    for name in names:
+                        if name not in schema.names: continue
+                        dtype=schema.field(name).type
+                        if pa.types.is_dictionary(dtype): dtype=dtype.value_type
+                        numeric=pa.types.is_null(dtype) or pa.types.is_boolean(dtype) or pa.types.is_integer(dtype) or pa.types.is_floating(dtype)
+                        scalar=numeric or pa.types.is_date(dtype) or pa.types.is_timestamp(dtype) or pa.types.is_string(dtype) or pa.types.is_large_string(dtype) or pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype) or pa.types.is_fixed_size_binary(dtype)
+                        if not scalar or (name in query.fields and not numeric): supported=False;break
+                self._schemas[key]=supported;self._refresh_metadata();self._check_budget()
+            if not supported: return False
+        return True
     def _check(self):
         _require(not self._closed,'column source is closed')
         if os.getpid()!=self._pid:
@@ -593,6 +698,7 @@ class ColumnSource:
                 self._check_budget(block.charge+_ENTRY_BYTES)
                 _require(self._reader._put_entry(key,block,block.charge),'column source cache admission failed')
                 self._blocks[key]=block;self._marks[path]=before
+                self._track(block,'source',block.charge+_ENTRY_BYTES);self._refresh_metadata();self._check_budget()
                 self._statistics['partition_decodes']+=1
                 return block
             finally:
@@ -620,18 +726,21 @@ class ColumnSource:
         _require(self._make_room(evidence.charge+_ENTRY_BYTES),'column evidence cache/borrow budget exceeded')
         _require(self._reader._put_entry(key,evidence,evidence.charge),'column evidence cache admission failed')
         self._evidences[key]=evidence
+        self._track(evidence,'source',evidence.charge+_ENTRY_BYTES);self._refresh_metadata();self._check_budget()
         return evidence
     def _groups(self,query):
         self._check()
         domain,_,_=self._reader._validate(query)
         _require(self._supports(query),'column source supports numeric market_daily open/close and adjustment_factors factor only')
+        _require(self._physical_supported(query),'column source requires flat scalar numeric fact columns')
         # Projection stays narrow: an unrequested field's schema or values must
         # not make a formerly valid ordinary query fail.
         names=list(dict.fromkeys(['security_id','session',*query.fields,
             'revision_id','revision_sequence','first_observed_at','raw_batch_id','source_available_at','evidence_ref']))
         blocks=[self._block(part,query.domain,names) for part in self._reader._parts_for_query(domain,query)]
         groups=_Groups(self,query,blocks,self._evidence(query.domain));self._groups_live.add(groups)
-        self._check_budget()
+        self._track(groups,'group',4*_object_size((vars(query),groups.names,groups.logical_key,groups.by_session))+groups.days.nbytes+4352)
+        self._refresh_metadata();self._check_budget()
         return groups
     def select(self,*,query,previous=None):
         """Select afresh at every per-session cutoff; previous supplies only diff axes."""
@@ -653,30 +762,81 @@ class ColumnSource:
             for n in query.fields:
                 arrays['value:'+n]=np.zeros(shape,dtype=dtype[n]);arrays['valid:'+n]=np.zeros(shape,dtype='?')
                 arrays['reason:'+n]=np.zeros(shape,dtype='u1')
-            slots={id(block):i for i,block in enumerate(groups.blocks)};fallback=0;releases={}
-            for i,session in enumerate(query.sessions):
-                policy=_policy_for(query,session)
-                for j,symbol in enumerate(query.symbols):
-                    matching=groups.get((symbol,session),[])
-                    selected,usable,basis,count=_select_daily_revision(matching,policy=policy,
-                        profile=domain.get('source_profile') or {},session=session,cutoff=cutoffs[session],
-                        key=f'{symbol}/{session}',count_fallback=query.pit_policy=='market_pit_safe_v1',vendor_releases=releases)
-                    fallback+=count
-                    if selected is not None:
-                        arrays['index:native'][i,j]=(slots[id(selected.block)],selected.ordinal)
-                        arrays['available'].view('<i8')[i,j]=_ns(usable)
-                        arrays['basis'][i,j]=_BASES.index(basis)
-                    for n in query.fields:
-                        value=selected.get(n) if selected is not None else None
-                        reason=('source_missing' if not matching else 'not_visible_at_cutoff') if selected is None else ('not_provided' if value is None else None)
-                        arrays['reason:'+n][i,j]=_REASONS.index(reason)
-                        if value is not None:
-                            typed,valid=_typed_value(value,dtype[n]);arrays['value:'+n][i,j]=typed;arrays['valid:'+n][i,j]=valid
-                    matching=();selected=None
+            fallback=self._select_arrays(query,domain,cutoffs,groups,arrays,dtype)
             selection=ColumnSelection(self,query,_binding(query,cutoffs),headers,groups.blocks,groups.evidence,arrays,fallback)
             self._finish(selection,previous)
         self._statistics['selections']+=1;self._statistics['selected_cells']+=cells
         return selection
+    def _select_arrays(self,query,domain,cutoffs,groups,arrays,dtypes):
+        shape=len(query.sessions),len(query.symbols);count=shape[0]*shape[1]
+        index=arrays['index:native'].reshape(-1,2);available=arrays['available'].view('<i8').ravel();basis_out=arrays['basis'].ravel()
+        policies=np.asarray([1 if _policy_for(query,s)=='best_effort_vendor_v1' else 2 if _policy_for(query,s)=='market_pit_safe_v1' else 3 for s in query.sessions],dtype='u1')
+        clocks=np.asarray([min(max(_ns(cutoffs[s],bounded=False),_NAT),np.iinfo(np.int64).max) for s in query.sessions],dtype='<i8')
+        profile=domain.get('source_profile') or {};order=profile.get('revision_order')
+        release=np.asarray([_ns(_release_time(profile,s)) if policies[i]==1 else 0 for i,s in enumerate(query.sessions)],dtype='<i8')
+        matched=np.zeros(count,dtype='?');sparse=np.zeros(count,dtype='?');population=np.zeros(count,dtype='<i8')
+        bad_rank=np.zeros(count,dtype='?');fallbacks=np.zeros(count,dtype='<i8');ranks=np.full(count,_NAT,dtype='<i8')
+        if groups.evidence:
+            day_map={s:i for i,s in enumerate(query.sessions)};symbol_map={s:i for i,s in enumerate(query.symbols)}
+            for symbol,day in groups.evidence.target_cells:
+                if symbol in symbol_map and day in day_map: sparse[day_map[day]*shape[1]+symbol_map[symbol]]=True
+        plans=[];plan_fee=0
+        try:
+            for slot,block in enumerate(groups.blocks):
+                cells,rows,fee=block.candidates(groups.days,query.symbols)
+                try:
+                    self._statistics['batch_block_probes']=self._statistics.get('batch_block_probes',0)+1
+                    if not len(cells): plans.append(np.empty(0,dtype='<i8'));continue
+                    destinations,local=np.unique(cells,return_inverse=True);days=cells//shape[1]
+                    matched[destinations]=True
+                    observed,observed_bad=block.clocks['first_observed_at'];source,source_bad=block.clocks['source_available_at']
+                    selected,usable,basis,exceptional=_select_daily_ordinals(cells=local,policies=policies[days],
+                        cutoffs=clocks[days],releases=release[days],observed=observed[rows],observed_bad=observed_bad[rows],
+                        source=source[rows],source_bad=source_bad[rows],source_bound=block.source_bound[rows],
+                        sequence=block.sequence[rows],sequence_bad=block.sequence_bad[rows],count=len(destinations),
+                        revision_order=order,sparse=sparse[destinations])
+                    sparse[destinations]|=exceptional
+                    visible=usable<=clocks[days]
+                    np.add.at(population,cells[visible],1)
+                    invalid=observed_bad[rows] if order=='terminal_observation_v1' else block.sequence_bad[rows]
+                    bad_rank[cells[visible&invalid]]=True
+                    if query.pit_policy=='market_pit_safe_v1': np.add.at(fallbacks,cells[~block.source_bound[rows]],1)
+                    valid=selected>=0;dest=destinations[valid];position=selected[valid];physical=rows[position]
+                    rank=observed[physical] if order=='terminal_observation_v1' else block.sequence[physical]
+                    existing=index[dest,0]>=0;equal=existing&(rank==ranks[dest]);sparse[dest[equal]]=True
+                    replace=(~existing)|(rank>ranks[dest]);dest=dest[replace];position=position[replace];physical=physical[replace]
+                    index[dest,0]=slot;index[dest,1]=physical;ranks[dest]=rank[replace]
+                    available[dest]=usable[position];basis_out[dest]=basis[position]
+                    self._temporary+=destinations.nbytes+256;plan_fee+=destinations.nbytes+256;plans.append(destinations)
+                finally: self._temporary-=fee
+            sparse|=(population>1)&bad_rank
+            if order=='announcement_day_then_terminal_v1': sparse|=population>1
+            slots={id(b):i for i,b in enumerate(groups.blocks)};scalar_fallback=0;releases={}
+            for cell in np.flatnonzero(sparse&matched):
+                i,j=divmod(int(cell),shape[1]);day=query.sessions[i];symbol=query.symbols[j]
+                rows=groups.get((symbol,day),[])
+                selected,usable,basis,n=_select_daily_revision(rows,policy=_policy_for(query,day),profile=profile,
+                    session=day,cutoff=cutoffs[day],key=f'{symbol}/{day}',count_fallback=query.pit_policy=='market_pit_safe_v1',vendor_releases=releases)
+                scalar_fallback+=n;index[cell]=(-1,-1);available[cell]=_NAT;basis_out[cell]=0
+                if selected is not None:
+                    index[cell]=(slots[id(selected.block)],selected.ordinal);available[cell]=_ns(usable);basis_out[cell]=_BASES.index(basis)
+                self._statistics['scalar_groups']=self._statistics.get('scalar_groups',0)+1
+                rows=();selected=None
+            for name in query.fields:
+                values=arrays['value:'+name].ravel();valid=arrays['valid:'+name].ravel();reason=arrays['reason:'+name].ravel()
+                reason[:]=np.where(matched,2,1)
+                for slot,(block,destinations) in enumerate(zip(groups.blocks,plans)):
+                    dest=destinations[index[destinations,0]==slot]
+                    if not len(dest): continue
+                    rows=index[dest,1];raw,present=block.values[name];gathered=raw[rows];present=present[rows]
+                    target=dtypes[name]
+                    if (target.kind in 'iu' and (gathered.dtype.kind not in 'iu' or gathered.dtype.itemsize>target.itemsize or gathered.dtype.kind!=target.kind)) or (target.kind=='b' and gathered.dtype.kind!='b'):
+                        import pandas as pd
+                        dtype=('UInt' if target.kind=='u' else 'Int')+str(target.itemsize*8) if target.kind!='b' else 'boolean'
+                        converted=pd.array(gathered,dtype=dtype);present&=~np.asarray(converted.isna());gathered=converted.to_numpy(dtype=target,na_value=0)
+                    values[dest]=gathered;valid[dest]=present;reason[dest]=np.where(present,0,3)
+        finally: self._temporary-=plan_fee
+        return int(fallbacks[~sparse].sum())+scalar_fallback
     def adjust(self,prices,factors,*,fields,anchor_session,factor_field='factor',decision_session=None,previous=None):
         """Apply Data's common-anchor kernel to live, already selected columns.
 
@@ -687,7 +847,7 @@ class ColumnSource:
         Output pins source blocks and compact lineage, independently of input
         selection lifetimes; available_at is the latest of its three inputs.
         """
-        from .derived import PRICE_ADJUSTMENT_VERSION,_query_context,_validate_adjustment,_number,_adjust_value
+        from .derived import PRICE_ADJUSTMENT_VERSION,_query_context,_validate_adjustment,_adjust_columns
         self._check()
         for value,label in ((prices,'prices'),(factors,'factors'),(previous,'previous')):
             if value is None and label=='previous': continue
@@ -727,25 +887,26 @@ class ColumnSource:
                 arrays['basis:'+lineage]=np.zeros(shape,dtype='u1')
             arrays['available']=np.full(shape,_NAT,dtype='<i8').view('datetime64[ns]')
             arrays['basis']=np.zeros(shape,dtype='u1')
-            def scalar(value,field,key):
-                return value._arrays['value:'+field][key].item() if value._arrays['valid:'+field][key] else None
-            anchor_numbers={symbol:_number(scalar(factors,factor_field,(factor_days[anchor],factor_symbols[symbol]))) for symbol in query.symbols}
-            for i,day in enumerate(query.sessions):
-                for j,symbol in enumerate(query.symbols):
-                    key=i,j;factor_key=factor_days[day],factor_symbols[symbol];anchor_key=factor_days[anchor],factor_symbols[symbol]
-                    for lineage,value,input_key in (('price',prices,key),('factor',factors,factor_key),('anchor_factor',factors,anchor_key)):
-                        coordinate=value._arrays['index:native'][input_key]
-                        if coordinate[0]>=0:
-                            arrays['index:'+lineage][key]=(slots[id(value._blocks[int(coordinate[0])])],coordinate[1])
-                        arrays['available:'+lineage][key]=value._arrays['available'][input_key]
-                        arrays['basis:'+lineage][key]=value._arrays['basis'][input_key]
-                    arrays['available'].view('<i8')[key]=max(arrays['available:'+n].view('<i8')[key] for n in ('price','factor','anchor_factor'))
-                    factor_number=_number(scalar(factors,factor_field,factor_key))
-                    for field in fields:
-                        result,reason=_adjust_value(scalar(prices,field,key),factor_number,anchor_numbers[symbol],
-                            prices._reasons[int(prices._arrays['reason:'+field][key])])
-                        arrays['reason:'+field][key]=_ADJUST_REASONS.index(reason)
-                        if result is not None: arrays['value:'+field][key]=result;arrays['valid:'+field][key]=True
+            factor_rows=np.fromiter((factor_days[s] for s in query.sessions),dtype='<i8')
+            factor_cols=np.fromiter((factor_symbols[s] for s in query.symbols),dtype='<i8')
+            factor_key=np.ix_(factor_rows,factor_cols);anchor_key=np.ix_(np.asarray([factor_days[anchor]]),factor_cols)
+            for lineage,value,key in (('price',prices,None),('factor',factors,factor_key),('anchor_factor',factors,anchor_key)):
+                coordinate=value._arrays['index:native'] if key is None else value._arrays['index:native'][key]
+                coordinate=np.broadcast_to(coordinate,(*shape,2)).copy();valid=coordinate[...,0]>=0
+                remap=np.asarray([slots[id(b)] for b in value._blocks],dtype='<i8')
+                if np.any(valid): coordinate[...,0][valid]=remap[coordinate[...,0][valid]]
+                arrays['index:'+lineage]=coordinate
+                clock=value._arrays['available'] if key is None else value._arrays['available'][key]
+                basis=value._arrays['basis'] if key is None else value._arrays['basis'][key]
+                arrays['available:'+lineage]=np.broadcast_to(clock,shape).copy()
+                arrays['basis:'+lineage]=np.broadcast_to(basis,shape).copy()
+            arrays['available']=np.maximum.reduce([arrays['available:'+n].view('<i8') for n in ('price','factor','anchor_factor')]).view('datetime64[ns]')
+            factor_value=factors._arrays['value:'+factor_field][factor_key];factor_valid=factors._arrays['valid:'+factor_field][factor_key]
+            anchor_value=factors._arrays['value:'+factor_field][anchor_key];anchor_valid=factors._arrays['valid:'+factor_field][anchor_key]
+            for field in fields:
+                values,valid,reasons=_adjust_columns(prices._arrays['value:'+field],prices._arrays['valid:'+field],prices._arrays['reason:'+field],
+                    factor_value,factor_valid,anchor_value,anchor_valid)
+                arrays['value:'+field]=values;arrays['valid:'+field]=valid;arrays['reason:'+field]=reasons
             selection=ColumnSelection(self,query,binding,headers,blocks,None,arrays,0)
             selection._reasons=_ADJUST_REASONS
             selection._lineage={'price':(prices._query,prices._evidence),
@@ -767,35 +928,33 @@ class ColumnSource:
             absent_days=np.fromiter((s not in current_days for s in previous._axes['sessions']),dtype='?')
             absent_symbols=np.fromiter((s not in current_symbols for s in previous._axes['security']),dtype='?')
             removed=np.argwhere(absent_days[:,None]|absent_symbols[None,:]).astype('<i8')
+            new_days=np.asarray([i for i,s in enumerate(selection._axes['sessions']) if s in old_days],dtype='<i8')
+            new_symbols=np.asarray([i for i,s in enumerate(selection._axes['security']) if s in old_symbols],dtype='<i8')
+            old_i=np.asarray([old_days[selection._axes['sessions'][i]] for i in new_days],dtype='<i8')
+            old_j=np.asarray([old_symbols[selection._axes['security'][j]] for j in new_symbols],dtype='<i8')
+            current=np.ix_(new_days,new_symbols);old=np.ix_(old_i,old_j)
+            added[current]=False
+            static=('domain','fields','price_basis','adjustment_anchor','universe_id')
+            changed=np.full((len(new_days),len(new_symbols)),
+                any(selection._binding[n]!=previous._binding[n] for n in static) or set(selection._lineage)!=set(previous._lineage),dtype='?')
             remap={ref:i for i,ref in enumerate(previous.source_block_refs)}
-            static=('domain','fields','purpose','price_basis','adjustment_anchor','universe_id')
-            same_fields=all(selection._binding[n]==previous._binding[n] for n in static)
-            indices=tuple(n for n in selection._arrays if n.startswith('index:'))
-            for i,day in enumerate(selection._axes['sessions']):
-                if day not in old_days: continue
-                oi=old_days[day]
-                for j,symbol in enumerate(selection._axes['security']):
-                    if symbol not in old_symbols: continue
-                    oj=old_symbols[symbol];added[i,j]=False;changed=not same_fields
-                    changed|=set(selection._lineage)!=set(previous._lineage)
-                    for name in indices:
-                        if name not in previous._arrays: changed=True;continue
-                        a=selection._arrays[name][i,j];b=previous._arrays[name][oi,oj]
-                        coordinate=(remap.get(selection._blocks[int(a[0])].ref,-2),int(a[1])) if a[0]>=0 else (-1,-1)
-                        changed|=coordinate!=(int(b[0]),int(b[1]))
-                    changed|=selection._binding['cutoff_by_session'][day]!=previous._binding['cutoff_by_session'][day]
-                    changed|=_policy_for(selection._query,day)!=_policy_for(previous._query,day)
-                    changed|=selection._binding['purpose']!=previous._binding['purpose']
-                    for lineage,(q,_) in selection._lineage.items():
-                        if lineage not in previous._lineage: continue
-                        old_q=previous._lineage[lineage][0]
-                        lineage_day=selection._derived['anchor_session'] if lineage=='anchor_factor' else day
-                        old_lineage_day=previous._derived['anchor_session'] if lineage=='anchor_factor' else day
-                        changed|=_policy_for(q,lineage_day)!=_policy_for(old_q,old_lineage_day)
-                    for name in (n for n in selection._arrays if not n.startswith(('index:','change:'))):
-                        if name not in previous._arrays or selection._arrays[name].dtype!=previous._arrays[name].dtype: changed=True
-                        else: changed|=selection._arrays[name][i,j].tobytes()!=previous._arrays[name][oi,oj].tobytes()
-                    updated[i,j]=changed
+            slots=np.asarray([remap.get(b.ref,-2) for b in selection._blocks],dtype='<i8')
+            for name,array in selection._arrays.items():
+                if name.startswith('change:'): continue
+                previous_array=previous._arrays.get(name)
+                if previous_array is None or array.dtype!=previous_array.dtype:
+                    changed[:]=True;continue
+                a=array[current];b=previous_array[old]
+                if name.startswith('index:'):
+                    valid=a[...,0]>=0
+                    if np.any(valid): a[...,0][valid]=slots[a[...,0][valid]]
+                    changed|=np.any(a!=b,axis=-1)
+                else:
+                    # Compare primitive bytes, retaining NaN payload and -0.
+                    changed|=np.any(a.view('u1').reshape((*changed.shape,a.dtype.itemsize))!=b.view('u1').reshape((*changed.shape,b.dtype.itemsize)),axis=-1)
+            # Full query/cutoff identity still binds selection_ref below. Changes
+            # here describe actual fact/lineage/clock/basis dependencies only.
+            updated[current]=changed
         selection._arrays.update({'change:added':np.argwhere(added).astype('<i8'),
             'change:updated':np.argwhere(updated).astype('<i8'),'change:removed':removed})
         selection._arrays={n:_readonly(a) for n,a in selection._arrays.items()}
@@ -809,14 +968,18 @@ class ColumnSource:
             _plain(selection._binding),_plain(selection._headers),_plain(selection._axes),selection._selection_ref,
             selection._derived,selection._reasons,_plain(selection._previous_axes),
             tuple(vars(q) for q,_ in selection._lineage.values()),tuple(b.ref for b in selection._blocks)))+4096
-        self._selections.add(selection)
+        self._selections.add(selection);self._track(selection,'selection',selection._charge)
+        self._refresh_metadata()
         try: self._check_budget()
         except Exception: selection.close();raise
     def close(self):
         if self._closed: return
         self._closed=True
         for selection in tuple(self._selections): selection.close()
-        for groups in tuple(self._groups_live): groups.blocks=();groups.evidence=None
+        for groups in tuple(self._groups_live):
+            groups.blocks=();groups.evidence=None;groups.by_session={};groups.query=None;groups.days=None
+            token=getattr(groups,'_release_token',None)
+            if token is not None: token()
         reader=self._reader
         if reader is not None:
             reader._column_owner=None
@@ -824,6 +987,7 @@ class ColumnSource:
             reader.cache_bytes=getattr(self,'_original_cache_bytes',reader.cache_bytes)
         self._reader=None;self._data=None;self._blocks.clear();self._evidences.clear();self._groups_live.clear()
         self._marks.clear();self._store=None
+        self._schemas.clear()
     def __enter__(self): self._check();return self
     def __exit__(self,*_): self.close()
     def __reduce__(self): raise QueryError('column sources cannot cross a process boundary')

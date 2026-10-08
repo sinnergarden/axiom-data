@@ -191,10 +191,37 @@ def _adjust_value(price_value, factor_number, anchor_number, price_missing_reaso
         reason = "invalid_factor"
     else:
         reason = None
-    adjusted = None if reason else price * factor / anchor_factor
+    adjusted = None if reason else _adjust_calculation(price, factor, anchor_factor)
     if adjusted is not None and not isfinite(adjusted):
         reason, adjusted = "invalid_adjusted_value", None
     return adjusted, reason
+
+
+def _adjust_calculation(price,factor,anchor):
+    """One multiplication followed by one division for scalars and arrays."""
+    product=price*factor
+    return product/anchor
+
+
+def _adjust_columns(prices,price_valid,price_reasons,factors,factor_valid,anchors,anchor_valid):
+    """Native numeric arrays with the scalar kernel's state and reason precedence."""
+    import numpy as np
+    def numbers(values,valid):
+        value=values.astype('<f8',copy=False)
+        missing=~valid|np.isnan(value)
+        invalid=~missing&((values.dtype.kind=='b')|~np.isfinite(value))
+        return value,missing,invalid
+    price,pm,pi=numbers(prices,price_valid);factor,fm,fi=numbers(factors,factor_valid);anchor,am,ai=numbers(anchors,anchor_valid)
+    # These are the data_column_selection_v1 missing-reason codes. Source-null
+    # reasons 1..3 retain the Reader's labels; 4..10 are the existing recipe.
+    reasons=np.select((pm,pi,am,ai|(anchor<=0),fm,fi|(factor<=0)),
+        (np.where(price_reasons!=0,price_reasons,4),np.uint8(5),np.uint8(6),np.uint8(7),np.uint8(8),np.uint8(9)),default=np.uint8(0)).astype('u1')
+    good=reasons==0;values=np.zeros(prices.shape,dtype='<f8')
+    anchor=np.broadcast_to(anchor,prices.shape)
+    with np.errstate(over='ignore',under='ignore',invalid='ignore',divide='ignore'):
+        values[good]=_adjust_calculation(price[good],factor[good],anchor[good])
+    bad=good&~np.isfinite(values);reasons[bad]=10;values[bad]=0
+    return values,reasons==0,reasons
 
 
 def adjust_prices(
