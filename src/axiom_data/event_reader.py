@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import pandas as pd
 
 from .protocols import DataBatch, EventQuery, QueryError
-from .reader import READER_VERSION, _date_value, _instant, _revision_order
+from .reader import READER_VERSION, _date_value, _instant, _revision_order, _object_size
 
 
 EVENT_READER_VERSION = "event_reader_v7"
@@ -194,7 +194,9 @@ def _ambiguous_action_candidates(store, row):
     return candidates
 
 
-def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
+def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
+                _snapshot=None, _sink=None, _source_symbols=None, _evidence=None,
+                _check=None) -> DataBatch:
     """Read PIT-selected events by native key from a concrete Snapshot.
 
     The inclusive economic date range and filters apply only after selecting a
@@ -206,7 +208,7 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
     """
     if not isinstance(snapshot_id, str) or not snapshot_id or snapshot_id in {"current", "latest"}:
         raise QueryError("resolve a concrete snapshot before events")
-    snapshot = store.load_snapshot(snapshot_id)
+    snapshot = store.load_snapshot(snapshot_id) if _snapshot is None else _snapshot
     if snapshot.get("snapshot_id") != snapshot_id:
         raise QueryError("loaded Snapshot ID does not match requested ID")
     domain, keys, declared, cutoff, start, end = _validate(query, snapshot)
@@ -223,9 +225,11 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
                                   *status_columns, *[c for c in (date_field, instant_field) if c],
                                   "group_completeness", "holders", "source_issue", *_VERSION)))
     from .public_evidence import apply_evidence, evidence_index
-    evidence = evidence_index(store, snapshot, query.domain)
+    evidence = evidence_index(store, snapshot, query.domain) if _evidence is None else _evidence
     grouped: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
-    for part in domain.get("partitions") or ():
+    encounters = {};group_charge=0
+    source_symbols = query.symbols if _source_symbols is None else _source_symbols
+    for part_number, part in enumerate(domain.get("partitions") or ()):
         # Report period is immutable only when included in the logical key.
         # Announcement/effective-date queries cannot use this optimization:
         # a correction may move the selected date across their query boundary.
@@ -234,14 +238,25 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
                 and len(label) == 11 and label.startswith("period-")
                 and label[7:].isdigit() and not start[:4] <= label[7:] <= end[:4]):
             continue
-        table = store.read_partition(part, columns=columns, symbols=query.symbols)
-        for row in apply_evidence(table.to_pylist(), index=evidence, key_fields=keys):
+        if _check is not None:
+            _check(group_charge + part.get('rows', 0) * (256 + 128 * len(columns)))
+        table = store.read_partition(part, columns=columns, symbols=source_symbols)
+        ordinals = store.last_positions if _sink is not None else range(table.num_rows)
+        source_rows=apply_evidence(table.to_pylist(), index=evidence, key_fields=keys)
+        if _check is not None:
+            # Linear conservative accounting, rather than traversing the
+            # growing whole event graph once per partition.
+            group_charge+=4*_object_size(source_rows)+256*table.num_rows
+            _check(group_charge)
+        for physical_ordinal, row in zip(ordinals, source_rows):
             if row.get("security_id") not in query.symbols:
                 continue
             key = tuple(row.get(k) for k in keys)
             if any(v is None for v in key):
                 raise QueryError("event revision lacks a logical key")
             grouped.setdefault(key, []).append(row)
+            if _sink is not None:
+                encounters.setdefault(tuple(str(v) for v in key), (part_number, physical_ordinal))
     selected: list[tuple[dict[str, Any], tuple[datetime, str]]] = []
     unavailable_actions = []
     action_candidates = {}
@@ -318,9 +333,10 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
                                     (_date_string(item[0][query.time_field], query.time_field)
                                      if item[0].get(query.time_field) is not None else ''),
                                     tuple(str(item[0][k]) for k in keys)))
-    records: list[dict[str, Any]] = []
+    records = [] if _sink is None else _sink.records
     field_meta = {field: {"dtype": declared[field].get("dtype"), "unit": declared[field].get("unit"),
-                          "basis": declared[field].get("basis"), "by_key": []} for field in query.fields}
+                          "basis": declared[field].get("basis"),
+                          "by_key": [] if _sink is None else _sink.metadata(field)} for field in query.fields}
     for row, (usable, basis) in selected:
         native = {k: _date_string(row[k], k) if isinstance(row[k], date) and not isinstance(row[k], datetime)
                   else row[k] for k in keys}
@@ -358,6 +374,24 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
                 "group_completeness": row.get("group_completeness") if query.domain == "top_holders_reports" else None,
             })
         records.append(record)
+    limitations = _event_limitations(query, profile, fallback_count, len(unavailable_actions))
+    context = {
+        "contract_version": "data_batch_v1", "snapshot_id": snapshot_id,
+        "domain": query.domain, "contract_id": contract.get("contract_id"),
+        "source_profile_id": profile.get("id"), "reader_version": READER_VERSION,
+        "event_reader_version": EVENT_READER_VERSION, "logical_key": list(keys),
+        "query": {"fields": list(query.fields), "symbols": list(query.symbols),
+                  "start": start, "end": end, "cutoff": cutoff.isoformat(),
+                  "pit_policy": query.pit_policy, "time_field": query.time_field,
+                  "filters": deepcopy(dict(query.filters)), "purpose": query.purpose},
+        "coverage": deepcopy(domain.get("coverage")) if _sink is None else domain.get('coverage'),
+        "limitations": limitations,
+        **({"unavailable_event_scope": unavailable_actions} if unavailable_actions else {}),
+    }
+    if _sink is not None:
+        scopes = [(encounters[tuple(scope['native_key'][k] for k in keys)], scope)
+                  for scope in unavailable_actions]
+        return context, fallback_count, scopes
     output_columns = list(dict.fromkeys((*keys, query.time_field,
                                           *(("group_completeness",) if query.domain == "top_holders_reports" else ()),
                                           *query.fields)))
@@ -372,15 +406,19 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
             # Construct from the original Arrow scalars. An inferred float
             # intermediate silently rounds large int64 facts beside nulls.
             frame[field] = pd.array([record[field] for record in records], dtype=dtype)
+    return DataBatch(frame, field_meta, context)
+
+
+def _event_limitations(query, profile, fallback_count, unavailable_count):
     limitations = []
-    if unavailable_actions:
-        limitations.append(f'{len(unavailable_actions)} whole corporate actions are unavailable: '
+    if unavailable_count:
+        limitations.append(f'{unavailable_count} whole corporate actions are unavailable: '
             'supplier rows do not distinguish action identity from revision. Missing economic dates '
             'are retained as markers for the affected range; mutable-field filters cannot prove absence. '
             'Do not apply unanimous zero amounts or treat these markers as no company action.')
     if query.pit_policy == "best_effort_vendor_v1":
         limitations.append("vendor event availability is a declared assumption, not revision-bound historical public evidence")
-        if unavailable_actions:
+        if unavailable_count:
             limitations.append("unavailable action scope is retrospective uncertainty under retained terminal source content; only cutoff-visible candidate ranges are shown")
     if query.pit_policy == "market_pit_safe_v1" and fallback_count:
         limitations.append(f"{fallback_count} event revisions lacked revision-bound public evidence; first_observed_at was used")
@@ -388,17 +426,4 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery) -> DataBatch:
         limitations.append("terminal states ordered by system observation under declared source policy; vendor revision/publication order is unknown")
     elif profile.get("revision_order") == "announcement_day_then_terminal_v1":
         limitations.append("report versions use declared supplier announcement days; same-day corrections use actual observation order, not a verified publication sequence")
-    context = {
-        "contract_version": "data_batch_v1", "snapshot_id": snapshot_id,
-        "domain": query.domain, "contract_id": contract.get("contract_id"),
-        "source_profile_id": profile.get("id"), "reader_version": READER_VERSION,
-        "event_reader_version": EVENT_READER_VERSION, "logical_key": list(keys),
-        "query": {"fields": list(query.fields), "symbols": list(query.symbols),
-                  "start": start, "end": end, "cutoff": cutoff.isoformat(),
-                  "pit_policy": query.pit_policy, "time_field": query.time_field,
-                  "filters": deepcopy(dict(query.filters)), "purpose": query.purpose},
-        "coverage": deepcopy(domain.get("coverage")),
-        "limitations": limitations,
-        **({"unavailable_event_scope": unavailable_actions} if unavailable_actions else {}),
-    }
-    return DataBatch(frame, field_meta, context)
+    return limitations

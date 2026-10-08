@@ -10,6 +10,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from datetime import date, datetime, time
 from hashlib import sha256
+from pathlib import Path
 import json
 import re
 import sys
@@ -219,7 +220,15 @@ class SnapshotQueryReader:
             raise QueryError("SnapshotQueryReader requires a resolved snapshot ID")
         self.store = store
         self.snapshot_id = snapshot_id
+        self._snapshot_path = Path(store.root)/'snapshots'/(snapshot_id+'.json') if hasattr(store,'root') else None
+        def stamp():
+            if self._snapshot_path is None or not self._snapshot_path.exists(): return None
+            s=self._snapshot_path.stat()
+            return (s.st_dev,s.st_ino,s.st_size,s.st_mtime_ns,s.st_ctime_ns)
+        self._snapshot_mark=stamp()
         self.snapshot = store.load_snapshot(snapshot_id)
+        if stamp()!=self._snapshot_mark:
+            raise QueryError('Snapshot changed while loading')
         if self.snapshot.get("snapshot_id") != snapshot_id:
             raise QueryError("loaded Snapshot ID does not match requested ID")
         self.cache_bytes = cache_bytes
@@ -555,7 +564,7 @@ class SnapshotQueryReader:
 
     def _read_membership(
         self, domain: Mapping[str, Any], declared_fields: Mapping[str, Any],
-        cutoffs: Mapping[str, datetime], query: QuerySpec, cache_key: str,
+        cutoffs: Mapping[str, datetime], query: QuerySpec, cache_key: str, *, sink=None,
     ) -> DataBatch:
         """Project versioned positive membership intervals onto requested sessions.
 
@@ -564,7 +573,12 @@ class SnapshotQueryReader:
         """
         profile = domain.get("source_profile") or {}
         contract = domain.get("contract") or {}
+        if sink is not None:
+            sink.writer.reserve_source(sum(p.get('rows',0)*(256+128*len(self._columns(domain,query)))
+                for p in self._parts_for_query(domain,query)))
         grouped = self._read_groups(domain, query)
+        if sink is not None:
+            sink.writer.reserve_source(4*_object_size(grouped))
         events: dict[str, dict[str, list[dict[str, Any]]]] = {}
         for (symbol, event_id), revisions in grouped.items():
             events.setdefault(symbol, {})[event_id] = revisions
@@ -608,8 +622,8 @@ class SnapshotQueryReader:
             and state.get("universe_id") == query.universe_id
             and not (state.get("source_available_at") is not None and state.get("evidence_ref"))
         )
-        records: list[dict[str, Any]] = []
-        meta_rows: list[dict[str, Any]] = []
+        records = [] if sink is None else sink.records
+        meta_rows = [] if sink is None else sink.metadata("is_member")
         vendor_releases: dict[str, datetime] = {}
         coverage = domain.get("coverage") or {}
         vendor_carry = profile.get("id") == "tushare.index_weight.dated_membership.v1"
@@ -820,20 +834,26 @@ class SnapshotQueryReader:
                 "adjustment_anchor": query.adjustment_anchor, "universe_id": query.universe_id,
                 "policy_by_session": dict(query.policy_by_session) if query.policy_by_session is not None else None,
             },
-            "coverage": deepcopy(domain.get("coverage")),
+            "coverage": deepcopy(domain.get("coverage")) if sink is None else domain.get("coverage"),
             "limitations": list(dict.fromkeys([
                 *_policy_limitations(query, profile, fallback_count),
                 *(domain.get("coverage") or {}).get("limitations", []),
             ])),
         }
+        if sink is not None:
+            return sink.finish(context, field_meta)
         frame = pd.DataFrame.from_records(records, columns=["security_id", "session", "is_member"])
         frame["is_member"] = frame["is_member"].astype("boolean")
         return self._put_cache(cache_key, DataBatch(frame, field_meta, context))
 
     def read(self, query: QuerySpec) -> DataBatch:
+        return self._read(query)
+
+    def _read(self, query: QuerySpec, *, sink=None, groups=None, copy_coverage=True):
+        """Shared selection; a private save sink never builds the whole result."""
         domain, declared_fields, cutoffs = self._validate(query)
         key = self._cache_key(query, cutoffs)
-        if key in self._cache:
+        if sink is None and copy_coverage and key in self._cache:
             for part in [*self._parts_for_query(domain, query), *self._evidence_parts(query)]:
                 self.store.verify_partition(part)
             self.cache_hits += 1
@@ -842,18 +862,19 @@ class SnapshotQueryReader:
             return DataBatch(cached.frame.copy(deep=True), deepcopy(cached.field_meta), deepcopy(cached.context))
 
         if query.domain == "universe_membership":
-            return self._read_membership(domain, declared_fields, cutoffs, query, key)
+            return self._read_membership(domain, declared_fields, cutoffs, query, key, sink=sink)
 
         profile = domain.get("source_profile") or {}
-        grouped = self._read_groups(domain, query)
+        grouped = self._read_groups(domain, query) if groups is None else groups
         fallback_count = sum(1 for revisions in grouped.values() for row in revisions
             if not (row.get("source_available_at") is not None and row.get("evidence_ref"))
         ) if query.pit_policy == "market_pit_safe_v1" else 0
 
-        records: list[dict[str, Any]] = []
+        records = [] if sink is None else sink.records
         field_meta: dict[str, Any] = {
             field: {"dtype": declared_fields[field].get("dtype"),
-                    "unit": declared_fields[field].get("unit"), "by_key": []}
+                    "unit": declared_fields[field].get("unit"),
+                    "by_key": [] if sink is None else sink.metadata(field)}
             for field in query.fields
         }
         vendor_releases: dict[str, datetime] = {}
@@ -911,9 +932,11 @@ class SnapshotQueryReader:
                 "universe_id": query.universe_id,
                 "policy_by_session": dict(query.policy_by_session) if query.policy_by_session is not None else None,
             },
-            "coverage": deepcopy(domain.get("coverage")),
+            "coverage": deepcopy(domain.get("coverage")) if sink is None and copy_coverage else domain.get("coverage"),
             "limitations": _policy_limitations(query, profile, fallback_count),
         }
+        if sink is not None:
+            return sink.finish(context, field_meta)
         frame = pd.DataFrame.from_records(records, columns=["security_id", "session", *query.fields])
         nullable_types = {"int": "Int64", "integer": "Int64", "int64": "Int64",
                           "int32": "Int32", "bool": "boolean", "boolean": "boolean",
@@ -926,4 +949,4 @@ class SnapshotQueryReader:
                 # int64 values above 2**53 must survive alongside missing keys.
                 frame[field] = pd.array([record[field] for record in records], dtype=dtype)
         batch = DataBatch(frame, field_meta, context)
-        return self._put_cache(key, batch)
+        return self._put_cache(key, batch) if copy_coverage else batch

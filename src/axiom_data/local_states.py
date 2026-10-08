@@ -103,7 +103,8 @@ def _reference_data(store: Any, manifest: Mapping[str, Any], query: QuerySpec) -
     return calendar, identities, statuses
 
 
-def read_states(store: Any, snapshot_id: str, query: QuerySpec) -> DataBatch:
+def read_states(store: Any, snapshot_id: str, query: QuerySpec, *, _reader=None,
+                _market=None) -> DataBatch:
     """Diagnose requested symbol/dates with PIT-selected reference and market facts.
 
     ``query.domain`` must be market_daily; fields choose actual price/volume
@@ -114,8 +115,8 @@ def read_states(store: Any, snapshot_id: str, query: QuerySpec) -> DataBatch:
     """
     if not isinstance(query, QuerySpec) or query.domain != "market_daily":
         raise QueryError("states requires a market_daily QuerySpec")
-    reader = SnapshotQueryReader(store, snapshot_id)
-    market = reader.read(query)
+    reader = SnapshotQueryReader(store, snapshot_id) if _reader is None else _reader
+    market = reader.read(query) if _market is None else _market
     manifest = reader.snapshot
     domains = manifest["domains"]
     calendar, identities, statuses = _reference_data(store, manifest, query)

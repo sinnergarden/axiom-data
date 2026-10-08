@@ -116,6 +116,19 @@ class Data:
         return export_qlib(self, snapshot=snapshot, queries=queries,
                            destination=destination, **options)
 
+    def export_native_view(self, *, snapshot: str, reads, destination, limits, source_symbol_block=64):
+        """Explicitly save original native selections in bounded JSON parts.
+
+        Full Query and PIT identities remain unchanged. No supplier or fact
+        root writes. Use this Data instance sequentially until export finishes;
+        limits include the normal Snapshot baseline and shared Reader cache.
+        Existing destinations are refused; failure publishes no final view.
+        """
+        from .native_view import export_native_view
+        return export_native_view(self, snapshot=snapshot, reads=reads,
+                                  destination=destination, limits=limits,
+                                  source_symbol_block=source_symbol_block)
+
     def export_review_display(self, *, snapshot: str, price_query: QuerySpec,
                               factor_query: QuerySpec, anchor_session: str,
                               destination, security_query: EventQuery | None = None,
