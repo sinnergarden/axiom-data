@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import pandas as pd
 
 from .protocols import DataBatch, EventQuery, QueryError
-from .reader import READER_VERSION, _date_value, _instant, _revision_order, _object_size
+from .reader import READER_VERSION, _date_value, _instant, _revision_order
 
 
 EVENT_READER_VERSION = "event_reader_v7"
@@ -164,9 +164,19 @@ def _cell_status(row: Mapping[str, Any], field: str, spec: Mapping[str, Any], de
     return status
 
 
-def _ambiguous_action_candidates(store, row):
+def _ambiguous_action_candidates(store, row, *, _budget=None):
     """Read candidate dates from the retained native group without choosing an action."""
+    from contextlib import ExitStack
+    with ExitStack() as stack:
+        if _budget is not None:
+            for owner in ('raw-record','raw-payload','raw-parsing'):
+                stack.enter_context(_budget.scope(owner))
+        return _action_candidates(store,row,_budget=_budget)
+
+
+def _action_candidates(store,row,*,_budget=None):
     from .sources import _rows
+    import sys
     raw = store.get_raw(row['raw_batch_id'])
     profile = raw['source_profile']
     code = next((code for code, stable in profile['identity_map'].items()
@@ -177,8 +187,15 @@ def _ambiguous_action_candidates(store, row):
             return datetime.strptime(value, '%Y%m%d').date().isoformat()
         except (TypeError, ValueError) as exc:
             raise QueryError('ambiguous action Raw has an invalid source date') from exc
+    payload=store.read_raw_record(raw)
+    if _budget is not None: _budget.reserve('raw-parsing',32*len(payload)+4096)
+    originals=_rows(payload)
+    if _budget is not None:
+        # Copies borrow source-row scalars (owned by source), but dictionaries,
+        # parsed dates, candidate-time lists and their pointers remain live.
+        _budget.add('candidates',len(originals)*(4*sys.getsizeof(row)+4096)+4096)
     candidates = []
-    for original in _rows(store.read_raw_record(raw)):
+    for original in originals:
         if original.get('ts_code') != code or original.get('div_proc') != row['process_status']:
             continue
         if any(source_day(original.get(source)) != _date_string(row[field], field)
@@ -195,8 +212,7 @@ def _ambiguous_action_candidates(store, row):
 
 
 def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
-                _snapshot=None, _sink=None, _source_symbols=None, _evidence=None,
-                _check=None) -> DataBatch:
+                _snapshot=None, _sink=None, _source_symbols=None, _evidence=None) -> DataBatch:
     """Read PIT-selected events by native key from a concrete Snapshot.
 
     The inclusive economic date range and filters apply only after selecting a
@@ -227,7 +243,7 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
     from .public_evidence import apply_evidence, evidence_index
     evidence = evidence_index(store, snapshot, query.domain) if _evidence is None else _evidence
     grouped: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
-    encounters = {};group_charge=0
+    encounters = {}
     source_symbols = query.symbols if _source_symbols is None else _source_symbols
     for part_number, part in enumerate(domain.get("partitions") or ()):
         # Report period is immutable only when included in the logical key.
@@ -238,25 +254,29 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
                 and len(label) == 11 and label.startswith("period-")
                 and label[7:].isdigit() and not start[:4] <= label[7:] <= end[:4]):
             continue
-        if _check is not None:
-            _check(group_charge + part.get('rows', 0) * (256 + 128 * len(columns)))
-        table = store.read_partition(part, columns=columns, symbols=source_symbols)
-        ordinals = store.last_positions if _sink is not None else range(table.num_rows)
-        source_rows=apply_evidence(table.to_pylist(), index=evidence, key_fields=keys)
-        if _check is not None:
-            # Linear conservative accounting, rather than traversing the
-            # growing whole event graph once per partition.
-            group_charge+=4*_object_size(source_rows)+256*table.num_rows
-            _check(group_charge)
-        for physical_ordinal, row in zip(ordinals, source_rows):
-            if row.get("security_id") not in query.symbols:
-                continue
-            key = tuple(row.get(k) for k in keys)
-            if any(v is None for v in key):
-                raise QueryError("event revision lacks a logical key")
-            grouped.setdefault(key, []).append(row)
-            if _sink is not None:
-                encounters.setdefault(tuple(str(v) for v in key), (part_number, physical_ordinal))
+        from contextlib import closing, nullcontext
+        native=getattr(store,'_native_chunks',None)
+        if native is None:
+            table=store.read_partition(part,columns=columns,symbols=source_symbols)
+            source_rows=table.to_pylist()
+            chunks=iter([(source_rows,range(table.num_rows))])
+        else:
+            chunks=native(part,owner='source',columns=columns,symbols=source_symbols,positions=True)
+        source_rows=ordinals=None
+        with closing(chunks) if native is not None else nullcontext(chunks):
+            for source_rows,ordinals in chunks:
+                apply_evidence(source_rows,index=evidence,key_fields=keys)
+                for physical_ordinal,row in zip(ordinals,source_rows):
+                    if row.get('security_id') not in query.symbols: continue
+                    key=tuple(row.get(k) for k in keys)
+                    if any(v is None for v in key): raise QueryError('event revision lacks a logical key')
+                    grouped.setdefault(key,[]).append(row)
+                    if _sink is not None:
+                        encounters.setdefault(tuple(str(v) for v in key),(part_number,physical_ordinal))
+        if native is not None: del source_rows,ordinals
+    budget=None if _sink is None else _sink.writer
+    if budget is not None:
+        budget.reserve('event-selection',2*budget.retained.get('source',0)+4096*len(grouped))
     selected: list[tuple[dict[str, Any], tuple[datetime, str]]] = []
     unavailable_actions = []
     action_candidates = {}
@@ -268,7 +288,7 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
         for row in revisions:
             if (query.pit_policy == 'best_effort_vendor_v1' and query.domain == 'corporate_actions' and
                     row.get('source_issue') == 'ambiguous_action_identity_or_revision'):
-                candidates = _ambiguous_action_candidates(store, row)
+                candidates = _ambiguous_action_candidates(store, row,_budget=budget)
                 candidate_times = [(candidate, _best_effort_time(candidate, profile, cutoff=cutoff))
                                    for candidate in candidates]
                 eligible = [(candidate, usable) for candidate, usable in candidate_times
@@ -303,7 +323,7 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
                 continue
             candidate_times = action_candidates.get(id(chosen))
             eligible = ([candidate for candidate, _ in candidate_times] if candidate_times is not None
-                        else _ambiguous_action_candidates(store, chosen))
+                        else _ambiguous_action_candidates(store, chosen,_budget=budget))
             candidates = list(dict.fromkeys(
                 _date_string(candidate[query.time_field], query.time_field)
                 if candidate.get(query.time_field) is not None else None for candidate in eligible))
@@ -338,6 +358,7 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
                           "basis": declared[field].get("basis"),
                           "by_key": [] if _sink is None else _sink.metadata(field)} for field in query.fields}
     for row, (usable, basis) in selected:
+        if _sink is not None: _sink.begin_row()
         native = {k: _date_string(row[k], k) if isinstance(row[k], date) and not isinstance(row[k], datetime)
                   else row[k] for k in keys}
         record = dict(native)

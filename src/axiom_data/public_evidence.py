@@ -124,6 +124,9 @@ def document_assertions(payload):
 
 def evidence_index(store, snapshot, domain_name):
     """Read only evidence for the requested domain; an absent domain costs no I/O."""
+    native=getattr(store,'_native_evidence_index',None)
+    if native is not None:
+        return native(domain_name)
     domain = snapshot.get("domains", {}).get("public_evidence")
     if not domain or domain_name == "public_evidence":
         return {}

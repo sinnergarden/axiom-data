@@ -6,7 +6,7 @@ copied elsewhere. Constructing or reading a store never creates files.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import base64
 from copy import deepcopy
 from datetime import date, datetime, timezone
@@ -195,7 +195,7 @@ class LocalStore:
             os.fsync(stream.fileno())
             return boundary
 
-    def _decode_raw_line(self, line: bytes) -> dict[str, Any]:
+    def _decode_raw_line(self, line: bytes, *, _budget=None) -> dict[str, Any]:
         try:
             record = json.loads(line)
         except (TypeError, ValueError) as exc:
@@ -207,18 +207,34 @@ class LocalStore:
             profile = self._profile_cache.get(compressed)
             if profile is None:
                 try:
-                    profile = json.loads(zlib.decompress(base64.b64decode(compressed, validate=True)))
+                    encoded=base64.b64decode(compressed, validate=True)
+                    if _budget is None:
+                        profile = json.loads(zlib.decompress(encoded))
+                    else:
+                        from .native_view import _require
+                        maximum=max(0,(_budget.remaining()-4096)//64)
+                        with _budget.scope('raw-inflation',2*(maximum+1)+4096):
+                            decoder=zlib.decompressobj()
+                            inflated=decoder.decompress(encoded,maximum+1)
+                            _require(len(inflated)<=maximum and decoder.eof,
+                                     'native Raw profile exceeds working budget')
+                            _budget.reserve('raw-inflation',32*len(inflated)+4096)
+                            profile=json.loads(inflated)
+                            del inflated,decoder
                 except (ValueError, zlib.error) as exc:
                     raise DataError("Raw source profile encoding is corrupt") from exc
                 if not isinstance(profile, dict):
                     raise DataError("Raw source profile is invalid")
+                if _budget is not None:
+                    from .reader import _object_size
+                    _budget.add('store-cache',4*_object_size((compressed,profile))+1024)
                 if len(self._profile_cache) >= 16:
                     self._profile_cache.clear()
                 self._profile_cache[compressed] = profile
             record["source_profile"] = profile
         return record
 
-    def _index_raw_log(self) -> None:
+    def _index_raw_log(self, *, _budget=None) -> None:
         """Index appended complete lines; an unfinished tail stays invisible."""
         path = self.root / "raw" / "fetches.jsonl"
         try:
@@ -239,18 +255,27 @@ class LocalStore:
             stream.seek(self._raw_scanned)
             while stream.tell() < stat.st_size:
                 offset = stream.tell()
-                line = stream.readline()
-                if not line.endswith(b"\n"):
-                    self._raw_scanned = offset
-                    return
-                record = self._decode_raw_line(line)
-                identity = record.get("batch_id")
-                if not isinstance(identity, str):
-                    raise DataError("Raw fetch log lacks batch_id")
-                previous = self._raw_offsets.get(identity)
-                if previous is not None and previous != (offset, len(line)):
-                    raise DataError(f"duplicate Raw batch ID: {identity}")
-                self._raw_offsets[identity] = (offset, len(line))
+                maximum=None if _budget is None else min(stat.st_size-offset,max(0,(_budget.remaining()-4096)//64))
+                with (nullcontext() if _budget is None else _budget.scope('raw-log-line',2*(maximum+1)+4096)):
+                    line = stream.readline() if maximum is None else stream.readline(maximum+1)
+                    if _budget is not None:
+                        from .native_view import _require
+                        _require(len(line)<=maximum,'native Raw log line exceeds working budget')
+                        _budget.reserve('raw-log-line',32*len(line)+4096)
+                    if not line.endswith(b"\n"):
+                        self._raw_scanned = offset
+                        return
+                    record = self._decode_raw_line(line,_budget=_budget)
+                    identity = record.get("batch_id")
+                    if not isinstance(identity, str):
+                        raise DataError("Raw fetch log lacks batch_id")
+                    previous = self._raw_offsets.get(identity)
+                    if previous is not None and previous != (offset, len(line)):
+                        raise DataError(f"duplicate Raw batch ID: {identity}")
+                    if _budget is not None and previous is None:
+                        _budget.add('store-cache',1024+4*len(identity))
+                    self._raw_offsets[identity] = (offset, len(line))
+                    del record,line
             self._raw_scanned = stream.tell()
 
     def _path(self, uri: str) -> Path:
@@ -440,12 +465,12 @@ class LocalStore:
                 os.fsync(out.fileno())
             return record
 
-    def _raw_records(self, batch_ids: Sequence[str], *, shared_profiles: bool = False) -> dict[str, dict[str, Any]]:
+    def _raw_records(self, batch_ids: Sequence[str], *, shared_profiles: bool = False, _budget=None) -> dict[str, dict[str, Any]]:
         """Find selected observations by an append-aware in-memory offset index."""
         wanted = set(batch_ids)
         if not wanted:
             return {}
-        self._index_raw_log()
+        self._index_raw_log(_budget=_budget)
         found: dict[str, dict[str, Any]] = {}
         path = self.root / "raw" / "fetches.jsonl"
         try:
@@ -455,10 +480,15 @@ class LocalStore:
                     if location is None:
                         continue
                     stream.seek(location[0])
-                    record = self._decode_raw_line(stream.read(location[1]))
-                    if record.get("batch_id") != identity:
-                        raise DataError("Raw offset index disagrees with fetch log")
-                    found[identity] = record if shared_profiles else deepcopy(record)
+                    with (nullcontext() if _budget is None else _budget.scope('raw-log-line',32*location[1]+4096)):
+                        record = self._decode_raw_line(stream.read(location[1]),_budget=_budget)
+                        if record.get("batch_id") != identity:
+                            raise DataError("Raw offset index disagrees with fetch log")
+                        if _budget is not None:
+                            from .reader import _object_size
+                            _budget.reserve('raw-record',4*_object_size(record)+4096)
+                        found[identity] = record if shared_profiles else deepcopy(record)
+                        del record
         except FileNotFoundError as exc:
             raise DataError(f"Raw batch does not exist: {sorted(wanted)[0]}") from exc
         missing = wanted - found.keys()
@@ -466,9 +496,9 @@ class LocalStore:
             raise DataError(f"Raw batch does not exist: {sorted(missing)[0]}")
         return found
 
-    def get_raw(self, batch_id: str) -> dict[str, Any]:
+    def get_raw(self, batch_id: str, *, _budget=None) -> dict[str, Any]:
         """Find one append-log observation without writing or replaying it."""
-        return self._raw_records([batch_id])[batch_id]
+        return self._raw_records([batch_id],_budget=_budget)[batch_id]
 
     def get_raw_many(self, batch_ids: Sequence[str]) -> dict[str, dict[str, Any]]:
         """Read selected observations with one pass through the append log."""

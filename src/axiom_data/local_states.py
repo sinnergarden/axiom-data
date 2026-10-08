@@ -27,7 +27,11 @@ from .reader import (
 
 def _domain_rows(store: Any, manifest: Mapping[str, Any], name: str,
                  columns: Sequence[str], *, sessions: Sequence[str] | None = None,
-                 symbols: Sequence[str] | None = None) -> list[dict[str, Any]]:
+                 symbols: Sequence[str] | None = None, _owner=None) -> list[dict[str, Any]]:
+    native=getattr(store,'_native_domain_rows',None)
+    if native is not None:
+        return native(manifest,name,columns,owner=_owner or 'reference:'+name,
+                      sessions=sessions,symbols=symbols)
     domain = manifest.get("domains", {}).get(name)
     if not domain:
         return []
@@ -75,9 +79,13 @@ def _coverage_complete(coverage: Mapping[str, Any], symbol: str, session: str) -
     return False
 
 
-def _reference_data(store: Any, manifest: Mapping[str, Any], query: QuerySpec) -> tuple[dict, dict, dict]:
+def _reference_data(store: Any, manifest: Mapping[str, Any], query: QuerySpec, *,
+                    _names=('trading_calendar','security_master','security_status'), _owner=None) -> tuple[dict, dict, dict]:
+    def load(name,columns,**filters):
+        return (_domain_rows(store,manifest,name,columns,_owner=_owner,**filters)
+                if name in _names else ())
     calendar: dict[tuple[str, str], list[dict]] = defaultdict(list)
-    for row in _domain_rows(store, manifest, "trading_calendar", (
+    for row in load("trading_calendar", (
             "exchange", "session", "is_open", "revision_id", "revision_sequence",
             "first_observed_at", "source_available_at", "evidence_ref", "raw_batch_id"),
             sessions=query.sessions):
@@ -85,7 +93,7 @@ def _reference_data(store: Any, manifest: Mapping[str, Any], query: QuerySpec) -
         if row.get("exchange") and session:
             calendar[(row["exchange"], session)].append(row)
     identities: dict[str, dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
-    for row in _domain_rows(store, manifest, "security_master", (
+    for row in load("security_master", (
             "security_id", "exchange", "listing_date", "delisting_date",
             "vendor_delist_date", "list_status",
             "revision_id", "revision_sequence", "first_observed_at",
@@ -93,7 +101,7 @@ def _reference_data(store: Any, manifest: Mapping[str, Any], query: QuerySpec) -
         if row.get("security_id") in query.symbols and row.get("listing_date") is not None:
             identities[row["security_id"]][_date_text(row["listing_date"])].append(row)
     statuses: dict[tuple[str, str], list[dict]] = defaultdict(list)
-    for row in _domain_rows(store, manifest, "security_status", (
+    for row in load("security_status", (
             "security_id", "session", "is_suspended", "status_reason", "suspend_timing", "revision_id",
             "revision_sequence", "first_observed_at", "source_available_at",
             "evidence_ref", "raw_batch_id"), sessions=query.sessions, symbols=query.symbols):
@@ -103,8 +111,19 @@ def _reference_data(store: Any, manifest: Mapping[str, Any], query: QuerySpec) -
     return calendar, identities, statuses
 
 
+def _listing_data(store,manifest,query,*,_owner=None):
+    listing_events=defaultdict(list)
+    for event in _domain_rows(store,manifest,'listing_events',(
+            'security_id','exchange','listing_date','delisting_date',
+            'last_trade_date','event_type','event_date','event_state','revision_id','revision_sequence',
+            'first_observed_at','source_available_at','evidence_ref','raw_batch_id'),
+            symbols=query.symbols,_owner=_owner):
+        listing_events[(event['security_id'],_date_text(event['listing_date']))].append(event)
+    return listing_events
+
+
 def read_states(store: Any, snapshot_id: str, query: QuerySpec, *, _reader=None,
-                _market=None) -> DataBatch:
+                _market=None, _references=None) -> DataBatch:
     """Diagnose requested symbol/dates with PIT-selected reference and market facts.
 
     ``query.domain`` must be market_daily; fields choose actual price/volume
@@ -119,14 +138,11 @@ def read_states(store: Any, snapshot_id: str, query: QuerySpec, *, _reader=None,
     market = reader.read(query) if _market is None else _market
     manifest = reader.snapshot
     domains = manifest["domains"]
-    calendar, identities, statuses = _reference_data(store, manifest, query)
-    listing_events = defaultdict(list)
-    for event in _domain_rows(store, manifest, "listing_events", (
-            "security_id", "exchange", "listing_date", "delisting_date",
-            "last_trade_date", "event_type", "event_date", "event_state", "revision_id", "revision_sequence",
-            "first_observed_at", "source_available_at", "evidence_ref", "raw_batch_id"),
-            symbols=query.symbols):
-        listing_events[(event["security_id"], _date_text(event["listing_date"]))].append(event)
+    if _references is None:
+        calendar,identities,statuses=_reference_data(store,manifest,query)
+        listing_events=_listing_data(store,manifest,query)
+    else:
+        calendar,identities,statuses,listing_events=_references
     listing_profile = manifest["domains"].get("listing_events", {}).get("source_profile", {})
     calendar_profile = (domains.get("trading_calendar") or {}).get("source_profile") or {}
     identity_profile = (domains.get("security_master") or {}).get("source_profile") or {}

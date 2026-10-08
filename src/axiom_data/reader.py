@@ -187,7 +187,7 @@ def _object_size(value: Any, seen: set[int] | None = None) -> int:
         return 0
     seen.add(identity)
     size = sys.getsizeof(value)
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         size += sum(_object_size(k, seen) + _object_size(v, seen) for k, v in value.items())
     elif isinstance(value, (list, tuple, set, frozenset)):
         size += sum(_object_size(item, seen) for item in value)
@@ -353,6 +353,9 @@ class SnapshotQueryReader:
     def _evidence(self, query: QuerySpec) -> dict:
         """Reuse the original evidence join index; verify its files on every hit."""
         from .public_evidence import evidence_index
+        native=getattr(self.store,'_native_evidence_index',None)
+        if native is not None:
+            return native(query.domain)
         parts = self._evidence_parts(query)
         if not parts or not self.cache_bytes:
             return evidence_index(self.store, self.snapshot, query.domain)
@@ -487,6 +490,9 @@ class SnapshotQueryReader:
 
     def _read_groups(self, domain: Mapping[str, Any], query: QuerySpec) -> dict:
         """Reuse unselected per-partition revisions, then join evidence on query rows only."""
+        native=getattr(self.store,'_native_read_groups',None)
+        if native is not None:
+            return native(domain,query)
         if self.cache_bytes < 4096:
             return self._group_rows(self._read_rows(domain, query), domain, query)
         from .public_evidence import apply_evidence
@@ -573,12 +579,13 @@ class SnapshotQueryReader:
         """
         profile = domain.get("source_profile") or {}
         contract = domain.get("contract") or {}
-        if sink is not None:
-            sink.writer.reserve_source(sum(p.get('rows',0)*(256+128*len(self._columns(domain,query)))
-                for p in self._parts_for_query(domain,query)))
         grouped = self._read_groups(domain, query)
         if sink is not None:
-            sink.writer.reserve_source(4*_object_size(grouped))
+            sink.writer.reserve('membership-selection',2*sink.writer.retained.get('source',0))
+            complete=(domain.get('coverage') or {}).get('complete_states') or []
+            sink.writer.reserve('membership-state',2*_object_size(domain.get('coverage') or {})+len(complete)*4096+
+                sum(len(s.get('members') or ())*128 for s in complete if isinstance(s,Mapping))+
+                1024*len(query.sessions))
         events: dict[str, dict[str, list[dict[str, Any]]]] = {}
         for (symbol, event_id), revisions in grouped.items():
             events.setdefault(symbol, {})[event_id] = revisions
@@ -800,6 +807,7 @@ class SnapshotQueryReader:
                     if policy != "best_effort_vendor_v1":
                         basis = ("first_observed_at_and_vendor_snapshot_receipt" if vendor_carry else
                                  "first_observed_at_and_source_coverage")
+                if sink is not None: sink.begin_row()
                 records.append({"security_id": symbol, "session": session, "is_member": value})
                 snapshot_date = (complete[0].get("source_snapshot_date") if complete else None)
                 meta_rows.append({
@@ -849,7 +857,7 @@ class SnapshotQueryReader:
     def read(self, query: QuerySpec) -> DataBatch:
         return self._read(query)
 
-    def _read(self, query: QuerySpec, *, sink=None, groups=None, copy_coverage=True):
+    def _read(self, query: QuerySpec, *, sink=None, groups=None, copy_coverage=True, _on_fallback=None):
         """Shared selection; a private save sink never builds the whole result."""
         domain, declared_fields, cutoffs = self._validate(query)
         key = self._cache_key(query, cutoffs)
@@ -866,9 +874,7 @@ class SnapshotQueryReader:
 
         profile = domain.get("source_profile") or {}
         grouped = self._read_groups(domain, query) if groups is None else groups
-        fallback_count = sum(1 for revisions in grouped.values() for row in revisions
-            if not (row.get("source_available_at") is not None and row.get("evidence_ref"))
-        ) if query.pit_policy == "market_pit_safe_v1" else 0
+        fallback_count = 0
 
         records = [] if sink is None else sink.records
         field_meta: dict[str, Any] = {
@@ -882,9 +888,13 @@ class SnapshotQueryReader:
             policy = _policy_for(query, session)
             for symbol in query.symbols:
                 matching = grouped.get((symbol, session), [])
+                if sink is not None: sink.begin_row(2*sink.writer.retained.get('source',0))
                 visible: list[dict[str, Any]] = []
                 provenance: dict[int, tuple[datetime, str]] = {}
                 for row in matching:
+                    if query.pit_policy=='market_pit_safe_v1' and not (
+                            row.get('source_available_at') is not None and row.get('evidence_ref')):
+                        fallback_count+=1
                     usable, basis = _row_availability(row, policy, profile, session,
                                                       vendor_releases)
                     if usable <= cutoffs[session]:
@@ -915,7 +925,12 @@ class SnapshotQueryReader:
                         "missing_reason": missing_reason,
                     })
                 records.append(record)
+                if sink is not None or groups is not None:
+                    # A next-month load may evict its predecessor. Do not keep
+                    # a previous cell's borrowed revisions in loop locals.
+                    matching=visible=();provenance={};selected=row=record=None
 
+        if _on_fallback is not None: _on_fallback(fallback_count)
         context = {
             "contract_version": "data_batch_v1",
             "snapshot_id": self.snapshot_id,
