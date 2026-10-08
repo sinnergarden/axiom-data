@@ -150,10 +150,29 @@ def _revision_order(rows: list[dict[str, Any]], key: str, profile=None) -> dict[
     highest = max(seq for seq, _ in sequences)
     winners = [row for seq, row in sequences if seq == highest]
     if len(winners) > 1:
-        first = json.dumps(winners[0], sort_keys=True, default=str)
-        if any(json.dumps(row, sort_keys=True, default=str) != first for row in winners[1:]):
+        first = json.dumps(dict(winners[0]), sort_keys=True, default=str)
+        if any(json.dumps(dict(row), sort_keys=True, default=str) != first for row in winners[1:]):
             raise QueryError(f"conflicting source revisions with equal sequence for {key}")
     return winners[0]
+
+
+def _select_daily_revision(rows, *, policy, profile, session, cutoff, key,
+                           count_fallback=False, vendor_releases=None):
+    """One PIT/revision algorithm for mapping rows and column-backed row views.
+
+    Validate only the requested group. Equal-sequence comparisons see exactly
+    the requested projection, including its original version/evidence columns.
+    """
+    visible=[];provenance={};fallback=0
+    for row in rows:
+        if count_fallback and not (row.get('source_available_at') is not None and row.get('evidence_ref')):
+            fallback+=1
+        usable,basis=_row_availability(row,policy,profile,session,vendor_releases)
+        if usable<=cutoff:
+            visible.append(row);provenance[id(row)]=(usable,basis)
+    selected=_revision_order(visible,key,profile=profile) if visible else None
+    usable,basis=provenance[id(selected)] if selected is not None else (None,None)
+    return selected,usable,basis,fallback
 
 
 def _policy_for(query: QuerySpec, session: str) -> str:
@@ -238,6 +257,7 @@ class SnapshotQueryReader:
         self.cache_hits = 0
         self.index_cache_hits = 0
         self.index_build_peak_bytes = 0
+        self._column_owner = None
 
     def _validate(self, query: QuerySpec) -> tuple[dict[str, Any], dict[str, Mapping[str, Any]], dict[str, datetime]]:
         if not isinstance(query, QuerySpec):
@@ -331,6 +351,9 @@ class SnapshotQueryReader:
 
     def _make_room(self, size: int) -> bool:
         """Reserve charged cache/construction space by evicting least-used entries."""
+        owner=self._column_owner() if self._column_owner is not None else None
+        if owner is not None and not owner._closed:
+            return owner._make_room(size)
         if size > self.cache_bytes:
             return False
         while self._cache and self._cached_bytes + size > self.cache_bytes:
@@ -345,7 +368,8 @@ class SnapshotQueryReader:
         previous = self._cache.pop(key, None)
         if previous is not None:
             self._cached_bytes -= previous[1]
-        self._make_room(size)
+        if not self._make_room(size):
+            return False
         self._cache[key] = (value, size)
         self._cached_bytes += size
         return True
@@ -493,6 +517,9 @@ class SnapshotQueryReader:
         native=getattr(self.store,'_native_read_groups',None)
         if native is not None:
             return native(domain,query)
+        owner=self._column_owner() if self._column_owner is not None else None
+        if owner is not None and not owner._closed and owner._supports(query):
+            return owner._groups(query)
         if self.cache_bytes < 4096:
             return self._group_rows(self._read_rows(domain, query), domain, query)
         from .public_evidence import apply_evidence
@@ -558,6 +585,11 @@ class SnapshotQueryReader:
         return groups
 
     def _put_cache(self, key: str, batch: DataBatch) -> DataBatch:
+        owner=self._column_owner() if self._column_owner is not None else None
+        if owner is not None and not owner._closed:
+            # Explicit legacy output belongs to its caller; do not add a full
+            # records/by_key graph beside the owner's unselected columns.
+            return batch
         if not self.cache_bytes:
             return batch
         try:
@@ -889,20 +921,11 @@ class SnapshotQueryReader:
             for symbol in query.symbols:
                 matching = grouped.get((symbol, session), [])
                 if sink is not None: sink.begin_row(2*sink.writer.retained.get('source',0))
-                visible: list[dict[str, Any]] = []
-                provenance: dict[int, tuple[datetime, str]] = {}
-                for row in matching:
-                    if query.pit_policy=='market_pit_safe_v1' and not (
-                            row.get('source_available_at') is not None and row.get('evidence_ref')):
-                        fallback_count+=1
-                    usable, basis = _row_availability(row, policy, profile, session,
-                                                      vendor_releases)
-                    if usable <= cutoffs[session]:
-                        visible.append(row)
-                        provenance[id(row)] = usable, basis
-                selected = _revision_order(visible, f"{symbol}/{session}", profile=profile) if visible else None
+                selected,usable,basis,fallback=_select_daily_revision(matching,policy=policy,
+                    profile=profile,session=session,cutoff=cutoffs[session],key=f"{symbol}/{session}",
+                    count_fallback=query.pit_policy=='market_pit_safe_v1',vendor_releases=vendor_releases)
+                fallback_count+=fallback
                 record = {"security_id": symbol, "session": session}
-                usable, basis = provenance[id(selected)] if selected else (None, None)
                 observed_at = (
                     _instant(selected["first_observed_at"], "first_observed_at").isoformat()
                     if selected and selected.get("first_observed_at") is not None else None
@@ -928,7 +951,7 @@ class SnapshotQueryReader:
                 if sink is not None or groups is not None:
                     # A next-month load may evict its predecessor. Do not keep
                     # a previous cell's borrowed revisions in loop locals.
-                    matching=visible=();provenance={};selected=row=record=None
+                    matching=();selected=record=None
 
         if _on_fallback is not None: _on_fallback(fallback_count)
         context = {

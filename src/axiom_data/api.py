@@ -32,6 +32,7 @@ class Data:
         self.cache_bytes = cache_bytes
         self.max_readers = max_readers
         self._readers: OrderedDict[str, Any] = OrderedDict()
+        self._column_source = None
 
     def resolve(self, reference: str = "current") -> str:
         """Resolve an alias once; no downstream read follows mutable pointers."""
@@ -40,6 +41,13 @@ class Data:
     def _reader(self, snapshot: str, *, refresh: bool = False):
         if snapshot in {"current", "latest"}:
             raise QueryError("resolve current once before calling read")
+        source=self._column_source() if self._column_source is not None else None
+        if source is not None and not source._closed and (refresh or snapshot!=source._snapshot_id):
+            owned=source._snapshot_id
+            source.close()
+            # A revoked owner must not keep its old Snapshot alongside a newly
+            # loaded Reader. Ordinary reader caching remains unchanged otherwise.
+            self._readers.pop(owned,None)
         if refresh:
             self._readers.pop(snapshot, None)
         reader = self._readers.pop(snapshot, None)
@@ -50,6 +58,20 @@ class Data:
         while len(self._readers) > self.max_readers:
             self._readers.popitem(last=False)
         return reader
+
+    def open_column_source(self, *, snapshot: str, limits):
+        """Own bounded in-process columns for a fixed Snapshot, without a View.
+
+        limits supplies cache_bytes and max_working_bytes. The owner selects
+        market_daily open/close or adjustment_factors factor with QuerySpec and
+        shares the ordinary Reader PIT/revision algorithm. Only explicit legacy
+        materialization builds records/by_key. close, Reader refresh, changed
+        source bytes or a process boundary revoke outstanding selections.
+        Parquet/normal Snapshot decoder transients still need an external RSS
+        guard. Opening replaces cached Reader graphs, never adds a second one.
+        """
+        from .column_source import ColumnSource
+        return ColumnSource(self,snapshot=snapshot,limits=limits)
 
     def read(self, *, snapshot: str, query: QuerySpec) -> DataBatch:
         """Read declared fields and knowledge cutoffs from a concrete snapshot.
@@ -253,4 +275,6 @@ class Data:
 
     def clear_cache(self) -> None:
         """Drop local readers; never deletes data or persisted research results."""
+        source=self._column_source() if self._column_source is not None else None
+        if source is not None: source.close()
         self._readers.clear()

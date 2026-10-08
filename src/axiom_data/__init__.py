@@ -28,6 +28,8 @@ _EXPORTS = {
     'CoverageError': ('protocols', 'CoverageError'),
     'Data': ('api', 'Data'),
     'DataBatch': ('protocols', 'DataBatch'),
+    'ColumnSource': ('column_source', 'ColumnSource'),
+    'ColumnSelection': ('column_source', 'ColumnSelection'),
     'open_native_view': ('native_view', 'open_native_view'),
     'DataError': ('protocols', 'DataError'),
     'EventQuery': ('protocols', 'EventQuery'),

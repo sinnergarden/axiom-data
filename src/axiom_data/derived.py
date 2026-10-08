@@ -49,6 +49,11 @@ def _query(batch: DataBatch, label: str, *, instant_parser=None) -> tuple[Mappin
     if batch.context.get("contract_version") != "data_batch_v1" or not batch.context.get("reader_version"):
         raise QueryError(f"{label} must retain reader batch identity")
     query = batch.context.get("query")
+    return _query_context(query, label, instant_parser=instant_parser)
+
+
+def _query_context(query, label, *, instant_parser=None):
+    """Validate the same fixed decision binding for row and column inputs."""
     if not isinstance(query, Mapping):
         raise QueryError(f"{label} requires reader query context")
     symbols, sessions = query.get("symbols"), query.get("sessions")
@@ -125,6 +130,73 @@ def _copy_provenance(value: Mapping[str, Any]) -> Mapping[str, Any]:
     return deepcopy(value)
 
 
+def _validate_adjustment(price_input, factor_input, *, price_snapshot, factor_snapshot,
+                         price_columns, factor_columns, fields, anchor_session,
+                         factor_field, decision_session):
+    """Shared adjustment input contract; this never selects revisions."""
+    price_query, price_symbols, price_sessions, price_cutoff = price_input
+    factor_query, factor_symbols, factor_sessions, factor_cutoff = factor_input
+    if not price_snapshot or price_snapshot != factor_snapshot:
+        raise QueryError("price and factor Snapshot IDs must match")
+    if price_query.get("pit_policy") != factor_query.get("pit_policy"):
+        raise QueryError("price and factor PIT policies must match")
+    if price_query.get("pit_policy") == "bootstrap_hybrid_v1":
+        price_policies = price_query.get("policy_by_session") or {}
+        factor_policies = factor_query.get("policy_by_session") or {}
+        if any(price_policies.get(session) != factor_policies.get(session) for session in price_sessions):
+            raise QueryError("price and factor per-session PIT policies must match")
+    if price_query.get("purpose") != factor_query.get("purpose"):
+        raise QueryError("price and factor query purposes must match")
+    if price_query.get("purpose") == "market_replay":
+        raise QueryError("market replay must use unadjusted prices")
+    if price_cutoff != factor_cutoff:
+        raise QueryError("price and factor batches require the same decision cutoff")
+    if set(price_symbols) != set(factor_symbols):
+        raise QueryError("price and factor security identities must match")
+    anchor = _session(anchor_session, "anchor_session")
+    decision = _session(decision_session, "decision_session") if decision_session is not None else max(price_sessions)
+    if decision not in price_sessions or decision != max(price_sessions):
+        raise QueryError("decision_session must be the latest price session")
+    if anchor > decision:
+        raise QueryError("future adjustment anchor exceeds decision session")
+    if set(factor_sessions) != set(price_sessions) | {anchor}:
+        raise QueryError("factor sessions must cover exactly the price window and explicit anchor")
+    if not isinstance(fields, (tuple, list)) or not fields or len(set(fields)) != len(fields):
+        raise QueryError("fields must be nonempty and unique")
+    if any(not isinstance(field, str) or field not in price_columns for field in fields):
+        raise QueryError("adjusted fields must be present in prices")
+    if not isinstance(factor_field, str) or factor_field not in factor_columns:
+        raise QueryError("factor_field must be present in factors")
+    if any(field not in (price_query.get("fields") or ()) for field in fields):
+        raise QueryError("adjusted fields must be declared by the price query")
+    if factor_field not in (factor_query.get("fields") or ()):
+        raise QueryError("factor_field must be declared by the factor query")
+    return anchor, decision
+
+
+def _adjust_value(price_value, factor_number, anchor_number, price_missing_reason):
+    """Original scalar order and missing-state precedence, shared by both APIs."""
+    price, price_state = _number(price_value)
+    factor, factor_state = factor_number
+    anchor_factor, anchor_state = anchor_number
+    if price_state:
+        reason = (price_missing_reason or "price_missing") if price_state == "missing" else "invalid_price"
+    elif anchor_state:
+        reason = "missing_anchor_factor" if anchor_state == "missing" else "invalid_anchor_factor"
+    elif anchor_factor <= 0:
+        reason = "invalid_anchor_factor"
+    elif factor_state:
+        reason = "missing_factor" if factor_state == "missing" else "invalid_factor"
+    elif factor <= 0:
+        reason = "invalid_factor"
+    else:
+        reason = None
+    adjusted = None if reason else price * factor / anchor_factor
+    if adjusted is not None and not isfinite(adjusted):
+        reason, adjusted = "invalid_adjusted_value", None
+    return adjusted, reason
+
+
 def adjust_prices(
     prices: DataBatch,
     factors: DataBatch,
@@ -161,42 +233,13 @@ def adjust_prices(
 
     price_query, price_symbols, price_sessions, price_cutoff = _query(prices, "prices", instant_parser=parse_instant)
     factor_query, factor_symbols, factor_sessions, factor_cutoff = _query(factors, "factors", instant_parser=parse_instant)
-    if not prices.context.get("snapshot_id") or prices.context["snapshot_id"] != factors.context.get("snapshot_id"):
-        raise QueryError("price and factor Snapshot IDs must match")
-    if price_query.get("pit_policy") != factor_query.get("pit_policy"):
-        raise QueryError("price and factor PIT policies must match")
-    if price_query.get("pit_policy") == "bootstrap_hybrid_v1":
-        price_policies = price_query.get("policy_by_session") or {}
-        factor_policies = factor_query.get("policy_by_session") or {}
-        if any(price_policies.get(session) != factor_policies.get(session)
-               for session in price_sessions):
-            raise QueryError("price and factor per-session PIT policies must match")
-    if price_query.get("purpose") != factor_query.get("purpose"):
-        raise QueryError("price and factor query purposes must match")
-    if price_query.get("purpose") == "market_replay":
-        raise QueryError("market replay must use unadjusted prices")
-    if price_cutoff != factor_cutoff:
-        raise QueryError("price and factor batches require the same decision cutoff")
-    if set(price_symbols) != set(factor_symbols):
-        raise QueryError("price and factor security identities must match")
-    anchor = _session(anchor_session, "anchor_session")
-    decision = _session(decision_session, "decision_session") if decision_session is not None else max(price_sessions)
-    if decision not in price_sessions or decision != max(price_sessions):
-        raise QueryError("decision_session must be the latest price session")
-    if anchor > decision:
-        raise QueryError("future adjustment anchor exceeds decision session")
-    if set(factor_sessions) != set(price_sessions) | {anchor}:
-        raise QueryError("factor sessions must cover exactly the price window and explicit anchor")
-    if not isinstance(fields, (tuple, list)) or not fields or len(set(fields)) != len(fields):
-        raise QueryError("fields must be nonempty and unique")
-    if any(not isinstance(field, str) or field not in prices.frame.columns for field in fields):
-        raise QueryError("adjusted fields must be present in prices")
-    if not isinstance(factor_field, str) or factor_field not in factors.frame.columns:
-        raise QueryError("factor_field must be present in factors")
-    if any(field not in (price_query.get("fields") or ()) for field in fields):
-        raise QueryError("adjusted fields must be declared by the price query")
-    if factor_field not in (factor_query.get("fields") or ()):
-        raise QueryError("factor_field must be declared by the factor query")
+    anchor, decision = _validate_adjustment(
+        (price_query, price_symbols, price_sessions, price_cutoff),
+        (factor_query, factor_symbols, factor_sessions, factor_cutoff),
+        price_snapshot=prices.context.get("snapshot_id"), factor_snapshot=factors.context.get("snapshot_id"),
+        price_columns=prices.frame.columns, factor_columns=factors.frame.columns,
+        fields=fields, anchor_session=anchor_session, factor_field=factor_field,
+        decision_session=decision_session)
 
     price_rows = _index(prices, price_symbols, price_sessions, "prices")
     factor_rows = _index(factors, factor_symbols, factor_sessions, "factors")
@@ -230,22 +273,9 @@ def adjust_prices(
                 anchor_factor, anchor_state = _number(anchor_value)
             record: dict[str, Any] = {"security_id": symbol, "session": session}
             for field in fields:
-                price, price_state = _number(price_rows[key][field])
-                if price_state:
-                    reason = (price_definitions[field][1][key].get("missing_reason") or "price_missing") if price_state == "missing" else "invalid_price"
-                elif anchor_state:
-                    reason = "missing_anchor_factor" if anchor_state == "missing" else "invalid_anchor_factor"
-                elif anchor_factor <= 0:
-                    reason = "invalid_anchor_factor"
-                elif factor_state:
-                    reason = "missing_factor" if factor_state == "missing" else "invalid_factor"
-                elif factor <= 0:
-                    reason = "invalid_factor"
-                else:
-                    reason = None
-                adjusted = None if reason else price * factor / anchor_factor
-                if adjusted is not None and not isfinite(adjusted):
-                    reason, adjusted = "invalid_adjusted_value", None
+                adjusted, reason = _adjust_value(price_rows[key][field],
+                    (factor, factor_state), (anchor_factor, anchor_state),
+                    price_definitions[field][1][key].get("missing_reason"))
                 record[field] = adjusted
                 output_meta[field]["by_key"].append({
                     "security_id": symbol, "session": session,
