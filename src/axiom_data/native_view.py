@@ -616,6 +616,7 @@ def export_native_view(data,*,snapshot,reads,destination,limits,source_symbol_bl
             inputs=4*_object_size([vars(r['query']) for r in reads])+1024*len(reads)
             _require(baseline+48*path.stat().st_size+inputs+65536<=limits['max_working_bytes'],
                 'native Snapshot load exceeds working budget')
+            del peers,stores
         reader=data._reader(snapshot);original_store=reader.store
         destination.parent.mkdir(parents=True,exist_ok=True)
         stage=Path(tempfile.mkdtemp(prefix='.native-',dir=destination.parent))

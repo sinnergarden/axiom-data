@@ -235,6 +235,23 @@ class WorkingOwnersTests(unittest.TestCase):
                 self.export(d,[reads()[0]],cap=256000)
         load.assert_not_called();self.assertEqual(list(self.root.glob('.native-*')),[])
 
+    def test_cold_preflight_does_not_pin_evicted_reader(self):
+        import weakref
+        from test_completion_states import add_domain,row,MARKET
+        store=LocalStore(self.root/'source')
+        domain=add_domain(store,'market_daily',[row(security_id='A',session='2024-01-02',close=10.,volume=0)],
+            MARKET,partition='2024-01')
+        snapshot=store.publish_snapshot({'market_daily':domain},parent_snapshot=None,build_context={'test':'small'})['snapshot_id']
+        d=Data(store.root,max_readers=1)
+        previous=data()._reader('s1');held=weakref.ref(previous)
+        d._readers['previous']=previous;del previous
+        original=_Writer
+        def measured(*args,**kwargs):
+            self.assertIsNone(held())
+            return original(*args,**kwargs)
+        with patch('axiom_data.native_view._Writer',side_effect=measured):
+            d.export_native_view(snapshot=snapshot,reads=[reads()[0]],destination=self.root/'view',limits=limits())
+
     def test_local_raw_inflation_and_line_budget_before_decode(self):
         import base64,zlib
         d=data();reader=d._reader('s1')
