@@ -8,7 +8,9 @@ Raw record for ``apply_saved_raw``. Canonical conversion happens only later.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from copy import deepcopy
 from datetime import date, datetime, timezone
+from hashlib import sha256
 import json
 import math
 import re
@@ -65,14 +67,20 @@ _FINANCIAL = _STATEMENTS | _INDICATORS
 _STATEMENT_CONTEXT = ("comp_type", "end_type", "update_flag")
 _DIVIDEND_KEY = ("ts_code", "end_date", "ann_date", "div_proc")
 _DIVIDEND_VALUES = tuple(field for field in _FIELDS["dividend"] if field not in _DIVIDEND_KEY)
+_DIVIDEND_V3_FIELDS = _FIELDS["dividend"] + ("stk_div", "pay_date", "div_listdate")
+_DIVIDEND_DATES = {"imp_ann_date", "record_date", "ex_date", "pay_date", "div_listdate"}
 
 
-def request_fields(endpoint: str) -> tuple[str, ...]:
+def request_fields(endpoint: str, *, corporate_action_rules=None) -> tuple[str, ...]:
     """Request statement context as evidence, without requiring it in older Raw.
 
     update_flag has no documented public revision order and never selects a
     winner. comp_type/end_type describe statement context, not chronology.
     """
+    if corporate_action_rules is not None:
+        if endpoint != "dividend":
+            raise DataError("economic action rules apply only to dividend")
+        return _DIVIDEND_V3_FIELDS
     return _FIELDS[endpoint] + (_STATEMENT_CONTEXT if endpoint in _STATEMENTS else ())
 
 
@@ -198,8 +206,53 @@ for _name, _spec in list(_dividend_contract["fields"].items()):
         _dividend_contract["fields"][f"{_name}__status"] = _f("string")
 
 
+DIVIDEND_ECONOMIC_CONTRACT = deepcopy(CONTRACTS["dividend"])
+DIVIDEND_ECONOMIC_CONTRACT["contract_id"] = "local.corporate_actions.tushare.v3"
+for _name, _spec in {
+        "stock_distribution_shares_per_share": _f("float64", unit="shares/share"),
+        "payment_date": _f("date"), "stock_listing_date": _f("date"),
+        "economic_event_id": _f("string")}.items():
+    _spec["status_field"] = f"{_name}__status"
+    DIVIDEND_ECONOMIC_CONTRACT["fields"][_name] = _spec
+    DIVIDEND_ECONOMIC_CONTRACT["fields"][f"{_name}__status"] = _f("string")
+
+
+def _action_rules(value, identities):
+    """Freeze explicit source-relative rounds; dates/amounts never generate IDs."""
+    if not isinstance(value, Mapping) or value.get("rule") != "declared_distribution_round_v1" or (
+            value.get("alias_rule") != "identical_complete_terms_v1"):
+        raise DataError("economic actions require declared round and strict alias rules")
+    native = value.get("native_key_field")
+    if native is not None and (not isinstance(native, str) or not native or native in _DIVIDEND_V3_FIELDS):
+        raise DataError("native economic key must be an explicitly declared opaque source field")
+    rounds = value.get("rounds")
+    if not isinstance(rounds, (list, tuple)):
+        raise DataError("economic action rounds must be explicit native disclosure bindings")
+    frozen, seen = [], set()
+    for item in rounds:
+        if not isinstance(item, Mapping) or set(item) != set(_DIVIDEND_KEY) | {"round"}:
+            raise DataError("each round binds the complete native dividend key")
+        key = tuple(item[field] for field in _DIVIDEND_KEY)
+        if any(not isinstance(v, str) for v in key) or key[0] not in identities or key[3] != "实施" or key in seen:
+            raise DataError("economic round needs one bound implemented native key")
+        try:
+            for day in key[1:3]:
+                if not isinstance(day, str) or len(day) != 8:
+                    raise ValueError
+                datetime.strptime(day, "%Y%m%d")
+        except (TypeError, ValueError) as exc:
+            raise DataError("economic round keys require YYYYMMDD dates") from exc
+        if not isinstance(item["round"], str) or not item["round"].strip():
+            raise DataError("distribution round must be a stable nonempty source-relative name")
+        seen.add(key)
+        frozen.append(dict(item))
+    return {"rule": value["rule"], "alias_rule": value["alias_rule"], "native_key_field": native,
+            "rounds": sorted(frozen, key=lambda item: tuple(item[f] for f in _DIVIDEND_KEY))}
+
+
 def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
-                         next_open_session_by_date: Mapping[str, str] | None = None) -> dict[str, Any]:
+                         next_open_session_by_date: Mapping[str, str] | None = None,
+                         corporate_action_rules: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Freeze source mappings and a caller-supplied next-open assumption map."""
     if endpoint not in _ENDPOINTS:
         raise DataError("unsupported event source endpoint")
@@ -226,6 +279,11 @@ def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
     }
     fm = profile["field_map"]
     date_fields = profile["date_formats"]
+    if corporate_action_rules is not None:
+        if endpoint != "dividend":
+            raise DataError("economic action rules apply only to dividend")
+        profile["economic_identity"] = _action_rules(corporate_action_rules, identity_map)
+        profile["id"] = "tushare.local.dividend.v3"
     if endpoint != "stk_limit":
         if not isinstance(next_open_session_by_date, Mapping) or not next_open_session_by_date:
             raise DataError("event best-effort policy needs an explicit next-open calendar map")
@@ -325,6 +383,18 @@ def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
             "distinct returned rows under one native action key make the entire action "
             "unavailable; no stable supplier action ID or revision order was captured; "
             "dates and amounts are source_missing, including unanimous zero amounts")
+        if corporate_action_rules is not None:
+            fm.update(stock_distribution_shares_per_share="stk_div", payment_date="pay_date",
+                      stock_listing_date="div_listdate", economic_event_id="__economic_event_id")
+            profile["source_units"]["stk_div"] = "shares/share"
+            date_fields.update(payment_date="YYYYMMDD", stock_listing_date="YYYYMMDD")
+            profile["null_values"].update(payment_date=[""], stock_listing_date=[""])
+            for name in ("stock_distribution_shares_per_share", "payment_date", "stock_listing_date", "economic_event_id"):
+                fm[f"{name}__status"] = f"__status__{fm[name]}"
+            profile["availability"]["assumption_id"] = "tushare.current_implemented_terms_from_later_notice_next_open.v1"
+            profile["economic_identity"]["native_key_limitation"] = (
+                "Tushare dividend publishes no stable economic action ID; native_key_field is used only when an opaque key is explicitly retained in Raw."
+            )
     elif endpoint == "top10_holders":
         fm.update(security_id="ts_code", report_period="end_date",
                   announcement_date="ann_date", actual_announcement_date="ann_date",
@@ -461,7 +531,8 @@ def _response_issue(endpoint: str, rows: list[dict[str, Any]] | None,
     if _CAPS[endpoint] is not None and len(rows) >= _CAPS[endpoint]:
         return "supplier response reached declared/local row safeguard"
     for row in rows:
-        if any(field not in row for field in _FIELDS[endpoint]):
+        required = _DIVIDEND_V3_FIELDS if endpoint == "dividend" and profile.get("economic_identity") else _FIELDS[endpoint]
+        if any(field not in row for field in required):
             return "supplier response lacks a requested field"
         if params.get("ts_code") and row["ts_code"] != params["ts_code"]:
             return "supplier response contains another security"
@@ -509,7 +580,7 @@ def _response_issue(endpoint: str, rows: list[dict[str, Any]] | None,
     return None
 
 
-def _dividend_unique(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _dividend_unique(rows: list[dict[str, Any]], *, source_fields=None) -> list[dict[str, Any]]:
     """Deduplicate exact source actions; never compose or order ambiguous ones.
 
     A differing implementation date, ex date or amount does not establish a
@@ -517,9 +588,12 @@ def _dividend_unique(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     but mark every economic date/amount unavailable for that observation.
     """
     groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    source_fields = _FIELDS["dividend"] if source_fields is None else source_fields
+    values = tuple(field for field in source_fields if field not in _DIVIDEND_KEY)
+    dates_to_keep = tuple(field for field in source_fields if field in _DIVIDEND_DATES)
     for row in rows:
-        native = {field: row.get(field) for field in _FIELDS["dividend"]}
-        for field in ("imp_ann_date", "record_date", "ex_date"):
+        native = {field: row.get(field) for field in source_fields}
+        for field in dates_to_keep:
             if native[field] == "":
                 native[field] = None
         group = groups.setdefault(tuple(native[field] for field in _DIVIDEND_KEY), [])
@@ -534,22 +608,78 @@ def _dividend_unique(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if len(group) > 1:
             from .sources import _typed
             for item in group:
-                for field in _DIVIDEND_VALUES:
+                for field in values:
                     # Whole-action ambiguity does not erase conversion errors
                     # that ordinary source normalization would reject.
-                    _typed(item[field], 'date' if field in {'imp_ann_date', 'record_date', 'ex_date'}
+                    _typed(item[field], 'date' if field in _DIVIDEND_DATES
                            else 'float64', field, 'YYYYMMDD')
             # This summary is part of terminal content. A changed candidate
             # date set must create a new observation even when all action
             # values are unavailable and the candidate count stays the same.
             dates = {field: sorted({item[field] for item in group}, key=lambda value: value or '')
-                     for field in ('imp_ann_date', 'record_date', 'ex_date')}
+                     for field in dates_to_keep}
             row["__candidate_economic_dates"] = json.dumps(dates, sort_keys=True, separators=(',', ':'))
-            for field in _DIVIDEND_VALUES:
+            for field in values:
                 row[field] = None
                 row[f"__status__{field}"] = "source_missing"
         result.append(row)
     return result
+
+
+def _dividend_identity(rows, originals, profile):
+    """Assign IDs from opaque vendor keys or frozen rounds, retaining conflicts."""
+    rules = profile["economic_identity"]
+    bindings = {tuple(item[f] for f in _DIVIDEND_KEY): item["round"] for item in rules["rounds"]}
+    original_keys = {}
+    for item in originals:
+        original_keys.setdefault(tuple(item.get(f) for f in _DIVIDEND_KEY), []).append(item)
+    groups = {}
+    for row in rows:
+        row["__economic_event_id"] = None
+        row["__status____economic_event_id"] = "not_provided"
+        if row["div_proc"] != "实施":
+            continue
+        key = tuple(row[f] for f in _DIVIDEND_KEY)
+        native_field = rules["native_key_field"]
+        if native_field and any(item.get(native_field) is not None and type(item.get(native_field)) not in (str, int)
+                                for item in original_keys[key]):
+            raise DataError("native economic key must be an opaque string or integer")
+        native_values = {item.get(native_field) for item in original_keys[key]} if native_field else set()
+        native_value = next(iter(native_values)) if len(native_values) == 1 else None
+        if native_field and len(native_values) > 1:
+            material = None
+        elif isinstance(native_value, (str, int)) and type(native_value) is not bool and str(native_value):
+            material = ["tushare.dividend", profile["identity_map"][key[0]], "native", str(native_value)]
+        elif key in bindings:
+            material = ["tushare.dividend", profile["identity_map"][key[0]], key[1], "round", bindings[key]]
+        else:
+            material = None
+        if material is None or row.get("__source_issue"):
+            row["__status____economic_event_id"] = "source_missing"
+            row["__source_issue"] = row.get("__source_issue") or "economic_round_not_declared_or_native_key_ambiguous"
+            continue
+        prefix = "ca:native:" if material[2] == "native" else "ca:round:"
+        row["__economic_event_id"] = prefix + sha256(json.dumps(material, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+        row["__status____economic_event_id"] = "value"
+        groups.setdefault(row["__economic_event_id"], []).append(row)
+    terms = tuple(f for f in _DIVIDEND_V3_FIELDS if f not in {"ts_code", "ann_date"})
+    for group in groups.values():
+        if len(group) == 1:
+            continue
+        complete = all(item["stk_div"] is not None and item["cash_div_tax"] is not None
+                       and all(item[f] is not None for f in ("imp_ann_date", "record_date", "ex_date"))
+                       and (item["cash_div_tax"] == 0 or item["pay_date"] is not None)
+                       and (item["stk_div"] == 0 or item["div_listdate"] is not None) for item in group)
+        if group[0]["__economic_event_id"].startswith("ca:native:"):
+            # The vendor key establishes identity, but the phase Reader must
+            # still check all cutoff-visible terms before applying any action.
+            continue
+        if not complete or any(any(item[f] != group[0][f] for f in terms) for item in group):
+            for item in group:
+                item["__economic_event_id"] = None
+                item["__status____economic_event_id"] = "source_missing"
+                item["__source_issue"] = "ambiguous_economic_alias_terms_or_dates"
+    return rows
 
 
 def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
@@ -569,12 +699,17 @@ def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
                               batch.source_profile.get("identity_map", {}))
     selected = request.get("canonical_symbols")
     identities = batch.source_profile.get("identity_map", {})
+    if selected is None and endpoint == "dividend" and batch.source_profile.get("economic_identity"):
+        # An explicit v3 rebuild can interpret an existing one-security Raw
+        # receipt without rewriting its original request or source profile.
+        selected = [params["ts_code"]] if "ts_code" in params else None
     if (not isinstance(selected, list) or not selected or
             any(code not in identities for code in selected)):
         raise DataError("event Raw needs explicit canonical_symbols")
     chosen = set(selected)
     decoded = _rows(batch.payload)
-    if any(any(field not in row for field in _FIELDS[endpoint]) for row in decoded):
+    required = _DIVIDEND_V3_FIELDS if endpoint == "dividend" and batch.source_profile.get("economic_identity") else _FIELDS[endpoint]
+    if any(any(field not in row for field in required) for row in decoded):
         raise DataError("event Raw lacks requested source fields")
     if params.get("ts_code") and any(row["ts_code"] != params["ts_code"] for row in decoded):
         raise DataError("event Raw contains another requested security")
@@ -588,7 +723,8 @@ def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
             row["__endpoint"] = endpoint.removesuffix("_vip")
         return unique
     if endpoint == "dividend":
-        return _dividend_unique(rows)
+        actions = _dividend_unique(rows, source_fields=required)
+        return _dividend_identity(actions, rows, batch.source_profile) if batch.source_profile.get("economic_identity") else actions
     if endpoint == "top10_holders":
         groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
         for row in rows:
@@ -634,6 +770,7 @@ def collect_event_response(store: LocalStore, *, client: Any, endpoint: str,
                            operation_id: str, observed_at: datetime | None = None,
                            batch_index: int = 0,
                            next_open_session_by_date: Mapping[str, str] | None = None,
+                           corporate_action_rules: Mapping[str, Any] | None = None,
                            clock: Callable[[], datetime] | None = None) -> dict[str, Any]:
     """Fetch one bounded response, append Raw, and return its successful record.
 
@@ -647,9 +784,11 @@ def collect_event_response(store: LocalStore, *, client: Any, endpoint: str,
     if not isinstance(store, LocalStore) or endpoint not in _ENDPOINTS:
         raise DataError("LocalStore and supported endpoint required")
     profile = event_source_profile(endpoint, identity_map=identity_map,
-                                   next_open_session_by_date=next_open_session_by_date)
+                                   next_open_session_by_date=next_open_session_by_date,
+                                   corporate_action_rules=corporate_action_rules)
     selected = _validate_params(endpoint, params, identity_map)
-    request = {"endpoint": endpoint, "params": selected, "fields": list(request_fields(endpoint)),
+    fields = request_fields(endpoint, corporate_action_rules=corporate_action_rules)
+    request = {"endpoint": endpoint, "params": selected, "fields": list(fields),
                "coverage_status": "observed_response_only",
                "canonical_symbols": [selected["ts_code"]] if "ts_code" in selected else sorted(identity_map)}
     previous = store.find_raw_by_operation(operation_id).get(batch_index)
@@ -663,7 +802,7 @@ def collect_event_response(store: LocalStore, *, client: Any, endpoint: str,
     if not callable(query):
         raise DataError("injected client requires query(endpoint, fields, **params)")
     try:
-        response = query(endpoint, fields=",".join(request_fields(endpoint)), **selected)
+        response = query(endpoint, fields=",".join(fields), **selected)
         payload, rows = _source_rows(response)
         issue = _response_issue(endpoint, rows, selected, profile)
         status = "cap" if rows is not None and _CAPS[endpoint] is not None and len(rows) >= _CAPS[endpoint] else (
@@ -677,7 +816,7 @@ def collect_event_response(store: LocalStore, *, client: Any, endpoint: str,
     if not isinstance(receipt_time, datetime) or receipt_time.tzinfo is None or receipt_time.utcoffset() is None:
         raise DataError("receipt clock must return a timezone-aware datetime")
     raw = store.write_raw(payload, domain=_DOMAINS[endpoint], request=request,
-                          source_profile=profile, contract=CONTRACTS[endpoint],
+                          source_profile=profile, contract=DIVIDEND_ECONOMIC_CONTRACT if corporate_action_rules is not None else CONTRACTS[endpoint],
                           observed_at=receipt_time, normalizer="event_records_v1", status=status,
                           operation_id=operation_id, batch_index=batch_index)
     if issue:

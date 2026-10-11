@@ -19,6 +19,11 @@ from .reader import READER_VERSION, _date_value, _instant, _revision_order
 
 
 EVENT_READER_VERSION = "event_reader_v7"
+_ECONOMIC_EVENT_READER_VERSION = "event_reader_v8"
+_ACTION_PHASES = {"record_date": "record", "ex_date": "ex", "payment_date": "pay", "stock_listing_date": "listing"}
+_ACTION_TERMS = ("report_period", "process_status", "implementation_announcement_date", "record_date", "ex_date",
+                 "cash_dividend_before_tax_per_share", "bonus_shares_per_share", "capital_transfer_shares_per_share",
+                 "stock_distribution_shares_per_share", "payment_date", "stock_listing_date")
 _POLICIES = {"operational_pit_v1", "market_pit_safe_v1", "best_effort_vendor_v1"}
 _PURPOSES = {"decision_facts", "historical_exploration", "research_label", "label_outcomes", "market_replay"}
 _STATUSES = {"value", "not_provided", "retracted", "source_missing", "parse_error"}
@@ -202,13 +207,90 @@ def _action_candidates(store,row,*,_budget=None):
                for field, source in (('report_period', 'end_date'), ('announcement_date', 'ann_date'))):
             continue
         candidate = dict(row)
-        for field in ('implementation_announcement_date', 'record_date', 'ex_date'):
+        for field in ('implementation_announcement_date', 'record_date', 'ex_date', 'payment_date', 'stock_listing_date'):
+            if field not in fields:
+                continue
             value = original.get(fields[field])
             candidate[field] = None if value in (None, '') else source_day(value)
         candidates.append(candidate)
     if not candidates:
         raise QueryError('ambiguous action lacks its complete referenced Raw group')
     return candidates
+
+
+def _phase_projection(selected, *, query, keys, declared, start, end, store, action_candidates, budget):
+    """Fold only visible, strictly matching aliases; unknown phases remain markers."""
+    groups = {}
+    for row, clock in selected:
+        identity = row.get("economic_event_id")
+        status = _cell_status(row, "economic_event_id", declared["economic_event_id"], declared)
+        key = ("economic", identity) if status == "value" else ("native", *(row[k] for k in keys))
+        groups.setdefault(key, []).append((row, clock))
+    projected, scopes, aliases = [], [], {}
+    for group in groups.values():
+        group.sort(key=lambda item: tuple(str(item[0][k]) for k in keys))
+        consistent = all(all((row.get(f), _cell_status(row, f, declared[f], declared)) ==
+                             (group[0][0].get(f), _cell_status(group[0][0], f, declared[f], declared))
+                             for f in _ACTION_TERMS) for row, _ in group)
+        complete = all(row.get("stock_distribution_shares_per_share") is not None
+                       and row.get("cash_dividend_before_tax_per_share") is not None
+                       and all(row.get(f) is not None for f in ("implementation_announcement_date", "record_date", "ex_date"))
+                       and (row["cash_dividend_before_tax_per_share"] == 0 or row.get("payment_date") is not None)
+                       and (row["stock_distribution_shares_per_share"] == 0 or row.get("stock_listing_date") is not None)
+                       for row, _ in group)
+        native_identity = str(group[0][0].get("economic_event_id", "")).startswith("ca:native:")
+        linked = len(group) == 1 or (consistent and (complete or native_identity))
+        provenance = [{"native_key": {k: str(row[k]) for k in keys}, "revision_id": row["revision_id"],
+                       "raw_batch_id": row["raw_batch_id"], "first_observed_at": _instant(row["first_observed_at"], "first_observed_at").isoformat(),
+                       "usable_from": clock[0].isoformat(), "availability_basis": clock[1]} for row, clock in group]
+        candidates = group[:1] if linked else group
+        for original, clock in candidates:
+            row = original
+            if not linked:
+                row = dict(original)
+                if native_identity:
+                    if original is not group[0][0]:
+                        continue
+                    # A native vendor key is still known; conflicting terms
+                    # have no declared revision order and cannot be applied.
+                    for field in _ACTION_TERMS:
+                        if field not in keys:
+                            row[field] = None
+                            row[f"{field}__status"] = "source_missing"
+                else:
+                    row["economic_event_id"] = None
+                    row["economic_event_id__status"] = "source_missing"
+                row["source_issue"] = "ambiguous_economic_alias_terms_or_dates"
+            uncertain = row.get("source_issue") in {
+                "ambiguous_action_identity_or_revision", "ambiguous_economic_alias_terms_or_dates",
+                "economic_round_not_declared_or_native_key_ambiguous"}
+            if any(row.get(f) != value for f, value in query.filters.items() if not uncertain or f in keys):
+                continue
+            day = row.get(query.time_field)
+            candidate_dates = [None if day is None else _date_string(day, query.time_field)]
+            if row.get("source_issue") == "ambiguous_action_identity_or_revision":
+                visible = action_candidates.get(id(original))
+                retained = [r for r, _ in visible] if visible is not None else _ambiguous_action_candidates(store, original, _budget=budget)
+                candidate_dates = list(dict.fromkeys(None if r.get(query.time_field) is None else
+                                      _date_string(r[query.time_field], query.time_field) for r in retained))
+            elif not linked and native_identity:
+                candidate_dates = list(dict.fromkeys(None if r.get(query.time_field) is None else
+                                      _date_string(r[query.time_field], query.time_field) for r, _ in group))
+            candidate_dates = [d for d in candidate_dates if d is None or start <= d <= end]
+            if not candidate_dates:
+                continue
+            if day is not None and not start <= _date_string(day, query.time_field) <= end:
+                continue
+            if day is None or uncertain:
+                scopes.append({"security_id": row["security_id"], "native_key": {k: str(row[k]) for k in keys},
+                               "economic_event_id": row.get("economic_event_id"), "phase": _ACTION_PHASES[query.time_field],
+                               "time_field": query.time_field,
+                               "candidate_dates": candidate_dates,
+                               "source_issue": row.get("source_issue") or "phase_date_not_provided",
+                               "raw_batch_id": row["raw_batch_id"]})
+            aliases[tuple(str(row[k]) for k in keys)] = provenance if linked or native_identity else [p for p in provenance if p["native_key"] == {k: str(row[k]) for k in keys}]
+            projected.append((row, clock))
+    return projected, scopes, aliases
 
 
 def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
@@ -230,6 +312,8 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
     domain, keys, declared, cutoff, start, end = _validate(query, snapshot)
     contract = domain["contract"]
     profile = domain.get("source_profile") or {}
+    phase = (query.domain == "corporate_actions" and contract.get("contract_id") == "local.corporate_actions.tushare.v3"
+             and query.time_field in _ACTION_PHASES)
     if query.pit_policy == "best_effort_vendor_v1" and not isinstance(profile.get("availability"), Mapping):
         raise QueryError("best_effort_vendor_v1 requires source_profile.availability")
     status_columns = [c for f in query.fields if (c := _status_column(f, declared[f], declared))]
@@ -240,6 +324,9 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
                                   *_not_before_date_fields(profile),
                                   *status_columns, *[c for c in (date_field, instant_field) if c],
                                   "group_completeness", "holders", "source_issue", *_VERSION)))
+    if phase:
+        terms = (*_ACTION_TERMS, "economic_event_id")
+        columns = list(dict.fromkeys((*columns, *terms, *[c for f in terms if (c := _status_column(f, declared[f], declared))])))
     from .public_evidence import apply_evidence, evidence_index
     evidence = evidence_index(store, snapshot, query.domain) if _evidence is None else _evidence
     grouped: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
@@ -311,6 +398,11 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
         if not visible:
             continue
         chosen = _revision_order(visible, repr(key), profile=profile)
+        if phase:
+            # Every native revision is selected before any phase date/filter,
+            # so an alias outside the requested range cannot hide a conflict.
+            selected.append((chosen, provenance[id(chosen)]))
+            continue
         ambiguous_action = (query.domain == 'corporate_actions' and
                             chosen.get('source_issue') == 'ambiguous_action_identity_or_revision')
         if any(chosen.get(field) != expected for field, expected in query.filters.items()
@@ -348,6 +440,11 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
                 'time_field': query.time_field, 'candidate_dates': candidates,
                 'source_issue': chosen['source_issue'], 'raw_batch_id': chosen['raw_batch_id']})
         selected.append((chosen, provenance[id(chosen)]))
+    phase_aliases = {}
+    if phase:
+        selected, unavailable_actions, phase_aliases = _phase_projection(
+            selected, query=query, keys=keys, declared=declared, start=start, end=end,
+            store=store, action_candidates=action_candidates, budget=budget)
     positions = {symbol: i for i, symbol in enumerate(query.symbols)}
     selected.sort(key=lambda item: (positions[item[0]["security_id"]],
                                     (_date_string(item[0][query.time_field], query.time_field)
@@ -393,20 +490,29 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
                                       if row.get("first_observed_at") is not None else None),
                 "availability_basis": basis, "evidence_ref": row.get("evidence_ref"),
                 "group_completeness": row.get("group_completeness") if query.domain == "top_holders_reports" else None,
+                **({"economic_aliases": phase_aliases[tuple(str(row[k]) for k in keys)]} if phase else {}),
             })
         records.append(record)
-    limitations = _event_limitations(query, profile, fallback_count, len(unavailable_actions))
+    identity_unavailable = sum(scope.get("source_issue") != "phase_date_not_provided" for scope in unavailable_actions)
+    limitations = _event_limitations(query, profile, fallback_count, identity_unavailable)
+    if phase and any(scope.get("source_issue") == "phase_date_not_provided" for scope in unavailable_actions):
+        limitations.append("requested phase dates not provided by the source remain missing-date markers; EX dates are not substituted")
     context = {
         "contract_version": "data_batch_v1", "snapshot_id": snapshot_id,
         "domain": query.domain, "contract_id": contract.get("contract_id"),
         "source_profile_id": profile.get("id"), "reader_version": READER_VERSION,
-        "event_reader_version": EVENT_READER_VERSION, "logical_key": list(keys),
+        "event_reader_version": (_ECONOMIC_EVENT_READER_VERSION if contract.get("contract_id") == "local.corporate_actions.tushare.v3"
+                                 else EVENT_READER_VERSION), "logical_key": list(keys),
         "query": {"fields": list(query.fields), "symbols": list(query.symbols),
                   "start": start, "end": end, "cutoff": cutoff.isoformat(),
                   "pit_policy": query.pit_policy, "time_field": query.time_field,
                   "filters": deepcopy(dict(query.filters)), "purpose": query.purpose},
         "coverage": deepcopy(domain.get("coverage")) if _sink is None else domain.get('coverage'),
         "limitations": limitations,
+        **({"event_phase": _ACTION_PHASES[query.time_field],
+            "economic_identity_rule": {k: (profile.get("economic_identity") or {}).get(k)
+                                       for k in ("rule", "alias_rule", "native_key_field")},
+            "vendor_assumption_id": (profile.get("availability") or {}).get("assumption_id")} if phase else {}),
         **({"unavailable_event_scope": unavailable_actions} if unavailable_actions else {}),
     }
     if _sink is not None:
