@@ -32,6 +32,7 @@ class Data:
         self.cache_bytes = cache_bytes
         self.max_readers = max_readers
         self._readers: OrderedDict[str, Any] = OrderedDict()
+        self._column_source = None
 
     def resolve(self, reference: str = "current") -> str:
         """Resolve an alias once; no downstream read follows mutable pointers."""
@@ -40,6 +41,13 @@ class Data:
     def _reader(self, snapshot: str, *, refresh: bool = False):
         if snapshot in {"current", "latest"}:
             raise QueryError("resolve current once before calling read")
+        source=self._column_source() if self._column_source is not None else None
+        if source is not None and not source._closed and (refresh or snapshot!=source._snapshot_id):
+            owned=source._snapshot_id
+            source.close()
+            # A revoked owner must not keep its old Snapshot alongside a newly
+            # loaded Reader. Ordinary reader caching remains unchanged otherwise.
+            self._readers.pop(owned,None)
         if refresh:
             self._readers.pop(snapshot, None)
         reader = self._readers.pop(snapshot, None)
@@ -50,6 +58,24 @@ class Data:
         while len(self._readers) > self.max_readers:
             self._readers.popitem(last=False)
         return reader
+
+    def open_column_source(self, *, snapshot: str, limits):
+        """Own bounded in-process columns for a fixed Snapshot, without a View.
+
+        limits supplies cache_bytes and max_working_bytes. The owner selects
+        market_daily open/close or adjustment_factors factor with QuerySpec and
+        shares the ordinary Reader PIT/revision algorithm. Only explicit legacy
+        materialization builds records/by_key. close, Reader refresh, changed
+        source bytes or a process boundary revoke outstanding selections.
+        The column API requires flat numeric physical values; ordinary read
+        retains its schema support and uses its original path for other types.
+        changed_keys tracks actual fact dependencies; pure cutoff moves still
+        change full query_binding/selection_ref without marking all keys updated.
+        Parquet/normal Snapshot decoder transients still need an external RSS
+        guard. Opening replaces cached Reader graphs, never adds a second one.
+        """
+        from .column_source import ColumnSource
+        return ColumnSource(self,snapshot=snapshot,limits=limits)
 
     def read(self, *, snapshot: str, query: QuerySpec) -> DataBatch:
         """Read declared fields and knowledge cutoffs from a concrete snapshot.
@@ -115,6 +141,19 @@ class Data:
         from .qlib_export import export_qlib
         return export_qlib(self, snapshot=snapshot, queries=queries,
                            destination=destination, **options)
+
+    def export_native_view(self, *, snapshot: str, reads, destination, limits, source_symbol_block=64):
+        """Explicitly save original native selections in bounded JSON parts.
+
+        Full Query and PIT identities remain unchanged. No supplier or fact
+        root writes. Use this Data instance sequentially until export finishes;
+        limits include the normal Snapshot baseline and shared Reader cache.
+        Existing destinations are refused; failure publishes no final view.
+        """
+        from .native_view import export_native_view
+        return export_native_view(self, snapshot=snapshot, reads=reads,
+                                  destination=destination, limits=limits,
+                                  source_symbol_block=source_symbol_block)
 
     def export_review_display(self, *, snapshot: str, price_query: QuerySpec,
                               factor_query: QuerySpec, anchor_session: str,
@@ -182,6 +221,15 @@ class Data:
         A ``canonical_symbols`` override selects explicitly bound source codes
         already present in saved whole-market Raw. It is recorded as a derived
         selection; missing source rows remain missing, without refetching.
+        For explicit dividend v3, ``canonical_event_keys`` selects complete
+        security_id/report_period/announcement_date/process_status dictionaries
+        with canonical ISO dates. It retains every candidate of each chosen key
+        and is saved as a derived scope for subsequent rebuilds; original Raw
+        requests, payloads and actual receipts are never modified.
+        A single-security dividend v3 Raw request with an explicitly bound
+        original params.ts_code may omit canonical_symbols; a rebuild can
+        supply both full symbol and Native-key scopes as derived overrides.
+        An unbound or whole-market request cannot use this exception.
         Without explicit overrides, the base Snapshot's effective contract,
         source_profile and saved canonical selection are replayed. New operation
         IDs and the ordinary CLI therefore retain added fields and symbols.
@@ -240,4 +288,6 @@ class Data:
 
     def clear_cache(self) -> None:
         """Drop local readers; never deletes data or persisted research results."""
+        source=self._column_source() if self._column_source is not None else None
+        if source is not None: source.close()
         self._readers.clear()

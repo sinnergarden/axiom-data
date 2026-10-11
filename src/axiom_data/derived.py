@@ -43,12 +43,17 @@ def _instant(value: Any, label: str) -> datetime:
     return value.astimezone(timezone.utc)
 
 
-def _query(batch: DataBatch, label: str) -> tuple[Mapping[str, Any], tuple[str, ...], tuple[str, ...], datetime]:
+def _query(batch: DataBatch, label: str, *, instant_parser=None) -> tuple[Mapping[str, Any], tuple[str, ...], tuple[str, ...], datetime]:
     if not isinstance(batch, DataBatch) or not isinstance(batch.context, Mapping):
         raise QueryError(f"{label} must be a reader DataBatch")
     if batch.context.get("contract_version") != "data_batch_v1" or not batch.context.get("reader_version"):
         raise QueryError(f"{label} must retain reader batch identity")
     query = batch.context.get("query")
+    return _query_context(query, label, instant_parser=instant_parser)
+
+
+def _query_context(query, label, *, instant_parser=None):
+    """Validate the same fixed decision binding for row and column inputs."""
     if not isinstance(query, Mapping):
         raise QueryError(f"{label} requires reader query context")
     symbols, sessions = query.get("symbols"), query.get("sessions")
@@ -62,7 +67,8 @@ def _query(batch: DataBatch, label: str) -> tuple[Mapping[str, Any], tuple[str, 
     cutoffs = query.get("cutoff_by_session")
     if not isinstance(cutoffs, Mapping) or set(cutoffs) != set(sessions):
         raise QueryError(f"{label} cutoff must cover exactly its sessions")
-    instants = {_instant(cutoffs[session], f"{label} cutoff") for session in sessions}
+    parse = _instant if instant_parser is None else instant_parser
+    instants = {parse(cutoffs[session], f"{label} cutoff") for session in sessions}
     if len(instants) != 1:
         raise QueryError("common-anchor adjustment requires a single decision cutoff across the whole window and anchor")
     if query.get("price_basis") != "unadjusted" or query.get("adjustment_anchor") is not None:
@@ -115,37 +121,29 @@ def _number(value: Any) -> tuple[float | None, str | None]:
     return (number, None) if isfinite(number) else (None, "invalid")
 
 
-def adjust_prices(
-    prices: DataBatch,
-    factors: DataBatch,
-    *,
-    fields: tuple[str, ...],
-    anchor_session: str,
-    factor_field: str = "adj_factor",
-    decision_session: str | None = None,
-) -> DataBatch:
-    """Return prices on one explicit anchor using ``price_t * factor_t / factor_anchor``.
+def _copy_provenance(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Detach each leaf; only plain dictionaries of exact JSON scalars are shallow-safe."""
+    scalar_types = (type(None), bool, int, float, str)
+    if type(value) is dict and all(type(key) in scalar_types and type(item) in scalar_types
+                                  for key, item in value.items()):
+        return value.copy()
+    return deepcopy(value)
 
-    Inputs are read-only, already PIT-selected DataBatch objects.  Their fixed
-    Snapshot IDs, PIT policies, purposes, symbols and decision cutoffs must match.
-    Factor sessions must be exactly the price window plus the anchor.  By default
-    the latest price session is the decision session; an explicit decision session
-    must be in the price window.  A future anchor is rejected.  Missing prices or
-    factors, and nonpositive/nonfinite factors, yield nulls with per-key reasons.
-    No I/O, Raw replay, revision selection, or timestamp inference occurs here.
-    Source vintage limitations in either input remain limitations of the result.
-    """
-    price_query, price_symbols, price_sessions, price_cutoff = _query(prices, "prices")
-    factor_query, factor_symbols, factor_sessions, factor_cutoff = _query(factors, "factors")
-    if not prices.context.get("snapshot_id") or prices.context["snapshot_id"] != factors.context.get("snapshot_id"):
+
+def _validate_adjustment(price_input, factor_input, *, price_snapshot, factor_snapshot,
+                         price_columns, factor_columns, fields, anchor_session,
+                         factor_field, decision_session):
+    """Shared adjustment input contract; this never selects revisions."""
+    price_query, price_symbols, price_sessions, price_cutoff = price_input
+    factor_query, factor_symbols, factor_sessions, factor_cutoff = factor_input
+    if not price_snapshot or price_snapshot != factor_snapshot:
         raise QueryError("price and factor Snapshot IDs must match")
     if price_query.get("pit_policy") != factor_query.get("pit_policy"):
         raise QueryError("price and factor PIT policies must match")
     if price_query.get("pit_policy") == "bootstrap_hybrid_v1":
         price_policies = price_query.get("policy_by_session") or {}
         factor_policies = factor_query.get("policy_by_session") or {}
-        if any(price_policies.get(session) != factor_policies.get(session)
-               for session in price_sessions):
+        if any(price_policies.get(session) != factor_policies.get(session) for session in price_sessions):
             raise QueryError("price and factor per-session PIT policies must match")
     if price_query.get("purpose") != factor_query.get("purpose"):
         raise QueryError("price and factor query purposes must match")
@@ -165,14 +163,110 @@ def adjust_prices(
         raise QueryError("factor sessions must cover exactly the price window and explicit anchor")
     if not isinstance(fields, (tuple, list)) or not fields or len(set(fields)) != len(fields):
         raise QueryError("fields must be nonempty and unique")
-    if any(not isinstance(field, str) or field not in prices.frame.columns for field in fields):
+    if any(not isinstance(field, str) or field not in price_columns for field in fields):
         raise QueryError("adjusted fields must be present in prices")
-    if not isinstance(factor_field, str) or factor_field not in factors.frame.columns:
+    if not isinstance(factor_field, str) or factor_field not in factor_columns:
         raise QueryError("factor_field must be present in factors")
     if any(field not in (price_query.get("fields") or ()) for field in fields):
         raise QueryError("adjusted fields must be declared by the price query")
     if factor_field not in (factor_query.get("fields") or ()):
         raise QueryError("factor_field must be declared by the factor query")
+    return anchor, decision
+
+
+def _adjust_value(price_value, factor_number, anchor_number, price_missing_reason):
+    """Original scalar order and missing-state precedence, shared by both APIs."""
+    price, price_state = _number(price_value)
+    factor, factor_state = factor_number
+    anchor_factor, anchor_state = anchor_number
+    if price_state:
+        reason = (price_missing_reason or "price_missing") if price_state == "missing" else "invalid_price"
+    elif anchor_state:
+        reason = "missing_anchor_factor" if anchor_state == "missing" else "invalid_anchor_factor"
+    elif anchor_factor <= 0:
+        reason = "invalid_anchor_factor"
+    elif factor_state:
+        reason = "missing_factor" if factor_state == "missing" else "invalid_factor"
+    elif factor <= 0:
+        reason = "invalid_factor"
+    else:
+        reason = None
+    adjusted = None if reason else _adjust_calculation(price, factor, anchor_factor)
+    if adjusted is not None and not isfinite(adjusted):
+        reason, adjusted = "invalid_adjusted_value", None
+    return adjusted, reason
+
+
+def _adjust_calculation(price,factor,anchor):
+    """One multiplication followed by one division for scalars and arrays."""
+    product=price*factor
+    return product/anchor
+
+
+def _adjust_columns(prices,price_valid,price_reasons,factors,factor_valid,anchors,anchor_valid):
+    """Native numeric arrays with the scalar kernel's state and reason precedence."""
+    import numpy as np
+    def numbers(values,valid):
+        value=values.astype('<f8',copy=False)
+        missing=~valid|np.isnan(value)
+        invalid=~missing&((values.dtype.kind=='b')|~np.isfinite(value))
+        return value,missing,invalid
+    price,pm,pi=numbers(prices,price_valid);factor,fm,fi=numbers(factors,factor_valid);anchor,am,ai=numbers(anchors,anchor_valid)
+    # These are the data_column_selection_v1 missing-reason codes. Source-null
+    # reasons 1..3 retain the Reader's labels; 4..10 are the existing recipe.
+    reasons=np.select((pm,pi,am,ai|(anchor<=0),fm,fi|(factor<=0)),
+        (np.where(price_reasons!=0,price_reasons,4),np.uint8(5),np.uint8(6),np.uint8(7),np.uint8(8),np.uint8(9)),default=np.uint8(0)).astype('u1')
+    good=reasons==0;values=np.zeros(prices.shape,dtype='<f8')
+    anchor=np.broadcast_to(anchor,prices.shape)
+    with np.errstate(over='ignore',under='ignore',invalid='ignore',divide='ignore'):
+        values[good]=_adjust_calculation(price[good],factor[good],anchor[good])
+    bad=good&~np.isfinite(values);reasons[bad]=10;values[bad]=0
+    return values,reasons==0,reasons
+
+
+def adjust_prices(
+    prices: DataBatch,
+    factors: DataBatch,
+    *,
+    fields: tuple[str, ...],
+    anchor_session: str,
+    factor_field: str = "adj_factor",
+    decision_session: str | None = None,
+) -> DataBatch:
+    """Return prices on one explicit anchor using ``price_t * factor_t / factor_anchor``.
+
+    Inputs are read-only, already PIT-selected DataBatch objects.  Their fixed
+    Snapshot IDs, PIT policies, purposes, symbols and decision cutoffs must match.
+    Factor sessions must be exactly the price window plus the anchor.  By default
+    the latest price session is the decision session; an explicit decision session
+    must be in the price window.  A future anchor is rejected.  Missing prices or
+    factors, and nonpositive/nonfinite factors, yield nulls with per-key reasons.
+    No I/O, Raw replay, revision selection, or timestamp inference occurs here.
+    Source vintage limitations in either input remain limitations of the result.
+    Within one call, at most 128 distinct timestamp strings and each security's
+    immutable native anchor number are reused. Other numeric types keep their
+    original parsing path, and every provenance/cutoff check runs.
+    Nothing is retained between calls, and output lineage remains detached.
+    """
+    parsed_instants: dict[str, datetime] = {}
+
+    def parse_instant(value: Any, label: str) -> datetime:
+        if type(value) is str and value in parsed_instants:
+            return parsed_instants[value]
+        result = _instant(value, label)
+        if type(value) is str and len(parsed_instants) < 128:
+            parsed_instants[value] = result
+        return result
+
+    price_query, price_symbols, price_sessions, price_cutoff = _query(prices, "prices", instant_parser=parse_instant)
+    factor_query, factor_symbols, factor_sessions, factor_cutoff = _query(factors, "factors", instant_parser=parse_instant)
+    anchor, decision = _validate_adjustment(
+        (price_query, price_symbols, price_sessions, price_cutoff),
+        (factor_query, factor_symbols, factor_sessions, factor_cutoff),
+        price_snapshot=prices.context.get("snapshot_id"), factor_snapshot=factors.context.get("snapshot_id"),
+        price_columns=prices.frame.columns, factor_columns=factors.frame.columns,
+        fields=fields, anchor_session=anchor_session, factor_field=factor_field,
+        decision_session=decision_session)
 
     price_rows = _index(prices, price_symbols, price_sessions, "prices")
     factor_rows = _index(factors, factor_symbols, factor_sessions, "factors")
@@ -183,7 +277,7 @@ def adjust_prices(
     for label, definitions in (("factors", (factor_meta,)), ("prices", tuple(value[1] for value in price_definitions.values()))):
         for indexed in definitions:
             for item in indexed.values():
-                if item.get("usable_from") is not None and _instant(item["usable_from"], f"{label} usable_from") > price_cutoff:
+                if item.get("usable_from") is not None and parse_instant(item["usable_from"], f"{label} usable_from") > price_cutoff:
                     raise QueryError(f"{label} provenance is later than the decision cutoff")
 
     records: list[dict[str, Any]] = []
@@ -192,40 +286,37 @@ def adjust_prices(
                 "recipe_version": PRICE_ADJUSTMENT_VERSION, "by_key": []}
         for field in fields
     }
+    anchor_numbers: dict[str, tuple[float | None, str | None]] = {}
     for session in price_sessions:
         for symbol in price_symbols:
             key, anchor_key = (symbol, session), (symbol, anchor)
             factor, factor_state = _number(factor_rows[key][factor_field])
-            anchor_factor, anchor_state = _number(factor_rows[anchor_key][factor_field])
+            anchor_value = factor_rows[anchor_key][factor_field]
+            if type(anchor_value) in (type(None), bool, int, float, Decimal):
+                if symbol not in anchor_numbers:
+                    anchor_numbers[symbol] = _number(anchor_value)
+                anchor_factor, anchor_state = anchor_numbers[symbol]
+            else:
+                anchor_factor, anchor_state = _number(anchor_value)
             record: dict[str, Any] = {"security_id": symbol, "session": session}
             for field in fields:
-                price, price_state = _number(price_rows[key][field])
-                if price_state:
-                    reason = (price_definitions[field][1][key].get("missing_reason") or "price_missing") if price_state == "missing" else "invalid_price"
-                elif anchor_state:
-                    reason = "missing_anchor_factor" if anchor_state == "missing" else "invalid_anchor_factor"
-                elif anchor_factor <= 0:
-                    reason = "invalid_anchor_factor"
-                elif factor_state:
-                    reason = "missing_factor" if factor_state == "missing" else "invalid_factor"
-                elif factor <= 0:
-                    reason = "invalid_factor"
-                else:
-                    reason = None
-                adjusted = None if reason else price * factor / anchor_factor
-                if adjusted is not None and not isfinite(adjusted):
-                    reason, adjusted = "invalid_adjusted_value", None
+                adjusted, reason = _adjust_value(price_rows[key][field],
+                    (factor, factor_state), (anchor_factor, anchor_state),
+                    price_definitions[field][1][key].get("missing_reason"))
                 record[field] = adjusted
                 output_meta[field]["by_key"].append({
                     "security_id": symbol, "session": session,
                     "missing_reason": reason,
-                    "price_provenance": deepcopy(price_definitions[field][1][key]),
-                    "factor_provenance": deepcopy(factor_meta[key]),
-                    "anchor_factor_provenance": deepcopy(factor_meta[anchor_key]),
+                    "price_provenance": _copy_provenance(price_definitions[field][1][key]),
+                    "factor_provenance": _copy_provenance(factor_meta[key]),
+                    "anchor_factor_provenance": _copy_provenance(factor_meta[anchor_key]),
                 })
             records.append(record)
 
-    context = deepcopy(dict(prices.context))
+    # Preserve query's position and detach it independently below, without
+    # first copying the query graph that would immediately be overwritten.
+    context = deepcopy({key: None if key == "query" else value
+                        for key, value in prices.context.items()})
     context["query"] = deepcopy(dict(price_query))
     context["query"].update({"fields": list(fields), "price_basis": "common_anchor_adjusted_v1", "adjustment_anchor": anchor})
     context["derivation"] = {

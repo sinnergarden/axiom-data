@@ -6,7 +6,7 @@ copied elsewhere. Constructing or reading a store never creates files.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import base64
 from copy import deepcopy
 from datetime import date, datetime, timezone
@@ -195,7 +195,7 @@ class LocalStore:
             os.fsync(stream.fileno())
             return boundary
 
-    def _decode_raw_line(self, line: bytes) -> dict[str, Any]:
+    def _decode_raw_line(self, line: bytes, *, _budget=None) -> dict[str, Any]:
         try:
             record = json.loads(line)
         except (TypeError, ValueError) as exc:
@@ -207,18 +207,34 @@ class LocalStore:
             profile = self._profile_cache.get(compressed)
             if profile is None:
                 try:
-                    profile = json.loads(zlib.decompress(base64.b64decode(compressed, validate=True)))
+                    encoded=base64.b64decode(compressed, validate=True)
+                    if _budget is None:
+                        profile = json.loads(zlib.decompress(encoded))
+                    else:
+                        from .native_view import _require
+                        maximum=max(0,(_budget.remaining()-4096)//64)
+                        with _budget.scope('raw-inflation',2*(maximum+1)+4096):
+                            decoder=zlib.decompressobj()
+                            inflated=decoder.decompress(encoded,maximum+1)
+                            _require(len(inflated)<=maximum and decoder.eof,
+                                     'native Raw profile exceeds working budget')
+                            _budget.reserve('raw-inflation',32*len(inflated)+4096)
+                            profile=json.loads(inflated)
+                            del inflated,decoder
                 except (ValueError, zlib.error) as exc:
                     raise DataError("Raw source profile encoding is corrupt") from exc
                 if not isinstance(profile, dict):
                     raise DataError("Raw source profile is invalid")
+                if _budget is not None:
+                    from .reader import _object_size
+                    _budget.add('store-cache',4*_object_size((compressed,profile))+1024)
                 if len(self._profile_cache) >= 16:
                     self._profile_cache.clear()
                 self._profile_cache[compressed] = profile
             record["source_profile"] = profile
         return record
 
-    def _index_raw_log(self) -> None:
+    def _index_raw_log(self, *, _budget=None) -> None:
         """Index appended complete lines; an unfinished tail stays invisible."""
         path = self.root / "raw" / "fetches.jsonl"
         try:
@@ -239,18 +255,27 @@ class LocalStore:
             stream.seek(self._raw_scanned)
             while stream.tell() < stat.st_size:
                 offset = stream.tell()
-                line = stream.readline()
-                if not line.endswith(b"\n"):
-                    self._raw_scanned = offset
-                    return
-                record = self._decode_raw_line(line)
-                identity = record.get("batch_id")
-                if not isinstance(identity, str):
-                    raise DataError("Raw fetch log lacks batch_id")
-                previous = self._raw_offsets.get(identity)
-                if previous is not None and previous != (offset, len(line)):
-                    raise DataError(f"duplicate Raw batch ID: {identity}")
-                self._raw_offsets[identity] = (offset, len(line))
+                maximum=None if _budget is None else min(stat.st_size-offset,max(0,(_budget.remaining()-4096)//64))
+                with (nullcontext() if _budget is None else _budget.scope('raw-log-line',2*(maximum+1)+4096)):
+                    line = stream.readline() if maximum is None else stream.readline(maximum+1)
+                    if _budget is not None:
+                        from .native_view import _require
+                        _require(len(line)<=maximum,'native Raw log line exceeds working budget')
+                        _budget.reserve('raw-log-line',32*len(line)+4096)
+                    if not line.endswith(b"\n"):
+                        self._raw_scanned = offset
+                        return
+                    record = self._decode_raw_line(line,_budget=_budget)
+                    identity = record.get("batch_id")
+                    if not isinstance(identity, str):
+                        raise DataError("Raw fetch log lacks batch_id")
+                    previous = self._raw_offsets.get(identity)
+                    if previous is not None and previous != (offset, len(line)):
+                        raise DataError(f"duplicate Raw batch ID: {identity}")
+                    if _budget is not None and previous is None:
+                        _budget.add('store-cache',1024+4*len(identity))
+                    self._raw_offsets[identity] = (offset, len(line))
+                    del record,line
             self._raw_scanned = stream.tell()
 
     def _path(self, uri: str) -> Path:
@@ -383,7 +408,10 @@ class LocalStore:
             raise DataError(f"referenced object is missing: {uri}") from exc
         identity = (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
         if self._hash_cache.get(uri) != (identity, expected_hash):
-            actual = sha256(path.read_bytes()).hexdigest()
+            digest=sha256()
+            with path.open('rb') as stream:
+                while chunk:=stream.read(65536): digest.update(chunk)
+            actual=digest.hexdigest()
             if actual != expected_hash:
                 raise DataError(f"referenced object failed SHA-256 validation: {uri}")
             self._hash_cache[uri] = (identity, expected_hash)
@@ -440,12 +468,12 @@ class LocalStore:
                 os.fsync(out.fileno())
             return record
 
-    def _raw_records(self, batch_ids: Sequence[str], *, shared_profiles: bool = False) -> dict[str, dict[str, Any]]:
+    def _raw_records(self, batch_ids: Sequence[str], *, shared_profiles: bool = False, _budget=None) -> dict[str, dict[str, Any]]:
         """Find selected observations by an append-aware in-memory offset index."""
         wanted = set(batch_ids)
         if not wanted:
             return {}
-        self._index_raw_log()
+        self._index_raw_log(_budget=_budget)
         found: dict[str, dict[str, Any]] = {}
         path = self.root / "raw" / "fetches.jsonl"
         try:
@@ -455,10 +483,15 @@ class LocalStore:
                     if location is None:
                         continue
                     stream.seek(location[0])
-                    record = self._decode_raw_line(stream.read(location[1]))
-                    if record.get("batch_id") != identity:
-                        raise DataError("Raw offset index disagrees with fetch log")
-                    found[identity] = record if shared_profiles else deepcopy(record)
+                    with (nullcontext() if _budget is None else _budget.scope('raw-log-line',32*location[1]+4096)):
+                        record = self._decode_raw_line(stream.read(location[1]),_budget=_budget)
+                        if record.get("batch_id") != identity:
+                            raise DataError("Raw offset index disagrees with fetch log")
+                        if _budget is not None:
+                            from .reader import _object_size
+                            _budget.reserve('raw-record',4*_object_size(record)+4096)
+                        found[identity] = record if shared_profiles else deepcopy(record)
+                        del record
         except FileNotFoundError as exc:
             raise DataError(f"Raw batch does not exist: {sorted(wanted)[0]}") from exc
         missing = wanted - found.keys()
@@ -466,9 +499,9 @@ class LocalStore:
             raise DataError(f"Raw batch does not exist: {sorted(missing)[0]}")
         return found
 
-    def get_raw(self, batch_id: str) -> dict[str, Any]:
+    def get_raw(self, batch_id: str, *, _budget=None) -> dict[str, Any]:
         """Find one append-log observation without writing or replaying it."""
-        return self._raw_records([batch_id])[batch_id]
+        return self._raw_records([batch_id],_budget=_budget)[batch_id]
 
     def get_raw_many(self, batch_ids: Sequence[str]) -> dict[str, dict[str, Any]]:
         """Read selected observations with one pass through the append log."""
@@ -616,6 +649,73 @@ class LocalStore:
             return table.select(needed)
         except (pa.ArrowException, OSError) as exc:
             raise DataError(f"cannot read partition {part['uri']}: {exc}") from exc
+
+    def _native_partition_batches(self,part,*,columns=None,batch_size=4096,_observe=None,
+                                  _membership_dependencies=False):
+        """Native-export scalar and membership-provenance batches.
+
+        Preserve BYTE_ARRAY dictionaries and physical offsets, without prefetch
+        or parallel columns. The caller admits actual buffers before retaining
+        or converting a batch. Row count is bounded; a page, dictionary or one
+        variable-width value can still allocate beyond a caller's byte budget.
+        The Snapshot-bound membership caller may retain its existing single
+        list<string> dependency_raw_batch_ids column; other nesting is refused.
+        Ordinary read_partition retains its existing schema/type support.
+        """
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        from .protocols import QueryError
+
+        path=self._verified(part['uri'],part['file_sha256'])
+        source=pq.ParquetFile(path,pre_buffer=False,buffer_size=0)
+        try:
+            schema=source.schema_arrow
+            needed=list(schema.names if columns is None else columns)
+            present=[name for name in needed if name in schema.names]
+            for name in present:
+                dtype=schema.field(name).type
+                dtype=dtype.value_type if pa.types.is_dictionary(dtype) else dtype
+                supported=(pa.types.is_null(dtype) or pa.types.is_boolean(dtype) or
+                    pa.types.is_integer(dtype) or pa.types.is_floating(dtype) or
+                    pa.types.is_date(dtype) or pa.types.is_timestamp(dtype) or
+                    pa.types.is_string(dtype) or pa.types.is_large_string(dtype) or
+                    pa.types.is_binary(dtype) or pa.types.is_large_binary(dtype) or
+                    pa.types.is_fixed_size_binary(dtype) or
+                    (_membership_dependencies and name=='dependency_raw_batch_ids' and
+                     pa.types.is_list(dtype) and pa.types.is_string(dtype.value_type)))
+                if not supported:
+                    raise QueryError(f'native export requires flat scalar fact columns: {name} has {dtype}')
+            metadata=source.metadata
+            dictionaries=[]
+            for name in present:
+                dtype=schema.field(name).type
+                dtype=dtype.value_type if pa.types.is_dictionary(dtype) else dtype
+                if (pa.types.is_string(dtype) or pa.types.is_binary(dtype) or
+                        pa.types.is_large_string(dtype) or pa.types.is_large_binary(dtype)):
+                    dictionaries.append(name)
+            source.close()
+            source=pq.ParquetFile(path,metadata=metadata,read_dictionary=dictionaries,
+                pre_buffer=False,buffer_size=0)
+            offset=0
+            for group in range(source.num_row_groups):
+                if _observe is not None:
+                    _observe('encoded_pages',sum(metadata.row_group(group).column(j).total_uncompressed_size
+                        for j in range(metadata.num_columns)
+                        if metadata.row_group(group).column(j).path_in_schema.split('.')[0] in present))
+                for batch in source.iter_batches(batch_size=batch_size,row_groups=[group],
+                        columns=present,use_threads=False,use_pandas_metadata=False):
+                    table=pa.Table.from_batches([batch])
+                    for name in needed:
+                        if name not in table.column_names: table=table.append_column(name,pa.nulls(table.num_rows))
+                    yield offset,table.select(needed)
+                    offset+=batch.num_rows
+                    del batch,table
+            if metadata.num_rows==0:
+                yield 0,pa.Table.from_arrays([pa.array([],type=schema.field(name).type)
+                    if name in schema.names else pa.nulls(0) for name in needed],names=needed)
+        except (pa.ArrowException,OSError) as exc:
+            raise DataError(f"cannot stream native partition {part['uri']}: {exc}") from exc
+        finally: source.close()
 
     def verify_partition(self, part: Mapping[str, Any]) -> None:
         """Recheck a referenced object; unchanged files need only a stat call."""
