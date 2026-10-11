@@ -18,9 +18,10 @@ KEY = {"security_id": "sec-synthetic", "report_period": "2018-12-31",
 
 def source(rows, *, scope=None, v3=True, identities=None, params=None):
     identities = identities or IDS
+    unique = {tuple(row[f] for f in ("ts_code", "end_date", "ann_date", "div_proc")): row for row in rows}
     profile = event_source_profile("dividend", identity_map=identities,
                                    next_open_session_by_date=CALENDAR,
-                                   corporate_action_rules=rules(rows) if v3 else None)
+                                   corporate_action_rules=rules(list(unique.values())) if v3 else None)
     request = {"endpoint": "dividend", "params": params or {"ts_code": "000001.SZ"},
                "canonical_symbols": list(identities), "canonical_event_keys": deepcopy(scope if scope is not None else [KEY])}
     return SimpleNamespace(payload=json.dumps(rows, ensure_ascii=False).encode(), request=request,
