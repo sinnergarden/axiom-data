@@ -497,7 +497,8 @@ def _source_rows(response: Any) -> tuple[bytes, list[dict[str, Any]] | None]:
     return payload, [dict(zip(fields, row)) for row in rows]
 
 
-def _financial_unique(endpoint: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _financial_unique(endpoint: str, rows: list[dict[str, Any]], *,
+                      fields=None, numeric_fields=None) -> list[dict[str, Any]]:
     """Resolve one disclosure without imposing an order on its returned rows.
 
     Keep a returned row covering all partial duplicates when one exists.
@@ -506,13 +507,14 @@ def _financial_unique(endpoint: str, rows: list[dict[str, Any]]) -> list[dict[st
     combined into a complete invented report. No dates or flags order rows.
     """
     by_key: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
-    fields = request_fields(endpoint)
+    fields = request_fields(endpoint) if fields is None else tuple(fields)
     for row in rows:
         actual = row["f_ann_date"] if endpoint in _STATEMENTS else row["ann_date"]
         key = row["ts_code"], row.get("report_type", ""), row["end_date"], actual
         by_key.setdefault(key, []).append(row)
     resolved = []
-    numeric_fields = _FIELDS[endpoint][5:] if endpoint in _STATEMENTS else _FIELDS[endpoint][3:]
+    if numeric_fields is None:
+        numeric_fields = _FIELDS[endpoint][5:] if endpoint in _STATEMENTS else _FIELDS[endpoint][3:]
     for group in by_key.values():
         # The richest row is the only possible dominating candidate, up to
         # equal duplicates. Checking the complete group avoids input-order bugs.

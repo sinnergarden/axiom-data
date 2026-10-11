@@ -6,6 +6,8 @@ Imports stay lazy so CLI help and planning do not initialize data dependencies.
 from importlib import import_module
 
 _EXPORTS = {
+    "collect_stock_input_response": ("stock_input_sources", "collect_stock_input_response"),
+    "stock_input_source_spec": ("stock_input_sources", "stock_input_source_spec"),
     "produce_ordinary_shareholder_action_facts": ("ordinary_entitlements", "produce_ordinary_shareholder_action_facts"),
     "reviewed_fund_share_conversion_batch": ("fund_share_conversions", "reviewed_fund_share_conversion_batch"),
     "attach_public_evidence": ("public_evidence", "attach_public_evidence"),
