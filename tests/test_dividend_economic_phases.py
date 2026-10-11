@@ -64,6 +64,49 @@ def query(root, snapshot, *, time_field="payment_date", day="2019-06-05", cutoff
 
 
 class EconomicPhaseTests(unittest.TestCase):
+    def test_declared_round_propagates_a_visible_uncertain_native_revision(self):
+        first = action()
+        alias = action(ann_date="20190503")
+        policy = rules([first, alias])
+        with tempfile.TemporaryDirectory() as root:
+            store = LocalStore(root)
+            _, before, _ = publish(store, [first, alias], policy=policy)
+            _, after, _ = publish(store, [first, action(cash_div_tax=0.8)], policy=policy,
+                                  op="conflicting-revision", observed=LATER, base=before)
+            early = query(root, after, time_field="ex_date", day="2019-06-03", cutoff=OBS.isoformat())
+            self.assertEqual(len(early.frame), 1)
+            self.assertTrue(early.frame.iloc[0]["economic_event_id"].startswith("ca:round:"))
+            self.assertEqual(float(early.frame.iloc[0]["cash_dividend_before_tax_per_share"]), 0.5)
+            late = query(root, after, time_field="ex_date", day="2019-06-03", cutoff=LATER.isoformat())
+            self.assertFalse(late.frame.empty)
+            self.assertTrue(late.frame["economic_event_id"].isna().all())
+            self.assertEqual({m["status"] for m in late.field_meta["economic_event_id"]["by_key"]},
+                             {"source_missing"})
+            self.assertTrue(late.context["unavailable_event_scope"])
+            self.assertEqual({m["usable_from"] for m in late.field_meta["economic_event_id"]["by_key"]},
+                             {LATER.isoformat()})
+            self.assertTrue(all(len(m["economic_aliases"]) == 2
+                                for m in late.field_meta["economic_event_id"]["by_key"]))
+
+    def test_unknown_phase_clock_uses_only_visible_candidates_in_requested_range(self):
+        rows = [action(), action(imp_ann_date="20190507", pay_date="20190609")]
+        with tempfile.TemporaryDirectory() as root:
+            _, snapshot, _ = publish(LocalStore(root), rows, policy=rules([rows[0]]))
+            early = query(root, snapshot, day="2019-06-09", cutoff="2019-05-06T09:30:00+08:00",
+                          policy="best_effort_vendor_v1")
+            self.assertTrue(early.frame.empty)
+            late = query(root, snapshot, day="2019-06-09", cutoff="2019-05-08T09:30:00+08:00",
+                         policy="best_effort_vendor_v1")
+            self.assertEqual(len(late.frame), 1)
+            self.assertIsNone(late.to_json()["records"][0]["payment_date"])
+            self.assertIsNone(late.to_json()["records"][0]["economic_event_id"])
+            self.assertEqual(late.to_json()["records"][0]["source_issue"], "ambiguous_action_identity_or_revision")
+            self.assertEqual(late.context["unavailable_event_scope"][0]["candidate_dates"], ["2019-06-09"])
+            meta = late.field_meta["payment_date"]["by_key"][0]
+            self.assertEqual(meta["first_observed_at"], OBS.isoformat())
+            self.assertEqual(meta["availability_basis"], "declared_vendor_assumption")
+            self.assertEqual(meta["usable_from"], "2019-05-08T09:30:00+08:00")
+
     def test_each_phase_has_one_event_with_all_visible_alias_provenance(self):
         rows = [action(), action(ann_date="20190503")]
         declared = rules(rows)

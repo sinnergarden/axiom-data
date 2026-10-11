@@ -19,7 +19,7 @@ from .reader import READER_VERSION, _date_value, _instant, _revision_order
 
 
 EVENT_READER_VERSION = "event_reader_v7"
-_ECONOMIC_EVENT_READER_VERSION = "event_reader_v8"
+_ECONOMIC_EVENT_READER_VERSION = "event_reader_v9"
 _ACTION_PHASES = {"record_date": "record", "ex_date": "ex", "payment_date": "pay", "stock_listing_date": "listing"}
 _ACTION_TERMS = ("report_period", "process_status", "implementation_announcement_date", "record_date", "ex_date",
                  "cash_dividend_before_tax_per_share", "bonus_shares_per_share", "capital_transfer_shares_per_share",
@@ -218,7 +218,20 @@ def _action_candidates(store,row,*,_budget=None):
     return candidates
 
 
-def _phase_projection(selected, *, query, keys, declared, profile, start, end, store, action_candidates, budget):
+def _action_candidate_scope(candidates, *, field, start, end, candidate_times=None):
+    """Clip visible uncertain dates and their clock to the requested range."""
+    def included(candidate):
+        return candidate.get(field) is None or start <= _date_string(candidate[field], field) <= end
+    dates = list(dict.fromkeys(None if candidate.get(field) is None else _date_string(candidate[field], field)
+                              for candidate in candidates if included(candidate)))
+    clock = None
+    if dates and candidate_times is not None:
+        clock = min(usable for candidate, usable in candidate_times if included(candidate)), "declared_vendor_assumption"
+    return dates, clock
+
+
+def _phase_projection(selected, *, query, keys, declared, profile, start, end, store, action_candidates,
+                      hidden_action_summaries, budget):
     """Fold only visible, strictly matching aliases; unknown phases remain markers."""
     from .event_sources import _action_identity_id
     bindings = {(profile["identity_map"][item["ts_code"]],
@@ -240,7 +253,16 @@ def _phase_projection(selected, *, query, keys, declared, profile, start, end, s
             row["source_issue"] = None
         identity = row.get("economic_event_id")
         status = _cell_status(row, "economic_event_id", declared["economic_event_id"], declared)
-        key = ("economic", identity) if status == "value" else ("native", *(row[k] for k in keys))
+        if not str(identity).startswith("ca:native:") and native_key in bindings:
+            # A visible uncertain revision still belongs to its frozen round.
+            # Association is not a resolved ID: it only propagates uncertainty
+            # to the other currently visible members of that declared round.
+            association = _action_identity_id([
+                "tushare.dividend", row["security_id"], str(row["report_period"]).replace("-", ""),
+                "round", bindings[native_key]])
+            key = ("economic", association)
+        else:
+            key = ("economic", identity) if status == "value" else ("native", *(row[k] for k in keys))
         groups.setdefault(key, []).append((row, clock))
     projected, scopes, aliases = [], [], {}
     for group in groups.values():
@@ -276,7 +298,10 @@ def _phase_projection(selected, *, query, keys, declared, profile, start, end, s
                 else:
                     row["economic_event_id"] = None
                     row["economic_event_id__status"] = "source_missing"
-                row["source_issue"] = "ambiguous_economic_alias_terms_or_dates"
+                row["source_issue"] = original.get("source_issue") or "ambiguous_economic_alias_terms_or_dates"
+                # This marker requires every conflicting visible member;
+                # an older alias cannot claim the later uncertainty earlier.
+                clock = max((member_clock for _, member_clock in group), key=lambda item: item[0])
             uncertain = row.get("source_issue") in {
                 "ambiguous_action_identity_or_revision", "ambiguous_economic_alias_terms_or_dates",
                 "economic_round_not_declared_or_native_key_ambiguous"}
@@ -287,8 +312,10 @@ def _phase_projection(selected, *, query, keys, declared, profile, start, end, s
             if row.get("source_issue") == "ambiguous_action_identity_or_revision":
                 visible = action_candidates.get(id(original))
                 retained = [r for r, _ in visible] if visible is not None else _ambiguous_action_candidates(store, original, _budget=budget)
-                candidate_dates = list(dict.fromkeys(None if r.get(query.time_field) is None else
-                                      _date_string(r[query.time_field], query.time_field) for r in retained))
+                candidate_dates, candidate_clock = _action_candidate_scope(
+                    retained, field=query.time_field, start=start, end=end, candidate_times=visible)
+                if candidate_clock is not None:
+                    clock = max(clock, candidate_clock, key=lambda item: item[0])
             elif not linked and native_identity:
                 candidate_dates = list(dict.fromkeys(None if r.get(query.time_field) is None else
                                       _date_string(r[query.time_field], query.time_field) for r, _ in group))
@@ -304,7 +331,9 @@ def _phase_projection(selected, *, query, keys, declared, profile, start, end, s
                                "candidate_dates": candidate_dates,
                                "source_issue": row.get("source_issue") or "phase_date_not_provided",
                                "raw_batch_id": row["raw_batch_id"]})
-            aliases[tuple(str(row[k]) for k in keys)] = provenance if linked or native_identity else [p for p in provenance if p["native_key"] == {k: str(row[k]) for k in keys}]
+            aliases[tuple(str(row[k]) for k in keys)] = provenance
+            if id(original) in hidden_action_summaries:
+                hidden_action_summaries.add(id(row))
             projected.append((row, clock))
     return projected, scopes, aliases
 
@@ -432,20 +461,14 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
             candidate_times = action_candidates.get(id(chosen))
             eligible = ([candidate for candidate, _ in candidate_times] if candidate_times is not None
                         else _ambiguous_action_candidates(store, chosen,_budget=budget))
-            candidates = list(dict.fromkeys(
-                _date_string(candidate[query.time_field], query.time_field)
-                if candidate.get(query.time_field) is not None else None for candidate in eligible))
-            candidates = [day for day in candidates if day is None or start <= day <= end]
+            candidates, candidate_clock = _action_candidate_scope(
+                eligible, field=query.time_field, start=start, end=end, candidate_times=candidate_times)
             if not candidates:
                 continue
-            if candidate_times is not None:
+            if candidate_clock is not None:
                 # Report when this requested uncertain range becomes usable,
                 # rather than an unrelated earlier candidate's notice time.
-                provenance[id(chosen)] = min(
-                    usable for candidate, usable in candidate_times
-                    if candidate.get(query.time_field) is None or
-                    start <= _date_string(candidate[query.time_field], query.time_field) <= end
-                ), 'declared_vendor_assumption'
+                provenance[id(chosen)] = candidate_clock
         else:
             event_date = _date_string(chosen.get(query.time_field), query.time_field)
             if not start <= event_date <= end:
@@ -460,7 +483,8 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
     if phase:
         selected, unavailable_actions, phase_aliases = _phase_projection(
             selected, query=query, keys=keys, declared=declared, profile=profile, start=start, end=end,
-            store=store, action_candidates=action_candidates, budget=budget)
+            store=store, action_candidates=action_candidates,
+            hidden_action_summaries=hidden_action_summaries, budget=budget)
     positions = {symbol: i for i, symbol in enumerate(query.symbols)}
     selected.sort(key=lambda item: (positions[item[0]["security_id"]],
                                     (_date_string(item[0][query.time_field], query.time_field)

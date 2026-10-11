@@ -6,7 +6,7 @@ import json
 import tempfile
 import unittest
 
-from axiom_data import Data, EventQuery
+from axiom_data import Data, EventQuery, open_native_view
 from axiom_data.event_sources import DIVIDEND_ECONOMIC_CONTRACT, event_source_profile, prepare_event_rows
 from axiom_data.protocols import DataError, IngestBatch, UpdateRequest
 from test_dividend_economic_phases import action, rules, IDS, CALENDAR, OBS, LATER, FIELDS, query
@@ -37,6 +37,73 @@ def ingest(data, batch, *, op="scoped", base=None, observed=OBS):
 
 
 class NativeActionScopeTests(unittest.TestCase):
+    def test_public_rebuild_preserves_raw_and_replays_complete_native_scope(self):
+        rows = [action(), action(ann_date="20190503")]
+        batch = source(rows)
+        selected = {**KEY, "announcement_date": "2019-05-03"}
+        with tempfile.TemporaryDirectory() as root:
+            facts = Path(root) / "facts"
+            data = Data(facts)
+            before = ingest(data, batch)
+            snapshot_path = facts / "snapshots" / f"{before.snapshot_id}.json"
+            old_snapshot = snapshot_path.read_bytes()
+            raw_id = data.store.load_snapshot(before.snapshot_id)["domains"]["corporate_actions"]["raw_batch_ids"][0]
+            original_raw = deepcopy(data.store.get_raw(raw_id))
+            raw_log = (facts / "raw" / "fetches.jsonl").read_bytes()
+            after = data.rebuild(base_snapshot=before.snapshot_id, raw_batch_ids=[raw_id],
+                                 domains=["corporate_actions"], operation_id="public-native-rebuild",
+                                 build_context={"synthetic": True}, promote=False,
+                                 domain_overrides={"corporate_actions": {"canonical_event_keys": [selected]}})
+            # New default operations must not silently drop a derived Native scope.
+            replay = data.rebuild(base_snapshot=after.snapshot_id, raw_batch_ids=[raw_id],
+                                  domains=["corporate_actions"], operation_id="public-native-replay",
+                                  build_context={"synthetic": True}, promote=False)
+            self.assertEqual(data.store.get_raw(raw_id), original_raw)
+            self.assertEqual(data.store.read_raw(raw_id), batch.payload)
+            self.assertEqual((facts / "raw" / "fetches.jsonl").read_bytes(), raw_log)
+            self.assertEqual(snapshot_path.read_bytes(), old_snapshot)
+            phase_days = {"record_date": "2019-06-01", "ex_date": "2019-06-03",
+                          "payment_date": "2019-06-05", "stock_listing_date": "2019-06-10"}
+            reads, expected = [], []
+            for field, day in phase_days.items():
+                q = EventQuery("corporate_actions", FIELDS, ("sec-synthetic",), day, day,
+                               LATER.isoformat(), "operational_pit_v1", field, {"process_status": "实施"})
+                actual = data.events(snapshot=replay.snapshot_id, query=q).to_json()
+                self.assertEqual(len(actual["records"]), 1)
+                self.assertEqual(actual["records"][0]["announcement_date"], "2019-05-03")
+                self.assertEqual(actual["field_meta"]["payment_date"]["by_key"][0]["first_observed_at"], OBS.isoformat())
+                reads.append({"method": "events", "query": q})
+                expected.append(actual)
+            limits = {"max_part_bytes": 1024 * 1024, "max_working_bytes": 64 * 1024 * 1024,
+                      "max_saved_bytes": 8 * 1024 * 1024, "max_rows_per_block": 1}
+            destination = Path(root) / "native"
+            exported = data.export_native_view(snapshot=replay.snapshot_id, reads=reads,
+                                               destination=destination, limits=limits)
+            from axiom_data.native_view import _replay
+            from axiom_data.storage import _json_bytes
+            with open_native_view(destination, manifest_sha256=exported["content_digest"], limits=limits) as view:
+                self.assertEqual(len(view.manifest["batches"]), 4)
+                for native, wanted in zip(view.manifest["batches"], expected):
+                    self.assertEqual(b"".join(_replay(view.root, native, {}, view._marks)), _json_bytes(wanted))
+            scope = data.store.load_snapshot(replay.snapshot_id)["domains"]["corporate_actions"]["build_context"]
+            self.assertEqual(scope["canonical_event_selection"]["corporate_actions"], [selected])
+            self.assertEqual(query(facts, before.snapshot_id, data=data).to_json()["records"][0]["announcement_date"],
+                             "2019-05-01")
+
+    def test_public_rebuild_rejects_partial_duplicate_and_unbound_native_scope(self):
+        invalid = ([], [KEY, KEY], [{k: v for k, v in KEY.items() if k != "process_status"}],
+                   [{**KEY, "security_id": "unbound"}])
+        with tempfile.TemporaryDirectory() as root:
+            data = Data(root)
+            before = ingest(data, source([action()]))
+            raw_id = data.store.load_snapshot(before.snapshot_id)["domains"]["corporate_actions"]["raw_batch_ids"][0]
+            for ordinal, scope in enumerate(invalid):
+                with self.subTest(scope=scope), self.assertRaises(DataError):
+                    data.rebuild(base_snapshot=before.snapshot_id, raw_batch_ids=[raw_id],
+                                 domains=["corporate_actions"], operation_id=f"invalid-native-scope-{ordinal}",
+                                 build_context={"synthetic": True}, promote=False,
+                                 domain_overrides={"corporate_actions": {"canonical_event_keys": scope}})
+
     def test_all_native_components_select_facts_and_full_raw_bytes_survive(self):
         rows = [action(), action(end_date="20180630"), action(ann_date="20190503"), action(div_proc="预案")]
         batch = source(rows)

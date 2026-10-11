@@ -593,6 +593,9 @@ class _SavedBatch:
             # a mutation of the immutable original Raw request/receipt.
             self.request = {**self.request,
                             "canonical_symbols": list(override["canonical_symbols"])}
+        if "canonical_event_keys" in override:
+            self.request = {**self.request,
+                            "canonical_event_keys": override["canonical_event_keys"]}
         self.contract = override.get("contract", raw["contract"])
         self.source_profile = override.get("source_profile", raw["source_profile"])
         self.normalizer = override.get("normalizer", raw["normalizer"])
@@ -670,7 +673,7 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
         raise DataError("rebuild override names must be selected domains")
     for name, override in overrides.items():
         if not isinstance(override, Mapping) or not set(override).issubset(
-                {"contract", "source_profile", "normalizer", "canonical_symbols"}):
+                {"contract", "source_profile", "normalizer", "canonical_symbols", "canonical_event_keys"}):
             raise DataError(f"invalid rebuild override for {name}")
         if (("contract" in override and not isinstance(override["contract"], Mapping)) or
                 ("source_profile" in override and not isinstance(override["source_profile"], Mapping)) or
@@ -682,6 +685,8 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                     any(not isinstance(code, str) or not code for code in codes) or
                     len(set(codes)) != len(codes)):
                 raise DataError("canonical_symbols needs unique nonempty source codes")
+        if "canonical_event_keys" in override and name != "corporate_actions":
+            raise DataError("complete Native-key selection requires corporate_actions")
     fingerprint = _fingerprint({"kind": "rebuild", "base_snapshot": base_snapshot,
                                 "raw_batch_ids": ids, "domains": wanted,
                                 "build_context": dict(build_context), "promote": promote,
@@ -729,6 +734,9 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                     selection = context.get("canonical_selection", {}).get(name)
                     if selection is not None:
                         inherited["canonical_symbols"] = selection
+                    event_selection = context.get("canonical_event_selection", {}).get(name)
+                    if event_selection is not None:
+                        inherited["canonical_event_keys"] = event_selection
                     normalizer = context.get("normalizer_overrides", {}).get(name)
                     if normalizer is not None:
                         inherited["normalizer"] = normalizer
@@ -764,6 +772,20 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                     if any(code not in new_map for code in override["canonical_symbols"]):
                         raise DataError("offline selected symbols require explicit stable identities")
                 batch = _SavedBatch(store, raw, override)
+                if "canonical_event_keys" in override:
+                    from .event_sources import _native_action_scope
+                    profile = batch.source_profile
+                    if (domain != "corporate_actions" or profile.get("endpoint") != "dividend"
+                            or not profile.get("economic_identity")):
+                        raise DataError("complete Native-key selection requires explicit dividend v3 rules")
+                    symbols = batch.request.get("canonical_symbols")
+                    if symbols is None:
+                        code = batch.request.get("params", {}).get("ts_code")
+                        symbols = [code] if code else []
+                    _native_action_scope(batch.request["canonical_event_keys"], profile["identity_map"], symbols)
+                    old_map = raw["source_profile"].get("identity_map", {})
+                    if any(profile["identity_map"].get(code) != identity for code, identity in old_map.items()):
+                        raise ConflictError("offline Native selection cannot remap a stable identity")
                 grouped[domain].append((batch, raw))
             if any(not entries for entries in grouped.values()):
                 raise DataError("each selected domain requires at least one selected Raw batch")
@@ -806,6 +828,10 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                           for name, override in effective.items() if "canonical_symbols" in override}
             if selections:
                 build_context = {**build_context, "canonical_selection": selections}
+            event_selections = {name: deepcopy(override["canonical_event_keys"])
+                                for name, override in effective.items() if "canonical_event_keys" in override}
+            if event_selections:
+                build_context = {**build_context, "canonical_event_selection": event_selections}
             normalizers = {name: override["normalizer"] for name, override in effective.items()
                            if "normalizer" in override}
             if normalizers:

@@ -221,6 +221,11 @@ class Data:
         A ``canonical_symbols`` override selects explicitly bound source codes
         already present in saved whole-market Raw. It is recorded as a derived
         selection; missing source rows remain missing, without refetching.
+        For explicit dividend v3, ``canonical_event_keys`` selects complete
+        security_id/report_period/announcement_date/process_status dictionaries
+        with canonical ISO dates. It retains every candidate of each chosen key
+        and is saved as a derived scope for subsequent rebuilds; original Raw
+        requests, payloads and actual receipts are never modified.
         Without explicit overrides, the base Snapshot's effective contract,
         source_profile and saved canonical selection are replayed. New operation
         IDs and the ordinary CLI therefore retain added fields and symbols.
