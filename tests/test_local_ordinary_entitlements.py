@@ -1,6 +1,6 @@
 """Synthetic exact-revision, document, allocation and clock counterexamples."""
 from copy import deepcopy
-from decimal import Context, Decimal, ROUND_FLOOR, ROUND_HALF_UP, localcontext
+from decimal import Context, Decimal, Inexact, ROUND_DOWN, ROUND_FLOOR, ROUND_HALF_UP, localcontext
 from hashlib import sha256
 import json
 import unittest
@@ -140,6 +140,12 @@ class OrdinaryEntitlements(unittest.TestCase):
                 grant=Decimal(q)*Decimal(scalar)
             self.assertEqual(int(grant.to_integral_value(rounding=ROUND_FLOOR)),q*2874448//3830973)
         self.assertEqual(item["issuer_total_shares_per_share"],"1.92387")
+
+    def test_decimal_projection_ignores_callers_context(self):
+        expected=self.produce()
+        with localcontext(Context(prec=5,rounding=ROUND_DOWN)) as context:
+            context.traps[Inexact]=True
+            self.assertEqual(self.produce(),expected)
 
     def test_required_plan_chain_and_unknown_denominator(self):
         self.review["entries"][1]["dependencies"]=self.review["entries"][1]["dependencies"][:1]

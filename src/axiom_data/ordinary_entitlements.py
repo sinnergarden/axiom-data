@@ -7,7 +7,7 @@ There is no network, Snapshot write, account operation or process-wide cache.
 """
 from copy import deepcopy
 from datetime import date, datetime, time
-from decimal import Decimal, InvalidOperation, localcontext
+from decimal import Context, Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
 from fractions import Fraction
 from hashlib import sha256
 import json
@@ -26,6 +26,8 @@ _ROLES = {"implementation", "approved_scheme", "original_scheme"}
 _RULES = {"ordinary_pro_rata_transfer", "original_holders_receive_no_new_shares",
           "proportional_common_surrender", "eligible_proportional_unknown_denominator"}
 _REF = re.compile(r"sha256:[0-9a-f]{64}\Z")
+_FACT_FIELDS = set("contract_version producer snapshot_id observed_at availability_basis universe calendar parent_native_refs supplemental_view_refs identity_policy_ref actions limitations".split())
+_ACTION_FIELDS = set("economic_event_id revision_ref identity_status security_id report_period record_date ex_date payment_date stock_listing_date cash_dividend_before_tax_per_share stock_distribution_shares_per_share bonus_shares_per_share capital_transfer_shares_per_share available_at first_observed_at raw_batch_ids source_refs aliases".split())
 
 
 def _require(ok, message):
@@ -83,8 +85,7 @@ def _scalar(value):
     # A repeating rational cannot be exact in v1's decimal scalar. Keep its
     # exact numerator/denominator in the bound interpretation. Sixty significant
     # digits also avoid the six-decimal truncation of the HNA minority ratio.
-    with localcontext() as context:
-        context.prec = 60
+    with localcontext(Context(prec=60, rounding=ROUND_HALF_UP)):
         return format(Decimal(value.numerator) / Decimal(value.denominator), "f")
 
 
@@ -99,7 +100,7 @@ def _alias(value):
 
 def _allocation(entry, issuer_ratio, roles):
     terms = entry["allocation"]
-    _require(type(terms) is dict and terms.get("rule") in _RULES,
+    _require(type(terms) is dict and type(terms.get("rule")) is str and terms["rule"] in _RULES,
              "reviewed ordinary-holder allocation rule required")
     rule = terms["rule"]
     if rule == "ordinary_pro_rata_transfer":
@@ -152,7 +153,8 @@ def produce_ordinary_shareholder_action_facts(supplier_facts, *, supplier_ref, r
     raises QueryError and has no side effects. Engine remains responsible for
     account eligibility, rounding and its declared listing-date simulation.
     """
-    _require(type(supplier_facts) is dict and _ref(supplier_facts) == supplier_ref,
+    _require(type(supplier_facts) is dict and set(supplier_facts) == _FACT_FIELDS and
+             _ref(supplier_facts) == supplier_ref,
              "supplier facts content reference differs")
     _require(supplier_facts.get("contract_version") == "stock_action_facts_v1" and
              supplier_facts.get("producer") == "axiom-data" and
@@ -173,7 +175,8 @@ def produce_ordinary_shareholder_action_facts(supplier_facts, *, supplier_ref, r
     _require(type(sessions) is list and bool(sessions) and sessions == sorted(set(sessions)) and
              all(_day(s) for s in sessions) and type(next_open_session_by_date) is dict,
              "fixed supplier exchange calendar required")
-    _require(type(documents) is dict and set(documents) == set(review["documents"]),
+    _require(type(review["documents"]) is dict and bool(review["documents"]) and
+             type(documents) is dict and set(documents) == set(review["documents"]),
              "exact original document closure required")
     _require(sum(len(x) for x in documents.values() if type(x) is bytes) <= 16 * 1024 * 1024,
              "review document closure exceeds small producer budget")
@@ -200,6 +203,9 @@ def produce_ordinary_shareholder_action_facts(supplier_facts, *, supplier_ref, r
              "supplier facts exceed small producer budget")
     index, all_aliases = {}, set()
     for position, action in enumerate(originals):
+        _require(type(action) is dict and set(action) == _ACTION_FIELDS and
+                 type(action["economic_event_id"]) is str and bool(action["economic_event_id"]) and
+                 type(action["revision_ref"]) is str, "complete supplier v1 action required")
         key = (action["economic_event_id"], action["revision_ref"])
         _require(key not in index and _REF.fullmatch(action["revision_ref"]), "duplicate/invalid supplier revision")
         index[key] = (position, action)
@@ -215,7 +221,7 @@ def produce_ordinary_shareholder_action_facts(supplier_facts, *, supplier_ref, r
         _require(type(entry) is dict and set(entry) == {"targets", "economic_event_id", "aliases",
                  "expected_phase_dates", "cash_evidence_strength", "dependencies", "eligibility",
                  "allocation", "delivery_basis"}, "exact reviewed entry fields required")
-        _require(entry["cash_evidence_strength"] in _STRENGTHS and
+        _require(type(entry["cash_evidence_strength"]) is str and entry["cash_evidence_strength"] in _STRENGTHS and
                  type(entry["eligibility"]) is str and bool(entry["eligibility"].strip()) and
                  type(entry["delivery_basis"]) is str and bool(entry["delivery_basis"].strip()),
                  "cash evidence, applicability and delivery basis required")
@@ -224,6 +230,7 @@ def produce_ordinary_shareholder_action_facts(supplier_facts, *, supplier_ref, r
         for target in entry["targets"]:
             _require(type(target) is dict and set(target) == {"economic_event_id", "revision_ref"},
                      "exact target identity/revision required")
+            _require(all(type(target[k]) is str for k in target), "target identities require strings")
             key = (target["economic_event_id"], target["revision_ref"])
             _require(key in index and key not in claimed, "missing or multiply reviewed supplier revision")
             position, action = index[key]
@@ -254,6 +261,7 @@ def produce_ordinary_shareholder_action_facts(supplier_facts, *, supplier_ref, r
         roles, dep_refs = set(), set()
         for dep in deps:
             _require(type(dep) is dict and set(dep) == {"document_ref", "role", "locator"} and
+                     type(dep["document_ref"]) is str and type(dep["role"]) is str and
                      dep["document_ref"] in document_clocks and dep["role"] in _ROLES and
                      type(dep["locator"]) is str and bool(dep["locator"].strip()) and
                      dep["document_ref"] not in dep_refs, "unique exact document dependency/locator required")
