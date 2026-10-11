@@ -696,12 +696,42 @@ def _dividend_identity(rows, originals, profile):
     return rows
 
 
+def _native_action_scope(value, identities, selected):
+    """Bind an explicit complete Native-key list to exact source identities."""
+    fields = ("security_id", "report_period", "announcement_date", "process_status")
+    codes = {identities[code]: code for code in selected}
+    if not isinstance(value, list) or not value:
+        raise DataError("canonical_event_keys needs a nonempty complete Native-key list")
+    result = set()
+    for item in value:
+        if not isinstance(item, Mapping) or set(item) != set(fields):
+            raise DataError("canonical_event_keys requires exactly the complete Native identity")
+        key = tuple(item[f] for f in fields)
+        if any(not isinstance(v, str) or not v for v in key) or key[0] not in codes:
+            raise DataError("canonical_event_keys requires a selected stable security identity")
+        try:
+            if any(date.fromisoformat(day).isoformat() != day for day in key[1:3]):
+                raise ValueError
+        except ValueError as exc:
+            raise DataError("canonical_event_keys requires canonical ISO dates") from exc
+        source = (codes[key[0]], key[1].replace("-", ""), key[2].replace("-", ""), key[3])
+        if source in result:
+            raise DataError("canonical_event_keys contains a duplicate complete identity")
+        result.add(source)
+    return frozenset(result)
+
+
 def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
     """Validate full saved supplier rows and select the frozen canonical scope.
 
     The original all-market response stays byte-for-byte in Raw. Only rows for
-    explicitly bound securities reach Canonical. Actual announcement dates
-    identify financial disclosure days; they are not public timestamps.
+    explicitly bound securities reach Canonical. Dividend v3 requests may
+    additionally freeze canonical_event_keys as dictionaries containing exactly
+    security_id/report_period/announcement_date/process_status, using ISO dates.
+    This static complete identity selection retains every candidate of a chosen
+    key, performs no receipt/cutoff/account filtering, and never rewrites Raw.
+    Omitting it retains the original scope. Actual announcement dates identify
+    financial disclosure days; they are not public timestamps.
     """
     from .sources import _rows
 
@@ -731,6 +761,11 @@ def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
     issue = _response_issue(endpoint, rows, params, batch.source_profile)
     if issue:
         raise DataError(issue)
+    if "canonical_event_keys" in request:
+        if endpoint != "dividend" or not batch.source_profile.get("economic_identity"):
+            raise DataError("complete Native-key selection requires explicit dividend v3 rules")
+        scope = _native_action_scope(request["canonical_event_keys"], identities, selected)
+        rows = [row for row in rows if tuple(row[f] for f in _DIVIDEND_KEY) in scope]
     if endpoint in _FINANCIAL:
         unique = _financial_unique(endpoint, rows)
         for row in unique:
