@@ -182,6 +182,22 @@ class EconomicPhaseTests(unittest.TestCase):
                 self.assertEqual(batch.field_meta[field]["by_key"][0]["status"], "not_provided")
                 self.assertEqual(batch.context["unavailable_event_scope"][0]["candidate_dates"], [None])
 
+    def test_later_alias_in_one_response_does_not_poison_early_cutoff(self):
+        rows = [action(), action(ann_date="20190507", imp_ann_date="20190507", cash_div_tax=None)]
+        with tempfile.TemporaryDirectory() as root:
+            _, snapshot, _ = publish(LocalStore(root), rows, policy=rules(rows))
+            data = Data(root)
+            late = query(root, snapshot, cutoff="2019-05-08T09:30:00+08:00", policy="best_effort_vendor_v1", data=data)
+            self.assertTrue(late.frame["economic_event_id"].isna().all())
+            early = query(root, snapshot, cutoff="2019-05-06T09:30:00+08:00", policy="best_effort_vendor_v1", data=data)
+            self.assertEqual(len(early.frame), 1)
+            self.assertTrue(early.frame.iloc[0]["economic_event_id"].startswith("ca:round:"))
+            self.assertEqual(float(early.frame.iloc[0]["cash_dividend_before_tax_per_share"]), 0.5)
+            self.assertIsNone(early.frame.iloc[0]["source_issue"])
+            native = query(root, snapshot, time_field="report_period", day="2018-12-31")
+            self.assertTrue(native.frame["economic_event_id"].isna().all())
+            self.assertEqual(set(native.frame["source_issue"]), {"ambiguous_economic_alias_terms_or_dates"})
+
     def test_old_v2_bytes_and_new_observation_clock_remain_distinct(self):
         row = action(stk_div=0, stk_bo_rate=None, stk_co_rate=None, div_listdate=None)
         old_row = {k: v for k, v in row.items() if k not in {"stk_div", "pay_date", "div_listdate"}}

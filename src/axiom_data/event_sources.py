@@ -635,6 +635,11 @@ def _dividend_unique(rows: list[dict[str, Any]], *, source_fields=None) -> list[
     return result
 
 
+def _action_identity_id(material):
+    prefix = "ca:native:" if material[2] == "native" else "ca:round:"
+    return prefix + sha256(json.dumps(material, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+
+
 def _dividend_identity(rows, originals, profile):
     """Assign IDs from opaque vendor keys or frozen rounds, retaining conflicts."""
     rules = profile["economic_identity"]
@@ -667,8 +672,7 @@ def _dividend_identity(rows, originals, profile):
             row["__status____economic_event_id"] = "source_missing"
             row["__source_issue"] = row.get("__source_issue") or "economic_round_not_declared_or_native_key_ambiguous"
             continue
-        prefix = "ca:native:" if material[2] == "native" else "ca:round:"
-        row["__economic_event_id"] = prefix + sha256(json.dumps(material, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+        row["__economic_event_id"] = _action_identity_id(material)
         row["__status____economic_event_id"] = "value"
         groups.setdefault(row["__economic_event_id"], []).append(row)
     terms = tuple(f for f in _DIVIDEND_V3_FIELDS if f not in {"ts_code", "ann_date"})

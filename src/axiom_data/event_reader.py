@@ -218,10 +218,26 @@ def _action_candidates(store,row,*,_budget=None):
     return candidates
 
 
-def _phase_projection(selected, *, query, keys, declared, start, end, store, action_candidates, budget):
+def _phase_projection(selected, *, query, keys, declared, profile, start, end, store, action_candidates, budget):
     """Fold only visible, strictly matching aliases; unknown phases remain markers."""
+    from .event_sources import _action_identity_id
+    bindings = {(profile["identity_map"][item["ts_code"]],
+                 datetime.strptime(item["end_date"], "%Y%m%d").date().isoformat(),
+                 datetime.strptime(item["ann_date"], "%Y%m%d").date().isoformat(), item["div_proc"]): item["round"]
+                for item in profile["economic_identity"]["rounds"]}
     groups = {}
     for row, clock in selected:
+        native_key = tuple(str(row[k]) for k in keys)
+        if row.get("source_issue") == "ambiguous_economic_alias_terms_or_dates" and native_key in bindings:
+            # Source summaries retain all returned aliases, including later
+            # notices. Recheck their frozen round after cutoff selection;
+            # a not-yet-visible alias cannot invalidate this phase projection.
+            row = dict(row)
+            row["economic_event_id"] = _action_identity_id([
+                "tushare.dividend", row["security_id"], str(row["report_period"]).replace("-", ""),
+                "round", bindings[native_key]])
+            row["economic_event_id__status"] = "value"
+            row["source_issue"] = None
         identity = row.get("economic_event_id")
         status = _cell_status(row, "economic_event_id", declared["economic_event_id"], declared)
         key = ("economic", identity) if status == "value" else ("native", *(row[k] for k in keys))
@@ -443,7 +459,7 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
     phase_aliases = {}
     if phase:
         selected, unavailable_actions, phase_aliases = _phase_projection(
-            selected, query=query, keys=keys, declared=declared, start=start, end=end,
+            selected, query=query, keys=keys, declared=declared, profile=profile, start=start, end=end,
             store=store, action_candidates=action_candidates, budget=budget)
     positions = {symbol: i for i, symbol in enumerate(query.symbols)}
     selected.sort(key=lambda item: (positions[item[0]["security_id"]],
