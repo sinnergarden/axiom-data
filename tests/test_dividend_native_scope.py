@@ -118,3 +118,18 @@ class NativeActionScopeTests(unittest.TestCase):
             prepare_event_rows(source([action(), action(ts_code="000002.SZ")]))
         with self.assertRaisesRegex(DataError, "row safeguard"):
             prepare_event_rows(source([action()] * 2000))
+
+    def test_only_selected_facts_require_their_actual_later_notice_calendar(self):
+        batch = source([action(), action(ann_date="20190507", imp_ann_date="20190507")])
+        batch.source_profile["availability"]["next_open_session_by_date"] = {"2019-05-05": "2019-05-06"}
+        with tempfile.TemporaryDirectory() as root:
+            data = Data(root)
+            result = ingest(data, batch)
+            event = query(root, result.snapshot_id, cutoff="2019-05-06T09:30:00+08:00",
+                          policy="best_effort_vendor_v1").to_json()
+            self.assertEqual(len(event["records"]), 1)
+            self.assertEqual(event["field_meta"]["payment_date"]["by_key"][0]["usable_from"],
+                             "2019-05-06T09:30:00+08:00")
+        batch.source_profile["availability"]["next_open_session_by_date"] = {"2019-05-01": "2019-05-02"}
+        with self.assertRaisesRegex(DataError, "calendar"):
+            prepare_event_rows(batch)

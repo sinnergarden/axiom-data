@@ -535,7 +535,7 @@ def _financial_unique(endpoint: str, rows: list[dict[str, Any]]) -> list[dict[st
 
 
 def _response_issue(endpoint: str, rows: list[dict[str, Any]] | None,
-                    params: Mapping[str, str], profile: Mapping[str, Any]) -> str | None:
+                    params: Mapping[str, str], profile: Mapping[str, Any], *, canonical_event_scope=None) -> str | None:
     if rows is None:
         return "malformed supplier table"
     if _CAPS[endpoint] is not None and len(rows) >= _CAPS[endpoint]:
@@ -572,12 +572,19 @@ def _response_issue(endpoint: str, rows: list[dict[str, Any]] | None,
         if endpoint == "dividend" and any(row.get(field) != value for field, value in params.items()
                                             if field in {"ann_date", "record_date", "ex_date", "imp_ann_date"}):
             return "dividend response lies outside selected date"
+        if canonical_event_scope is not None and tuple(row[f] for f in _DIVIDEND_KEY) not in canonical_event_scope:
+            # Shape, request scope and cap checks still cover the full response.
+            # Only declared Canonical facts need typed availability/calendar.
+            continue
         if endpoint in _FINANCIAL | {"dividend", "top10_holders"}:
             date_field = profile["availability"]["date_field"]
             source_field = ("f_ann_date" if endpoint in _STATEMENTS else "ann_date")
             source_day = row.get(source_field)
             try:
                 iso = datetime.strptime(source_day, "%Y%m%d").date().isoformat()
+                if canonical_event_scope is not None and row.get("imp_ann_date") not in (None, ""):
+                    # Match the phase Reader's later-notice lower bound.
+                    iso = max(iso, datetime.strptime(row["imp_ann_date"], "%Y%m%d").date().isoformat())
             except (TypeError, ValueError):
                 return "event lacks a valid announcement date"
             if iso not in profile["availability"]["next_open_session_by_date"]:
@@ -758,13 +765,15 @@ def prepare_event_rows(batch: Any) -> list[dict[str, Any]]:
     if params.get("ts_code") and any(row["ts_code"] != params["ts_code"] for row in decoded):
         raise DataError("event Raw contains another requested security")
     rows = [dict(row) for row in decoded if row["ts_code"] in chosen]
-    issue = _response_issue(endpoint, rows, params, batch.source_profile)
-    if issue:
-        raise DataError(issue)
+    scope = None
     if "canonical_event_keys" in request:
         if endpoint != "dividend" or not batch.source_profile.get("economic_identity"):
             raise DataError("complete Native-key selection requires explicit dividend v3 rules")
         scope = _native_action_scope(request["canonical_event_keys"], identities, selected)
+    issue = _response_issue(endpoint, rows, params, batch.source_profile, canonical_event_scope=scope)
+    if issue:
+        raise DataError(issue)
+    if scope is not None:
         rows = [row for row in rows if tuple(row[f] for f in _DIVIDEND_KEY) in scope]
     if endpoint in _FINANCIAL:
         unique = _financial_unique(endpoint, rows)
