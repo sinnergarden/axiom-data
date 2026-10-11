@@ -587,6 +587,7 @@ class _SavedBatch:
         self._store, self._raw = store, raw
         override = override or {}
         self.domain = raw["domain"]
+        self.source_profile = override.get("source_profile", raw["source_profile"])
         self.request = raw["request"]
         if "canonical_symbols" in override:
             # This is a derived normalization selection, never a new fetch or
@@ -594,10 +595,19 @@ class _SavedBatch:
             self.request = {**self.request,
                             "canonical_symbols": list(override["canonical_symbols"])}
         if "canonical_event_keys" in override:
+            scope = override["canonical_event_keys"]
+            code = self.request.get("params", {}).get("ts_code")
+            identity = self.source_profile.get("identity_map", {}).get(code)
+            if identity is not None:
+                # The full override was validated before this derived request.
+                # Original ts_code validation still covers every payload row;
+                # other securities' keys cannot select facts from this Raw.
+                leaf = [item for item in scope if item["security_id"] == identity]
+                if leaf:
+                    scope = leaf
             self.request = {**self.request,
-                            "canonical_event_keys": override["canonical_event_keys"]}
+                            "canonical_event_keys": scope}
         self.contract = override.get("contract", raw["contract"])
-        self.source_profile = override.get("source_profile", raw["source_profile"])
         self.normalizer = override.get("normalizer", raw["normalizer"])
         self.observed_at = raw["observed_at"]
 
@@ -780,21 +790,21 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                         raise ConflictError("offline symbol expansion cannot remap a stable identity")
                     if any(code not in new_map for code in override["canonical_symbols"]):
                         raise DataError("offline selected symbols require explicit stable identities")
-                batch = _SavedBatch(store, raw, override)
                 if "canonical_event_keys" in override:
                     from .event_sources import _native_action_scope
-                    profile = batch.source_profile
+                    profile = override.get("source_profile", raw["source_profile"])
                     if (domain != "corporate_actions" or profile.get("endpoint") != "dividend"
                             or not profile.get("economic_identity")):
                         raise DataError("complete Native-key selection requires explicit dividend v3 rules")
-                    symbols = batch.request.get("canonical_symbols")
+                    symbols = override.get("canonical_symbols", raw["request"].get("canonical_symbols"))
                     if symbols is None:
-                        code = batch.request.get("params", {}).get("ts_code")
+                        code = raw["request"].get("params", {}).get("ts_code")
                         symbols = [code] if code else []
-                    _native_action_scope(batch.request["canonical_event_keys"], profile["identity_map"], symbols)
+                    _native_action_scope(override["canonical_event_keys"], profile["identity_map"], symbols)
                     old_map = raw["source_profile"].get("identity_map", {})
                     if any(profile["identity_map"].get(code) != identity for code, identity in old_map.items()):
                         raise ConflictError("offline Native selection cannot remap a stable identity")
+                batch = _SavedBatch(store, raw, override)
                 grouped[domain].append((batch, raw))
             if any(not entries for entries in grouped.values()):
                 raise DataError("each selected domain requires at least one selected Raw batch")

@@ -65,6 +65,11 @@ class NativeActionScopeTests(unittest.TestCase):
                                 operation_id="full-symbol-and-native-scope", build_context={"synthetic": True},
                                 promote=False, domain_overrides={"corporate_actions": {
                                     "canonical_symbols": list(identities), "canonical_event_keys": scopes}})
+            coverage = data.store.load_snapshot(full.snapshot_id)["domains"]["corporate_actions"]["coverage"]
+            for observation in coverage["observed_requests"]:
+                request = observation["request"]
+                self.assertEqual(request["canonical_event_keys"],
+                                 [{**KEY, "security_id": identities[request["params"]["ts_code"]]}])
             replay = data.rebuild(base_snapshot=full.snapshot_id, raw_batch_ids=ids, domains=["corporate_actions"],
                                   operation_id="inherited-full-scope", build_context={"synthetic": True}, promote=False)
             context = data.store.load_snapshot(replay.snapshot_id)["domains"]["corporate_actions"]["build_context"]
@@ -105,7 +110,8 @@ class NativeActionScopeTests(unittest.TestCase):
                     {"canonical_symbols": list(IDS), "canonical_event_keys": [KEY],
                      "source_profile": {**batch.source_profile, "identity_map": {"000002.SZ": "sec-other"}}},
                     {"canonical_symbols": list(IDS), "canonical_event_keys": [KEY],
-                     "source_profile": {**batch.source_profile, "economic_identity": None}})):
+                     "source_profile": {**batch.source_profile, "economic_identity": None}},
+                    {"canonical_symbols": list(IDS), "canonical_event_keys": [KEY, {**KEY, "security_id": "unbound"}]})):
                 with self.subTest(override=override), self.assertRaises(DataError):
                     data.rebuild(base_snapshot=seed.snapshot_id, raw_batch_ids=[raw_id], domains=["corporate_actions"],
                                  operation_id=f"reject-unbound-batch-{ordinal}", build_context={"synthetic": True},
