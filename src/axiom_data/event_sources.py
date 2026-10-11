@@ -506,9 +506,11 @@ def _financial_unique(endpoint: str, rows: list[dict[str, Any]], *,
     and leave all original rows in Raw. Complementary partial rows are never
     combined into a complete invented report. No dates or flags order rows.
     Explicit fields/numeric_fields let a versioned input adapter compare its
-    full field union; omitted arguments preserve the original core contract.
+    full field union while retaining whether a column was ever captured;
+    omitted arguments preserve the original core contract.
     """
     by_key: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
+    explicit_fields = fields is not None
     fields = request_fields(endpoint) if fields is None else tuple(fields)
     for row in rows:
         actual = row["f_ann_date"] if endpoint in _STATEMENTS else row["ann_date"]
@@ -518,18 +520,21 @@ def _financial_unique(endpoint: str, rows: list[dict[str, Any]], *,
     if numeric_fields is None:
         numeric_fields = _FIELDS[endpoint][5:] if endpoint in _STATEMENTS else _FIELDS[endpoint][3:]
     for group in by_key.values():
+        # An expanded legacy rebuild must not turn uncaptured columns into
+        # supplier nulls just because another captured cell conflicts.
+        group_fields = tuple(f for f in fields if any(f in item for item in group)) if explicit_fields else fields
         # The richest row is the only possible dominating candidate, up to
         # equal duplicates. Checking the complete group avoids input-order bugs.
-        candidate = max(group, key=lambda item: sum(item.get(f) is not None for f in fields))
+        candidate = max(group, key=lambda item: sum(item.get(f) is not None for f in group_fields))
         if all(item.get(f) is None or item.get(f) == candidate.get(f)
-               for item in group for f in fields):
+               for item in group for f in group_fields):
             resolved.append(dict(candidate))
             continue
         row = {f: group[0].get(f) if all(item.get(f) == group[0].get(f) for item in group) else None
-               for f in fields}
-        ambiguous = {f for f in fields if any(item.get(f) != group[0].get(f) for item in group)}
+               for f in group_fields}
+        ambiguous = {f for f in group_fields if any(item.get(f) != group[0].get(f) for item in group)}
         if endpoint in _STATEMENTS and ambiguous & {"comp_type", "end_type"}:
-            ambiguous.update(numeric_fields)
+            ambiguous.update(f for f in numeric_fields if not explicit_fields or f in row)
         for field in ambiguous:
             row[field] = None
             row[f"__status__{field}"] = "source_missing"

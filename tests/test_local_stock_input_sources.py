@@ -10,8 +10,9 @@ from unittest.mock import patch
 from axiom_data import Data, EventQuery, QuerySpec
 from axiom_data.event_sources import collect_event_response, _FIELDS
 from axiom_data.live_client import SourceResponseError
-from axiom_data.protocols import ConflictError, CoverageError, QueryError
-from axiom_data.stock_input_sources import collect_stock_input_response, stock_input_source_spec
+from axiom_data.protocols import ConflictError, CoverageError, IngestBatch, QueryError
+from axiom_data.stock_input_sources import (collect_stock_input_response,
+    prepare_stock_input_rows, stock_input_source_spec)
 from axiom_data.storage import LocalStore
 from axiom_data.updates import apply_saved_raw
 
@@ -152,6 +153,24 @@ class StockInputTests(unittest.TestCase):
             self.assertEqual(early_result["total_revenue"],100)
             self.assertEqual(store.read_raw_record(old), json.dumps([legacy],separators=(",", ":")).encode())
             self.assertEqual(store.get_raw(old["batch_id"])["observed_at"], old["observed_at"])
+
+    def test_legacy_financial_conflict_keeps_uncaptured_fields_not_provided(self):
+        first = income()
+        legacy = {f: first[f] for f in _FIELDS["income"]}
+        payload = json.dumps([legacy, {**legacy, "total_revenue": 200}]).encode()
+        spec = stock_input_source_spec("income", identity_map=IDS, next_open_session_by_date=CAL)
+        batch = IngestBatch(spec["domain"], payload,
+            {"endpoint": "income", "params": {"ts_code": "000001.SZ", "period": "20240331", "report_type": "1"},
+             "fields": list(_FIELDS["income"]), "canonical_symbols": ["000001.SZ"]},
+            spec["contract"], spec["source_profile"], OBS, spec["normalizer"])
+        result = prepare_stock_input_rows(batch)
+        self.assertEqual(len(result), 1)
+        self.assertIsNone(result[0]["total_revenue"])
+        self.assertEqual(result[0]["__status__total_revenue"], "source_missing")
+        for native in ("revenue", "n_income", "oper_cost"):
+            self.assertNotIn(native, result[0])
+            self.assertEqual(result[0]["__status__" + native], "not_provided")
+        self.assertEqual(batch.payload, payload)
 
     def test_margin_next_morning_and_unresolved_quantity_not_same_day(self):
         row = complete("margin_detail", ts_code="000001.SZ",trade_date="20240503", rzye=10,rzmre=2,rzche=1,
