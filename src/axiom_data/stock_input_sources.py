@@ -24,6 +24,8 @@ from .storage import LocalStore
 
 NORMALIZER = "tushare_stock_inputs_v1"
 FIELD_SET = "stock_feature_inputs_v1"
+_HOLDER_DATE_TEXT = {"policy": "strip_outer_ascii_whitespace_v1",
+                     "fields": ["ann_date", "end_date"]}
 _EXTRA = {"income": {"revenue": ("revenue", "CNY"), "net_income": ("n_income", "CNY"),
                      "oper_cost": ("oper_cost", "CNY")},
           "balancesheet": {"inventory": ("inventories", "CNY"),
@@ -98,6 +100,8 @@ def stock_input_source_spec(endpoint: str, *, identity_map: Mapping[str, str],
     best-effort reader intentionally rejects its unsupported same-day clock.
     lending_sell_unit_by_security may explicitly bind stable IDs to 'shares';
     otherwise only native rqmcl quantity is exposed, with shares not_provided.
+    Holder profiles declare outer ASCII whitespace normalization for native
+    ann_date/end_date copies; original Raw bytes and null semantics are retained.
     """
     if endpoint not in _CAPS:
         raise DataError("unsupported stock input endpoint")
@@ -180,6 +184,7 @@ def stock_input_source_spec(endpoint: str, *, identity_map: Mapping[str, str],
                 declared["holder_num"] = _field("int64", unit="holders")
                 fm["holder_num"] = "holder_num"
                 profile["source_units"]["holder_num"] = "holders"
+                profile["native_date_text_normalization"] = deepcopy(_HOLDER_DATE_TEXT)
             # Existing financial availability/revision policy, current ann_date.
             clock_profile = event_source_profile("fina_indicator", identity_map=identities,
                                                   next_open_session_by_date=next_open_session_by_date)
@@ -252,6 +257,8 @@ def prepare_stock_input_rows(batch: IngestBatch) -> list[dict[str, Any]]:
     Expanded financial fields absent from legacy Raw remain not_provided.
     Same-disclosure conflicts compare the complete expanded field set; no
     cross-row or cross-receipt complementary merge creates a new report.
+    Holder date whitespace is normalized only under its declared profile rule.
+    A legacy profile without that rule retains strict native date parsing.
     """
     endpoint = batch.request.get("endpoint")
     if endpoint not in _CAPS or batch.source_profile.get("input_field_set") != FIELD_SET:
@@ -267,6 +274,17 @@ def prepare_stock_input_rows(batch: IngestBatch) -> list[dict[str, Any]]:
     cap = batch.source_profile.get("response_limit")
     if cap is not None and len(rows) >= cap:
         raise CoverageError("stock input response reached row cap; split the selector")
+    date_text = batch.source_profile.get("native_date_text_normalization")
+    if date_text is not None:
+        if base != "stk_holdernumber" or date_text != _HOLDER_DATE_TEXT:
+            raise DataError("unsupported stock input native date text normalization")
+        # _rows decodes new objects from immutable payload bytes. Normalize both
+        # native date fields before existing scope checks and typed conversion.
+        for row in rows:
+            for field in _HOLDER_DATE_TEXT["fields"]:
+                value = row.get(field)
+                if isinstance(value, str):
+                    row[field] = value.strip(" \t\r\n\v\f")
     required = list(batch.request.get("fields") or ())
     if endpoint in _FINANCIAL and batch.request.get("input_field_set") != FIELD_SET:
         # Legacy event adapters permitted absent optional statement context.
