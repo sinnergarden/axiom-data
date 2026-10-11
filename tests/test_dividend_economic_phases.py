@@ -5,8 +5,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from axiom_data import Data, EventQuery
-from axiom_data.event_sources import collect_event_response, event_source_profile
+from axiom_data import Data, EventQuery, open_native_view
+from axiom_data.event_sources import DIVIDEND_ECONOMIC_CONTRACT, collect_event_response, event_source_profile
 from axiom_data.protocols import DataError, QueryError
 from axiom_data.storage import LocalStore
 from axiom_data.updates import apply_saved_raw
@@ -211,3 +211,46 @@ class EconomicPhaseTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(DataError):
                 event_source_profile("dividend", identity_map=IDS, next_open_session_by_date=CALENDAR,
                                      corporate_action_rules=rules([action()], native=field))
+
+    def test_native_export_preserves_exact_phase_wire_and_alias_metadata(self):
+        rows = [action(), action(ann_date="20190503")]
+        with tempfile.TemporaryDirectory() as root:
+            _, snapshot, _ = publish(LocalStore(root), rows, policy=rules(rows))
+            data = Data(root)
+            q = EventQuery("corporate_actions", FIELDS, ("sec-synthetic",), "2019-06-05", "2019-06-05",
+                           LATER.isoformat(), "operational_pit_v1", "payment_date", {"process_status": "实施"})
+            expected = data.events(snapshot=snapshot, query=q).to_json()
+            limits = {"max_part_bytes": 1024 * 1024, "max_working_bytes": 64 * 1024 * 1024,
+                      "max_saved_bytes": 8 * 1024 * 1024, "max_rows_per_block": 1}
+            destination = Path(root) / "native-phase"
+            exported = data.export_native_view(snapshot=snapshot, reads=[{"method": "events", "query": q}],
+                                               destination=destination, limits=limits)
+            from axiom_data.native_view import _replay
+            from axiom_data.storage import _json_bytes
+            with open_native_view(destination, manifest_sha256=exported["content_digest"], limits=limits) as view:
+                batch = view.manifest["batches"][0]
+                self.assertEqual(batch["row_count"], 1)
+                self.assertEqual(b"".join(_replay(view.root, batch, {}, view._marks)), _json_bytes(expected))
+
+    def test_explicit_domain_upgrade_copies_unselected_domain_and_old_bytes(self):
+        rows = [action()]
+        with tempfile.TemporaryDirectory() as root:
+            store = LocalStore(root)
+            _, before, _ = publish(store, rows, op="old-domain")
+            from test_local_updates import batch, row, update
+            with_other = update(store, before, "unrelated-domain", batch([row()], domain="independent_daily")).snapshot_id
+            original = store.load_snapshot(with_other)
+            original_bytes = (Path(root) / "snapshots" / f"{with_other}.json").read_bytes()
+            new = collect_event_response(store, client=Client(rows), endpoint="dividend", params={"ts_code": "000001.SZ"},
+                                         identity_map=IDS, operation_id="supplement-only.fetch", observed_at=LATER,
+                                         next_open_session_by_date=CALENDAR, corporate_action_rules=rules(rows))
+            receipt = Data(root).rebuild(base_snapshot=with_other, raw_batch_ids=[new["batch_id"]],
+                                        domains=("corporate_actions",), operation_id="only-actions", build_context={"synthetic": True},
+                                        promote=False, domain_overrides={"corporate_actions": {
+                                            "contract": DIVIDEND_ECONOMIC_CONTRACT,
+                                            "source_profile": new["source_profile"], "normalizer": "event_records_v1"}})
+            upgraded = store.load_snapshot(receipt.snapshot_id)
+            self.assertEqual(upgraded["domains"]["independent_daily"], original["domains"]["independent_daily"])
+            self.assertEqual((Path(root) / "snapshots" / f"{with_other}.json").read_bytes(), original_bytes)
+            self.assertEqual(upgraded["domains"]["corporate_actions"]["contract"]["contract_id"], "local.corporate_actions.tushare.v3")
+            self.assertEqual(query(root, receipt.snapshot_id).field_meta["payment_date"]["by_key"][0]["first_observed_at"], LATER.isoformat())

@@ -76,6 +76,8 @@ def request_fields(endpoint: str, *, corporate_action_rules=None) -> tuple[str, 
 
     update_flag has no documented public revision order and never selects a
     winner. comp_type/end_type describe statement context, not chronology.
+    Explicit corporate_action_rules adds native total/payment/listing fields;
+    it does not request an undocumented vendor action-ID column.
     """
     if corporate_action_rules is not None:
         if endpoint != "dividend":
@@ -253,7 +255,14 @@ def _action_rules(value, identities):
 def event_source_profile(endpoint: str, *, identity_map: Mapping[str, str],
                          next_open_session_by_date: Mapping[str, str] | None = None,
                          corporate_action_rules: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    """Freeze source mappings and a caller-supplied next-open assumption map."""
+    """Freeze mappings, availability assumptions and optional dividend v3 rules.
+
+    corporate_action_rules declares a versioned native-key-to-round map and
+    strict alias rule. No rounds are inferred from report periods, amounts or
+    mutable dates. An opaque native key already present in Raw takes priority.
+    Caller mappings are copied; this helper performs no I/O or source calls.
+    Omitting the rules retains the existing dividend v2 contract and profile.
+    """
     if endpoint not in _ENDPOINTS:
         raise DataError("unsupported event source endpoint")
     if (not isinstance(identity_map, Mapping) or not identity_map or
