@@ -9,7 +9,7 @@ from axiom_data import Data, EventQuery, open_native_view
 from axiom_data.event_sources import DIVIDEND_ECONOMIC_CONTRACT, collect_event_response, event_source_profile
 from axiom_data.protocols import DataError, QueryError
 from axiom_data.storage import LocalStore
-from axiom_data.updates import apply_saved_raw
+from axiom_data.updates import apply_saved_raw, apply_update
 
 
 IDS = {"000001.SZ": "sec-synthetic"}
@@ -215,8 +215,9 @@ class EconomicPhaseTests(unittest.TestCase):
     def test_native_export_preserves_exact_phase_wire_and_alias_metadata(self):
         rows = [action(), action(ann_date="20190503")]
         with tempfile.TemporaryDirectory() as root:
-            _, snapshot, _ = publish(LocalStore(root), rows, policy=rules(rows))
-            data = Data(root)
+            facts = Path(root) / "facts"
+            _, snapshot, _ = publish(LocalStore(facts), rows, policy=rules(rows))
+            data = Data(facts)
             q = EventQuery("corporate_actions", FIELDS, ("sec-synthetic",), "2019-06-05", "2019-06-05",
                            LATER.isoformat(), "operational_pit_v1", "payment_date", {"process_status": "实施"})
             expected = data.events(snapshot=snapshot, query=q).to_json()
@@ -237,8 +238,10 @@ class EconomicPhaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             store = LocalStore(root)
             _, before, _ = publish(store, rows, op="old-domain")
-            from test_local_updates import batch, row, update
-            with_other = update(store, before, "unrelated-domain", batch([row()], domain="independent_daily")).snapshot_id
+            from test_local_updates import batch, row
+            with_other = apply_update(store, base_snapshot=before,
+                                      batches=[batch([row()], domain="independent_daily")],
+                                      operation_id="unrelated-domain", build_context={"synthetic": True}, promote=False).snapshot_id
             original = store.load_snapshot(with_other)
             original_bytes = (Path(root) / "snapshots" / f"{with_other}.json").read_bytes()
             new = collect_event_response(store, client=Client(rows), endpoint="dividend", params={"ts_code": "000001.SZ"},
