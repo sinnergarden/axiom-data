@@ -785,7 +785,10 @@ def export_native_view(data,*,snapshot,reads,destination,limits,source_symbol_bl
                         scope.extend(encounters);fallback+=count
                         del encounters
                 reader.store.track_positions=False;reader.store.last_positions=()
-                context['limitations']=_event_limitations(q,domain.get('source_profile') or {},fallback,len(scope))
+                identity_unavailable=sum(s.get('source_issue')!='phase_date_not_provided' for _,s in scope)
+                context['limitations']=_event_limitations(q,domain.get('source_profile') or {},fallback,
+                    identity_unavailable,phase_date_missing=('event_phase' in context and
+                    any(s.get('source_issue')=='phase_date_not_provided' for _,s in scope)))
                 context.pop('unavailable_event_scope',None)
                 if scope: context['unavailable_event_scope']=[s for _,s in sorted(scope,key=lambda item:item[0])]
                 batch=sink.finish(context,headers)

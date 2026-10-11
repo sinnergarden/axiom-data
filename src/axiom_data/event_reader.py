@@ -534,9 +534,9 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
             })
         records.append(record)
     identity_unavailable = sum(scope.get("source_issue") != "phase_date_not_provided" for scope in unavailable_actions)
-    limitations = _event_limitations(query, profile, fallback_count, identity_unavailable)
-    if phase and any(scope.get("source_issue") == "phase_date_not_provided" for scope in unavailable_actions):
-        limitations.append("requested phase dates not provided by the source remain missing-date markers; EX dates are not substituted")
+    limitations = _event_limitations(query, profile, fallback_count, identity_unavailable,
+        phase_date_missing=phase and any(scope.get("source_issue") == "phase_date_not_provided"
+                                        for scope in unavailable_actions))
     context = {
         "contract_version": "data_batch_v1", "snapshot_id": snapshot_id,
         "domain": query.domain, "contract_id": contract.get("contract_id"),
@@ -576,7 +576,7 @@ def read_events(store: Any, snapshot_id: str, query: EventQuery, *,
     return DataBatch(frame, field_meta, context)
 
 
-def _event_limitations(query, profile, fallback_count, unavailable_count):
+def _event_limitations(query, profile, fallback_count, unavailable_count, *, phase_date_missing=False):
     limitations = []
     if unavailable_count:
         limitations.append(f'{unavailable_count} whole corporate actions are unavailable: '
@@ -593,4 +593,6 @@ def _event_limitations(query, profile, fallback_count, unavailable_count):
         limitations.append("terminal states ordered by system observation under declared source policy; vendor revision/publication order is unknown")
     elif profile.get("revision_order") == "announcement_day_then_terminal_v1":
         limitations.append("report versions use declared supplier announcement days; same-day corrections use actual observation order, not a verified publication sequence")
+    if phase_date_missing:
+        limitations.append("requested phase dates not provided by the source remain missing-date markers; EX dates are not substituted")
     return limitations

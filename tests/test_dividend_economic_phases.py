@@ -292,6 +292,26 @@ class EconomicPhaseTests(unittest.TestCase):
                 self.assertEqual(batch["row_count"], 1)
                 self.assertEqual(b"".join(_replay(view.root, batch, {}, view._marks)), _json_bytes(expected))
 
+    def test_native_export_preserves_missing_listing_marker_with_explicit_zero_total(self):
+        rows = [action(stk_div=0, stk_bo_rate=None, stk_co_rate=None, div_listdate=None)]
+        with tempfile.TemporaryDirectory() as root:
+            facts = Path(root) / "facts"
+            _, snapshot, _ = publish(LocalStore(facts), rows, policy=rules(rows))
+            data = Data(facts)
+            q = EventQuery("corporate_actions", FIELDS, ("sec-synthetic",), "2019-06-05", "2019-06-05",
+                           LATER.isoformat(), "operational_pit_v1", "stock_listing_date", {"process_status": "实施"})
+            expected = data.events(snapshot=snapshot, query=q).to_json()
+            self.assertEqual(expected["context"]["unavailable_event_scope"][0]["source_issue"], "phase_date_not_provided")
+            limits = {"max_part_bytes": 1024 * 1024, "max_working_bytes": 64 * 1024 * 1024,
+                      "max_saved_bytes": 8 * 1024 * 1024, "max_rows_per_block": 1}
+            destination = Path(root) / "native-phase"
+            exported = data.export_native_view(snapshot=snapshot, reads=[{"method": "events", "query": q}],
+                                               destination=destination, limits=limits)
+            from axiom_data.native_view import _replay
+            from axiom_data.storage import _json_bytes
+            with open_native_view(destination, manifest_sha256=exported["content_digest"], limits=limits) as view:
+                self.assertEqual(b"".join(_replay(view.root, view.manifest["batches"][0], {}, view._marks)), _json_bytes(expected))
+
     def test_explicit_domain_upgrade_copies_unselected_domain_and_old_bytes(self):
         rows = [action()]
         with tempfile.TemporaryDirectory() as root:
