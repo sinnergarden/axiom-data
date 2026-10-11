@@ -348,6 +348,7 @@ def collect_stock_input_response(store: LocalStore, *, client: Any, endpoint: st
     Receipt is sampled after the response. Failures retain safe error codes and
     never become empty/zero data. No quota change, pagination or extra call is
     inferred; the caller probes then splits capped selectors under its budget.
+    observed_at is a synthetic/replay override; live callers must omit it.
     """
     if not isinstance(store, LocalStore):
         raise DataError("stock inputs require LocalStore")

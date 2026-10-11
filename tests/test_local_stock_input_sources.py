@@ -125,8 +125,10 @@ class StockInputTests(unittest.TestCase):
             store = LocalStore(root)
             old = collect_event_response(store, client=Client([legacy]), endpoint="income", params=params, identity_map=IDS,
                 operation_id="legacy", observed_at=early, next_open_session_by_date=CAL)
-            old_sid = self.publish(store, old)
+            valuation = self.collect(store, "daily_basic", [complete("daily_basic", ts_code="000001.SZ", trade_date="20240503")], operation="unrelated")
+            old_sid = self.publish(store, old, valuation)
             old_manifest = deepcopy(store.load_snapshot(old_sid))
+            old_bytes = (Path(root)/"snapshots"/f"{old_sid}.json").read_bytes()
             new = collect_stock_input_response(store, client=Client([{**first, "total_revenue":None}]), endpoint="income_vip",
                 params={"period":"20240331","report_type":"1"}, identity_map=IDS, operation_id="expanded", observed_at=later,
                 next_open_session_by_date=CAL)
@@ -138,6 +140,8 @@ class StockInputTests(unittest.TestCase):
                 domains=["financial_events"], operation_id="explicit-v3", build_context={"synthetic":True}, promote=False,
                 domain_overrides={"financial_events":{k:spec[k] for k in ("contract","source_profile","normalizer")}}).snapshot_id
             self.assertEqual(store.load_snapshot(old_sid), old_manifest)
+            self.assertEqual((Path(root)/"snapshots"/f"{old_sid}.json").read_bytes(), old_bytes)
+            self.assertEqual(store.load_snapshot(rebuilt)["domains"]["valuation_daily"], old_manifest["domains"]["valuation_daily"])
             def read(cutoff):
                 return Data(root).events(snapshot=rebuilt, query=EventQuery("financial_events", ("revenue","total_revenue"), ("sec-a",),
                     "2024-03-31","2024-03-31",cutoff,"operational_pit_v1","report_period")).to_json()["records"][0]

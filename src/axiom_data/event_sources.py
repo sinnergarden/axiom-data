@@ -505,6 +505,8 @@ def _financial_unique(endpoint: str, rows: list[dict[str, Any]], *,
     Otherwise retain only consensus cells, mark differing cells unavailable,
     and leave all original rows in Raw. Complementary partial rows are never
     combined into a complete invented report. No dates or flags order rows.
+    Explicit fields/numeric_fields let a versioned input adapter compare its
+    full field union; omitted arguments preserve the original core contract.
     """
     by_key: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
     fields = request_fields(endpoint) if fields is None else tuple(fields)
