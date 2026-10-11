@@ -239,9 +239,10 @@ class EconomicPhaseTests(unittest.TestCase):
             store = LocalStore(root)
             _, before, _ = publish(store, rows, op="old-domain")
             from test_local_updates import batch, row
-            with_other = apply_update(store, base_snapshot=before,
-                                      batches=[batch([row()], domain="independent_daily")],
-                                      operation_id="unrelated-domain", build_context={"synthetic": True}, promote=False).snapshot_id
+            from axiom_data.protocols import UpdateRequest
+            with_other = apply_update(store, base_snapshot=before, request=UpdateRequest(
+                batches=(batch([row()], domain="independent_daily"),),
+                operation_id="unrelated-domain", build_context={"synthetic": True}, promote=False)).snapshot_id
             original = store.load_snapshot(with_other)
             original_bytes = (Path(root) / "snapshots" / f"{with_other}.json").read_bytes()
             new = collect_event_response(store, client=Client(rows), endpoint="dividend", params={"ts_code": "000001.SZ"},
