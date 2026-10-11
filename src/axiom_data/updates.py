@@ -763,10 +763,19 @@ def rebuild_from_raw(store: LocalStore, *, base_snapshot: str, raw_batch_ids: Se
                     raise DataError(f"Raw {batch_id} lacks domain/contract/normalizer metadata for rebuild")
                 override = effective[domain]
                 if "canonical_symbols" in override:
-                    if "canonical_symbols" not in raw["request"]:
-                        raise DataError("offline selection requires an original canonical_symbols request")
                     old_map = raw["source_profile"].get("identity_map", {})
-                    new_map = override.get("source_profile", raw["source_profile"]).get("identity_map", {})
+                    effective_profile = override.get("source_profile", raw["source_profile"])
+                    new_map = effective_profile.get("identity_map", {})
+                    if "canonical_symbols" not in raw["request"]:
+                        params = raw["request"].get("params", {})
+                        code = params.get("ts_code") if isinstance(params, Mapping) else None
+                        if not (domain == "corporate_actions" and raw["request"].get("endpoint") == "dividend"
+                                and effective_profile.get("endpoint") == "dividend"
+                                and effective_profile.get("economic_identity")
+                                and override.get("contract", contract).get("contract_id") == "local.corporate_actions.tushare.v3"
+                                and isinstance(code, str) and code and code in new_map
+                                and "canonical_event_keys" in override):
+                            raise DataError("offline selection requires an original canonical_symbols request or explicitly scoped single-security dividend v3")
                     if any(new_map.get(code) != identity for code, identity in old_map.items()):
                         raise ConflictError("offline symbol expansion cannot remap a stable identity")
                     if any(code not in new_map for code in override["canonical_symbols"]):

@@ -226,6 +226,10 @@ class Data:
         with canonical ISO dates. It retains every candidate of each chosen key
         and is saved as a derived scope for subsequent rebuilds; original Raw
         requests, payloads and actual receipts are never modified.
+        A single-security dividend v3 Raw request with an explicitly bound
+        original params.ts_code may omit canonical_symbols; a rebuild can
+        supply both full symbol and Native-key scopes as derived overrides.
+        An unbound or whole-market request cannot use this exception.
         Without explicit overrides, the base Snapshot's effective contract,
         source_profile and saved canonical selection are replayed. New operation
         IDs and the ordinary CLI therefore retain added fields and symbols.

@@ -37,6 +37,80 @@ def ingest(data, batch, *, op="scoped", base=None, observed=OBS):
 
 
 class NativeActionScopeTests(unittest.TestCase):
+    def test_two_original_single_security_requests_without_selection_rebuild_full_union(self):
+        identities = {**IDS, "000002.SZ": "sec-second-synthetic"}
+        rows = [action(), action(ts_code="000002.SZ", stk_div=0, stk_bo_rate=None,
+                                 stk_co_rate=None, div_listdate=None)]
+        profile = event_source_profile("dividend", identity_map=identities,
+                                       next_open_session_by_date=CALENDAR, corporate_action_rules=rules(rows))
+        scopes = [{**KEY, "security_id": identities[row["ts_code"]]} for row in rows]
+        requests = [{"endpoint": "dividend", "params": {"ts_code": row["ts_code"]},
+                     "fields": list(row)} for row in rows]
+        with tempfile.TemporaryDirectory() as root:
+            facts = Path(root) / "facts"
+            data = Data(facts)
+            payloads = [json.dumps([row], ensure_ascii=False).encode() for row in rows]
+            seed = data.update(base_snapshot=None, request=UpdateRequest(
+                batches=tuple(IngestBatch("corporate_actions", payload, request, DIVIDEND_ECONOMIC_CONTRACT,
+                                          profile, OBS, normalizer="event_records_v1")
+                              for payload, request in zip(payloads, requests)),
+                operation_id="original-single-security-requests", build_context={"synthetic": True}, promote=False))
+            ids = data.store.load_snapshot(seed.snapshot_id)["domains"]["corporate_actions"]["raw_batch_ids"]
+            saved = [deepcopy(data.store.get_raw(identity)) for identity in ids]
+            self.assertEqual([raw["request"] for raw in saved], requests)
+            self.assertTrue(all("canonical_symbols" not in raw["request"] for raw in saved))
+            log = (facts / "raw/fetches.jsonl").read_bytes()
+            old_snapshot = (facts / "snapshots" / f"{seed.snapshot_id}.json").read_bytes()
+            full = data.rebuild(base_snapshot=seed.snapshot_id, raw_batch_ids=ids, domains=["corporate_actions"],
+                                operation_id="full-symbol-and-native-scope", build_context={"synthetic": True},
+                                promote=False, domain_overrides={"corporate_actions": {
+                                    "canonical_symbols": list(identities), "canonical_event_keys": scopes}})
+            replay = data.rebuild(base_snapshot=full.snapshot_id, raw_batch_ids=ids, domains=["corporate_actions"],
+                                  operation_id="inherited-full-scope", build_context={"synthetic": True}, promote=False)
+            context = data.store.load_snapshot(replay.snapshot_id)["domains"]["corporate_actions"]["build_context"]
+            self.assertEqual(context["canonical_selection"]["corporate_actions"], list(identities))
+            self.assertEqual(context["canonical_event_selection"]["corporate_actions"], scopes)
+            self.assertEqual([data.store.get_raw(identity) for identity in ids], saved)
+            self.assertEqual([data.store.read_raw(identity) for identity in ids], payloads)
+            self.assertEqual((facts / "raw/fetches.jsonl").read_bytes(), log)
+            self.assertEqual((facts / "snapshots" / f"{seed.snapshot_id}.json").read_bytes(), old_snapshot)
+            reads, expected = [], []
+            for field in ("record_date", "ex_date", "payment_date", "stock_listing_date"):
+                q = EventQuery("corporate_actions", FIELDS, tuple(identities.values()), "2019-06-01", "2019-06-10",
+                               LATER.isoformat(), "operational_pit_v1", field, {"process_status": "实施"})
+                actual = data.events(snapshot=replay.snapshot_id, query=q).to_json()
+                self.assertEqual(len(actual["records"]), 2)
+                self.assertEqual({m["first_observed_at"] for m in actual["field_meta"]["payment_date"]["by_key"]},
+                                 {OBS.isoformat()})
+                reads.append({"method": "events", "query": q}); expected.append(actual)
+            limits = {"max_part_bytes": 1024 * 1024, "max_working_bytes": 64 * 1024 * 1024,
+                      "max_saved_bytes": 8 * 1024 * 1024, "max_rows_per_block": 1}
+            destination = Path(root) / "native"
+            exported = data.export_native_view(snapshot=replay.snapshot_id, reads=reads, destination=destination,
+                                               limits=limits, source_symbol_block=1)
+            from axiom_data.native_view import _replay
+            from axiom_data.storage import _json_bytes
+            with open_native_view(destination, manifest_sha256=exported["content_digest"], limits=limits) as view:
+                for native, wanted in zip(view.manifest["batches"], expected):
+                    self.assertEqual(b"".join(_replay(view.root, native, {}, view._marks)), _json_bytes(wanted))
+
+    def test_missing_original_selection_exception_requires_bound_single_security_v3_scope(self):
+        with tempfile.TemporaryDirectory() as root:
+            data = Data(root)
+            batch = source([action()]); batch.request.pop("canonical_symbols"); batch.request.pop("canonical_event_keys")
+            seed = ingest(data, batch)
+            raw_id = data.store.load_snapshot(seed.snapshot_id)["domains"]["corporate_actions"]["raw_batch_ids"][0]
+            for ordinal, override in enumerate((
+                    {"canonical_symbols": list(IDS)},
+                    {"canonical_symbols": list(IDS), "canonical_event_keys": [KEY],
+                     "source_profile": {**batch.source_profile, "identity_map": {"000002.SZ": "sec-other"}}},
+                    {"canonical_symbols": list(IDS), "canonical_event_keys": [KEY],
+                     "source_profile": {**batch.source_profile, "economic_identity": None}})):
+                with self.subTest(override=override), self.assertRaises(DataError):
+                    data.rebuild(base_snapshot=seed.snapshot_id, raw_batch_ids=[raw_id], domains=["corporate_actions"],
+                                 operation_id=f"reject-unbound-batch-{ordinal}", build_context={"synthetic": True},
+                                 promote=False, domain_overrides={"corporate_actions": override})
+
     def test_public_rebuild_preserves_raw_and_replays_complete_native_scope(self):
         rows = [action(), action(ann_date="20190503")]
         batch = source(rows)
