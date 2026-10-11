@@ -6,10 +6,10 @@ import json
 import tempfile
 import unittest
 
-from axiom_data import Data
+from axiom_data import Data, EventQuery
 from axiom_data.event_sources import DIVIDEND_ECONOMIC_CONTRACT, event_source_profile, prepare_event_rows
 from axiom_data.protocols import DataError, IngestBatch, UpdateRequest
-from test_dividend_economic_phases import action, rules, IDS, CALENDAR, OBS, LATER, query
+from test_dividend_economic_phases import action, rules, IDS, CALENDAR, OBS, LATER, FIELDS, query
 
 
 KEY = {"security_id": "sec-synthetic", "report_period": "2018-12-31",
@@ -18,7 +18,8 @@ KEY = {"security_id": "sec-synthetic", "report_period": "2018-12-31",
 
 def source(rows, *, scope=None, v3=True, identities=None, params=None):
     identities = identities or IDS
-    unique = {tuple(row[f] for f in ("ts_code", "end_date", "ann_date", "div_proc")): row for row in rows}
+    unique = {tuple(row[f] for f in ("ts_code", "end_date", "ann_date", "div_proc")): row
+              for row in rows if row["ts_code"] in identities}
     profile = event_source_profile("dividend", identity_map=identities,
                                    next_open_session_by_date=CALENDAR,
                                    corporate_action_rules=rules(list(unique.values())) if v3 else None)
@@ -68,7 +69,9 @@ class NativeActionScopeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             data = Data(root)
             result = ingest(data, batch)
-            event = query(root, result.snapshot_id).to_json()
+            event = data.events(snapshot=result.snapshot_id, query=EventQuery(
+                "corporate_actions", FIELDS, ("sec-synthetic",), "2019-06-05", "2019-06-06",
+                LATER.isoformat(), "operational_pit_v1", "payment_date", {"process_status": "实施"})).to_json()
             self.assertEqual(len(event["records"]), 1)
             self.assertIsNone(event["records"][0]["cash_dividend_before_tax_per_share"])
             self.assertEqual(event["records"][0]["source_issue"], "ambiguous_action_identity_or_revision")
@@ -81,10 +84,13 @@ class NativeActionScopeTests(unittest.TestCase):
     def test_scope_preserves_real_revision_clocks_and_old_snapshot(self):
         with tempfile.TemporaryDirectory() as root:
             data = Data(root)
-            first = ingest(data, source([action(), action(ann_date="20190503")]))
+            first_source = source([action(), action(ann_date="20190503")])
+            first = ingest(data, first_source)
             old_path = Path(root) / "snapshots" / f"{first.snapshot_id}.json"
             old_bytes = old_path.read_bytes()
-            second = ingest(data, source([action(cash_div_tax=0.8)]), op="revision", base=first.snapshot_id, observed=LATER)
+            second_source = source([action(cash_div_tax=0.8)])
+            second_source.source_profile = deepcopy(first_source.source_profile)
+            second = ingest(data, second_source, op="revision", base=first.snapshot_id, observed=LATER)
             late = query(root, second.snapshot_id, data=data).to_json()
             early = query(root, second.snapshot_id, cutoff=OBS.isoformat(), data=data).to_json()
             self.assertEqual(late["records"][0]["cash_dividend_before_tax_per_share"], 0.8)
