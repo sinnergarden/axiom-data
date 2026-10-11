@@ -225,7 +225,8 @@ def _action_rules(value, identities):
             value.get("alias_rule") != "identical_complete_terms_v1"):
         raise DataError("economic actions require declared round and strict alias rules")
     native = value.get("native_key_field")
-    if native is not None and (not isinstance(native, str) or not native or native in _DIVIDEND_V3_FIELDS):
+    if native is not None and (not isinstance(native, str) or not native or
+                               native in (*_DIVIDEND_V3_FIELDS, "cash_div", "base_date", "base_share")):
         raise DataError("native economic key must be an explicitly declared opaque source field")
     rounds = value.get("rounds")
     if not isinstance(rounds, (list, tuple)):

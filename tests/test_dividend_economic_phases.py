@@ -223,7 +223,7 @@ class EconomicPhaseTests(unittest.TestCase):
             self.assertEqual(float(current.frame.iloc[0]["stock_distribution_shares_per_share"]), 0)
 
     def test_mutable_source_fields_cannot_be_declared_native_economic_keys(self):
-        for field in ("ann_date", "ex_date", "cash_div_tax", "stk_div", "pay_date"):
+        for field in ("ann_date", "ex_date", "cash_div_tax", "stk_div", "pay_date", "cash_div", "base_date", "base_share"):
             with self.subTest(field=field), self.assertRaises(DataError):
                 event_source_profile("dividend", identity_map=IDS, next_open_session_by_date=CALENDAR,
                                      corporate_action_rules=rules([action()], native=field))
