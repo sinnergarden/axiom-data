@@ -193,7 +193,7 @@ class EconomicPhaseTests(unittest.TestCase):
             self.assertEqual(len(early.frame), 1)
             self.assertTrue(early.frame.iloc[0]["economic_event_id"].startswith("ca:round:"))
             self.assertEqual(float(early.frame.iloc[0]["cash_dividend_before_tax_per_share"]), 0.5)
-            self.assertIsNone(early.frame.iloc[0]["source_issue"])
+            self.assertIsNone(early.to_json()["records"][0]["source_issue"])
             native = query(root, snapshot, time_field="report_period", day="2018-12-31")
             self.assertTrue(native.frame["economic_event_id"].isna().all())
             self.assertEqual(set(native.frame["source_issue"]), {"ambiguous_economic_alias_terms_or_dates"})
