@@ -219,6 +219,8 @@ def _params(endpoint, params, identities):
         raise DataError("stock source params must be bounded strings")
     p = dict(params)
     allowed = {"ts_code", "trade_date", "start_date", "end_date"} if base in _DAILY else {"ts_code", "ann_date", "start_date", "end_date", "period"}
+    if base == "stk_holdernumber":
+        allowed.discard("period")  # Holder windows use announcements, not VIP quarters.
     if base == "index_member_all":
         allowed = {"ts_code", "l1_code", "l2_code", "l3_code", "is_new"}
         if p.get("is_new") not in {"Y", "N"} or not set(p) & {"ts_code", "l1_code", "l2_code", "l3_code"}:

@@ -196,6 +196,42 @@ class StockInputTests(unittest.TestCase):
         spec=stock_input_source_spec("daily_basic",identity_map=IDS);spec['source_profile']['identity_map'].clear()
         self.assertEqual(stock_input_source_spec("daily_basic",identity_map=IDS)['source_profile']['identity_map'],IDS)
 
+    def test_residual_balance_indicator_and_holder_native_values(self):
+        cases=[("balancesheet_vip", complete("balancesheet_vip",ts_code="000001.SZ",ann_date="20240429",f_ann_date="20240429",
+                  end_date="20240331",report_type="1",comp_type="1",end_type="1",update_flag="0",total_assets=100,
+                  total_liab=40,total_hldr_eqy_exc_min_int=60,inventories=8,accounts_receiv=9),
+                {"period":"20240331","report_type":"1"},"balance_sheet_events",("inventory","accounts_receiv"),(8,9)),
+               ("fina_indicator_vip",complete("fina_indicator_vip",ts_code="000001.SZ",ann_date="20240429",end_date="20240331",
+                  roe=12,roe_waa=11,debt_to_assets=40,grossprofit_margin=25,current_ratio=1.5),
+                {"period":"20240331"},"financial_indicator_events",("grossprofit_margin","current_ratio"),(25,1.5)),
+               ("stk_holdernumber",complete("stk_holdernumber",ts_code="000001.SZ",ann_date="20240429",end_date="20240331",holder_num=42),
+                {"start_date":"20240401","end_date":"20240430"},"shareholder_count_events",("holder_num",),(42,))]
+        for endpoint,row,params,domain,fields,expected in cases:
+            with self.subTest(endpoint=endpoint),tempfile.TemporaryDirectory() as root:
+                store=LocalStore(root);sid=self.publish(store,self.collect(store,endpoint,[row],params=params))
+                batch=Data(root).events(snapshot=sid,query=EventQuery(domain,fields,("sec-a",),"2024-03-31","2024-03-31",
+                    "2024-04-30T10:00:00+08:00","best_effort_vendor_v1","report_period"))
+                result=batch.to_json()['records'][0]
+                self.assertEqual(tuple(result[f] for f in fields),expected)
+
+    def test_moneyflow_native_net_and_catalog_request_version(self):
+        row=complete("moneyflow",ts_code="000001.SZ",trade_date="20240503",net_mf_amount=-2,buy_elg_amount=10,sell_elg_amount=7)
+        catalog=complete("index_classify",index_code="801010.SI",industry_name="synthetic",parent_code="0",level="L1",
+                         industry_code="110000",is_pub="1",src="SW")
+        with tempfile.TemporaryDirectory() as root:
+            store=LocalStore(root);raw=self.collect(store,"moneyflow",[row]);sid=self.publish(store,raw)
+            q=QuerySpec("money_flow_daily",("net_inflow_cny","extra_large_buy_cny","extra_large_sell_cny"),("sec-a",),
+                ("2024-05-03",),"best_effort_vendor_v1",{"2024-05-03":"2024-05-03T20:01:00+08:00"})
+            r=Data(root).read(snapshot=sid,query=q).to_json()['records'][0]
+            self.assertEqual(r['net_inflow_cny'],-20000)
+            self.assertEqual(r['extra_large_buy_cny']-r['extra_large_sell_cny'],30000)
+            saved=self.collect(store,"index_classify",[catalog],params={"level":"L1","src":"SW2021"},operation="catalog")
+            csid=self.publish(store,saved,operation="catalog-publish")
+            domain=store.load_snapshot(csid)['domains']['industry_catalogue']
+            c=store.read_partition(domain['partitions'][0]).to_pylist()[0]
+            self.assertEqual(c['requested_src'],'SW2021')
+            self.assertEqual(c['src'],'SW')  # Preserve native value; do not infer per-member vintage.
+
 
 if __name__ == "__main__":
     unittest.main()
