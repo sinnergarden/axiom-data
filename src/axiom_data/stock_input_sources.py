@@ -266,6 +266,11 @@ def prepare_stock_input_rows(batch: IngestBatch) -> list[dict[str, Any]]:
     if cap is not None and len(rows) >= cap:
         raise CoverageError("stock input response reached row cap; split the selector")
     required = list(batch.request.get("fields") or ())
+    if endpoint in _FINANCIAL and batch.request.get("input_field_set") != FIELD_SET:
+        # Legacy event adapters permitted absent optional statement context.
+        # Rebuild preserves that interpretation; new explicit requests remain
+        # strict about every requested expanded field and context column.
+        required = list(_FIELDS[endpoint])
     if not required:
         raise DataError("retained input lacks explicit source field request")
     for row in rows:
