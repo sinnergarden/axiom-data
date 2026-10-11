@@ -146,6 +146,7 @@ class LocalStore:
         self._raw_scanned = 0
         self._raw_inode: tuple[int, int] | None = None
         self._profile_cache: dict[str, dict[str, Any]] = {}
+        self._raw_slot_index: dict[str, Any] | None = None
 
     def raw_log_size(self) -> int:
         """Return a committed append boundary, preserving any interrupted tail.
@@ -541,6 +542,130 @@ class LocalStore:
         except FileNotFoundError:
             return {}
         return found
+
+    def find_raw_slot(self, operation_id: str, batch_index: int, *, raw_log_guard=None):
+        """Return one isolated receipt using a bounded operation-local index.
+
+        A cold lookup scans all existing complete receipts, including failed
+        and capped slots. Later lookups decode only appended lines and the
+        requested receipt. Switching operation discards this index. At most
+        32768 positions and an 8 MiB log line are accepted; no answers or full
+        profiles are retained here. Incomplete tails remain invisible.
+
+        A changed inode, committed truncation, changed anchor or selected line
+        fails before a source call. A fresh store rebuilds from offset zero;
+        pass a saved raw_slot_checkpoint guard to also check restart identity
+        and committed extent. This does not certify every unchanged prefix byte.
+        """
+        _clean_name(operation_id, "operation ID")
+        if type(batch_index) is not int or batch_index < 0:
+            raise DataError("batch_index must be a non-negative integer")
+        path = self.root / "raw/fetches.jsonl"
+        with self._mutex:
+            try:
+                stream = path.open("rb")
+            except FileNotFoundError:
+                if self._raw_slot_index is not None or raw_log_guard is not None:
+                    raise DataError("indexed Raw log disappeared")
+                return None
+            with stream:
+                stat = os.fstat(stream.fileno())
+                inode = (stat.st_dev, stat.st_ino)
+                state = self._raw_slot_index
+                guards = [g for g in (state, raw_log_guard) if g is not None]
+                for guard in guards:
+                    if (not isinstance(guard, Mapping) or not {"inode", "offset", "anchor"}.issubset(guard) or
+                            not isinstance(guard["inode"], (list, tuple)) or len(guard["inode"]) != 2 or
+                            any(type(v) is not int or v < 0 for v in guard["inode"]) or
+                            type(guard["offset"]) is not int or guard["offset"] < 0):
+                        raise DataError("invalid Raw log guard")
+                    if tuple(guard["inode"]) != inode or stat.st_size < guard["offset"]:
+                        raise DataError("indexed Raw log identity or committed extent changed")
+                    if guard["anchor"] is not None:
+                        anchor = guard["anchor"]
+                        if (not isinstance(anchor, (list, tuple)) or len(anchor) != 3 or
+                                type(anchor[0]) is not int or anchor[0] < 0 or
+                                type(anchor[1]) is not int or not 0 < anchor[1] <= 8 * 1024 * 1024 or
+                                anchor[0] + anchor[1] != guard["offset"] or
+                                not isinstance(anchor[2], str) or not re.fullmatch(r"[0-9a-f]{64}", anchor[2])):
+                            raise DataError("invalid Raw log guard anchor")
+                        offset, length, expected = guard["anchor"]
+                        stream.seek(offset)
+                        if sha256(stream.read(length)).hexdigest() != expected:
+                            raise DataError("indexed Raw log anchor changed")
+                    elif guard["offset"]:
+                        raise DataError("Raw log guard lacks its committed anchor")
+                if raw_log_guard is not None and raw_log_guard.get("operation_id") != operation_id:
+                    raise ConflictError("Raw log guard belongs to another operation")
+                if (state is not None and stat.st_size == state["offset"] == state["size"] and
+                        stat.st_mtime_ns != state["mtime_ns"]):
+                    raise DataError("indexed Raw log changed without an append")
+                if state is None or state["operation_id"] != operation_id:
+                    state = {"operation_id": operation_id, "inode": inode, "offset": 0,
+                             "anchor": None, "slots": {}, "size": 0, "mtime_ns": stat.st_mtime_ns}
+                    self._raw_slot_index = state
+                stream.seek(state["offset"])
+                while stream.tell() < stat.st_size:
+                    offset = stream.tell()
+                    line = stream.readline(min(8 * 1024 * 1024 + 1, stat.st_size - offset))
+                    if len(line) > 8 * 1024 * 1024:
+                        raise DataError("Raw slot lookup log line exceeds 8 MiB")
+                    if not line.endswith(b"\n"):
+                        break
+                    record = self._decode_raw_line(line)
+                    location = (offset, len(line), sha256(line).hexdigest())
+                    if record.get("operation_id") == operation_id:
+                        index = record.get("batch_index")
+                        if type(index) is not int or index < 0:
+                            raise DataError(f"operation {operation_id} has invalid batch_index")
+                        previous = state["slots"].get(index)
+                        if previous is not None:
+                            cursor = stream.tell()
+                            stream.seek(previous[0])
+                            old_line = stream.read(previous[1])
+                            stream.seek(cursor)
+                            if (sha256(old_line).hexdigest() != previous[2] or
+                                    self._decode_raw_line(old_line) != record):
+                                raise ConflictError(f"operation {operation_id} has duplicate Raw batch_index {index}")
+                        else:
+                            if len(state["slots"]) >= 32768:
+                                raise DataError("Raw operation slot index exceeds its bounded capacity")
+                            state["slots"][index] = location
+                    state["offset"], state["anchor"] = stream.tell(), location
+                    del record, line
+                state["size"], state["mtime_ns"] = stat.st_size, stat.st_mtime_ns
+                location = state["slots"].get(batch_index)
+                result = None
+                if location is not None:
+                    stream.seek(location[0])
+                    line = stream.read(location[1])
+                    if sha256(line).hexdigest() != location[2]:
+                        raise DataError("indexed Raw slot changed")
+                    result = self._decode_raw_line(line)
+                    if result.get("operation_id") != operation_id or result.get("batch_index") != batch_index:
+                        raise DataError("Raw slot index disagrees with receipt")
+                try:
+                    after = path.stat()
+                except FileNotFoundError as exc:
+                    raise DataError("indexed Raw log disappeared during lookup") from exc
+                if ((after.st_dev, after.st_ino) != inode or after.st_size < state["offset"] or
+                        (after.st_size == stat.st_size and after.st_mtime_ns != stat.st_mtime_ns)):
+                    raise DataError("Raw log changed during slot lookup")
+                return deepcopy(result)
+
+    def raw_slot_checkpoint(self, operation_id: str) -> dict[str, Any]:
+        """Return a small restart guard after indexing complete operation Raw.
+
+        Save this in the caller's existing checkpoint and pass it to subsequent
+        stock input collection after restart. It binds the physical file,
+        committed extent and last complete line, without persisting an index.
+        """
+        with self._mutex:
+            self.find_raw_slot(operation_id, 0)
+            state = self._raw_slot_index
+            if state is None:
+                raise DataError("Raw slot checkpoint requires an existing log")
+            return deepcopy({key: state[key] for key in ("operation_id", "inode", "offset", "anchor")})
 
     def read_raw(self, batch_id: str) -> bytes:
         record = self.get_raw(batch_id)

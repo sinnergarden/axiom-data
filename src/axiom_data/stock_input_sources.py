@@ -340,7 +340,7 @@ def collect_stock_input_response(store: LocalStore, *, client: Any, endpoint: st
                                  params: Mapping[str, str], identity_map: Mapping[str, str],
                                  canonical_symbols=None, operation_id: str, batch_index=0,
                                  next_open_session_by_date=None, lending_sell_unit_by_security=None,
-                                 clock=None, observed_at=None) -> dict[str, Any]:
+                                 clock=None, observed_at=None, raw_log_guard=None) -> dict[str, Any]:
     """Make exactly one explicit injected call and save success/empty/cap/failure.
 
     The saved slot binds endpoint, fields, selectors, identity and source policy.
@@ -349,6 +349,10 @@ def collect_stock_input_response(store: LocalStore, *, client: Any, endpoint: st
     never become empty/zero data. No quota change, pagination or extra call is
     inferred; the caller probes then splits capped selectors under its budget.
     observed_at is a synthetic/replay override; live callers must omit it.
+    One LocalStore indexes existing operation slots once, then appended lines;
+    all previous statuses and exact request/profile/contract checks remain.
+    Persist store.raw_slot_checkpoint(operation_id) in the caller checkpoint
+    and pass raw_log_guard on restart to reject replacement or truncation.
     """
     if not isinstance(store, LocalStore):
         raise DataError("stock inputs require LocalStore")
@@ -362,7 +366,7 @@ def collect_stock_input_response(store: LocalStore, *, client: Any, endpoint: st
     request = {"endpoint": endpoint, "params": p, "fields": spec["fields"],
                "canonical_symbols": symbols, "input_field_set": FIELD_SET,
                "coverage_status": "observed_response_only"}
-    previous = store.find_raw_by_operation(operation_id).get(batch_index)
+    previous = store.find_raw_slot(operation_id, batch_index, raw_log_guard=raw_log_guard)
     if previous:
         if previous["request"] != request or previous["source_profile"] != spec["source_profile"] or previous["contract"] != spec["contract"]:
             raise ConflictError("stock input saved slot differs from this request/profile/contract")
