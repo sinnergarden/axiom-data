@@ -245,6 +245,11 @@ class Data:
                                 build_context=build_context, promote=promote,
                                 domain_overrides=domain_overrides)
 
+    def industry_intervals(self, *, snapshot, security_ids):
+        """Read frozen native SW membership intervals; no strict PIT assertion."""
+        from .industry_intervals import read_industry_intervals
+        return read_industry_intervals(self,snapshot=snapshot,security_ids=security_ids)
+
     def describe_snapshot(self, *, snapshot: str, domains,
                           include_domain_refs: bool = False) -> dict:
         """Return detached contract/profile metadata for explicit fixed domains.
