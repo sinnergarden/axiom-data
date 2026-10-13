@@ -158,7 +158,7 @@ class Data:
     def export_review_display(self, *, snapshot: str, price_query: QuerySpec,
                               factor_query: QuerySpec, anchor_session: str,
                               destination, security_query: EventQuery | None = None,
-                              event_queries=()):
+                              event_queries=(), reuse_snapshot: bool = False):
         """Explicitly save retrospective OHLCV and optional labels/events.
 
         Public queries fix the Snapshot, one historical_exploration cutoff,
@@ -168,6 +168,9 @@ class Data:
         exports leave no final artifact. Nothing contacts a supplier. Events
         and names are requested explicitly and retain their Reader provenance.
         No ordinary read requires this export or an on-disk result cache.
+        Sequential bounded exports may set reuse_snapshot=True to reuse this
+        Data instance's admitted Snapshot while its file identity is unchanged.
+        Auxiliary names/events share that same Snapshot admission.
         """
         from .protocols import ConflictError
         from .review_display import save_review_display
@@ -177,11 +180,21 @@ class Data:
         if any(target.is_relative_to(self.store.root.resolve() / name)
                for name in ("raw", "canonical", "snapshots", "operations")):
             raise QueryError("review display destination must be outside fact storage")
-        self._reader(snapshot, refresh=True)
+        reader = self._reader(snapshot, refresh=not reuse_snapshot)
+        def unchanged():
+            path = reader._snapshot_path
+            if path is not None:
+                stat = path.stat()
+                mark = (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+                if mark != reader._snapshot_mark:
+                    raise QueryError("Snapshot changed during review export")
+        unchanged()
         prices = self.read(snapshot=snapshot, query=price_query)
         factors = self.read(snapshot=snapshot, query=factor_query)
-        names = self.events(snapshot=snapshot, query=security_query) if security_query is not None else None
-        events = tuple(self.events(snapshot=snapshot, query=q) for q in event_queries)
+        from .event_reader import read_events
+        names = read_events(self.store, snapshot, security_query, _snapshot=reader.snapshot) if security_query is not None else None
+        events = tuple(read_events(self.store, snapshot, q, _snapshot=reader.snapshot) for q in event_queries)
+        unchanged()
         return save_review_display(prices, factors, anchor_session=anchor_session,
                                    destination=target, security_master=names, events=events)
 

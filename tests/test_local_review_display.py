@@ -92,9 +92,19 @@ class ReviewDisplayTest(unittest.TestCase):
                                  "operational_pit_v1", {s: CUTOFF for s in SESSIONS},
                                  purpose="historical_exploration") for batch in (prices, factors)]
             expected_auxiliary = [data.events(snapshot=snapshot, query=q).to_json() for q in auxiliary_queries]
-            result = data.export_review_display(snapshot=snapshot, price_query=queries[0], factor_query=queries[1],
-                                                anchor_session=SESSIONS[-1], destination=Path(tmp) / "review",
-                                                security_query=auxiliary_queries[0], event_queries=auxiliary_queries[1:])
+            with patch.object(data.store, "load_snapshot", wraps=data.store.load_snapshot) as reads:
+                result = data.export_review_display(snapshot=snapshot, price_query=queries[0], factor_query=queries[1],
+                                                    anchor_session=SESSIONS[-1], destination=Path(tmp) / "review",
+                                                    security_query=auxiliary_queries[0], event_queries=auxiliary_queries[1:])
+                self.assertEqual(reads.call_count, 1)
+                data.export_review_display(snapshot=snapshot, price_query=queries[0], factor_query=queries[1],
+                    anchor_session=SESSIONS[-1], destination=Path(tmp) / "second", security_query=auxiliary_queries[0], reuse_snapshot=True)
+                self.assertEqual(reads.call_count, 1)
+                snapshot_path = data.store.root / "snapshots" / (snapshot + ".json")
+                snapshot_path.touch()
+                with self.assertRaisesRegex(QueryError, "Snapshot changed"):
+                    data.export_review_display(snapshot=snapshot, price_query=queries[0], factor_query=queries[1],
+                        anchor_session=SESSIONS[-1], destination=Path(tmp) / "changed", reuse_snapshot=True)
             self.assertEqual(result["context"]["snapshot_id"], snapshot)
             self.assertEqual((data.store.root / "current.json").read_bytes(), before)
             saved = json.loads((Path(tmp) / "review/ohlcv.json").read_text())
