@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 import tempfile
 import unittest
-from axiom_data import EventQuery, iter_event_cutoffs
+from axiom_data import EventQuery, iter_event_cutoffs, DataError, QueryError
 from axiom_data.event_reader import read_events
 from axiom_data.storage import LocalStore
 from test_bulk_event_processing import row, CONTRACT, PROFILE
@@ -41,7 +41,7 @@ class EventCutoffBatchTests(unittest.TestCase):
                 self.assertEqual(reads.call_count,len(store.load_snapshot(snapshot)['domains']['financial_events']['partitions']))
             self.assertEqual(actual,expected)
             with patch.object(store,'read_partition',side_effect=AssertionError('read before budget')):
-                with self.assertRaisesRegex(ValueError,'budget exceeded before'):
+                with self.assertRaisesRegex(QueryError,'budget exceeded before'):
                     list(iter_event_cutoffs(SimpleNamespace(store=store),snapshot=snapshot,query=q,cutoffs=cutoffs,maximum_cache_bytes=1))
 
     def test_mutation_between_cutoffs_is_rejected(self):
@@ -56,7 +56,7 @@ class EventCutoffBatchTests(unittest.TestCase):
                 path=(store._path(f'snapshots/{snapshot}.json') if mutate=='snapshot' else
                       store._path(store.load_snapshot(snapshot)['domains']['financial_events']['partitions'][0]['uri']))
                 path.write_bytes(path.read_bytes()+b' ')
-                with self.assertRaises((ValueError,OSError)):
+                with self.assertRaises((DataError,OSError)):
                     next(iterator)
 
 
