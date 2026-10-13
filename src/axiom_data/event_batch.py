@@ -29,12 +29,12 @@ def iter_event_cutoffs(data, *, snapshot, query, cutoffs, maximum_cache_bytes=64
     if snapshot in ('', 'current', 'latest'):
         raise QueryError('pinned Snapshot required')
     store = data.store
-    manifest = store.load_snapshot(snapshot)
     manifest_path = store._path(f'snapshots/{snapshot}.json')
     def mark(path):
         stat = path.stat()
         return stat.st_dev,stat.st_ino,stat.st_size,stat.st_mtime_ns,stat.st_ctime_ns
     manifest_epoch = mark(manifest_path)
+    manifest = store.load_snapshot(snapshot)
     def check_epoch():
         if mark(manifest_path) != manifest_epoch:
             raise QueryError('event batch Snapshot epoch changed')
@@ -67,6 +67,7 @@ def iter_event_cutoffs(data, *, snapshot, query, cutoffs, maximum_cache_bytes=64
                 self.retained += reserved; self.tables[key] = table
             store.verify_partition(part)
             return self.tables[key]
+    check_epoch()
     cached = Cache()
     try:
         evidence = evidence_index(cached,manifest,query.domain)
