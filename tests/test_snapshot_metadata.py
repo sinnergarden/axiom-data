@@ -7,7 +7,7 @@ import unittest
 import weakref
 from unittest.mock import patch
 
-from axiom_data import Data, QueryError, UpdateRequest
+from axiom_data import Data, DataError, QueryError, UpdateRequest
 from axiom_data.storage import _json_digest
 from test_local_api import daily_batch, query
 
@@ -75,7 +75,7 @@ class SnapshotMetadataTests(unittest.TestCase):
             data,sid=self.fixture(root); path=Path(root)/'snapshots'/f'{sid}.json'
             body=json.loads(path.read_bytes());body['build_context']['tampered']=True
             path.write_text(json.dumps(body))
-            with self.assertRaisesRegex(ValueError,'content digest mismatch'):
+            with self.assertRaisesRegex(DataError,'content digest mismatch'):
                 data.describe_snapshot(snapshot=sid,domains=['market_daily'])
             with self.assertRaises(QueryError):
                 data.describe_snapshot(snapshot='current',domains=['market_daily'])
