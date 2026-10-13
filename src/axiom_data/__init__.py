@@ -36,6 +36,7 @@ _EXPORTS = {
     'open_native_view': ('native_view', 'open_native_view'),
     'DataError': ('protocols', 'DataError'),
     'EventQuery': ('protocols', 'EventQuery'),
+    'iter_event_cutoffs': ('event_batch', 'iter_event_cutoffs'),
     'IngestBatch': ('protocols', 'IngestBatch'),
     'OperationResult': ('protocols', 'OperationResult'),
     'QueryError': ('protocols', 'QueryError'),
