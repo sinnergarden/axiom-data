@@ -6,6 +6,7 @@ This facade uses inline-domain Parquet snapshots.
 from __future__ import annotations
 
 from collections import OrderedDict
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -243,6 +244,44 @@ class Data:
                                 operation_id=operation_id,
                                 build_context=build_context, promote=promote,
                                 domain_overrides=domain_overrides)
+
+    def describe_snapshot(self, *, snapshot: str, domains,
+                          include_domain_refs: bool = False) -> dict:
+        """Return detached contract/profile metadata for explicit fixed domains.
+
+        Reuses this Data instance's admitted Reader; no fact partitions, source
+        calls, writes or Views are involved. Only selected metadata is copied.
+        Optional domain_ref hashes the complete domain descriptor in canonical
+        chunks, allowing unchanged domains to be compared across snapshots.
+        The Snapshot file epoch must still match its original identity admission
+        before and after the projection; changed or missing files are rejected.
+        Cache lifetime and eviction remain the ordinary Data Reader policy.
+        """
+        from .storage import _json_digest
+        if (not isinstance(domains, (list, tuple)) or not domains or
+                any(type(name) is not str or not name for name in domains) or
+                len(set(domains)) != len(domains) or type(include_domain_refs) is not bool):
+            raise QueryError("explicit unique Snapshot domains and boolean domain refs required")
+        reader = self._reader(snapshot)
+        def check_epoch():
+            try:
+                stat = reader._snapshot_path.stat()
+            except (OSError, AttributeError) as exc:
+                raise QueryError("Snapshot file unavailable after admission") from exc
+            mark = (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+            if mark != reader._snapshot_mark:
+                raise QueryError("Snapshot changed after admission")
+        check_epoch()
+        selected = {}
+        for name in domains:
+            if name not in reader.snapshot['domains']:
+                raise QueryError(f"required domain {name!r} is absent from Snapshot {snapshot}")
+            domain = reader.snapshot['domains'][name]
+            selected[name] = deepcopy({key: domain[key] for key in ('contract', 'source_profile')})
+            if include_domain_refs:
+                selected[name]['domain_ref'] = 'sha256:' + _json_digest(domain)
+        check_epoch()
+        return {'snapshot_id': snapshot, 'domains': selected}
 
     def inspect(self, snapshot: str, *, required_scope: QuerySpec | None = None) -> dict:
         """Describe a requested scope; a manifest inventory is not a data audit.
