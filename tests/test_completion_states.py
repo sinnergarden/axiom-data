@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -162,6 +162,46 @@ class CompletionStatesTests(unittest.TestCase):
                 path.write_bytes(path.read_bytes().replace(b'"case":"A"', b'"case":"forged"'))
                 with self.assertRaisesRegex(DataError, "digest mismatch"):
                     data.plan_scope(snapshot=snapshots[0], **options)
+
+    def test_long_scope_bounds_membership_projection_and_retains_unknown_order(self):
+        from axiom_data.reader import SnapshotQueryReader
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalStore(tmp)
+            days = tuple((date(2024, 1, 2) + timedelta(days=i)).isoformat() for i in range(70))
+            domains = {
+                "trading_calendar": add_domain(store, "trading_calendar", [
+                    row(exchange="SSE", session=d, is_open=True) for d in days], CAL),
+                "universe_membership": add_domain(store, "universe_membership", [
+                    row(security_id="A", universe_id="IDX", membership_id="a",
+                        effective_from=days[0], effective_to=days[35]),
+                    row(security_id="B", universe_id="IDX", membership_id="b",
+                        effective_from=days[35], effective_to=None)], MEMBER),
+            }
+            snapshot = store.publish_snapshot(domains, parent_snapshot=None,
+                                               build_context={"test": "bounded_scope"})["snapshot_id"]
+            queries = []
+            readers = []
+            original = SnapshotQueryReader.read
+            def observed(reader, query):
+                queries.append(query)
+                readers.append(reader)
+                return original(reader, query)
+            with patch.object(SnapshotQueryReader, 'read', observed), \
+                 patch.object(store, 'load_snapshot', wraps=store.load_snapshot) as loads:
+                actual = plan_research_scope(store, snapshot, universe_id='IDX',
+                    output_sessions=days[2:], cutoff_by_session={d:'2024-12-31T00:00:00Z' for d in days[2:]},
+                    pit_policy='operational_pit_v1', lookback_sessions=2, exchange='SSE')
+                self.assertEqual(loads.call_count, 1)
+            self.assertEqual([len(q.sessions) for q in queries], [32,32,6])
+            self.assertEqual(len({id(r) for r in readers}), 1)
+            self.assertEqual(actual['warmup_sessions'], list(days[:2]))
+            self.assertEqual(actual['historical_union_symbols'], ['A','B'])
+            self.assertEqual(actual['decision_membership_by_session'],
+                {d:['A' if d < days[35] else 'B'] for d in days[2:]})
+            # No complete state: absence of a positive interval remains unknown.
+            self.assertEqual([(m['security_id'],m['session'],m['reason']) for m in actual['missing_reasons']],
+                [('A',d,'source_missing') for d in days[35:]] +
+                [('B',d,'source_missing') for d in days[:35]])
 
     def test_historical_union_reentry_holiday_lookback_and_outside_holdings(self):
         with tempfile.TemporaryDirectory() as tmp:

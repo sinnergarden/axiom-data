@@ -325,10 +325,13 @@ def plan_research_scope(store: Any, snapshot_id: str, *, universe_id: str,
         day = _date_text(row.get("session"))
         if day and day <= sessions[-1] and (exchange is None or row.get("exchange") == exchange):
             by_calendar[(row.get("exchange"), day)].append(row)
+    # Resolve a day's exchange revisions directly, instead of rescanning the
+    # entire calendar for each output/warmup date.
+    calendar_by_day: dict[str, list[tuple[str, list[dict]]]] = defaultdict(list)
+    for (ex, day), revisions in by_calendar.items():
+        calendar_by_day[day].append((ex, revisions))
     def proven_open(day: str, boundary: datetime) -> bool:
-        for (ex, candidate), rows in by_calendar.items():
-            if candidate != day:
-                continue
+        for ex, rows in calendar_by_day.get(day, ()):
             selected, _ = _selected(rows, policy=(policy_by_session or {}).get(day, first_policy), cutoff=boundary,
                                     profile=(calendar_domain or {}).get("source_profile") or {},
                                     session=day, key=f"calendar/{ex}/{day}")
@@ -365,18 +368,31 @@ def plan_research_scope(store: Any, snapshot_id: str, *, universe_id: str,
     cutoffs = {day: cutoff_by_session.get(day, cutoff) for day in selected_sessions}
     segmented = ({day: (policy_by_session or {}).get(day, first_policy) for day in selected_sessions}
                  if pit_policy == "bootstrap_hybrid_v1" else None)
-    member_query = QuerySpec("universe_membership", ("is_member",), tuple(sorted(candidates)),
-                             selected_sessions, pit_policy, cutoffs, universe_id=universe_id,
-                             policy_by_session=segmented)
-    membership = reader.read(member_query)
     by_day: dict[str, list[str]] = {day: [] for day in selected_sessions}
-    for row in membership.frame.itertuples(index=False):
-        if row.is_member is True or (pd.notna(row.is_member) and bool(row.is_member)):
-            by_day[row.session].append(row.security_id)
-    for meta in membership.field_meta["is_member"]["by_key"]:
-        if meta["missing_reason"]:
-            missing.append({"domain": "universe_membership", "session": meta["session"],
-                            "security_id": meta["security_id"], "reason": meta["missing_reason"]})
+    member_missing = []
+    symbols = tuple(sorted(candidates))
+    # Keep one reader and its verified unselected partition index alive across
+    # bounded projections. A long CSI1800 plan must not retain millions of
+    # per-cell metadata dictionaries merely to build a membership union.
+    session_block = max(1, min(32, 131072 // len(symbols)))
+    for offset in range(0, len(selected_sessions), session_block):
+        days = selected_sessions[offset:offset + session_block]
+        member_query = QuerySpec("universe_membership", ("is_member",), symbols,
+                                 days, pit_policy, {d: cutoffs[d] for d in days},
+                                 universe_id=universe_id,
+                                 policy_by_session=({d: segmented[d] for d in days}
+                                                    if segmented is not None else None))
+        membership = reader.read(member_query)
+        for row in membership.frame.itertuples(index=False):
+            if row.is_member is True or (pd.notna(row.is_member) and bool(row.is_member)):
+                by_day[row.session].append(row.security_id)
+        for meta in membership.field_meta["is_member"]["by_key"]:
+            if meta["missing_reason"]:
+                member_missing.append({"domain": "universe_membership", "session": meta["session"],
+                                       "security_id": meta["security_id"], "reason": meta["missing_reason"]})
+        del membership
+    # Preserve the original symbol-major/session-major public result order.
+    missing.extend(sorted(member_missing, key=lambda item: (item["security_id"], item["session"])))
     historical = sorted({symbol for symbols in by_day.values() for symbol in symbols})
     tracking = sorted(set(held) | set(pending))
     return {
